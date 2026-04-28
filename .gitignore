@@ -1,0 +1,13 @@
+# Claude Code configuration
+.claude/
+
+# Base64 encoded assets (not needed in repo)
+profile_b64.txt
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/

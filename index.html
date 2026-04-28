@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Onyul — 풀스택 AI 빌더</title>
+  <meta name="description" content="자동화·SNS 알고리즘·기업 AI 자문. 비즈니스 운영의 병목을 1~4주 안에 제거합니다." />
+  <meta property="og:title" content="Onyul — 풀스택 AI 빌더" />
+  <meta property="og:description" content="자동화·SNS 알고리즘·기업 AI 자문. 비즈니스 운영의 병목을 1~4주 안에 제거합니다." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+
+  <style>
+/* ═══════════════════════════════ TOKENS */
+:root {
+  --bg:           #060D26;
+  --bg2:          #0A1230;
+  --bg3:          #0E1840;
+  --card:         rgba(14, 26, 64, 0.85);
+  --card-border:  rgba(74, 122, 255, 0.22);
+  --card-hover:   rgba(74, 122, 255, 0.38);
+  --blue:         #4A7AFF;
+  --blue-bright:  #5E8FFF;
+  --cyan:         #00D4FF;
+  --purple:       #7B5CF6;
+  --amber:        #F59E0B;
+  --text:         #F2F6FF;
+  --text2:        #A8BCDF;   /* 기존 #8DA0CC → 더 밝게 (WCAG AA 충족) */
+  --text3:        #5C7099;   /* 기존보다 약간 밝게 */
+  --border:       rgba(74,122,255,0.15);
+  --glow-blue:    rgba(74,122,255,0.35);
+  --glow-cyan:    rgba(0,212,255,0.25);
+  --r:            14px;
+  --r-sm:         8px;
+}
+
+/* ═══════════════════════════════ RESET */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;font-size:17px;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Pretendard Variable',Pretendard,Inter,system-ui,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  line-height:1.8;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+  word-break:keep-all;          /* 한국어 어절 단위 줄바꿈 */
+  overflow-wrap:break-word;
+}
+a{text-decoration:none;color:inherit;}
+*:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:4px;}
+
+/* ═══════════════════════════════ BACKGROUND */
+body::before{
+  content:'';
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 60% 50% at 10% 20%, rgba(74,122,255,0.14) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 45% at 90% 75%, rgba(123,92,246,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 35% at 60% 10%, rgba(0,212,255,0.06) 0%, transparent 50%);
+}
+/* Dot grid */
+body::after{
+  content:'';
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:radial-gradient(circle,rgba(74,122,255,0.18) 1px,transparent 1px);
+  background-size:30px 30px;
+  mask-image:radial-gradient(ellipse 80% 80% at center,black 20%,transparent 80%);
+}
+.content{position:relative;z-index:1;}
+
+/* ═══════════════════════════════ LAYOUT */
+.wrap{max-width:1152px;margin:0 auto;padding:0 2rem;}
+@media(max-width:640px){.wrap{padding:0 1.25rem;}}
+.section{padding:100px 0;}
+.section-sm{padding:72px 0;}
+
+/* ═══════════════════════════════ TYPOGRAPHY */
+.eyebrow{
+  font-size:0.75rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;
+  color:var(--cyan);display:inline-block;margin-bottom:14px;
+}
+.h1{
+  font-size:clamp(2.4rem,5.5vw,4.2rem);
+  font-weight:800;line-height:1.12;letter-spacing:-0.03em;color:var(--text);
+  word-break:keep-all;
+}
+.h2{
+  font-size:clamp(1.75rem,3.5vw,2.75rem);
+  font-weight:800;line-height:1.2;letter-spacing:-0.025em;color:var(--text);
+  word-break:keep-all;
+}
+.h3{
+  font-size:1.0625rem;font-weight:700;line-height:1.5;letter-spacing:-0.01em;color:var(--text);
+  word-break:keep-all;
+}
+.body-text{font-size:1rem;color:var(--text2);line-height:1.85;word-break:keep-all;}
+.small{font-size:0.9375rem;color:var(--text2);line-height:1.85;word-break:keep-all;}
+.xs{font-size:0.8125rem;color:var(--text3);line-height:1.65;}
+.num{font-family:Inter,sans-serif;font-variant-numeric:tabular-nums;}
+.accent{color:var(--blue);}
+.accent-cyan{color:var(--cyan);}
+/* gradient h1 마지막 줄 — 어떤 width에서도 줄바꿈 안 함 */
+.h1-grad{
+  display:block;
+  background:linear-gradient(90deg,var(--blue),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+/* ═══════════════════════════════ BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:0.9375rem;font-weight:700;
+  padding:13px 28px;border-radius:var(--r-sm);
+  border:none;cursor:pointer;transition:all 0.2s;white-space:nowrap;
+}
+.btn-blue{
+  background:var(--blue);color:#fff;
+  box-shadow:0 4px 20px rgba(74,122,255,0.45);
+}
+.btn-blue:hover{background:var(--blue-bright);box-shadow:0 6px 28px rgba(74,122,255,0.6);transform:translateY(-2px);}
+.btn-outline{
+  background:transparent;color:var(--text);
+  border:1.5px solid rgba(74,122,255,0.45);
+}
+.btn-outline:hover{border-color:var(--blue);color:var(--blue);background:rgba(74,122,255,0.08);transform:translateY(-2px);}
+
+/* ═══════════════════════════════ NAV */
+#nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  height:68px;
+  transition:background 0.25s,box-shadow 0.25s;
+}
+#nav.scrolled{
+  background:rgba(6,13,38,0.92);
+  backdrop-filter:blur(16px);
+  box-shadow:0 1px 0 rgba(74,122,255,0.15);
+}
+/* 로고는 왼쪽, 나머지(링크+CTA)는 오른쪽 */
+.nav-inner{height:68px;display:flex;align-items:center;gap:0;}
+.nav-logo{margin-right:auto;}
+.nav-logo{
+  font-size:1.125rem;font-weight:800;letter-spacing:-0.02em;
+  display:flex;align-items:center;gap:8px;
+}
+.nav-logo-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 8px var(--cyan);
+}
+.nav-links{display:flex;align-items:center;gap:2rem;list-style:none;margin-right:2rem;}
+.nav-links a{
+  font-size:0.9rem;font-weight:500;color:var(--text2);
+  transition:color 0.15s;position:relative;padding-bottom:2px;
+}
+.nav-links a::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1.5px;
+  background:var(--cyan);transform:scaleX(0);transition:transform 0.2s;
+}
+.nav-links a:hover{color:var(--text);}
+.nav-links a:hover::after{transform:scaleX(1);}
+#mobile-menu{
+  display:none;
+  position:absolute;top:68px;left:0;right:0;
+  background:rgba(8,16,44,0.97);
+  backdrop-filter:blur(16px);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+  padding:1rem 1.25rem 1.5rem;
+}
+#mobile-menu.open{display:block;}
+.m-link{
+  display:block;padding:0.8rem 0;
+  font-size:1rem;font-weight:500;color:var(--text2);
+  border-bottom:1px solid var(--border);
+}
+.m-link:last-of-type{border-bottom:none;}
+.m-cta{
+  display:block;margin-top:1rem;text-align:center;
+  background:var(--blue);color:#fff;font-weight:700;
+  padding:13px;border-radius:var(--r-sm);
+  box-shadow:0 4px 20px rgba(74,122,255,0.4);
+}
+@media(min-width:769px){#hamburger{display:none;}}
+@media(max-width:768px){.nav-links,#nav-cta{display:none;}}
+
+/* ═══════════════════════════════ CARDS */
+.card{
+  background:var(--card);
+  border:1.5px solid var(--card-border);
+  border-radius:var(--r);
+  backdrop-filter:blur(12px);
+  transition:border-color 0.2s,box-shadow 0.2s,transform 0.2s;
+  position:relative;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;inset:0;border-radius:var(--r);
+  background:linear-gradient(135deg,rgba(74,122,255,0.06) 0%,transparent 60%);
+  pointer-events:none;
+}
+.card:hover{
+  border-color:var(--card-hover);
+  box-shadow:0 8px 40px rgba(74,122,255,0.2),0 0 0 1px rgba(74,122,255,0.1);
+  transform:translateY(-4px);
+}
+
+/* ═══════════════════════════════ HERO */
+#hero{
+  min-height:100vh;
+  display:flex;align-items:center;
+  padding-top:88px;padding-bottom:60px;
+}
+.hero-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:60px;align-items:center;
+}
+@media(max-width:900px){.hero-grid{grid-template-columns:1fr;gap:32px;}}
+.hero-left{}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(74,122,255,0.12);
+  border:1.5px solid rgba(74,122,255,0.3);
+  color:var(--cyan);
+  font-size:0.8125rem;font-weight:600;letter-spacing:0.06em;
+  padding:6px 16px;border-radius:999px;margin-bottom:28px;
+}
+.hero-badge-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--cyan);box-shadow:0 0 6px var(--cyan);
+}
+.h1{margin-bottom:24px;}
+.hero-sub{
+  font-size:1.0625rem;color:var(--text2);line-height:1.8;
+  max-width:500px;margin-bottom:36px;
+}
+.hero-sub strong{color:var(--text);font-weight:700;}
+.hero-btns{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:36px;}
+.hero-meta{
+  display:flex;flex-wrap:wrap;align-items:center;
+  gap:8px 20px;font-size:0.875rem;color:var(--text3);
+}
+.live-dot{
+  display:inline-flex;align-items:center;gap:7px;color:var(--text2);
+}
+.live-dot span{
+  width:8px;height:8px;border-radius:50%;background:#10B981;
+  box-shadow:0 0 0 3px rgba(16,185,129,0.2);
+}
+
+/* Hero right: profile visual */
+.hero-right{display:flex;justify-content:center;align-items:center;}
+.profile-frame{
+  position:relative;width:340px;height:400px;
+  display:flex;align-items:flex-end;justify-content:center;
+}
+.profile-bg{
+  position:absolute;inset:0;border-radius:24px;
+  background:linear-gradient(145deg,rgba(74,122,255,0.25),rgba(123,92,246,0.15));
+  border:1.5px solid rgba(74,122,255,0.3);
+  box-shadow:0 20px 60px rgba(74,122,255,0.2);
+}
+.profile-silhouette{
+  position:relative;z-index:1;
+  width:100%;height:100%;
+  border-radius:22px;overflow:hidden;
+}
+/* 가장자리만 살짝 페이드 — 인물은 뚜렷하게 유지 */
+.profile-silhouette::after{
+  content:'';
+  position:absolute;inset:0;z-index:3;
+  border-radius:22px;
+  background:
+    linear-gradient(to top,    rgba(6,13,38,0.55) 0%, transparent 22%),
+    linear-gradient(to right,  rgba(6,13,38,0.25) 0%, transparent 18%, transparent 82%, rgba(6,13,38,0.25) 100%),
+    linear-gradient(to bottom, rgba(6,13,38,0.20) 0%, transparent 16%);
+  pointer-events:none;
+}
+.profile-placeholder{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  color:rgba(74,122,255,0.5);font-size:0.8125rem;font-weight:500;letter-spacing:0.08em;
+  text-transform:uppercase;
+}
+.profile-icon{
+  width:80px;height:80px;border-radius:50%;
+  background:rgba(74,122,255,0.15);border:2px solid rgba(74,122,255,0.25);
+  display:flex;align-items:center;justify-content:center;
+}
+/* floating badge */
+.float-badge{
+  position:absolute;z-index:2;
+  background:rgba(10,20,55,0.9);
+  border:1.5px solid rgba(74,122,255,0.3);
+  border-radius:10px;padding:10px 14px;
+  font-size:0.8125rem;font-weight:700;
+  backdrop-filter:blur(8px);
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+  display:flex;align-items:center;gap:8px;
+  white-space:nowrap;
+}
+.float-badge-1{top:24px;right:-20px;}
+.float-badge-2{bottom:60px;left:-20px;}
+.float-dot{width:10px;height:10px;border-radius:50%;}
+
+/* ═══════════════════════════════ PROOF BAR */
+#proof{
+  background:rgba(10,18,48,0.7);
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+  padding:28px 0;backdrop-filter:blur(8px);
+}
+.proof-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:24px;}
+.proof-logos{display:flex;flex-wrap:wrap;align-items:center;gap:10px;}
+.proof-logo{
+  height:34px;padding:0 16px;
+  background:rgba(74,122,255,0.08);border:1.5px solid rgba(74,122,255,0.15);
+  border-radius:var(--r-sm);
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:0.6875rem;font-weight:700;color:var(--text3);letter-spacing:0.1em;
+}
+.proof-stats{display:flex;align-items:center;gap:28px;flex-shrink:0;}
+.stat-n{
+  font-family:Inter,sans-serif;font-size:1.75rem;font-weight:800;
+  color:var(--text);letter-spacing:-0.04em;
+  text-shadow:0 0 20px rgba(74,122,255,0.5);
+}
+.stat-n em{color:var(--blue);font-style:normal;}
+.stat-l{font-size:0.75rem;font-weight:500;color:var(--text3);margin-top:2px;}
+.stat-sep{width:1px;height:36px;background:var(--border);}
+
+/* ═══════════════════════════════ SECTION HEAD */
+.sec-head{margin-bottom:60px;}
+.sec-head .h2{margin-top:10px;}
+/* 본문 텍스트 최대 너비 (Stripe/Linear 패턴: 읽기 편한 66자 기준) */
+.sec-head p.body-text{max-width:560px;margin-top:14px;}
+
+/* ═══════════════════════════════ PROBLEM CARDS */
+.prob-card{
+  padding:28px 26px;
+  cursor:pointer;display:flex;flex-direction:column;
+}
+.prob-icon{
+  width:46px;height:46px;border-radius:12px;
+  background:rgba(74,122,255,0.12);border:1.5px solid rgba(74,122,255,0.2);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:18px;
+}
+.prob-icon svg{width:22px;height:22px;color:var(--blue);}
+.prob-arrow{
+  margin-top:auto;padding-top:16px;
+  font-size:0.875rem;font-weight:700;color:var(--blue);
+  display:flex;align-items:center;gap:4px;
+  transition:gap 0.2s;
+}
+.prob-card:hover .prob-arrow{gap:8px;}
+
+/* ═══════════════════════════════ SERVICE CARDS */
+.svc-card{padding:32px 30px 28px;display:flex;flex-direction:column;}
+.svc-accent{
+  width:36px;height:3px;border-radius:2px;
+  background:linear-gradient(90deg,var(--blue),var(--cyan));
+  margin-bottom:20px;
+}
+.svc-en{
+  font-size:0.6875rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--text3);margin-bottom:4px;
+}
+.result-item{
+  display:flex;align-items:flex-start;gap:10px;
+  font-size:0.9rem;color:var(--text2);margin-bottom:9px;
+}
+.result-item:last-child{margin-bottom:0;}
+.check-icon{
+  flex-shrink:0;margin-top:3px;
+  width:17px;height:17px;border-radius:50%;
+  background:rgba(74,122,255,0.15);
+  display:flex;align-items:center;justify-content:center;
+}
+.check-icon svg{width:10px;height:10px;color:var(--blue);}
+.result-item strong{color:var(--text);font-family:Inter,sans-serif;}
+.svc-btn{
+  margin-top:24px;
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:0.875rem;font-weight:700;color:var(--blue);
+  padding:10px 18px;border-radius:var(--r-sm);
+  border:1.5px solid rgba(74,122,255,0.35);
+  background:rgba(74,122,255,0.06);
+  transition:all 0.18s;width:fit-content;
+}
+.svc-btn:hover{background:rgba(74,122,255,0.15);border-color:var(--blue);transform:translateY(-1px);}
+
+/* ═══════════════════════════════ CASE CARDS */
+.case-card{
+  overflow:hidden;display:flex;flex-direction:column;
+  transition:transform 0.25s cubic-bezier(0.16,1,0.3,1),
+             box-shadow 0.25s,border-color 0.25s;
+}
+.case-card:hover{
+  transform:translateY(-6px) scale(1.012);
+  box-shadow:0 16px 48px rgba(74,122,255,0.25),0 0 0 1px rgba(74,122,255,0.3);
+  border-color:rgba(74,122,255,0.5)!important;
+}
+.case-card:hover .case-kpi{
+  text-shadow:0 0 24px rgba(0,212,255,0.8);
+}
+.case-top{
+  padding:20px 22px 16px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+}
+.case-tag{
+  display:inline-block;
+  background:rgba(74,122,255,0.12);
+  border:1px solid rgba(74,122,255,0.25);
+  color:var(--blue);
+  font-size:0.6875rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;
+  padding:4px 11px;border-radius:999px;
+}
+.case-kpi{
+  font-family:Inter,sans-serif;font-size:1.5rem;font-weight:800;
+  color:var(--cyan);letter-spacing:-0.04em;white-space:nowrap;
+  text-shadow:0 0 16px rgba(0,212,255,0.4);
+}
+.case-body{padding:20px 24px 24px;flex:1;display:flex;flex-direction:column;}
+.case-row{
+  display:flex;gap:14px;
+  padding:10px 0;border-bottom:1px solid rgba(74,122,255,0.08);
+}
+.case-row:last-of-type{border-bottom:none;}
+.case-lbl{
+  flex-shrink:0;width:38px;
+  font-size:0.6875rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.08em;color:var(--text3);padding-top:2px;
+}
+.case-lbl.r{color:var(--cyan);}
+.case-txt{font-size:0.9rem;color:var(--text2);line-height:1.75;word-break:keep-all;}
+.case-cta{
+  margin-top:16px;font-size:0.875rem;font-weight:700;
+  color:var(--blue);transition:color 0.15s;
+}
+.case-cta:hover{color:var(--cyan);}
+
+/* ═══════════════════════════════ SKILL CIRCLES */
+.skill-card{
+  padding:28px 22px;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+}
+.circle-wrap{position:relative;width:96px;height:96px;margin-bottom:16px;}
+.circle-bg{fill:none;stroke:rgba(74,122,255,0.12);stroke-width:5;}
+.circle-progress{
+  fill:none;stroke:var(--blue);stroke-width:5;
+  stroke-linecap:round;
+  transform:rotate(-90deg);transform-origin:50% 50%;
+  transition:stroke-dashoffset 1.2s cubic-bezier(0.16,1,0.3,1);
+  filter:drop-shadow(0 0 4px rgba(74,122,255,0.7));
+}
+.circle-text{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:Inter,sans-serif;font-size:1.25rem;font-weight:800;color:var(--text);
+}
+.skill-name{font-size:0.9375rem;font-weight:700;color:var(--text);margin-bottom:8px;}
+.skill-desc{font-size:0.8125rem;color:var(--text3);line-height:1.6;}
+
+/* ═══════════════════════════════ TECH CHIPS */
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:999px;
+  background:rgba(74,122,255,0.08);
+  border:1.5px solid rgba(74,122,255,0.18);
+  font-size:0.8125rem;font-weight:600;color:var(--text2);
+  transition:all 0.15s;cursor:default;
+}
+.chip:hover{border-color:var(--blue);color:var(--text);background:rgba(74,122,255,0.14);}
+
+/* ═══════════════════════════════ PROCESS */
+.process-h-wrap{position:relative;}
+.process-h-line{
+  position:absolute;top:21px;left:calc(12.5%);
+  width:75%;height:2px;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+  opacity:0.25;
+}
+.process-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;}
+.proc-step{padding:0 20px 0 0;position:relative;}
+.proc-step:last-child{padding-right:0;}
+.proc-num{
+  width:44px;height:44px;border-radius:50%;
+  background:var(--blue);color:#fff;
+  font-family:Inter,sans-serif;font-size:0.875rem;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:18px;position:relative;z-index:1;
+  box-shadow:0 0 0 5px var(--bg),0 4px 16px rgba(74,122,255,0.5);
+}
+.proc-num.done{background:var(--bg3);color:var(--text3);box-shadow:0 0 0 5px var(--bg);}
+.proc-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:6px;}
+.proc-desc{font-size:0.9rem;color:var(--text2);line-height:1.8;word-break:keep-all;}
+.proc-dur{
+  display:inline-block;margin-top:10px;
+  font-size:0.75rem;font-weight:600;color:var(--cyan);
+  background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.2);
+  padding:3px 10px;border-radius:999px;
+}
+/* Mobile process */
+.proc-v{display:none;}
+.proc-v-step{display:flex;gap:18px;padding-bottom:32px;position:relative;}
+.proc-v-step::before{
+  content:'';position:absolute;top:44px;left:21px;
+  width:2px;height:calc(100% - 44px);
+  background:linear-gradient(var(--blue),transparent);opacity:0.2;
+}
+.proc-v-step:last-child::before{display:none;}
+.proc-v-step:last-child{padding-bottom:0;}
+.v-num{
+  flex-shrink:0;width:44px;height:44px;border-radius:50%;
+  background:var(--blue);color:#fff;
+  font-family:Inter,sans-serif;font-size:0.875rem;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 16px rgba(74,122,255,0.4);position:relative;z-index:1;
+}
+.v-num.done{background:var(--bg3);color:var(--text3);box-shadow:none;}
+@media(max-width:1024px){
+  .process-grid,.process-h-line{display:none;}
+  .proc-v{display:block;}
+}
+
+/* ═══════════════════════════════ CONTACT */
+#contact{
+  background:linear-gradient(180deg,var(--bg) 0%,rgba(10,20,60,0.95) 100%);
+  padding:112px 0;border-top:1px solid var(--border);
+}
+.contact-inner{max-width:640px;margin:0 auto;text-align:center;}
+.contact-h2{
+  font-size:clamp(1.75rem,3.5vw,2.75rem);
+  font-weight:800;line-height:1.15;letter-spacing:-0.03em;color:var(--text);
+  margin-bottom:18px;
+}
+.contact-sub{font-size:1rem;color:var(--text2);line-height:1.8;margin-bottom:36px;}
+.contact-list{list-style:none;text-align:left;display:inline-flex;flex-direction:column;gap:14px;margin-bottom:44px;}
+.contact-list li{
+  display:flex;align-items:flex-start;gap:12px;
+  font-size:0.9375rem;color:var(--text2);line-height:1.65;
+}
+.c-arrow{
+  flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  background:rgba(74,122,255,0.15);border:1px solid rgba(74,122,255,0.25);
+  display:flex;align-items:center;justify-content:center;margin-top:1px;
+  font-size:0.75rem;color:var(--blue);
+}
+.contact-btns{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-bottom:32px;}
+.btn-contact{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:0.9375rem;font-weight:700;
+  padding:14px 32px;border-radius:var(--r-sm);
+  transition:all 0.2s;cursor:pointer;
+}
+.btn-c-primary{
+  background:var(--blue);color:#fff;
+  box-shadow:0 4px 24px rgba(74,122,255,0.45);
+}
+.btn-c-primary:hover{background:var(--blue-bright);box-shadow:0 6px 32px rgba(74,122,255,0.6);transform:translateY(-2px);}
+.btn-c-ghost{
+  background:rgba(74,122,255,0.08);color:var(--text2);
+  border:1.5px solid rgba(74,122,255,0.25);
+}
+.btn-c-ghost:hover{border-color:var(--blue);color:var(--text);transform:translateY(-2px);}
+.trust-row{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 20px;font-size:0.8125rem;color:var(--text3);}
+.trust-item{display:inline-flex;align-items:center;gap:6px;}
+
+/* ═══════════════════════════════ FOOTER */
+footer{
+  background:rgba(4,9,22,0.9);
+  border-top:1px solid var(--border);
+  padding:52px 0 40px;
+}
+.footer-inner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;}
+.f-links{display:flex;align-items:center;gap:24px;}
+.f-links a{
+  font-size:0.875rem;font-weight:500;color:var(--text3);
+  transition:color 0.15s;
+}
+.f-links a:hover{color:var(--blue);}
+.footer-top{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;
+  margin-bottom:28px;padding-bottom:28px;
+  border-bottom:1px solid var(--border);
+}
+.footer-bottom{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+
+/* ═══════════════════════════════ REVEAL */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity 0.55s cubic-bezier(0.16,1,0.3,1),transform 0.55s cubic-bezier(0.16,1,0.3,1);}
+.reveal.visible{opacity:1;transform:none;}
+.d1{transition-delay:0.05s;}.d2{transition-delay:0.12s;}.d3{transition-delay:0.19s;}.d4{transition-delay:0.26s;}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1!important;transform:none!important;transition:none!important;}}
+
+/* ═══════════════════════════════ RESPONSIVE */
+@media(max-width:900px){
+  /* 프로필 이미지: 텍스트 위에, 좌우 여백으로 배지 공간 확보 */
+  .hero-right{
+    order:-1;
+    display:flex;
+    justify-content:center;
+    padding:0 32px;
+  }
+  .profile-frame{
+    width:100%;
+    max-width:300px;
+    height:auto;
+    aspect-ratio:5/6;
+  }
+  .float-badge-1{ top:16px; right:-24px; }
+  .float-badge-2{ bottom:44px; left:-24px; }
+  /* 히어로 텍스트 가운데 정렬 */
+  .hero-left{ text-align:center; }
+  .hero-btns{ justify-content:center; }
+  .hero-meta{ justify-content:center; }
+  .hero-sub{ max-width:100%; }
+}
+@media(max-width:768px){.section{padding:72px 0;}}
+@media(max-width:640px){.section{padding:56px 0;}.sec-head{margin-bottom:36px;}}
+  </style>
+</head>
+<body>
+<div class="content">
+
+<!-- ══════════════════════════════════════════════════ NAV -->
+<header id="nav">
+  <div class="wrap">
+    <div class="nav-inner">
+      <a href="#hero" class="nav-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        Onyul
+        <div class="nav-logo-dot"></div>
+        <span style="font-size:0.8rem;font-weight:500;color:var(--text3);margin-left:2px;">풀스택 AI 빌더</span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#solve">해결 문제</a></li>
+        <li><a href="#work">작업 사례</a></li>
+        <li><a href="#stack">기술</a></li>
+        <li><a href="#process">진행 방식</a></li>
+      </ul>
+
+      <div style="display:flex;align-items:center;gap:10px;">
+        <a href="#contact" id="nav-cta" class="btn btn-blue" style="padding:9px 20px;font-size:0.875rem;">
+          상담 요청하기 →
+        </a>
+        <button id="hamburger" aria-label="메뉴" aria-expanded="false"
+          style="background:none;border:none;cursor:pointer;padding:6px;color:var(--text);">
+          <svg id="ic-m" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <svg id="ic-x" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24" style="display:none;"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mobile-menu">
+    <a href="#solve" class="m-link">해결하는 문제</a>
+    <a href="#work" class="m-link">작업 사례</a>
+    <a href="#stack" class="m-link">기술 스택</a>
+    <a href="#process" class="m-link">진행 방식</a>
+    <a href="#contact" class="m-cta">상담 요청하기 →</a>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════ HERO -->
+<section id="hero" class="section">
+  <div class="wrap">
+    <div class="hero-grid">
+
+      <!-- Left -->
+      <div class="hero-left">
+        <div class="hero-badge reveal">
+          <div class="hero-badge-dot"></div>
+          풀스택 AI 빌더 &nbsp;·&nbsp; 자동화 / SNS / 기업 자문
+        </div>
+
+        <h1 class="h1 reveal d1">
+          반복되는 업무와<br />
+          흩어진 채널을,<br />
+          <span class="h1-grad">한 사람이 정돈합니다.</span>
+        </h1>
+
+        <p class="hero-sub reveal d2">
+          자동화 · SNS 알고리즘 · AI 자문 — <strong>풀스택 AI 빌더 Onyul</strong>이<br />
+          비즈니스 운영의 병목을 <strong>1~4주 안에 제거</strong>합니다.
+        </p>
+
+        <div class="hero-btns reveal d3">
+          <a href="#contact" class="btn btn-blue">상담 요청하기 →</a>
+          <a href="#work" class="btn btn-outline">작업 사례 보기</a>
+        </div>
+
+        <div class="hero-meta reveal d4">
+          <span class="live-dot"><span></span> 평균 응답 24시간 이내</span>
+          <span style="color:var(--border);">·</span>
+          <span>첫 미팅 30분 무료</span>
+          <span style="color:var(--border);">·</span>
+          <span>진행 중 <strong class="num" style="color:var(--text);">3</strong>건</span>
+        </div>
+      </div>
+
+      <!-- Right: Profile frame -->
+      <div class="hero-right reveal d2">
+        <div class="profile-frame">
+          <div class="profile-bg"></div>
+          <div class="profile-silhouette">
+            <img
+              src="profile.png"
+              alt="Onyul 프로필"
+              style="width:100%;height:100%;object-fit:cover;object-position:center top;border-radius:22px;"
+            />
+          </div>
+
+          <!-- Floating badges -->
+          <div class="float-badge float-badge-1">
+            <div class="float-dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan);"></div>
+            <span style="font-size:0.8rem;color:var(--text2);">자동화 구축 완료</span>
+            <span style="color:var(--cyan);font-size:0.8rem;">✓</span>
+          </div>
+          <div class="float-badge float-badge-2">
+            <div class="float-dot" style="background:var(--amber);box-shadow:0 0 6px rgba(245,158,11,0.5);"></div>
+            <span style="font-size:0.8rem;color:var(--text2);">4+ 년 경력</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ PROOF -->
+<section id="proof">
+  <div class="wrap">
+    <div class="proof-inner">
+      <div class="proof-logos">
+        <span style="font-size:0.7rem;font-weight:700;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin-right:6px;">협업</span>
+        <span class="proof-logo">COMPANY A</span>
+        <span class="proof-logo">STARTUP B</span>
+        <span class="proof-logo">BRAND C</span>
+        <span class="proof-logo">AGENCY D</span>
+        <span class="proof-logo">CORP E</span>
+      </div>
+      <div class="proof-stats">
+        <div><div class="stat-n num">4<em>+</em></div><div class="stat-l">년 경력</div></div>
+        <div class="stat-sep"></div>
+        <div><div class="stat-n num">32<em>+</em></div><div class="stat-l">프로젝트</div></div>
+        <div class="stat-sep"></div>
+        <div><div class="stat-n num">+68<em>%</em></div><div class="stat-l">평균 도달 개선</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ WHAT I SOLVE -->
+<section id="solve" class="section">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow reveal">문제 진단</p>
+      <h2 class="h2 reveal d1">지금 비즈니스에서 이런 문제,<br />익숙하지 않으신가요?</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+
+      <a href="#do" class="card prob-card reveal d1">
+        <div class="prob-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </div>
+        <h3 class="h3" style="margin-bottom:10px;">반복 업무가 사람을 잡아먹는다</h3>
+        <p class="small">매일 같은 보고서, 수동 업로드, 반복 응답 — 정작 중요한 일에 쓸 시간이 없습니다.</p>
+        <div class="prob-arrow">자동화로 해결 <span>→</span></div>
+      </a>
+
+      <a href="#do" class="card prob-card reveal d2">
+        <div class="prob-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        </div>
+        <h3 class="h3" style="margin-bottom:10px;">콘텐츠는 만드는데 도달이 안 된다</h3>
+        <p class="small">열심히 올려도 알고리즘이 밀어주지 않습니다. 노출·팔로우·전환이 멈춰 있습니다.</p>
+        <div class="prob-arrow">SNS 알고리즘으로 해결 <span>→</span></div>
+      </a>
+
+      <a href="#do" class="card prob-card reveal d3">
+        <div class="prob-icon">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        </div>
+        <h3 class="h3" style="margin-bottom:10px;">AI를 어디에 어떻게 써야 할지 모르겠다</h3>
+        <p class="small">팀은 AI 이야기를 하는데, 막상 우리 비즈니스에 어떻게 적용할지 감이 오지 않습니다.</p>
+        <div class="prob-arrow">기업 AI 자문으로 해결 <span>→</span></div>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ WHAT I DO -->
+<section id="do" class="section" style="background:rgba(10,18,48,0.5);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow reveal">전문 영역</p>
+      <h2 class="h2 reveal d1">세 가지 방식으로<br />비즈니스 문제를 해결합니다.</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;">
+
+      <div class="card svc-card reveal d1">
+        <div class="svc-accent"></div>
+        <div class="svc-en">Automation</div>
+        <h3 class="h3" style="margin-bottom:20px;">업무 자동화</h3>
+        <div style="margin-bottom:16px;">
+          <p style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">이런 분에게</p>
+          <p class="small">반복 업무로 팀 리소스가 낭비되고, 사람이 해야 할 일에 시간을 못 쓰는 기업·팀</p>
+        </div>
+        <div style="flex:1;margin-bottom:0;">
+          <p style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">이런 결과를</p>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>반복 업무 <strong>60~80%</strong> 자동화</div>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>운영 인시던트 <strong>-68%</strong> 감소</div>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>팀 가용 시간 주당 <strong>+12h</strong> 확보</div>
+        </div>
+        <a href="#contact" class="svc-btn">상담 요청 →</a>
+      </div>
+
+      <div class="card svc-card reveal d2">
+        <div class="svc-accent"></div>
+        <div class="svc-en">SNS Algorithm</div>
+        <h3 class="h3" style="margin-bottom:20px;">SNS 알고리즘</h3>
+        <div style="margin-bottom:16px;">
+          <p style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">이런 분에게</p>
+          <p class="small">콘텐츠를 꾸준히 올리는데 노출·팔로우·전환이 정체된 브랜드·개인 채널</p>
+        </div>
+        <div style="flex:1;margin-bottom:0;">
+          <p style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">이런 결과를</p>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>평균 도달 <strong>+68%</strong> 이상</div>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>팔로워 성장 <strong>3×</strong> 가속</div>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>알고리즘 친화 콘텐츠 시스템</div>
+        </div>
+        <a href="#contact" class="svc-btn">상담 요청 →</a>
+      </div>
+
+      <div class="card svc-card reveal d3">
+        <div class="svc-accent"></div>
+        <div class="svc-en">Consulting</div>
+        <h3 class="h3" style="margin-bottom:20px;">기업 AI 자문</h3>
+        <div style="margin-bottom:16px;">
+          <p style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">이런 분에게</p>
+          <p class="small">AI 도입을 검토 중이지만 어디서 시작해야 할지, ROI를 어떻게 측정할지 모르는 기업</p>
+        </div>
+        <div style="flex:1;margin-bottom:0;">
+          <p style="font-size:0.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">이런 결과를</p>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>AI 적용 우선순위 로드맵</div>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>파일럿 설계 → 실측 ROI 검증</div>
+          <div class="result-item"><div class="check-icon"><svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></div>팀 내재화 AI 운영 가이드</div>
+        </div>
+        <a href="#contact" class="svc-btn">상담 요청 →</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ SKILLS -->
+<section id="skills" class="section">
+  <div class="wrap">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;">
+
+      <!-- Left: circles -->
+      <div>
+        <p class="eyebrow reveal">핵심 역량</p>
+        <h2 class="h2 reveal d1" style="margin-bottom:36px;">숫자로 보는<br />전문성 수준</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+          <div class="card skill-card reveal d1" data-pct="92">
+            <div class="circle-wrap">
+              <svg width="96" height="96" viewBox="0 0 96 96">
+                <circle class="circle-bg" cx="48" cy="48" r="40"/>
+                <circle class="circle-progress" cx="48" cy="48" r="40"
+                  stroke-dasharray="251.2" stroke-dashoffset="251.2" data-pct="92"/>
+              </svg>
+              <div class="circle-text num">92%</div>
+            </div>
+            <div class="skill-name">업무 자동화</div>
+            <p class="skill-desc">Make · n8n · Zapier</p>
+          </div>
+
+          <div class="card skill-card reveal d2" data-pct="85">
+            <div class="circle-wrap">
+              <svg width="96" height="96" viewBox="0 0 96 96">
+                <circle class="circle-bg" cx="48" cy="48" r="40"/>
+                <circle class="circle-progress" cx="48" cy="48" r="40"
+                  stroke-dasharray="251.2" stroke-dashoffset="251.2" data-pct="85"
+                  style="stroke:var(--cyan);filter:drop-shadow(0 0 4px rgba(0,212,255,0.7));"/>
+              </svg>
+              <div class="circle-text num" style="color:var(--cyan);">85%</div>
+            </div>
+            <div class="skill-name">SNS 알고리즘</div>
+            <p class="skill-desc">인스타 · 유튜브 · 틱톡</p>
+          </div>
+
+          <div class="card skill-card reveal d3" data-pct="80">
+            <div class="circle-wrap">
+              <svg width="96" height="96" viewBox="0 0 96 96">
+                <circle class="circle-bg" cx="48" cy="48" r="40"/>
+                <circle class="circle-progress" cx="48" cy="48" r="40"
+                  stroke-dasharray="251.2" stroke-dashoffset="251.2" data-pct="80"
+                  style="stroke:var(--purple);filter:drop-shadow(0 0 4px rgba(123,92,246,0.7));"/>
+              </svg>
+              <div class="circle-text num" style="color:var(--purple);">80%</div>
+            </div>
+            <div class="skill-name">AI / LLM</div>
+            <p class="skill-desc">GPT · Claude · LangChain</p>
+          </div>
+
+          <div class="card skill-card reveal d4" data-pct="88">
+            <div class="circle-wrap">
+              <svg width="96" height="96" viewBox="0 0 96 96">
+                <circle class="circle-bg" cx="48" cy="48" r="40"/>
+                <circle class="circle-progress" cx="48" cy="48" r="40"
+                  stroke-dasharray="251.2" stroke-dashoffset="251.2" data-pct="88"
+                  style="stroke:var(--amber);filter:drop-shadow(0 0 4px rgba(245,158,11,0.5));"/>
+              </svg>
+              <div class="circle-text num" style="color:var(--amber);">88%</div>
+            </div>
+            <div class="skill-name">풀스택 개발</div>
+            <p class="skill-desc">Next.js · Python · FastAPI</p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Right: tech stack -->
+      <div class="reveal d2">
+        <p class="eyebrow">기술 스택</p>
+        <h2 class="h2" style="margin-bottom:12px;">도구가 아니라<br />결과가 중요합니다.</h2>
+        <p class="body-text" style="margin-bottom:32px;">각 카테고리 도구를 결합해 비즈니스 문제를 풀어냅니다.</p>
+
+        <div style="display:flex;flex-direction:column;gap:22px;">
+          <div>
+            <p style="font-size:0.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">AI / LLM</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <span class="chip">GPT-4o</span><span class="chip">Claude</span><span class="chip">Gemini</span><span class="chip">Whisper</span><span class="chip">LangChain</span>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:0.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">자동화</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <span class="chip">Make</span><span class="chip">n8n</span><span class="chip">Zapier</span><span class="chip">Notion API</span><span class="chip">Airtable</span>
+            </div>
+          </div>
+          <div>
+            <p style="font-size:0.75rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:10px;">Web / Infra</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <span class="chip">Next.js</span><span class="chip">React</span><span class="chip">FastAPI</span><span class="chip">Supabase</span><span class="chip">Vercel</span><span class="chip">Docker</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ WORK -->
+<section id="work" class="section" style="background:rgba(10,18,48,0.5);border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow reveal">작업 사례</p>
+      <h2 class="h2 reveal d1">말이 아닌 결과로<br />증명합니다.</h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:22px;">
+
+      <div class="card case-card reveal d1">
+        <div class="case-top">
+          <span class="case-tag">자동화</span>
+          <span class="case-kpi num">-68%</span>
+        </div>
+        <div class="case-body">
+          <h3 class="h3" style="margin-bottom:3px;">이커머스 CS 운영 자동화</h3>
+          <p style="font-size:0.8125rem;color:var(--text3);margin-bottom:14px;">운영 인력 투입 시간 68% 감소</p>
+          <div>
+            <div class="case-row"><span class="case-lbl">문제</span><span class="case-txt">반복 CS 문의 하루 200건+ → 팀원 2명 수동 처리, 기획 투입 불가</span></div>
+            <div class="case-row"><span class="case-lbl">접근</span><span class="case-txt">LLM 기반 의도 분류 + 자동 응답 시스템. 예외만 에스컬레이션</span></div>
+            <div class="case-row"><span class="case-lbl r">결과</span><span class="case-txt">자동화율 82%, 팀 투입 시간 주 40h → 13h</span></div>
+          </div>
+          <a href="#contact" class="case-cta">이런 케이스 상담하기 →</a>
+        </div>
+      </div>
+
+      <div class="card case-card reveal d2">
+        <div class="case-top">
+          <span class="case-tag">SNS 알고리즘</span>
+          <span class="case-kpi num">+340%</span>
+        </div>
+        <div class="case-body">
+          <h3 class="h3" style="margin-bottom:3px;">B2C 브랜드 인스타그램 리빌드</h3>
+          <p style="font-size:0.8125rem;color:var(--text3);margin-bottom:14px;">유기적 도달 340% 성장 (3개월)</p>
+          <div>
+            <div class="case-row"><span class="case-lbl">문제</span><span class="case-txt">주 5회 게시 중이나 팔로워 6개월째 정체, 리치 1,200 이하</span></div>
+            <div class="case-row"><span class="case-lbl">접근</span><span class="case-txt">알고리즘 신호 분석 → 포맷·업로드 패턴·후킹 구조 재설계</span></div>
+            <div class="case-row"><span class="case-lbl r">결과</span><span class="case-txt">3개월 후 리치 5,300, 팔로워 +1,800, 전환 클릭 +2.4×</span></div>
+          </div>
+          <a href="#contact" class="case-cta">이런 케이스 상담하기 →</a>
+        </div>
+      </div>
+
+      <div class="card case-card reveal d3">
+        <div class="case-top">
+          <span class="case-tag">기업 자문</span>
+          <span class="case-kpi num">ROI 4×</span>
+        </div>
+        <div class="case-body">
+          <h3 class="h3" style="margin-bottom:3px;">중소기업 AI 도입 로드맵</h3>
+          <p style="font-size:0.8125rem;color:var(--text3);margin-bottom:14px;">파일럿 ROI 4배 확인 후 전사 확장</p>
+          <div>
+            <div class="case-row"><span class="case-lbl">문제</span><span class="case-txt">AI 도입 필요성 공감하나 1년째 검토만 반복, 시작점 불명확</span></div>
+            <div class="case-row"><span class="case-lbl">접근</span><span class="case-txt">업무 흐름 진단 → 임팩트·실현가능성 매트릭스 → 4주 파일럿</span></div>
+            <div class="case-row"><span class="case-lbl r">결과</span><span class="case-txt">파일럿 ROI 4× → 전사 3개 부서 확장 적용</span></div>
+          </div>
+          <a href="#contact" class="case-cta">이런 케이스 상담하기 →</a>
+        </div>
+      </div>
+
+      <div class="card case-card reveal d4">
+        <div class="case-top">
+          <span class="case-tag">자동화 + SNS</span>
+          <span class="case-kpi num">-12h/주</span>
+        </div>
+        <div class="case-body">
+          <h3 class="h3" style="margin-bottom:3px;">콘텐츠 제작~배포 파이프라인</h3>
+          <p style="font-size:0.8125rem;color:var(--text3);margin-bottom:14px;">제작·배포 공수 주 12시간 절감</p>
+          <div>
+            <div class="case-row"><span class="case-lbl">문제</span><span class="case-txt">편집→자막→업로드→스케줄 전부 수동. 1편 3~4시간 소요</span></div>
+            <div class="case-row"><span class="case-lbl">접근</span><span class="case-txt">AI 자막 + 메타 카피 자동화 + 멀티플랫폼 예약 배포 파이프라인</span></div>
+            <div class="case-row"><span class="case-lbl r">결과</span><span class="case-txt">편당 3.5h → 55분, 동시 운영 채널 1개 → 4개</span></div>
+          </div>
+          <a href="#contact" class="case-cta">이런 케이스 상담하기 →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ PROCESS -->
+<section id="process" class="section">
+  <div class="wrap">
+    <div class="sec-head">
+      <p class="eyebrow reveal">진행 방식</p>
+      <h2 class="h2 reveal d1">처음부터 끝까지<br />한 사람이 책임집니다.</h2>
+    </div>
+
+    <!-- Desktop -->
+    <div class="process-h-wrap reveal">
+      <div class="process-h-line"></div>
+      <div class="process-grid">
+        <div class="proc-step">
+          <div class="proc-num">01</div>
+          <div class="proc-title">진단</div>
+          <p class="proc-desc">현재 업무 흐름·병목·목표를 1:1 인터뷰로 파악합니다.</p>
+          <span class="proc-dur">1~3일</span>
+        </div>
+        <div class="proc-step">
+          <div class="proc-num">02</div>
+          <div class="proc-title">설계</div>
+          <p class="proc-desc">솔루션 아키텍처와 기대 지표를 문서로 정리, 공유 후 착수합니다.</p>
+          <span class="proc-dur">3~5일</span>
+        </div>
+        <div class="proc-step">
+          <div class="proc-num">03</div>
+          <div class="proc-title">구축</div>
+          <p class="proc-desc">단계별 결과물을 공유하며 진행합니다. 진행 상황은 항상 투명하게.</p>
+          <span class="proc-dur">1~3주</span>
+        </div>
+        <div class="proc-step">
+          <div class="proc-num done">04</div>
+          <div class="proc-title">이관 · 운영</div>
+          <p class="proc-desc">팀이 직접 운영할 수 있도록 가이드 + 2주 A/S를 포함합니다.</p>
+          <span class="proc-dur">2주 A/S 포함</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile -->
+    <div class="proc-v">
+      <div class="proc-v-step reveal d1"><div class="v-num">01</div><div><div class="proc-title">진단 <span style="font-size:0.8rem;font-weight:400;color:var(--text3);">1~3일</span></div><p class="proc-desc" style="margin-top:4px;">현재 업무 흐름·병목·목표를 1:1 인터뷰로 파악합니다.</p></div></div>
+      <div class="proc-v-step reveal d2"><div class="v-num">02</div><div><div class="proc-title">설계 <span style="font-size:0.8rem;font-weight:400;color:var(--text3);">3~5일</span></div><p class="proc-desc" style="margin-top:4px;">솔루션 아키텍처와 기대 지표를 문서로 정리, 공유 후 착수합니다.</p></div></div>
+      <div class="proc-v-step reveal d3"><div class="v-num">03</div><div><div class="proc-title">구축 <span style="font-size:0.8rem;font-weight:400;color:var(--text3);">1~3주</span></div><p class="proc-desc" style="margin-top:4px;">단계별 결과물을 공유하며 진행합니다. 항상 투명하게.</p></div></div>
+      <div class="proc-v-step reveal d4"><div class="v-num done">04</div><div><div class="proc-title">이관 · 운영 <span style="font-size:0.8rem;font-weight:400;color:var(--text3);">2주 A/S</span></div><p class="proc-desc" style="margin-top:4px;">팀이 직접 운영할 수 있도록 가이드 + 2주 A/S를 포함합니다.</p></div></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ CONTACT -->
+<section id="contact">
+  <div class="wrap">
+    <div class="contact-inner">
+      <span class="eyebrow reveal" style="color:var(--cyan);">상담 문의</span>
+      <h2 class="contact-h2 reveal d1">지금 풀고 싶은 문제가<br />있으신가요?</h2>
+      <p class="contact-sub reveal d2">아래와 같은 상담을 받고 있습니다.</p>
+
+      <ul class="contact-list reveal d2">
+        <li><span class="c-arrow">→</span>반복 업무·운영 자동화 설계 및 구축</li>
+        <li><span class="c-arrow">→</span>SNS 채널 알고리즘 분석 및 성장 전략 수립</li>
+        <li><span class="c-arrow">→</span>기업 AI 도입 로드맵 · ROI 검증 자문</li>
+      </ul>
+
+      <div class="contact-btns reveal d3">
+        <a href="mailto:hello@taesoo.kim" class="btn-contact btn-c-primary">이메일로 상담 요청 →</a>
+        <a href="https://github.com/taesoo-kim" target="_blank" rel="noopener" class="btn-contact btn-c-ghost">GitHub 보기</a>
+      </div>
+
+      <div class="trust-row reveal d4">
+        <span class="trust-item"><span style="width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 6px rgba(16,185,129,0.5);display:inline-block;"></span> 평일 24시간 이내 회신</span>
+        <span>·</span>
+        <span>첫 미팅 30분 무료</span>
+        <span>·</span>
+        <span>NDA 체결 가능</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ FOOTER -->
+<footer>
+  <div class="wrap">
+    <!-- Top row: brand + nav -->
+    <div class="footer-top">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2.5"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+          <span style="font-size:1rem;font-weight:800;color:var(--text);">Onyul</span>
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan);display:inline-block;"></span>
+        </div>
+        <p style="font-size:0.875rem;color:var(--text3);max-width:280px;line-height:1.7;">
+          자동화 · SNS 알고리즘 · AI 자문으로<br />비즈니스 운영의 병목을 제거합니다.
+        </p>
+      </div>
+      <div class="f-links">
+        <a href="#solve">해결 문제</a>
+        <a href="#work">작업 사례</a>
+        <a href="#process">진행 방식</a>
+        <a href="#contact">상담 문의</a>
+      </div>
+    </div>
+    <!-- Bottom row: copyright + social -->
+    <div class="footer-bottom">
+      <p style="font-size:0.8125rem;color:var(--text3);">© 2026 Onyul. All rights reserved.</p>
+      <div class="f-links">
+        <a href="mailto:hello@onyul.kr">Email</a>
+        <a href="https://github.com/onyul" target="_blank" rel="noopener">GitHub</a>
+        <a href="#hero" style="color:var(--text3);">↑ Top</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</div><!-- /content -->
+
+<script>
+  // Nav scroll
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 32), { passive: true });
+  nav.classList.toggle('scrolled', window.scrollY > 32);
+
+  // Hamburger
+  const hbtn = document.getElementById('hamburger');
+  const hmenu = document.getElementById('mobile-menu');
+  const icM = document.getElementById('ic-m');
+  const icX = document.getElementById('ic-x');
+  hbtn.addEventListener('click', () => {
+    const o = hmenu.classList.toggle('open');
+    icM.style.display = o ? 'none' : ''; icX.style.display = o ? '' : 'none';
+    hbtn.setAttribute('aria-expanded', o);
+  });
+  hmenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    hmenu.classList.remove('open'); icM.style.display=''; icX.style.display='none';
+    hbtn.setAttribute('aria-expanded','false');
+  }));
+
+  // Scroll reveal
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); } });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // Nav CTA fade when hero CTA visible
+  const navCta = document.getElementById('nav-cta');
+  const heroBtn = document.querySelector('#hero .btn-blue');
+  const contactSec = document.getElementById('contact');
+  if(navCta && heroBtn){
+    const hio = new IntersectionObserver(entries => {
+      const vis = entries.some(e => e.isIntersecting);
+      navCta.style.opacity = vis ? '0' : '1';
+      navCta.style.pointerEvents = vis ? 'none' : '';
+    }, { threshold: 0.5 });
+    hio.observe(heroBtn);
+    if(contactSec) hio.observe(contactSec);
+  }
+
+  // Circular progress animation
+  const animateCircles = () => {
+    document.querySelectorAll('.circle-progress').forEach(circle => {
+      const pct = parseInt(circle.getAttribute('data-pct') || 0);
+      const circumference = 251.2;
+      const offset = circumference - (pct / 100) * circumference;
+      circle.style.strokeDashoffset = offset;
+    });
+  };
+  // Trigger when skills section enters view
+  const skillsSec = document.getElementById('skills');
+  if(skillsSec){
+    const sio = new IntersectionObserver(entries => {
+      if(entries[0].isIntersecting){ animateCircles(); sio.disconnect(); }
+    }, { threshold: 0.2 });
+    sio.observe(skillsSec);
+  }
+</script>
+
+</body>
+</html>
