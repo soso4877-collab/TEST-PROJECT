@@ -1,0 +1,89 @@
+# -*- coding: utf-8 -*-
+"""운영자 로컬 폼(FastAPI) — 입력 → 사주풀이 PDF 다운로드. 로컬 전용·무인증(내부 도구).
+
+실행: uvicorn sajugen.app:app --host 127.0.0.1 --port 8765
+"""
+
+from __future__ import annotations
+
+from urllib.parse import quote
+
+from fastapi import FastAPI, Form
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+
+from .input import time_correction as tc
+from .pipeline import generate
+
+app = FastAPI(title="사주풀이 PDF 생성기 (내부 도구)")
+
+_FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</title>
+<body style="font-family:Malgun Gothic,sans-serif;max-width:520px;margin:40px auto">
+<h2>사주풀이 PDF 생성 (운영자)</h2>
+<form method="post" action="/generate">
+ <p>생년월일시(시민시각): <input name="birth" placeholder="2000-01-01 12:00 (생시 미상이면 날짜만)" required></p>
+ <p>이름(선택, 개인화): <input name="name" placeholder="홍길동"></p>
+ <p>성별: <select name="gender"><option value="male">남</option>
+   <option value="female">여</option></select></p>
+ <p>상품: <select name="product"><option value="integrated">통합(명리+자미)</option>
+   <option value="myeongni">명리만</option><option value="ziwei">자미만</option></select></p>
+ <p>경도: <input name="longitude" value="126.978"> 위도: <input name="latitude" value="37.566"></p>
+ <p><label><input type="checkbox" name="yajasi"> 야자시/조자시 분리</label></p>
+ <p>대한·유년 기준일: <input name="horoscope" placeholder="2026-06-01"></p>
+ <p><label><input type="checkbox" name="llm"> LLM 윤문(무키 시 룰 폴백)</label></p>
+ <button type="submit">PDF 생성</button>
+</form></body>"""
+
+
+@app.get("/", response_class=HTMLResponse)
+def index() -> str:
+    return _FORM
+
+
+@app.post("/generate")
+def gen(
+    birth: str = Form(...),
+    gender: str = Form("male"),
+    longitude: float = Form(tc.SEOUL_LON),
+    latitude: float = Form(tc.SEOUL_LAT),
+    yajasi: bool = Form(False),
+    horoscope: str = Form(""),
+    llm: bool = Form(False),
+    name: str = Form(""),
+    product: str = Form("integrated"),
+):
+    parts = birth.split()
+    y, mo, da = (int(x) for x in parts[0].split("-"))
+    unknown_time = len(parts) < 2
+    hh, mi = (12, 0) if unknown_time else (int(x) for x in parts[1].split(":"))
+    is_male = gender.strip().lower() in ("male", "m", "남", "남자")
+    policy = tc.ZasiPolicy.YAJASI_SPLIT if yajasi else tc.ZasiPolicy.JST_2300
+
+    r = generate(
+        y,
+        mo,
+        da,
+        hh,
+        mi,
+        is_male=is_male,
+        longitude=longitude,
+        latitude=latitude,
+        policy=policy,
+        horoscope_date=horoscope or None,
+        use_llm=llm,
+        out_name=f"saju_{y}{mo:02d}{da:02d}_{hh:02d}{mi:02d}.pdf",
+        name=name or None,
+        unknown_time=unknown_time,
+        product=product,
+    )
+
+    if not r.ok:
+        return JSONResponse(
+            status_code=422,
+            content={"ok": False, "reasons": r.reasons, "warnings": r.crosscheck_warnings},
+        )
+    return FileResponse(
+        r.pdf_path,
+        media_type="application/pdf",
+        filename=r.pdf_path.split("\\")[-1].split("/")[-1],
+        headers={"X-Saju-Bazi": quote(r.bazi), "X-Gate": "PASS", "X-Pages": str(r.verify["pages"])},
+    )

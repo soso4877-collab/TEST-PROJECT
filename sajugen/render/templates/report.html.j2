@@ -1,0 +1,145 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+  /* 폰트 번들(SIL OFL): 한글/라틴=Pretendard, 한자=Source Han Serif K.
+     unicode-range 로 코드포인트별 자동 분리 → 한자만 세리프(전통 명리 톤),
+     본문은 Pretendard. Chromium 이 PDF 생성 시 사용 글리프만 서브셋 임베드. */
+  @font-face{font-family:'Saju';font-weight:400;font-style:normal;
+    src:url('{{ font_dir }}/Pretendard-Regular.woff2') format('woff2');
+    unicode-range:U+0000-04FF,U+1100-11FF,U+2000-206F,U+2070-209F,U+20A0-20CF,
+      U+2100-214F,U+2150-218F,U+2190-21FF,U+2200-22FF,U+2460-24FF,U+25A0-26FF,
+      U+3000-303F,U+3130-318F,U+AC00-D7A3,U+FF00-FFEF}
+  @font-face{font-family:'Saju';font-weight:600;font-style:normal;
+    src:url('{{ font_dir }}/Pretendard-SemiBold.woff2') format('woff2');
+    unicode-range:U+0000-04FF,U+1100-11FF,U+2000-206F,U+2070-209F,U+20A0-20CF,
+      U+2100-214F,U+2150-218F,U+2190-21FF,U+2200-22FF,U+2460-24FF,U+25A0-26FF,
+      U+3000-303F,U+3130-318F,U+AC00-D7A3,U+FF00-FFEF}
+  @font-face{font-family:'Saju';font-weight:700;font-style:normal;
+    src:url('{{ font_dir }}/Pretendard-Bold.woff2') format('woff2');
+    unicode-range:U+0000-04FF,U+1100-11FF,U+2000-206F,U+2070-209F,U+20A0-20CF,
+      U+2100-214F,U+2150-218F,U+2190-21FF,U+2200-22FF,U+2460-24FF,U+25A0-26FF,
+      U+3000-303F,U+3130-318F,U+AC00-D7A3,U+FF00-FFEF}
+  /* 한자(漢字)는 Source Han Serif K(OFL) — KS X 1001 포함 한자 전수 커버.
+     Regular 한 본만 번들, 굵은 문맥도 같은 글리프(가짜굵게 방지). */
+  @font-face{font-family:'Saju';font-weight:400;font-style:normal;
+    src:url('{{ font_dir }}/SourceHanSerifK-Regular.otf') format('opentype');
+    unicode-range:U+3000-303F,U+3400-4DBF,U+4E00-9FFF,U+F900-FAFF}
+  @font-face{font-family:'Saju';font-weight:700;font-style:normal;
+    src:url('{{ font_dir }}/SourceHanSerifK-Regular.otf') format('opentype');
+    unicode-range:U+3000-303F,U+3400-4DBF,U+4E00-9FFF,U+F900-FAFF}
+
+  :root{
+    /* 60-30-10 색 시스템(IBM Carbon/Material 3 관행):
+       60 지배 중성(배경+본문 잉크) / 30 보조 중성(패널·헤어라인·약자)
+       / 10 골드 포인트(룰·번호·강조). WCAG: 본문 4.5:1·비텍스트 3:1 재검.
+       --ink #22262e on --bg ≈ 14:1, --mut ≈ 6:1(보조), --gold-ink #7d5610
+       ≈ 6.4:1(골드 텍스트), --gold #9a6f1e ≈ 4.4:1(비텍스트 룰/보더만). */
+    --bg:#fffdf8;          /* 60 지배 배경 */
+    --panel:#f7f1e2;       /* 30 보조 패널 */
+    --line:#d8cdb0;        /* 30 헤어라인/보더(비텍스트) */
+    --ink:#22262e;         /* 본문 잉크 */
+    --mut:#54606e;         /* 보조 텍스트 */
+    --gold:#9a6f1e;        /* 10 골드(룰·보더 — 비텍스트) */
+    --gold-ink:#7d5610;    /* 10 골드 텍스트(번호·강조) */
+    --fs:11pt;             /* 본문 기준(조판 길이 영향 — 불변) */
+    --lh:1.6;              /* 본문 행간(KRDS/IBM Carbon 한글 가독) */
+    --lh-tight:1.28;       /* 제목 행간 */
+    --ls:-0.015em;         /* 한글 본문 자간(W3C klreq·Butterick) */
+    --ls-h:-0.02em;        /* 제목 디스플레이 자간 */
+    /* 4px 베이스라인 · 8pt 모듈러 간격 스케일 */
+    --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
+    --maxw:165mm}
+  *{box-sizing:border-box}
+  @page{size:A4;margin:16mm 15mm}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:'Saju','Malgun Gothic','맑은 고딕',sans-serif;
+    line-height:var(--lh);font-size:var(--fs);letter-spacing:var(--ls);
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* 차트 SVG 라벨은 자간 0(결정론적 좌표·표 정렬 보존) */
+  svg text{letter-spacing:0}
+
+  .cover{height:245mm;display:flex;flex-direction:column;justify-content:center;
+    align-items:center;text-align:center;border:2px solid var(--gold);
+    border-radius:6px;page-break-after:always;
+    background:linear-gradient(180deg,#fffdf8,#f6efdd)}
+  .cover .kicker{color:var(--gold-ink);letter-spacing:.42em;font-size:10.5pt;
+    font-weight:700}
+  .cover h1{font-size:30pt;font-weight:700;letter-spacing:.14em;
+    line-height:1.2;margin:6mm 0 0}
+  .cover .rule{width:52px;height:2px;background:var(--gold);margin:7mm 0}
+  .cover .sub{color:var(--mut);font-size:11.5pt;white-space:pre-line;
+    line-height:1.9;letter-spacing:var(--ls)}
+
+  section{page-break-inside:auto;margin:0 0 var(--s6)}
+
+  /* 챕터 마스트헤드 — 편집형(여백 리듬 + 짧은 골드 룰) */
+  .chapter{page-break-before:always;text-align:center;
+    padding:34mm 0 0;margin:0 0 var(--s7)}
+  .chapter .cnum{color:var(--gold-ink);font-size:11pt;font-weight:700;
+    letter-spacing:.36em;line-height:1.3}
+  .chapter .ctitle{font-size:26pt;font-weight:700;letter-spacing:var(--ls-h);
+    line-height:1.24;margin:6mm 0 0;color:var(--ink)}
+  .chapter .cdesc{color:var(--mut);font-size:11.5pt;margin-top:4mm;
+    line-height:1.5}
+  .chapter .crule{width:56px;height:2px;background:var(--gold);
+    margin:8mm auto 0}
+
+  /* 섹션 제목 — 편집형(번호=골드 라벨, 본문=잉크, 하단 헤어라인) */
+  h2{font-size:1.72em;font-weight:700;line-height:var(--lh-tight);
+    letter-spacing:var(--ls-h);color:var(--ink);margin:0 0 var(--s4);
+    padding:0 0 var(--s2);border-bottom:1px solid var(--line)}
+  h2 .no{display:inline-block;color:var(--gold-ink);font-size:.6em;
+    font-weight:700;letter-spacing:.22em;margin-right:12px;
+    vertical-align:.14em}
+  .subhead{font-size:1.32em;font-weight:600;color:var(--ink);
+    line-height:1.3;letter-spacing:var(--ls-h);margin:var(--s5) 0 var(--s2)}
+
+  .body{white-space:pre-line;margin:0 0 var(--s4);max-width:var(--maxw);
+    line-height:var(--lh)}
+  .card{border:1px solid var(--line);border-top:3px solid var(--gold);
+    border-radius:5px;padding:var(--s5);background:#fff;margin:var(--s4) 0;
+    white-space:pre-line;line-height:1.75;max-width:var(--maxw)}
+  .chart{margin:var(--s5) 0}
+  .src{font-size:.78em;color:var(--mut);margin-top:var(--s3);
+    padding-top:var(--s2);border-top:1px solid var(--line);
+    letter-spacing:0;max-width:var(--maxw)}
+  .disclaimer{font-size:.82em;color:var(--mut);background:var(--panel);
+    border:1px solid var(--line);border-radius:5px;padding:var(--s4);
+    margin-top:var(--s6)}
+  @media print{section{break-inside:auto}h2{break-after:avoid}
+    .subhead{break-after:avoid}.card,.chart{break-inside:avoid}}
+</style></head><body>
+
+<div class="cover">
+  <div class="kicker">SAJU REPORT</div>
+  <h1>사 주 풀 이</h1>
+  <div class="rule"></div>
+  <div class="sub">{{ cover_sub }}</div>
+</div>
+
+{% for s in sections %}
+{% if s.id != 'cover' %}
+{% if s.chapter %}
+<div class="chapter">
+  <div class="cnum">CHAPTER {{ s.chapter[0] }}</div>
+  <div class="ctitle">{{ s.chapter[1] }}</div>
+  <div class="cdesc">{{ s.chapter[2] }}</div>
+  <div class="crule"></div>
+</div>
+{% endif %}
+<section id="sec-{{ s.id }}">
+  <h2><span class="no">{{ '%02d'|format(loop.index0) }}</span>{{ s.title }}</h2>
+  {% if s.id == 'summary' %}<div class="card">{{ s.final_text }}</div>
+  {% else %}<div class="body">{{ s.final_text }}</div>{% endif %}
+  {% if s.id == 'wonguk' %}<div class="chart">{{ manse_svg|safe }}</div>{% endif %}
+  {% if s.id == 'ohaeng' %}<div class="chart">{{ ohaeng_svg|safe }}</div>{% endif %}
+  {% if s.id == 'sipseong' %}<div class="chart">{{ sipseong_svg|safe }}</div>{% endif %}
+  {% if s.id == 'daewoon' %}<div class="chart">{{ daewoon_svg|safe }}</div>{% endif %}
+  {% if s.id == 'ziwei_summary' %}<div class="chart">{{ ziwei_svg|safe }}</div>{% endif %}
+  {% if s.source_keys %}<div class="src">근거: {{ s.source_keys|join(', ') }}</div>{% endif %}
+  {% if s.id == 'next' %}<div class="disclaimer">{{ disclaimer }}</div>{% endif %}
+</section>
+{% endif %}
+{% endfor %}
+
+</body></html>
