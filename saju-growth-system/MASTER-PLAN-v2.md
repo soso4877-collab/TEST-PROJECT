@@ -51,6 +51,31 @@
 
 ---
 
+## B. 전문가 렌즈 에이전트 패널 (그라운딩 완료 · 큐레이션 5 렌즈)
+
+8인(Cardone·Hormozi·GaryVee·Brunson·Kennedy·Belfort·Godin·Robbins)을 **5개 기능 렌즈**로 매핑하고, 각자의 **실제 저서·문서화된 프레임워크로 그라운딩**(웹조사 완료, 출처 하단). 운영 원칙: 매 작업에 전원 호출 금지 → 작업 유형별 해당 렌즈만 호출, 핵심 결정 지점(오퍼·퍼널·카피·클로징)에서 다관점 **적대적 리뷰 패널**로 사용. 전원 미국/서구 다이렉트 리스폰스 전문가 → **한국·카카오·사주·표시광고법으로 현지화 필수**. 결과는 여전히 §5 퍼널 수리·실데이터에 달림(패널 = 품질의 곱셈기, 기본기 대체 아님).
+
+| 렌즈 | 근거 인물·프레임워크(출처) | 적용 위치 | 핵심 적용 |
+|---|---|---|---|
+| L1 오퍼 | Hormozi 가치방정식·가치스태킹·리스크리버설 / Kennedy 프리미엄·USP | §8 | 코어 29,000을 가치스태킹(개별가 합산 55,000→29,000)으로 제시, 추가질문 무료=리스크리버설, 프리미엄 59,000 USP="명리×자미 교차검증" |
+| L2 퍼널 | Brunson 밸류래더·Hook-Story-Offer·Soap Opera Sequence·Attractive Character | §6·§7·§10 | 카카오 재활성을 5단계 시퀀스(M1환영→M2클리프행어→M3에피파니+오퍼→M4히든베니핏→M5마감CTA), "도령" 캐릭터(백스토리·결함·입장) |
+| L3 카피·설득 | Kennedy 3M·이유있는마감·직접반응 CTA / Belfort Three Tens·루핑(윤리 구조만) | §7·§8 | 기간한정에 "이유 있는 마감"(구체 인상 이유) 명시, 결제 직전 Three Tens(상품·사람·채널 확신), 이의처리 루핑 |
+| L4 콘텐츠·차별화 | GaryVee 80:20 Jab·콘텐츠필러 / Godin 퍼플카우·smallest viable audience·permission·tribes | §A·§11 | 게시 80% 가치/20% 전환, 1소스→다채널, 좁은 타깃(이직·연애 결정 임박), 카카오 옵트인=permission, 정체성 공동체 |
+| L5 실행·볼륨 | Cardone 10X·5+ 팔로업·옴니프레전스 / Robbins state·7일 리듬 | §10 | 7일 팔로업 시퀀스(D+0/2/4/6/10 최소 5접촉), 매일 게시 볼륨, 촬영 전 state 관리 |
+
+**렌즈별 system-prompt seed(축약 — 윤리 가드 공통: 결과·시기 보장/공포조장/가짜희소성 금지, 표시광고법 준수):**
+- L1: 결과 선명도·신뢰도↑·시간/노력↓로 오퍼 설계 / 구성요소 개별가 명시 스태킹 / 최대 불안의 반대를 보증 / 고가치·저비용만 번들 / "반드시·확실히" 금지.
+- L2: 모든 저가 오퍼는 다음 단계 다리 / Hook→Story→Offer 순서 고정 / 열린 루프로 다음 메시지 기대 / 진정성(결함 노출)>완벽 / 스토리에 결과보장 서사 금지.
+- L3: Market→Message→Media 정렬 후 작성 / 카피당 측정가능 CTA 1개 / 마감엔 날짜+이유 / 할인 남발 금지·USP로 정당화 / 정보비대칭 프레임 OK, 적중보장 금지.
+- L4: 가치 4 : 요청 1 / 플랫폼별 네이티브 포맷 / 좁은 청중에 깊게 / 콘텐츠 자체가 차별화 / 옵트인 채널만.
+- L5: 5번 이상 팔로업(채널 다양화) / 양이 확률 / 후퇴 대신 변수 변경 / state 먼저 / 요일별 역할 리듬.
+
+**운영:** 생성 → 해당 렌즈로 적대 리뷰 → 합성. Belfort는 "확신 형성 구조"만 차용, 조작·과장 배제. 승인 후 각 렌즈를 서브에이전트/스킬로 구현(§14, 1주차엔 L1·L3 우선).
+
+출처(요약): Hormozi $100M Offers/Leads, Brunson DotCom/Expert Secrets·ClickFunnels, Kennedy No B.S./Magnetic Marketing, GaryVee Jab Jab Jab Right Hook·Content Model, Godin Purple Cow/Permission Marketing/This is Marketing, Belfort Way of the Wolf, Cardone 10X Rule, Robbins State-Story-Strategy. (전체 URL은 리서치 로그 보관)
+
+---
+
 ## 1. Executive Summary — 20만원/일까지 가장 유력한 경로
 
 **가장 빠른 돈 = 따뜻한 카카오 친구 재활성(클릭 불필요).** SNS 클릭 붕괴(66/90d)를 우회해 이미 채널 안에 있는 친구에게 직접 도달. 유료 발송 OK.
@@ -261,7 +286,13 @@ flowchart TD
 5. (Day7) 메트릭 요약·승자 확정.
 6. (별도) sajugen 고도화 — 7일 종료 후.
 
-> **커스텀 Skills(승인 후·필요순, 1주차엔 ①②만):** ① compliance-checker(금지어 hook 연계) ② saju-copywriter(심리기법 내장) ③ content-repurposer(스크립트 래핑) ④ kakao-funnel-auditor ⑤ metrics-analyst ⑥ saju-offer-designer ⑦ pdf-reading-template-builder.
+> **커스텀 Skills(승인 후·필요순, 1주차엔 ①②만):** ① compliance-checker(금지어 hook 연계) ② saju-copywriter(심리기법 내장) ③ content-repurposer(스크립트 래핑) ④ kakao-funnel-auditor ⑤ metrics-analyst ⑥ saju-offer-designer ⑦ pdf-reading-template-builder. 각 스킬에 §B 렌즈 + §A 심리기법 내장.
+
+> **검증된 도구/MCP 스택(공식 확인 완료 — 사용자: "검증해서 도움되면 전체"):**
+> - **7일 채택:** ① anthropics/skills(공개·무료, `npx skills add`/플러그인 마켓플레이스 — brand-guidelines·canvas-design 등 + 우리 워크플로를 스킬로 패키징) ② Higgsfield MCP(공식 1st-party·CLI 지원 `claude mcp add --transport http --scope user higgsfield https://mcp.higgsfield.ai/mcp`, 무료 크레딧 — 릴스/숏츠 분위기 영상) ③ Canva MCP(공식 remote MCP·CLI 지원, 단 기업 waitlist 선신청 → 통과 후 가격표 3단·웰컴 이미지·IG 카로셀 직접 생성).
+> - **Later:** Notion MCP(공식이나 OAuth 수동·헤드리스 자동화 불가 → 수동 트리거용), Shotstack/Creatomate(공식 REST·MCP無, 영상 대량생산 2~4주 후), JSON2Video.
+> - **회피:** Midjourney(공식 API 부재·3rd-party는 ToS 위반·계정정지 위험 → 이미지는 Higgsfield Soul/Canva AI로 대체), CapCut 비공식 MCP(ByteDance 미지원·ToS·운영 불안정 → 영상은 Higgsfield/Shotstack).
+> - 설치·연결은 사용자 승인 후. OAuth/공개레포만 사용, 비번·원시 크리덴셜 요청 안 함.
 
 ---
 
