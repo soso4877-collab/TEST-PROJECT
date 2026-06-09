@@ -85,7 +85,7 @@ def build_drafts(hook, pillar):
     lines.append("- 해시태그: #사주 #운세 #일주 · 트렌드 사운드 · 엔터/성찰 톤(보장 금지)\n")
 
     lines.append("## 카카오 (광고) 메시지")
-    lines.append("(광고) 서담선생")
+    lines.append("(광고) 사주도령")
     lines.append(f"{hook} — 막연한 불안 대신 기준 하나.")
     lines.append("미니 사주 리포트 신청: [구글폼 링크] / 문의: [연락처]")
     lines.append(
