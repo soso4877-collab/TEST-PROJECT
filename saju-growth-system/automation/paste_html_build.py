@@ -224,6 +224,69 @@ BLOCKS = [
         "limit": 0,
         "body": '교차형: "명리로는 재물운인데, 자미두수로 보면 \'왜 안 쌓이는지\'가 보여요."\n호명형: "경오일주인데, 수입은 있는데 자산이 안 쌓이는 분들 — 이 패턴 읽어보세요."\n완화형: "경오일주 재물운, 큰 그릇 맞아요. 다만 자미두수 흐름이 어긋나 있으면 그 그릇이 채워지기 어려울 수 있어요."',
     },
+    {
+        "section": "5. 콜드 소식 랜딩(Route B)",
+        "title": "소식 랜딩 본문(콜드 신규용)",
+        "type": "text",
+        "limit": 0,
+        "body": "사주를 봐도, 내 얘기 같지 않으셨나요?\n\n솔직히 저도 처음엔 제 사주조차 제대로 못 읽었어요.\n명리로 큰 그림은 보이는데 '그래서 지금 뭘 해야 하지'에서 막혔거든요.\n자미두수를 교차하면서부터 '언제'가 같이 보이기 시작했어요.\n\n저는 사주도령입니다.\n명리로 인생의 큰 구조를, 자미두수로 세부 타이밍을 교차해서 봐요.\n운명을 단정하는 게 아니라, 지금의 나를 더 깊이 이해하고\n선택의 기준을 함께 찾는 일이에요.\n\n\n■ 무엇을 보나요 (정통 풀이 + 자미 교차)\n\n사주 원국 · 오행의 상호작용 · 십성 분석\n초년·중년·말년운 및 종운 · 신년운세 · 용신 · 신강신약\n조심할 부분과 개운 방향 · 신살 · 합충형파해 · 운세 흐름\n\n여기에 자미두수 12궁 교차로 '세부 타이밍'을 더합니다.\n같은 일주라도 결론이 달라지는 이유예요.\n\n\n■ 풀이 안내\n\n심층 교차(프리미엄) · 59,000원\n  명리 × 자미두수 12궁 교차 + 향후 5년 흐름 + 추가질문 1회\n  (구성 상당 110,000 → 59,000)\n\n교차 리딩(코어) · 29,000원   ★ 가장 많이 선택해요\n  원국 · 2026 대운 · 궁금한 1주제 심화 + 자미 교차 + 추가질문 1회\n  (구성 상당 55,000 → 29,000)\n\n미니 리딩(입문) · 9,900원\n  연애 · 직업 · 재물 중 1가지 핵심 요약\n  사주가 처음이거나 한 번만 써보고 정하고 싶다면 여기서 시작하세요.\n  가볍게 확인하고 다음 단계를 정하셔도 돼요.\n\n\n■ 신청 전에 확인하세요\n\n· 받으시는 것: 명리 × 자미두수 교차 해석 자료 + 추가질문 1회(코어·프리미엄)\n· 입금 계좌는 신청 정보 확인 후 채팅으로 안내드려요 (예금주: 사주도령).\n  입금자명을 신청 성함과 같게 적어주시면 바로 확인돼요.\n· 받는 즉시 명식을 직접 검수해 작성하고, 입금 확인 후 24시간 이내\n  (영업시간 기준)에 보내드려요. 대부분 더 빨리 도착해요.\n· 전달이 늦어지면 채팅으로 바로 연락 주세요. 확인 즉시 직접 챙겨드려요.\n\n* 결과를 보장하는 점이 아니라, 참고용 해석 자료예요.\n\n\n■ 신청 방법\n\n아래 [채팅으로 신청하기]를 누르고, \"소식\"과 함께 보내주세요.\n이름 / 생년월일(양력·음력) / 태어난 시간(모르면 '모름') / 성별 / 가장 궁금한 1가지\n\n잘 모르는 항목은 '모름'으로 보내셔도 돼요. 채팅으로 바로 여쭤볼게요.\n먼저 [실제 후기]와 [풀이 구성]을 보고 결정하셔도 괜찮아요.",
+    },
+    {
+        "section": "5. 콜드 소식 랜딩(Route B)",
+        "title": "소식 버튼(3개 권장)",
+        "type": "info",
+        "limit": 0,
+        "body": "[채팅으로 신청하기] → 카카오 채팅 pf.kakao.com/_AXbxhn/chat\n[실제 후기 보기] → 후기 모음 소식/하이라이트\n[풀이 구성 자세히] → 구성 소식 또는 채팅 메뉴 ②\n(카카오 소식 버튼 최대 10개 · 3개 권장)",
+    },
+    {
+        "section": "5. 콜드 소식 랜딩(Route B)",
+        "title": "후기 블록(동의받은 것만)",
+        "type": "info",
+        "limit": 0,
+        "body": '실제로 받아보신 분들의 이야기예요. (동의받은 후기만 게시합니다)\n\n"단순히 좋은 말이 아니라, 제 상황을 콕 짚어주셔서 정리가 됐어요."\n"명리랑 자미두수를 같이 보니 \'왜\'가 이해됐어요."\n\n— 여기에 실제 후기 2~3개를 캡처/인용으로 교체. 미보유 시 이 블록 생략(창작 금지).',
+    },
+    {
+        "section": "5. 콜드 소식 랜딩(Route B)",
+        "title": "IG→소식 유도 동선",
+        "type": "info",
+        "limit": 0,
+        "body": "IG 게시물 CTA(전환글): 더 궁금하면 프로필 링크 → '사주도령 풀이 안내' 소식부터 보세요.\n프로필 링크: 기본은 카카오 채팅 직링크(웜). 콜드 캠페인 기간엔 소식 URL로 임시 교체 A/B 가능.\n측정: '소식' 키워드 신청 수 / 소식 조회 대비 채팅 전환(daily-tracker.xlsx).",
+    },
+    {
+        "section": "6. 2차 팔로업·업셀",
+        "title": "R1 문의 미결제(1:1·광고표기 불필요)",
+        "type": "text",
+        "limit": 0,
+        "body": "○○님, 지난번 문의 주셨던 거 편하게 이어서 도와드리려고요.\n\n혹시 결정에 걸리는 부분이 있으셨을까요?\n구성이 궁금하시면 [풀이 구성]을, 어떤 톤인지 보고 싶으시면\n[실제 후기]를 먼저 보셔도 좋아요.\n(비슷한 고민으로 받아보신 분들 후기도 거기 있어요)\n\n가장 궁금한 한 가지만 가볍게 물어보셔도 됩니다.\n지금 결정이 안 되셔도 전혀 괜찮아요.",
+    },
+    {
+        "section": "6. 2차 팔로업·업셀",
+        "title": "R1-B 무응답 시 D+2(1:1·1회만)",
+        "type": "text",
+        "limit": 0,
+        "body": "○○님, 며칠 전 여쭤본 게 부담되셨다면 죄송해요.\n딱 하나만 여쭤볼게요 — 구성이 궁금하신 걸까요,\n아니면 가격이나 시작 타이밍이 걸리시는 걸까요?\n\n뭐가 걸리는지만 알려주시면, 거기에 맞춰 짧게 도와드릴게요.",
+    },
+    {
+        "section": "6. 2차 팔로업·업셀",
+        "title": "R2 무응답 친구(광고·마감 후 다음안내)",
+        "type": "text",
+        "limit": 1000,
+        "body": '(광고) 사주도령\n\n지난주 재오픈 접수는 예정대로 마감했어요.\n못 보고 지나치신 분들이 계셔서, 짧게만 남겨요.\n\n지금 당장 풀이를 받지 않으셔도,\n[일주로 보는 2026 키워드]는 채팅으로 생년월일시만 주시면\n가볍게 한 가지 짚어드려요. (무료)\n\n다음 접수 열릴 때 가장 먼저 알려드릴까요?\n원하시면 이 채팅에 "다음 알림"이라고만 남겨주세요.\n\n문의: 이 채팅 / 무료 수신거부: [카카오 자동]',
+    },
+    {
+        "section": "6. 2차 팔로업·업셀",
+        "title": "U1 구매자 업셀(1:1·만족확인 후)",
+        "type": "text",
+        "limit": 0,
+        "body": "○○님, 보내드린 풀이는 도움이 되셨을까요?\n읽으시다 더 궁금한 부분 있으면 편하게 말씀 주세요.\n\n혹시 더 깊게 보고 싶으신 주제가 있다면,\n· 향후 5년 흐름·세부 타이밍을 자미두수 12궁 교차로 더 깊이 = 심층 교차(프리미엄)\n· 상대와의 인연·궁합이 궁금하시면 = 궁합 추가(+20,000)\n이렇게 이어서 봐드릴 수 있어요.\n\n지금 바로가 아니어도 괜찮아요. 필요할 때 편하게 찾아주세요.",
+    },
+    {
+        "section": "6. 2차 팔로업·업셀",
+        "title": "U2 후기 요청(1:1·동의/익명)",
+        "type": "text",
+        "limit": 0,
+        "body": "도움이 되셨다니 저도 기뻐요.\n\n괜찮으시면 짧은 한 줄 후기를 남겨주실 수 있을까요?\n같은 고민을 하는 분들에게 큰 참고가 돼요.\n(공개 시 성함은 익명/이니셜로, 동의해주신 내용만 게시해요)",
+    },
 ]
 
 HEAD = """<!doctype html>
@@ -240,7 +303,10 @@ h1{font-size:18px;margin:0 0 8px}
 .ctrl input{padding:6px 8px;border-radius:8px;border:1px solid #3a4a32;background:#0f150c;color:#e9efe6}
 .note{color:#9fb097;font-size:12px;margin-top:6px}
 main{max-width:760px;margin:0 auto;padding:16px}
-h2{font-size:15px;color:#bcd3b0;margin:22px 4px 8px;border-left:3px solid var(--accent);padding-left:8px}
+h2{font-size:15px;color:#bcd3b0;margin:22px 4px 8px;border-left:3px solid var(--accent);padding-left:8px;scroll-margin-top:140px}
+#toc{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+#toc a{font-size:12px;color:#bcd3b0;background:#1b2417;border:1px solid #2f3b30;border-radius:999px;padding:3px 9px;text-decoration:none}
+#toc a:hover{background:#2f6b3a;color:#fff}
 .card{background:var(--card);color:var(--ink);border-radius:12px;padding:12px;margin:10px 0;box-shadow:0 1px 4px rgba(0,0,0,.3)}
 .card.info{background:#fef9e7;color:#5b4b14}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
@@ -261,6 +327,7 @@ footer{max-width:760px;margin:0 auto;padding:18px 16px;color:#9fb097;font-size:1
 <span id="range" class="cnt">(시작일을 넣으면 날짜가 자동으로 채워져요)</span>
 </div>
 <div class="note">각 카드의 [복사]를 눌러 카카오 관리자센터에 붙여넣으세요. 글자수는 카카오 한도 기준(초과 시 빨강). 근거·심리기법 주석은 templates/*.md 참고.</div>
+<nav id="toc"></nav>
 </header>
 <main id="app"></main>
 <footer>※ 결과·시기 보장 표현 0건 / 가격은 정가(할인 아님) / 계좌번호는 신청 후 1:1 안내. 날짜는 시작일 입력 시 자동(5일).</footer>
@@ -281,9 +348,11 @@ function render(){
   const app=document.getElementById('app'); app.innerHTML="";
   const d=dates();
   document.getElementById('range').textContent = d.ok ? ("접수: "+d.s+" ~ "+d.e+" (5일)") : "(시작일을 넣으면 날짜가 자동으로 채워져요)";
+  const seen=[]; BLOCKS.forEach(b=>{if(!seen.includes(b.section))seen.push(b.section);});
+  document.getElementById('toc').innerHTML = seen.map((s,i)=>"<a href='#sec"+i+"'>"+esc(s)+"</a>").join("");
   let cur="";
   BLOCKS.forEach((b,i)=>{
-    if(b.section!==cur){cur=b.section;const h=document.createElement('h2');h.textContent=cur;app.appendChild(h);}
+    if(b.section!==cur){cur=b.section;const h=document.createElement('h2');h.id="sec"+seen.indexOf(cur);h.textContent=cur;app.appendChild(h);}
     const card=document.createElement('div'); card.className="card"+(b.type==="info"?" info":"");
     const body=subst(b.body);
     if(b.type==="info"){card.innerHTML="<div class='t'>"+b.title+"</div><pre style='background:transparent;border:0;padding:0'>"+esc(body)+"</pre>";app.appendChild(card);return;}
