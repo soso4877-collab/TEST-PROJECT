@@ -53,7 +53,11 @@ def build(path):
             "재활성 귀속",
             "카카오 5일 캠페인 유입은 신청 시 '재오픈' 키워드로 구분 → 판매로그 first_keyword에 기록",
         ],
-        ["시트", "콘텐츠로그 / 판매로그 / 일일요약 / 캠페인_재활성"],
+        ["시트", "콘텐츠로그 / 주제별성과 / 판매로그 / 일일요약 / 캠페인_재활성"],
+        [
+            "주제별 측정",
+            "콘텐츠로그의 topic 열에 daily_hooks.py의 topic_id를 적으면 주제별성과 시트가 조회·참여·문의를 자동 롤업 → 1위 주제 더블다운(릴스·Shorts 확산).",
+        ],
         [
             "개인정보",
             "판매로그 이름은 익명코드(예: K-001) 사용. 생년월일시 등 민감정보는 여기 적지 말 것.",
@@ -74,6 +78,7 @@ def build(path):
     cols = [
         "date",
         "channel",
+        "topic",  # 주제 식별자(daily_hooks.py의 topic_id) — 주제별성과 롤업의 키
         "content_id",
         "hook_type",
         "url",
@@ -101,9 +106,13 @@ def build(path):
     _style_header(ws, len(cols))
     _widths(
         ws,
-        [11, 11, 14, 14, 22, 18, 12, 12, 8, 9, 7, 7, 12, 13, 11, 11, 9, 9, 10, 12, 11, 8, 10, 26],
+        [11, 11, 16, 14, 14, 22, 18, 12, 12, 8, 9, 7, 7, 12, 13, 11, 11, 9, 9, 10, 12, 11, 8, 10, 26],
     )
-    # 드롭다운
+
+    def _col(name):
+        return get_column_letter(cols.index(name) + 1)
+
+    # 드롭다운(컬럼 위치는 cols 인덱스로 계산 — topic 삽입에도 안전)
     dv_ch = DataValidation(
         type="list", formula1='"threads,instagram,kakao,youtube,tiktok"', allow_blank=True
     )
@@ -112,12 +121,56 @@ def build(path):
     )
     dv_yn = DataValidation(type="list", formula1='"Y,N"', allow_blank=True)
     ws.add_data_validation(dv_ch)
-    dv_ch.add("B2:B2000")
+    dv_ch.add(f"{_col('channel')}2:{_col('channel')}2000")
     ws.add_data_validation(dv_offer)
-    dv_offer.add("T2:T2000")
+    dv_offer.add(f"{_col('offer')}2:{_col('offer')}2000")
     ws.add_data_validation(dv_yn)
-    dv_yn.add("U2:U2000")
-    dv_yn.add("W2:W2000")
+    dv_yn.add(f"{_col('pdf_delivered')}2:{_col('pdf_delivered')}2000")
+    dv_yn.add(f"{_col('repurchase')}2:{_col('repurchase')}2000")
+
+    # 2b) 주제별성과 (콘텐츠로그에서 topic 기준 자동 롤업 — 측정→교정 루프)
+    wst = wb.create_sheet("주제별성과")
+    tcols = [
+        "topic",
+        "게시수(자동)",
+        "총조회(자동)",
+        "댓글(자동)",
+        "공유(자동)",
+        "외부링크(자동)",
+        "문의(자동)",
+        "결제(자동)",
+        "조회당참여(자동)",
+    ]
+    wst.append(tcols)
+    _style_header(wst, len(tcols))
+    _widths(wst, [20, 12, 12, 10, 9, 12, 10, 9, 14])
+    CL = "콘텐츠로그"
+    c_topic, c_views = _col("topic"), _col("views")
+    c_comments, c_shares = _col("comments"), _col("shares")
+    c_ext, c_inq, c_pay = _col("ext_link_clicks"), _col("inquiries"), _col("payments")
+    # 알려진 topic_id 시드(daily_hooks.py TOPIC_BANK와 일치) + 신규용 빈 행
+    seed_topics = [
+        "money-no-keep",
+        "move-or-wait",
+        "effort-no-result",
+        "relationship-loop",
+        "luck-turning-signal",
+        "career-fit",
+        "decision-delayed",
+        "same-saju-diff",
+    ]
+    for r, tid in enumerate(seed_topics + [""] * 6, start=2):
+        wst.cell(row=r, column=1).value = tid
+        wst.cell(row=r, column=2).value = f"=COUNTIF({CL}!${c_topic}:${c_topic},$A{r})"
+        wst.cell(row=r, column=3).value = f"=SUMIF({CL}!${c_topic}:${c_topic},$A{r},{CL}!${c_views}:${c_views})"
+        wst.cell(row=r, column=4).value = f"=SUMIF({CL}!${c_topic}:${c_topic},$A{r},{CL}!${c_comments}:${c_comments})"
+        wst.cell(row=r, column=5).value = f"=SUMIF({CL}!${c_topic}:${c_topic},$A{r},{CL}!${c_shares}:${c_shares})"
+        wst.cell(row=r, column=6).value = f"=SUMIF({CL}!${c_topic}:${c_topic},$A{r},{CL}!${c_ext}:${c_ext})"
+        wst.cell(row=r, column=7).value = f"=SUMIF({CL}!${c_topic}:${c_topic},$A{r},{CL}!${c_inq}:${c_inq})"
+        wst.cell(row=r, column=8).value = f"=SUMIF({CL}!${c_topic}:${c_topic},$A{r},{CL}!${c_pay}:${c_pay})"
+        wst.cell(row=r, column=9).value = f'=IF(C{r}=0,"",(D{r}+E{r})/C{r})'
+    wst["A16"].value = "↑ 조회 내림차순 정렬 후 1위 주제를 릴스·Shorts로 확산(repurpose.py). 신규 주제는 빈 행에 topic_id 추가."
+    wst["A16"].fill = NOTE_FILL
 
     # 3) 판매로그
     ws = wb.create_sheet("판매로그")

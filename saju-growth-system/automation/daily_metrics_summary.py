@@ -4,8 +4,9 @@
 
 외부 API 의존 없음. 파일 in/out만.
 입력: tracking/metrics-YYYY-MM-DD.csv
-  (열: date,channel,format,reach,completion_rate,shares,clicks,revenue)
-출력: 표준출력 요약 + (옵션) markdown 파일
+  (열: date,channel,format,topic,hook,reach,completion_rate,shares,comments,clicks,orders,revenue,notes)
+  topic = 큰틀 주제 식별자(daily_hooks.py의 topic_id). 없으면 hook으로 폴백.
+출력: 표준출력 요약 + (옵션) markdown 파일 — 채널별·포맷별·주제별 + 승자 주제
 
 사용 예:
   python daily_metrics_summary.py --in ../tracking/metrics-2026-06-08.csv
@@ -35,13 +36,19 @@ def summarize(in_path):
         lambda: {"reach": 0.0, "shares": 0.0, "clicks": 0.0, "revenue": 0.0, "n": 0}
     )
     by_format = defaultdict(lambda: {"reach": 0.0, "completion": [], "shares": 0.0, "n": 0})
+    by_topic = defaultdict(
+        lambda: {"reach": 0.0, "shares": 0.0, "comments": 0.0, "clicks": 0.0, "n": 0}
+    )
     total_rev = 0.0
 
     for r in rows:
         ch = (r.get("channel") or "?").strip()
         fmt = (r.get("format") or "?").strip()
+        # topic 우선, 없으면 hook(주제 식별자) 폴백
+        topic = (r.get("topic") or r.get("hook") or "?").strip() or "?"
         reach, shares = _num(r.get("reach")), _num(r.get("shares"))
         clicks, rev = _num(r.get("clicks")), _num(r.get("revenue"))
+        comments = _num(r.get("comments"))
         comp = _num(r.get("completion_rate"))
 
         c = by_channel[ch]
@@ -58,13 +65,20 @@ def summarize(in_path):
         if comp:
             ff["completion"].append(comp)
 
+        tt = by_topic[topic]
+        tt["reach"] += reach
+        tt["shares"] += shares
+        tt["comments"] += comments
+        tt["clicks"] += clicks
+        tt["n"] += 1
+
         total_rev += rev
 
-    return rows, by_channel, by_format, total_rev
+    return rows, by_channel, by_format, by_topic, total_rev
 
 
 def render(in_path, target=200000):
-    rows, by_channel, by_format, total_rev = summarize(in_path)
+    rows, by_channel, by_format, by_topic, total_rev = summarize(in_path)
     out = []
     out.append(f"# 일일 메트릭 요약 ({in_path})")
     out.append("")
@@ -100,6 +114,24 @@ def render(in_path, target=200000):
     out.append("")
     if best:
         out.append(f"**오늘의 승자 포맷**: `{best[0]}` → 내일 더블다운 검토.")
+    out.append("")
+
+    out.append("## 주제별 (큰틀 주제 = topic) — 측정→교정")
+    out.append("| 주제(topic) | 게시 | 도달 | 댓글 | 공유 | 클릭 |")
+    out.append("|---|---:|---:|---:|---:|---:|")
+    best_topic = None
+    for tp, d in sorted(by_topic.items(), key=lambda x: -(x[1]["reach"] + x[1]["shares"] * 10)):
+        out.append(
+            f"| {tp} | {d['n']} | {int(d['reach']):,} | {int(d['comments']):,} | {int(d['shares']):,} | {int(d['clicks']):,} |"
+        )
+        score = d["reach"] + d["shares"] * 10 + d["comments"] * 5
+        if best_topic is None or score > best_topic[1]:
+            best_topic = (tp, score)
+    out.append("")
+    if best_topic and best_topic[0] != "?":
+        out.append(
+            f"**오늘의 승자 주제**: `{best_topic[0]}` → 내일 릴스·Shorts로 확산(repurpose.py --topic {best_topic[0]})."
+        )
     return "\n".join(out)
 
 

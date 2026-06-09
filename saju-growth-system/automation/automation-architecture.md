@@ -34,10 +34,19 @@ Google Sheets/Airtable 콘텐츠 DB · AI 콘텐츠 생성(Claude) · CapCut 템
 - 카톡 자동발송이 꼭 필요해지면 **SOLAPI**(유일한 카톡 브리지)만 검토.
 - iPaaS(n8n/Make/Zapier)는 게시용 아닌 글루(시트→스케줄러·AI생성)로만 한정.
 
-## 데이터 흐름
+## 데이터 흐름 (큰틀 주제 + 주제별 측정 루프)
 ```
-hooks-library → repurpose.py → 채널별 드래프트 → 검수(컴플라이언스)
+daily_hooks.py(매일 ≥5 큰틀 주제 + topic_id)
+   → 1위 주제 → repurpose.py --topic <id> → 채널별 드래프트 → 검수(컴플라이언스)
    → 7-day-content-calendar.csv → calendar_to_csv.py → Metricool/Publer 임포트 → 발행
-발행 결과 → metrics CSV → daily_metrics_summary.py → daily-review → 다음날 조정
-주문(구글폼) → 입금확인 → sajugen PDF + LLM 해석 → 카톡 전달
+발행 결과(조회·참여) → 콘텐츠로그.topic 입력 → 주제별성과(자동 롤업)
+   + metrics CSV → daily_metrics_summary.py(승자 주제) → 다음날 1위 주제 더블다운
+주문 → 입금확인 → sajugen PDF + LLM 해석 → 카톡 전달
 ```
+
+## 주제별 조회수 "연동" — 7일 방식 + 업그레이드 경로
+- **7일(채택):** 네이티브 인사이트의 조회수를 `tracking/daily-tracker.xlsx`의 `콘텐츠로그.topic`에 **topic_id로 수기 입력** → `주제별성과` 시트가 SUMIF로 주제별 조회·참여·문의를 자동 롤업, `daily_metrics_summary.py`가 "승자 주제"를 출력. 외부 의존 0·즉시 측정→교정.
+- **업그레이드(Later·승인 후):** per-post 조회수 자동수집은 공식 API로 가능 —
+  - Threads `GET /{media-id}/insights`(metric=views, 무료, `threads_manage_insights`) → topic별 합산.
+  - Instagram Graph `GET /{ig-media-id}/insights`(metric=views/reach, v22.0, 비즈/크리에이터 + 앱검수) → topic별 합산.
+  - 둘 다 **OAuth 앱 등록·토큰 갱신·검수**가 전제라 7일 레이스엔 과중 → 캠페인 안정화 후 도입. CSV export·per-post 링크클릭은 미제공(수기 보완).

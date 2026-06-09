@@ -1,4 +1,5 @@
-date,channel,format,hook,reach,completion_rate,shares,comments,clicks,orders,revenue,notes
-2026-06-08,threads,text,경오일주 재물,0,0,0,0,0,0,0,샘플행-실측치로 교체
-2026-06-08,instagram,carousel,재물 패턴 3가지,0,0,0,0,0,0,0,샘플행-실측치로 교체
-2026-06-08,kakao,ad_message,미니 리포트 오퍼,0,0,0,0,0,0,0,샘플행-옵트아웃율 notes에 기록
+date,channel,format,topic,hook,reach,completion_rate,shares,comments,clicks,orders,revenue,notes
+2026-06-08,threads,text,money-no-keep,분명 남들만큼은 버는데 왜 손에 남는 게 없을까,0,0,0,0,0,0,0,샘플행-실측치로 교체
+2026-06-08,instagram,carousel,money-no-keep,돈 새는 패턴 3가지,0,0,0,0,0,0,0,샘플행-실측치로 교체
+2026-06-08,threads,text,move-or-wait,지금 움직일지 기다릴지,0,0,0,0,0,0,0,샘플행-실측치로 교체
+2026-06-08,kakao,ad_message,move-or-wait,교차 리딩 안내,0,0,0,0,0,0,0,샘플행-옵트아웃율 notes에 기록

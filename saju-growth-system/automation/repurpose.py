@@ -37,25 +37,34 @@ def check_banned(text):
     return [w for w in BANNED if w in text]
 
 
-def build_drafts(hook, pillar):
-    """후킹 1개 -> 채널별 11개 산출물 뼈대(markdown 문자열)."""
-    cta_soft = "당신 일주는 어떤가요? 댓글에 적어주시면 한 줄 봐드릴게요."
-    cta_direct = (
-        "이번 주 미니 사주 리포트 — 가장 궁금한 1가지를 명식 근거와 함께. 신청은 프로필 링크."
-    )
-    cta_close = "신청은 오늘까지 받아요. (다음 주는 상담 위주 운영 예정)"
+def build_drafts(hook, pillar, topic=None):
+    """큰틀 후킹 1개 -> 채널별 11개 산출물 뼈대(markdown 문자열).
+
+    hook = 큰틀 공감 첫 줄(많은 사람이 겪는 Pain). 일주·요소는 첫 줄 금지 → 본문 심화로만.
+    topic = 주제 식별자(추적 연결용). 미지정 시 hook에서 슬러그 생성.
+    """
+    topic_id = topic or slugify(hook)
+    # 권위 톤 CTA(자기비하·"무료로 봐준다" 금지, 확신 톤·결과보장 아님)
+    cta_soft = "당신은 어느 쪽인가요? 댓글에 생년(또는 일주)을 적어주시면 흐름을 짚어드립니다."
+    cta_direct = "가장 궁금한 한 가지, 큰 구조와 시기를 교차해 짚어드려요. 신청은 프로필 채팅."
+    cta_close = "재오픈 첫 주 접수는 기간 안에만 받습니다. 신청은 프로필 채팅."
 
     lines = []
     lines.append(f'# 리퍼포징 드래프트 — "{hook}"')
-    lines.append(f"> 기둥(pillar): {pillar} · 보장표현 금지 · 첫 줄 250자 이하 · 원본성 유지\n")
-
-    lines.append("## Threads (3개)")
-    lines.append(f"1. (반증형) {hook}\n   -> 오픈루프: {cta_soft}")
     lines.append(
-        f"2. (숫자형) {hook} — 핵심 패턴 3가지 중 2번이 제일 흔해요.\n   -> 오픈루프: 본인 같으면 ㅇ, 아니면 ㄴ 댓글 주세요."
+        f"> topic_id: `{topic_id}`  ·  기둥(pillar): {pillar}  ·  추적: tracking/daily-tracker.xlsx 의 topic 열에 `{topic_id}` 기록"
     )
     lines.append(
-        f"3. (자기관련) {hook} 본인 얘기 같은 분?\n   -> 오픈루프: 댓글에 일주 적어주세요. (게시 후 30분 자기답글 필수)\n"
+        "> 톤: 권위·확신 / 첫 줄=큰틀 공감(일주특정 금지) / 보장표현 금지 / 첫 줄 250자 이하 / 원본성 유지\n"
+    )
+
+    lines.append("## Threads (3개) — 첫 줄=큰틀, 일주·구조는 본문 심화")
+    lines.append(f"1. (큰틀 공감) {hook}\n   -> 본문 심화: 사주 구조로 좁히기(예: 일주·십성)\n   -> 오픈루프: {cta_soft}")
+    lines.append(
+        f"2. (숫자·구조형) {hook}\n   -> 본문: 핵심 패턴 3가지 중 2번이 제일 흔해요.\n   -> 오픈루프: 본인 같으면 ㅇ, 아니면 ㄴ 댓글 주세요. 패턴별로 짚어드릴게요."
+    )
+    lines.append(
+        f"3. (자기관련) {hook}\n   -> 본문: 특정 사주만의 얘기가 아니에요. 같은 고민, 의외로 많아요.\n   -> 오픈루프: 댓글에 생년(또는 일주) 적어주세요. (게시 후 30분 자기답글 필수)\n"
     )
 
     lines.append("## Instagram 캐러셀 (카드뉴스 5~7장)")
@@ -86,11 +95,10 @@ def build_drafts(hook, pillar):
 
     lines.append("## 카카오 (광고) 메시지")
     lines.append("(광고) 사주도령")
-    lines.append(f"{hook} — 막연한 불안 대신 기준 하나.")
-    lines.append("미니 사주 리포트 신청: [구글폼 링크] / 문의: [연락처]")
-    lines.append(
-        "* 참고용 해석 자료이며 결과를 보장하지 않습니다. 무료 수신거부: [카카오 자동 안내]\n"
-    )
+    lines.append(f"{hook}")
+    lines.append("큰 흐름(명리)과 세부 타이밍(자미)을 교차해 방향을 짚어드립니다.")
+    lines.append("궁금한 한 가지가 생기면 이 채팅으로 적어주세요. 문의: 이 채팅")
+    lines.append("* 참고용 해석 자료이며 결과를 보장하지 않습니다. 무료 수신거부: [카카오 자동]\n")
 
     lines.append("## CTA 3종")
     lines.append(f"- 소프트: {cta_soft}")
@@ -107,9 +115,10 @@ def slugify(text):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description="후킹 1개 -> 채널별 드래프트(1->11)")
-    p.add_argument("--hook", required=True, help="소스 후킹 문장")
+    p = argparse.ArgumentParser(description="큰틀 후킹 1개 -> 채널별 드래프트(1->11)")
+    p.add_argument("--hook", required=True, help="큰틀 공감 후킹 첫 줄(일주특정 금지)")
     p.add_argument("--pillar", default="1", help="콘텐츠 기둥 번호 1~4")
+    p.add_argument("--topic", default=None, help="주제 식별자(추적용, 미지정시 hook에서 생성)")
     p.add_argument("--out", default=None, help="출력 디렉토리(미지정시 표준출력)")
     args = p.parse_args(argv)
 
@@ -118,7 +127,7 @@ def main(argv=None):
         sys.stderr.write("[경고] 후킹에 금지어 발견: " + ", ".join(hits) + "\n")
         sys.stderr.write("       표시광고법/banned-terms 위반. 수정 후 사용하세요.\n")
 
-    md = build_drafts(args.hook, args.pillar)
+    md = build_drafts(args.hook, args.pillar, args.topic)
 
     if args.out:
         os.makedirs(args.out, exist_ok=True)
