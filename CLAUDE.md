@@ -16,8 +16,8 @@
 - FastAPI + SQLite(주문·검수) / pydantic + Instructor / LLM = Anthropic 공식 API만
 
 ## 실행/테스트 명령
-- 테스트(레거시 test_parsers.py 제외, 반드시 이 형태로):
-  `./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py`
+- 테스트:
+  `./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py tests/test_kasi.py`
 - CLI: `./.venv/Scripts/python.exe -m sajugen.cli --birth "1990-05-20 14:30" --gender 남 --horoscope 2026-06-01 --out x.pdf`
 - 웹폼: `./.venv/Scripts/python.exe -m uvicorn sajugen.app:app --host 127.0.0.1 --port 8765`
 - 산출 PDF: `sajugen/render/out/`

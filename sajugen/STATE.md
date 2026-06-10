@@ -47,7 +47,7 @@ Phase 0(docs 11종·정책 고정) 완료. Phase 1(KASI 검증층) 완료(2026-0
 ## 실행 방법
 - CLI: ./.venv/Scripts/python.exe -m sajugen.cli --birth "1990-05-20 14:30" --gender 남 --horoscope 2026-06-01 --out x.pdf
 - 웹폼: ./.venv/Scripts/python.exe -m uvicorn sajugen.app:app --host 127.0.0.1 --port 8765
-- 테스트(레거시 test_parsers 제외): ./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py
+- 테스트: ./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py tests/test_kasi.py
 - 산출 PDF: sajugen/render/out/
 
 ## veraPDF / PDF-UA (결정 완료)
@@ -72,8 +72,9 @@ Phase 0(docs 11종·정책 고정) 완료. Phase 1(KASI 검증층) 완료(2026-0
 ## 알려진 사소 이슈 (기능 영향 없음, 보강 후보)
 - iztro soul/body 主星은 원키 노출(soul_star_raw). 한글 매핑 보강 가능.
 - 子/午시 命身同宮(신궁=명궁) 정상 동작 — 문구만 "명신동궁"으로 다듬기 여지.
-- 레거시 tests/test_parsers.py(구 arbisignal, 무관) 수집에러 -> 위 명령처럼
-  test_p1..p5 만 지정 실행.
+- (정리됨 2026-06-10) ArbiSignal 잔재 삭제: config/·scripts/(capture/collect/recon/
+  common 등 8종)·tests/test_parsers.py. .env.example 도 sajugen용으로 정정.
+  scripts/ 는 kasi_dump.py·verify_kasi_cache.py 만 남음.
 
 ## RESUME HERE - 다음 즉시 작업
 >> (완료 2026-06-10) 개발용 모델 라우팅: 전역 model=opusplan + env
