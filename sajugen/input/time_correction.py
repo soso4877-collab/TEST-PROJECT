@@ -52,16 +52,28 @@ class CorrectedTime:
     longitude: float
 
 
-def _apparent_solar_dt(utc_dt: datetime, lon: float, lat: float) -> datetime:
-    """출생지에서의 진태양시(태양 hour angle + 12h)를 datetime으로 환원."""
+def _apparent_solar_dt(utc_dt: datetime, lon: float, lat: float, civil_naive: datetime) -> datetime:
+    """출생지에서의 진태양시(태양 hour angle + 12h)를 datetime으로 환원.
+
+    진태양시의 '시각(시:분:초)'은 태양 시각각으로 정확히 구하되, 날짜 기준은
+    시민(KST) 날짜에 고정한다. UTC 날짜를 기준으로 삼으면 KST 새벽(00~09시)
+    출생자는 UTC가 전날이라 사주 날짜가 -1일 어긋난다.
+    경도차+균시차 보정은 1시간 미만이므로, 자정을 넘나드는 경계에서는 시민시각과
+    가장 가까운(±12h 이내) 날짜를 선택해 날짜를 보정한다.
+    """
     t = _ts.from_datetime(utc_dt.replace(tzinfo=ZoneInfo("UTC")))
     observer = _earth + wgs84.latlon(lat, lon)
     ha, dec, _ = observer.at(t).observe(_sun).apparent().hadec()
     # 진태양시(시) = 태양 시각각 + 12 (mod 24)
     ast_hours = (ha.hours + 12.0) % 24.0
-    # UTC 날짜를 기준으로 진태양시 시:분:초를 입힌 datetime 구성
-    base = utc_dt.replace(hour=0, minute=0, second=0, microsecond=0)
-    return base + timedelta(hours=ast_hours)
+    # 시민(KST) 날짜를 기준으로 진태양시 시:분:초를 입힌 뒤, 자정 경계는 보정
+    base = datetime(civil_naive.year, civil_naive.month, civil_naive.day)
+    cand = base + timedelta(hours=ast_hours)
+    while cand - civil_naive > timedelta(hours=12):
+        cand -= timedelta(days=1)
+    while civil_naive - cand > timedelta(hours=12):
+        cand += timedelta(days=1)
+    return cand
 
 
 def correct(
@@ -77,10 +89,10 @@ def correct(
 ) -> CorrectedTime:
     civil = datetime(year, month, day, hour, minute, tzinfo=_KST)
     utc = civil.astimezone(ZoneInfo("UTC"))
-
-    true_solar = _apparent_solar_dt(utc.replace(tzinfo=None), longitude, latitude)
-    # 시민시각 대비 총 보정량(분): 진태양시 - 시민시각(동일 '벽시계' 비교 위해 KST 분해)
     civil_naive = civil.replace(tzinfo=None)
+
+    true_solar = _apparent_solar_dt(utc.replace(tzinfo=None), longitude, latitude, civil_naive)
+    # 시민시각 대비 총 보정량(분): 진태양시 - 시민시각(동일 '벽시계' 비교 위해 KST 분해)
     eot_minutes = round((true_solar - civil_naive).total_seconds() / 60.0, 2)
 
     h = true_solar.hour + true_solar.minute / 60.0
