@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "f=\"/c/Users/pc/test-project/sajugen/STATE.md\"; [ -f \"$f\" ] && { echo '=== [자동주입] sajugen 진행상태 (sajugen/STATE.md) — 컨텍스트 함축/재시작과 무관하게 이 상태를 기준으로 이어가세요 ==='; cat \"$f\"; } || true",
+            "timeout": 10,
+            "statusMessage": "sajugen STATE 자동 주입"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "f=\"/c/Users/pc/test-project/sajugen/STATE.md\"; [ -f \"$f\" ] && { echo '=== [압축 전 보존] sajugen 진행상태 (sajugen/STATE.md) ==='; cat \"$f\"; } || true",
+            "timeout": 10,
+            "statusMessage": "압축 전 sajugen STATE 보존"
+          }
+        ]
+      }
+    ]
+  }
+}

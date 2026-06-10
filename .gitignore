@@ -1,5 +1,9 @@
-# Claude Code configuration
-.claude/
+# Claude Code configuration (공용 에이전트·규칙·프로젝트 settings 는 추적 —
+# settings.local.json/agent-memory 등은 계속 무시)
+.claude/*
+!.claude/agents/
+!.claude/rules/
+!.claude/settings.json
 
 # Base64 encoded assets (not needed in repo)
 profile_b64.txt
@@ -21,9 +25,9 @@ Thumbs.db
 endpoints.json
 
 # ArbiSignal 수집기 - 출력물 (대용량, gitignore)
-output/raw/
-output/db/
-output/parquet/
+output/
+report/
+reports/
 
 # Python
 __pycache__/
