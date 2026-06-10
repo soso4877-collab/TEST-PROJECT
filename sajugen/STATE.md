@@ -11,12 +11,15 @@
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
 2026-06-10 상용화 플랜(Phase 0~8) 승인: KASI 3원 검증층 + 음력/윤달 입력
 + 자미 유파 정책 + 부분 LLM 4구간(공식 API) + 주문 상태머신 + 검수 UI.
-Phase 0(docs)·1(KASI)·2(음력입력)·3(자미 유파/동등성) 완료.
+Phase 0(docs)·1(KASI)·2(음력입력)·3(자미 유파/동등성)·4(주문 상태머신) 완료.
 P1(2026-06-10): 키 발급·전수 캐싱(음양력 1900~2050 + 절기 2000~2027)·3원 교차·KASI 결함 3건 문서화.
 P2(2026-06-11): input/normalize.py 음력→양력(KASI 역조회 1차)·윤달·한·중 상이 경고, CLI/웹폼 --lunar/--leap.
 P3(2026-06-11): iztro_py↔iztro JS 100건 동등성 — 구조(배치·사화·명신궁·오행국) 불일치 0, 밝기만 판본차(known-diff).
   config/rule_profile.yaml 유파 외부화(sajugen/config.py 로더), 연경계=正월一일·사화표=iztro기본 확정.
-전체 회귀 57 PASS. 다음 = Phase 4(룰 NLG 27섹션 점검 또는 다음 로드맵 항목, docs/09 참조).
+P4(2026-06-11): models/report.py(Unified JSON, docs/04 round-trip) + store/orders.py(상태머신
+  RECEIVED→…→DELIVERED·SQLite·audit_log, APPROVED 전 issue_final_pdf 차단=절대규칙16). test_orders 8 PASS.
+전체 회귀 65 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
+  운영자 ANTHROPIC_API_KEY 준비 필요, 무키 시 룰 폴백).
 헤드리스(경로1 Max) 폐기 — 런타임 LLM은 Anthropic 공식 API로 확정.
 
 ## 목표/스택 (확정)
@@ -50,7 +53,7 @@ P3(2026-06-11): iztro_py↔iztro JS 100건 동등성 — 구조(배치·사화·
 ## 실행 방법
 - CLI: ./.venv/Scripts/python.exe -m sajugen.cli --birth "1990-05-20 14:30" --gender 남 --horoscope 2026-06-01 --out x.pdf
 - 웹폼: ./.venv/Scripts/python.exe -m uvicorn sajugen.app:app --host 127.0.0.1 --port 8765
-- 테스트: ./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py tests/test_kasi.py tests/test_normalize.py tests/test_ziwei_parity.py
+- 테스트: ./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py tests/test_kasi.py tests/test_normalize.py tests/test_ziwei_parity.py tests/test_orders.py
 - 산출 PDF: sajugen/render/out/
 
 ## veraPDF / PDF-UA (결정 완료)
