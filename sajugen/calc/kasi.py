@@ -226,6 +226,36 @@ class KasiCache:
         row = self._c().execute("SELECT * FROM lunar WHERE sol_ymd=?", (ymd,)).fetchone()
         return dict(row) if row else None
 
+    def solar_of_lunar(
+        self, lun_year: int, lun_month: int, lun_day: int, is_leap: bool = False
+    ) -> dict | None:
+        """음력(년/월/일/윤달) → 양력 날짜 역방향 조회(KASI 1차 기준). 없으면 None.
+
+        반환: {'sol_ymd','year','month','day','leap','iljin','secha'}.
+        음력 1일은 양력 1일에 유일 대응하므로 결과는 0 또는 1건.
+        """
+        leap = 1 if is_leap else 0
+        row = (
+            self._c()
+            .execute(
+                "SELECT * FROM lunar WHERE lun_year=? AND lun_month=? AND lun_day=? AND leap=?",
+                (lun_year, lun_month, lun_day, leap),
+            )
+            .fetchone()
+        )
+        if not row:
+            return None
+        s = int(row["sol_ymd"])
+        return {
+            "sol_ymd": s,
+            "year": s // 10000,
+            "month": (s // 100) % 100,
+            "day": s % 100,
+            "leap": int(row["leap"]),
+            "iljin": row["iljin"],
+            "secha": row["secha"],
+        }
+
     def solar_term_years(self) -> tuple[int, int] | None:
         """캐시에 절기가 있는 연도 [min, max]. 없으면 None."""
         row = self._c().execute("SELECT MIN(year) lo, MAX(year) hi FROM solarterm").fetchone()

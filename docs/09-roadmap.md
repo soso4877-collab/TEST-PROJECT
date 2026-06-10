@@ -7,7 +7,7 @@
 |---|---|---|---|---|
 | 0 | docs 11종 + 정책 고정(윤달 15일분할, 감수 명시형 고지) | docs/00~10 | 정책 명문화 | 완료 2026-06-10 |
 | 1 | KASI 검증층: 키 발급(운영자)→실호출 확정→전수 캐싱→3원 교차 | scripts/kasi_dump.py, calc/kasi.py, tests/test_kasi.py | 1900~2050 캐시+불일치 0 또는 전수 문서화 | 완료 2026-06-10 (캐시 55,152일+672절기, KASI결함 3건 문서화, 44 PASS) |
-| 2 | 음력/윤달 입력+정규화 (KASI 1차 기준) | input/normalize.py, cli/app 확장 | 음력 E2E PASS+한·중 상이일 목록 | |
+| 2 | 음력/윤달 입력+정규화 (KASI 1차 기준) | input/normalize.py, cli/app 확장 | 음력 E2E PASS+한·중 상이일 목록 | 완료 2026-06-11 (음력→양력 KASI역조회·윤달·한·중상이 경고, CLI/웹폼 --lunar/--leap, test_normalize 7 PASS, E2E 일주 乙酉) |
 | 3 | 자미 유파 정책+iztro 동등성 | calc/ziwei.py, config/rule_profile.yaml, tests/test_ziwei_parity.py | 100건 대조 불일치 0 또는 골든셋 | |
 | 4 | Unified JSON+주문 DB·상태머신 | models/report.py, store/orders.py | 상태 전이 테스트 GREEN | |
 | 5 | Question Router+부분 LLM 4구간 | content/question_router.py, llm_sections.py, prompts/ | 가드 clean+폴백 실증 | |

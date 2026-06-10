@@ -11,9 +11,10 @@
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
 2026-06-10 상용화 플랜(Phase 0~8) 승인: KASI 3원 검증층 + 음력/윤달 입력
 + 자미 유파 정책 + 부분 LLM 4구간(공식 API) + 주문 상태머신 + 검수 UI.
-Phase 0(docs 11종·정책 고정) 완료. Phase 1(KASI 검증층) 완료(2026-06-10):
-키 발급·전수 캐싱(음양력 1900~2050 + 절기 2000~2027)·3원 교차·KASI 결함 3건 문서화, 44 PASS.
-다음 = Phase 2(음력/윤달 입력 정규화, input/normalize.py, KASI 1차 기준).
+Phase 0(docs 11종·정책 고정) 완료. Phase 1(KASI 검증층)·Phase 2(음력/윤달 입력) 완료.
+P1(2026-06-10): 키 발급·전수 캐싱(음양력 1900~2050 + 절기 2000~2027)·3원 교차·KASI 결함 3건 문서화.
+P2(2026-06-11): input/normalize.py 음력→양력(KASI 역조회 1차)·윤달·한·중 상이 경고, CLI/웹폼 --lunar/--leap.
+전체 회귀 53 PASS. 다음 = Phase 3(자미 유파 정책 + iztro 동등성, calc/ziwei.py·config/rule_profile.yaml).
 헤드리스(경로1 Max) 폐기 — 런타임 LLM은 Anthropic 공식 API로 확정.
 
 ## 목표/스택 (확정)
@@ -47,7 +48,7 @@ Phase 0(docs 11종·정책 고정) 완료. Phase 1(KASI 검증층) 완료(2026-0
 ## 실행 방법
 - CLI: ./.venv/Scripts/python.exe -m sajugen.cli --birth "1990-05-20 14:30" --gender 남 --horoscope 2026-06-01 --out x.pdf
 - 웹폼: ./.venv/Scripts/python.exe -m uvicorn sajugen.app:app --host 127.0.0.1 --port 8765
-- 테스트: ./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py tests/test_kasi.py
+- 테스트: ./.venv/Scripts/python.exe -m pytest tests/test_p1.py tests/test_p2.py tests/test_p3.py tests/test_p4.py tests/test_p5.py tests/test_kasi.py tests/test_normalize.py
 - 산출 PDF: sajugen/render/out/
 
 ## veraPDF / PDF-UA (결정 완료)

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import typer
 
+from .input import normalize as norm
 from .input import time_correction as tc
 from .pipeline import generate
 
@@ -16,6 +17,8 @@ def gen(
     birth: str = typer.Option(
         ..., help="생년월일시 'YYYY-MM-DD HH:MM'. 생시 미상이면 'YYYY-MM-DD' 만"
     ),
+    lunar: bool = typer.Option(False, help="입력이 음력이면 지정(기본 양력)"),
+    leap: bool = typer.Option(False, help="음력 윤달생이면 지정(--lunar 와 함께)"),
     gender: str = typer.Option(..., help="male|female 또는 남|여"),
     longitude: float = typer.Option(tc.SEOUL_LON, help="출생지 경도(기본 서울)"),
     latitude: float = typer.Option(tc.SEOUL_LAT, help="출생지 위도(기본 서울)"),
@@ -28,12 +31,21 @@ def gen(
 ) -> None:
     parts = birth.split()
     d = parts[0]
-    y, mo, da = (int(x) for x in d.split("-"))
+    iy, imo, ida = (int(x) for x in d.split("-"))
     unknown_time = len(parts) < 2
     if unknown_time:
         hh, mi = 12, 0  # 생시 미상: 표준시 정오로 계산하되 시주는 '추정'으로 고지
     else:
         hh, mi = (int(x) for x in parts[1].split(":"))
+
+    # 음력/윤달 입력은 KASI 1차 기준으로 양력 정규화 후 엔진에 투입
+    nd = norm.normalize_date(iy, imo, ida, is_lunar=lunar, is_leap=leap)
+    y, mo, da = nd.year, nd.month, nd.day
+    if nd.input_kind == "lunar":
+        typer.echo(f"입력 정규화: {nd.note} [{nd.source}]")
+        for w in nd.warnings:
+            typer.echo("  주의: " + w)
+
     is_male = gender.strip().lower() in ("male", "m", "남", "남자")
     policy = tc.ZasiPolicy.YAJASI_SPLIT if yajasi else tc.ZasiPolicy.JST_2300
 
