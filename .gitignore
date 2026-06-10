@@ -60,3 +60,6 @@ _[!_]*.zip
 _pdfimg*/
 _audit/
 _f4_png/
+
+# sajugen KASI 런타임 캐시 (scripts/kasi_dump.py 산출, 비추적)
+data/
