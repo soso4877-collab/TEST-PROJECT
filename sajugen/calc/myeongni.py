@@ -15,7 +15,8 @@ from lunar_python import Solar
 from pydantic import BaseModel, Field
 
 from ..input.time_correction import CorrectedTime
-from . import advanced, solarterms
+from ..config import myeongni_shinsal
+from . import advanced, shinsal as shinsal_mod, solarterms
 
 _ELEM = {  # 천간/지지 → 오행
     "甲": "木",
@@ -61,6 +62,12 @@ class DaYunItem(BaseModel):
     ganzhi: str
 
 
+class ShinsalHit(BaseModel):
+    name: str  # 신살 한국어명
+    pillar: str  # year|month|day|hour
+    basis: str = ""  # 검수·trace 근거 라벨
+
+
 class Myeongni(BaseModel):
     year: Pillar
     month: Pillar
@@ -81,7 +88,11 @@ class Myeongni(BaseModel):
     yongshin_eokbu: str = ""  # 억부 방식 참고 용신(라벨)
     yongshin_axis: str = ""
     yongshin_method: str = "억부"
-    shinsal: list[str] = Field(default_factory=list)  # 전통 신살 한국어명
+    shinsal: list[str] = Field(default_factory=list)  # 전통 신살 한국어명(detail 파생, 하위호환)
+    shinsal_detail: list[ShinsalHit] = Field(default_factory=list)  # 기둥별 신살(근거 포함)
+    twelve_shinsal: dict[str, str] = Field(default_factory=dict)  # 기둥→12신살명(Phase B)
+    gongmang: dict[str, list[str]] = Field(default_factory=dict)  # 기둥→공망 지지(Phase B)
+    shinsal_profile: str = ""  # 적용 신살 학파 프로파일(감사 라벨)
     seun: list[tuple[int, str]] = Field(default_factory=list)  # (연, 간지)
     worun: list[tuple[str, str]] = Field(default_factory=list)  # (월, 간지)
     # 검증·정직성 플래그
@@ -158,7 +169,10 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
     dm = ec.getDayGan()
     ge, ge_note = advanced.geukguk(pillars["Month"], dm)
     eb = advanced.eokbu(pillars, dm)
-    sal = advanced.shinsal(pillars, dm)
+    sal_profile = myeongni_shinsal()
+    sal_hits = shinsal_mod.evaluate(pillars, dm, sal_profile)
+    sal = shinsal_mod.flat_names(sal_hits)
+    sal_detail = [ShinsalHit(name=h.name, pillar=h.pillar, basis=h.basis) for h in sal_hits]
     seun, worun = advanced.seun_worun(yun, ref_year)
 
     return Myeongni(
@@ -180,6 +194,8 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
         yongshin_eokbu=eb["yongshin"],
         yongshin_axis=eb["axis"],
         shinsal=sal,
+        shinsal_detail=sal_detail,
+        shinsal_profile=str(sal_profile.get("profile", "default")),
         seun=seun,
         worun=worun,
         month_branch_crosscheck_ok=xcheck_ok,

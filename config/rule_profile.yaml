@@ -27,3 +27,21 @@ ziwei:
   #   iztro JS 최신과는 밝기표 판본 차이가 있으나(known-diff, data/ziwei_brightness_divergence.json),
   #   자미 밝기는 영역 서술용 강약 수식어일 뿐 길흉 판정 근거 아님(절대규칙 9).
   brightness_source: iztro_py
+
+# 명리 신살 학파 정책 (docs/12 조사 + docs/03 §1 결정표). 표 데이터는 코드 상수,
+# 학파 분기 스위치만 여기서 읽는다(절대규칙 6). 신살은 보조 색채·비단정(절대규칙 9·11·12).
+myeongni_shinsal:
+  profile: default
+
+  # 괴강 적용 범위: day_only(일주 한정, 현행) | all_pillars(전 기둥)
+  goegang_scope: day_only
+
+  # 삼합계(도화·역마·화개) 기준 축: day_zhi(일지) | year_zhi(년지) | both(병기).
+  #   전통=년지·현대=일지 분기가 정설, 다수 만세력 앱은 양축 병기(docs/12 §2-3).
+  samhap_axis: both
+
+  # 12신살 기준 축: year_zhi | day_zhi | both (Phase B 산출)
+  twelve_axis: both
+
+  # 공망 표기 축: year_day(일·년주 병기, 일주 우선) | day_only (Phase B 산출)
+  gongmang_display: year_day

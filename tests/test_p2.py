@@ -106,8 +106,10 @@ def test_singang_label_and_yongshin_reference():
 
 
 def test_shinsal_table_deterministic():
+    from sajugen.calc import shinsal as ss
+
     r = _r()
-    valid = {"천을귀인", "도화살", "역마살", "화개살", "양인", "괴강", "백호"}
+    valid = set(ss.ORDER)  # 레지스트리 파생(이름 추가 시 자동 반영)
     assert all(s in valid for s in r.myeongni.shinsal), r.myeongni.shinsal
 
 

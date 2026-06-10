@@ -23,7 +23,14 @@ _DEFAULTS = {
         "year_divide": "normal",
         "sihua_source": "iztro_default",
         "brightness_source": "iztro_py",
-    }
+    },
+    "myeongni_shinsal": {
+        "profile": "default",
+        "goegang_scope": "day_only",  # day_only(현행) | all_pillars
+        "samhap_axis": "both",  # day_zhi | year_zhi | both
+        "twelve_axis": "both",  # year_zhi | day_zhi | both
+        "gongmang_display": "year_day",  # year_day | day_only
+    },
 }
 
 
@@ -47,3 +54,8 @@ def load() -> dict:
 def ziwei() -> dict:
     """자미 정책 섹션."""
     return load().get("ziwei", _DEFAULTS["ziwei"])
+
+
+def myeongni_shinsal() -> dict:
+    """명리 신살 학파 정책 섹션(괴강 범위·삼합 축·12신살 축·공망 표기)."""
+    return load().get("myeongni_shinsal", _DEFAULTS["myeongni_shinsal"])

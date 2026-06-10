@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-"""명리 심화 계산 — 격국·억부(신강약)·전통 신살·세운/월운.
+"""명리 심화 계산 — 격국·억부(신강약)·세운/월운.
 
 원칙(메모리 feedback-verify-no-overclaim·decision-sajugen-accuracy-guard):
 - 결정론만. 격국=월령 본기 십성(자평진전 기본). 억부=일간 생조 vs 극설
-  점수. 신살=권위 자료가 '표 기반 결정론'이라 확인한 전통 표(천을귀인·
-  도화·역마·화개·양인·괴강·백호). 세운/월운=lunar-python 출력 노출.
+  점수. 세운/월운=lunar-python 출력 노출.
 - 용신은 억부 1방식 '참고'만 산출(라벨). 단정·보장은 문안 계층에서 금지.
-- lunar-python 의 getDayJiShen/XiongSha 는 '일진 택일 신살'(河魁·金匮 등)
-  이라 사주 신살과 다른 체계 → 사용하지 않는다(혼동·왜곡 방지).
+- 신살은 calc/shinsal.py(레지스트리·기둥별·공망) 로 분리(docs/12).
 """
 
 from __future__ import annotations
@@ -113,56 +111,6 @@ def eokbu(pillars: dict, day_master: str) -> dict:
         "yongshin": _ELEM_KO.get(yong_e, yong_e),
         "axis": axis,
     }
-
-
-_CHEONEUL = {  # 천을귀인: 일간 → 지지 집합 (널리 쓰이는 표)
-    "甲": {"丑", "未"},
-    "戊": {"丑", "未"},
-    "庚": {"丑", "未"},
-    "乙": {"子", "申"},
-    "己": {"子", "申"},
-    "丙": {"亥", "酉"},
-    "丁": {"亥", "酉"},
-    "壬": {"卯", "巳"},
-    "癸": {"卯", "巳"},
-    "辛": {"寅", "午"},
-}
-_SAMHAP = {  # 일지가 속한 삼합국 → (도화, 역마, 화개) 대상 지지
-    frozenset({"申", "子", "辰"}): ("酉", "寅", "辰"),
-    frozenset({"寅", "午", "戌"}): ("卯", "申", "戌"),
-    frozenset({"巳", "酉", "丑"}): ("午", "亥", "丑"),
-    frozenset({"亥", "卯", "未"}): ("子", "巳", "未"),
-}
-_YANGIN = {"甲": "卯", "丙": "午", "戊": "午", "庚": "酉", "壬": "子"}  # 양간 양인
-_GOEGANG = {"庚辰", "庚戌", "壬辰", "壬戌"}  # 주류 4주설(辰戌의 괴·강)
-_BAEKHO = {"甲辰", "乙未", "丙戌", "丁丑", "戊辰", "壬戌", "癸丑"}
-
-
-def shinsal(pillars: dict, day_master: str) -> list[str]:
-    """전통 사주 신살(표 기반 결정론) — 객체 간지에 실재할 때만. 길흉 단정 없음."""
-    zhis = [p.zhi for p in pillars.values()]
-    day_zhi = pillars["Day"].zhi
-    out: list[str] = []
-    if any(z in _CHEONEUL.get(day_master, set()) for z in zhis):
-        out.append("천을귀인")
-    for grp, (do, yeok, hwa) in _SAMHAP.items():
-        if day_zhi in grp:
-            if any(z == do for z in zhis):
-                out.append("도화살")
-            if any(z == yeok for z in zhis):
-                out.append("역마살")
-            if any(z == hwa for z in zhis):
-                out.append("화개살")
-            break
-    if _YANGIN.get(day_master) and any(z == _YANGIN[day_master] for z in zhis):
-        out.append("양인")
-    if pillars["Day"].ganzhi in _GOEGANG:
-        out.append("괴강")
-    if any(p.ganzhi in _BAEKHO for p in pillars.values()):
-        out.append("백호")
-    # 안정 순서·중복 제거
-    order = ["천을귀인", "도화살", "역마살", "화개살", "양인", "괴강", "백호"]
-    return [s for s in order if s in out]
 
 
 def seun_worun(yun, ref_year: int | None):
