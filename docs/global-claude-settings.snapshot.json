@@ -1,0 +1,165 @@
+{
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "70",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-fable-5",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-opus-4-8"
+  },
+  "advisorModel": "fable",
+  "permissions": {
+    "defaultMode": "plan",
+    "allow": [
+      "Bash(.venv/Scripts/python tests/test_band_parser.py)",
+      "Bash(.venv/Scripts/python tests/test_db.py)",
+      "Bash(.venv/Scripts/python tests/test_transformer.py)",
+      "Bash(python:*)",
+      "Bash(python -c:*)",
+      "Bash(python -m:*)",
+      "Bash(pip:*)",
+      "Bash(node:*)",
+      "Bash(echo:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(git:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(touch:*)",
+      "Bash(chmod:*)",
+      "Bash(sort:*)",
+      "Bash(wc:*)",
+      "Bash(sed:*)",
+      "Read",
+      "Glob",
+      "Grep",
+      "LS",
+      "WebSearch",
+      "WebFetch(domain:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
+    ],
+    "deny": [
+      "Bash(rm:*)",
+      "Bash(rmdir:*)",
+      "Bash(del:*)",
+      "Bash(format:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(taskkill:*)",
+      "Bash(net:*)",
+      "Bash(reg:*)",
+      "Bash(powershell:*)",
+      "Bash(cmd /c:*)",
+      "Bash(curl *|*sh:*)",
+      "Bash(wget *|*sh:*)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "WebSearch|WebFetch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"decision\":\"allow\"}'"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/block-hardcoded-secrets.js",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/block-saju-banned-terms.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/block-env-commit.js",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/pre-commit-security.js",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/suggest-compact.js",
+            "timeout": 3,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/post-edit-lint.js",
+            "timeout": 15,
+            "async": true
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/loop-guard.js",
+            "timeout": 5,
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node c:/Users/pc/OneDrive/Desktop/crypto-signal/scripts/hooks/auto-review-trigger.js",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "powershell -NoProfile -File \"C:/Users/pc/.claude/scripts/statusline.ps1\""
+  },
+  "autoUpdatesChannel": "latest",
+  "tui": "default",
+  "theme": "dark-ansi",
+  "model": "opusplan"
+}

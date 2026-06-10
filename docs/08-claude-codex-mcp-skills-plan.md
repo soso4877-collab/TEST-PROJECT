@@ -29,6 +29,7 @@
 | 제품 런타임 LLM | 변경 없음 (docs/06: Haiku 윤문/Sonnet 질문답변) | content/llm_polish.py 등 |
 
 운영 규칙: **이 프로젝트 서브에이전트 모델 하한선 = Sonnet 4.6.** Haiku는 읽기 전용 탐색·분류 한정(공식 카탈로그 "simple tasks" 용도 — 검증 해석·골든 스냅샷 갱신은 범위 초과).
+전역 ~/.claude/settings.json은 git 밖이므로 스냅샷 사본을 docs/global-claude-settings.snapshot.json 으로 추적(변경 시마다 갱신 — defaultMode=plan, opusplan 라우팅, advisor 포함).
 주의: (a) opusplan 플랜 단계는 200K 컨텍스트 고정(공식 명시). (b) 전역 env로 인해 `opus` 별칭=Fable 5, `sonnet` 별칭=Opus 4.8로 해석됨 — 별칭 대신 풀네임으로 핀할 것. (c) Fable 5는 보안·생물 분류기 플래그 시 Opus 4.8 자동 폴백. (d) advisor는 실험적 기능 — 동작 변경 가능.
 
 ## Codex 병행 (보류 — 1인 운영 MVP 불요)
