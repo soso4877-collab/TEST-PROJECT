@@ -9,10 +9,10 @@
 | 자시 처리(명리) | JST_2300 기본 (23:00 진태양시부터 子시·일주 전환, 조자시설) | 기존 구현 유지 | input/time_correction.py ZasiPolicy 기본값 | input/time_correction.py |
 | 자시 처리(자미) | 명리 정책과 동일 축 사용. timeIndex 변환 시 일관 적용 | 2026-06-10 | 두 체계 일주 불일치 방지 | calc/ziwei.py (Phase 3) |
 | 연 경계(명리) | 입춘 절입시각 기준 | 기존 구현 | 절기 기준 명리 표준 | calc/myeongni.py |
-| 연 경계(자미) | iztro 기본(yearDivide) 확인 후 기록 — 미확정. 명리(입춘)와 다르면 차이를 리포트 비노출 영역에서만 사용 | Phase 3 검증 과제 | 생년사화·띠 영향 | rule_profile.yaml |
+| 연 경계(자미) | **正月一日(설날) 기준**(yearDivide=normal). 立春 아님 — 실측 2026-06-11. 명리(입춘)와 다른 축이라 立春~설날 출생은 자미年≠명리年 가능, 자미는 명반 구조 한정 | 2026-06-11 검증 | iztro 기본 동작 실측 | config/rule_profile.yaml |
 | 윤달 산입(자미) | **15일 분할법** (1~15일=본월, 16일~=익월). 리포트 고지 자동 삽입 | 2026-06-10 운영자 확정 | 다수파 관행 + iztro fixLeap=true 합치 | rule_profile.yaml (Phase 3) |
 | 자미 유파(해석) | 삼합파(성요 중심), 사화는 보조 신호. 비성파 규칙 혼용 금지 | 2026-06-10 | 한국 주류(번역서 기반) | content/rules.py |
-| 사화 배치표 | iztro 기본표 채택 — 단 경간(庚干) 등 코드 레벨 검증 후 본 표에 전사 (Phase 3) | 미확정 | 경간 최다 이설 | rule_profile.yaml |
+| 사화 배치표 | **iztro 기본표 채택**. iztro_py↔iztro JS 100건 대조에서 사화 불일치 0 검증(2026-06-11) | 2026-06-11 확정 | 100건 동등성 0 | config/rule_profile.yaml (sihua_source=iztro_default) |
 | 용신 | 억부 1방식, "참고" 라벨 고정(기존) | 기존 구현 | 다방식은 후속 | calc/advanced.py |
 | 음력 변환 기준 | KASI 캐시 1차, lunar-python 대조용, 불일치일은 KASI 채택 | 2026-06-10 | 한·중 음력 상이일 존재 | input/normalize.py (구현 완료 2026-06-11) |
 | 시진 불명 | 명리=12:00 추정+고지(기존), 자미=생성 금지(섹션 생략, 명리 단독 강등) | 2026-06-10 | 자미는 시 불명 시 성립 불가 | builder product 토글 (Phase 3) |
@@ -64,6 +64,16 @@
 - fortel-ziweidoushu(중주파)로 독립 표본 대조 — 유파 차이로 인한 불일치는 "유파 차이"로 분류, 동일 유파 내 불일치만 결함.
 - iztro-py에 fixLeap/yearDivide config 미구현 시: 입력 단계(normalize)에서 음력월 보정 후 전달하는 폴백.
 - 불일치 시: 원본 iztro(JS) 값 기준 판정, 케이스 골든셋 등록, iztro-py 패치 또는 사이드카 전환 검토.
+
+### 3-1. 동등성 실측 결과 (2026-06-11, scripts/verify_ziwei_parity.py, iztro JS 2.5.3)
+- 사이드카: sajugen/tools/iztro-bridge(node, 비추적·재생성 가능 — 브릿지 소스는 verify 스크립트가 부트스트랩).
+- **구조-핵심 100건 × 12궁 불일치 0**: 궁 지지/천간, 신궁, 성요 배치(major/minor/adj), 사화, 명/신궁 지지, 오행국.
+  → iztro_py 0.3.4 가 iztro JS 명반 구조를 충실히 포팅함 확인. 회귀 tests/test_ziwei_parity.py.
+- **밝기(廟旺得利平陷)는 판본 차이(known-diff)**: iztro_py 0.3.4 ↔ iztro JS 2.3~2.5 밝기표 상이(약 62% 성요).
+  밝기표는 자미두수 유파·서적별로 다른 영역이고, 절대규칙 9상 자미 밝기는 '영역 서술용 강약 수식어'일 뿐
+  길흉 판정 근거 아님. **결정: 런타임 엔진 iztro_py 밝기표를 일관 사용**(brightness_source=iztro_py),
+  차이는 data/ziwei_brightness_divergence.json 에 기록. iztro_py 갱신 시 재평가.
+- 연경계 실측: 2000-02-04(立春 당일) 己卯年 유지, 02-05(설날) 庚辰年 전환 → 자미 yearDivide=正月一日.
 
 ## 4. 불일치 처리 정책 (런타임)
 

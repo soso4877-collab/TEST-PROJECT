@@ -9,6 +9,7 @@ from __future__ import annotations
 import iztro_py
 from pydantic import BaseModel, Field
 
+from .. import config as _cfg
 from ..input.time_correction import CorrectedTime
 
 _SIHUA = {"祿": "화록", "權": "화권", "科": "화과", "忌": "화기"}
@@ -76,12 +77,13 @@ def _stars(lst) -> list[Star]:
 
 def build(ct: CorrectedTime, *, is_male: bool, horoscope_date: str | None = None) -> Ziwei:
     ts = ct.true_solar
+    zw = _cfg.ziwei()  # 유파 정책(절대규칙 6): 윤달/언어 등은 설정에서만 분기
     a = iztro_py.by_solar(
         f"{ts.year}-{ts.month:02d}-{ts.day:02d}",
         _time_index(ts.hour),
         "男" if is_male else "女",
-        True,
-        "ko-KR",
+        bool(zw.get("fix_leap", True)),
+        str(zw.get("language", "ko-KR")),
     )
     sp, bp = a.get_soul_palace(), a.get_body_palace()
     palaces = []

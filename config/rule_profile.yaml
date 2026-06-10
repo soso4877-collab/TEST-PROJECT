@@ -1,0 +1,29 @@
+# 자미두수 유파·계산 정책 (machine-readable). SSOT = docs/03 §1 결정표.
+# 절대규칙 6: 자시정책·윤달·유파 분기는 하드코딩 금지, 이 설정으로만 분기.
+# 코드(sajugen/config.py → calc/ziwei.py)가 이 값을 읽는다. 파일 부재 시 아래와 동일한 기본값 사용.
+
+ziwei:
+  # 해석 유파: 삼합파(성요 중심). 사화는 보조 신호. 비성파 규칙 혼용 금지.
+  algorithm: san_he
+
+  # iztro 출력 언어(런타임 표시). ko-KR 고정.
+  language: ko-KR
+
+  # 윤달 산입: 15일 분할법(1~15일=본월, 16일~=익월) — iztro fixLeap=true 와 합치.
+  # (2026-06-10 운영자 확정, docs/03)
+  fix_leap: true
+
+  # 연경계(자미): 正月一日(설날) 기준. 立春 아님 — 실측 2026-06-11
+  #   (2000-02-04 立春 당일에도 己卯年 유지, 02-05 설날에 庚辰年 전환).
+  #   명리는 立春 기준이라 立春~설날 사이 출생은 자미 年과 명리 年이 다를 수 있음.
+  #   자미는 명반 구조 한정, 시기·길흉 최종권위는 명리(절대규칙 9·10).
+  year_divide: normal
+
+  # 사화 배치표: iztro 기본표 채택. iztro_py ↔ iztro JS 100건 대조에서
+  #   배치·사화·명신궁·오행국 불일치 0 검증(2026-06-11, scripts/verify_ziwei_parity.py).
+  sihua_source: iztro_default
+
+  # 밝기표(廟旺得利平陷): iztro_py 0.3.4(런타임 엔진) 기준으로 일관 사용.
+  #   iztro JS 최신과는 밝기표 판본 차이가 있으나(known-diff, data/ziwei_brightness_divergence.json),
+  #   자미 밝기는 영역 서술용 강약 수식어일 뿐 길흉 판정 근거 아님(절대규칙 9).
+  brightness_source: iztro_py
