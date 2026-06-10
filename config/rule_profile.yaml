@@ -40,8 +40,9 @@ myeongni_shinsal:
   #   전통=년지·현대=일지 분기가 정설, 다수 만세력 앱은 양축 병기(docs/12 §2-3).
   samhap_axis: both
 
-  # 12신살 기준 축: year_zhi | day_zhi | both (Phase B 산출)
-  twelve_axis: both
+  # 12신살 기준 축: day_zhi(현대 대세) | year_zhi. 12신살은 기둥당 1개 라벨이라
+  #   both 는 노이즈만 늘어 미채택 — 현대 일지 대세 채택(docs/12 §2-3).
+  twelve_axis: day_zhi
 
   # 공망 표기 축: year_day(일·년주 병기, 일주 우선) | day_only (Phase B 산출)
   gongmang_display: year_day

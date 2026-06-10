@@ -32,10 +32,11 @@ def _pillars(year, month, day, hour):
 # --- 골든 스냅샷(리팩토링 전 현행값 고정) ---
 
 
-def test_golden_flat_shinsal_unchanged():
-    # 戊 일간, 일지 午(寅午戌) → 도화 卯(년주에 존재). 양인 午(일·시). 천을·괴강·백호 없음.
+def test_golden_flat_shinsal():
+    # 戊 일간, 일지 午(寅午戌) → 도화 卯(년주). 양인 午(일·시). 천문성 卯(년지).
+    # Phase A 기존 7종 = [도화살, 양인]. Phase B 확장으로 천문성(년지 卯) 추가.
     r = _r()
-    assert r.myeongni.shinsal == ["도화살", "양인"], r.myeongni.shinsal
+    assert r.myeongni.shinsal == ["도화살", "양인", "천문성"], r.myeongni.shinsal
 
 
 def test_detail_matches_flat():
@@ -74,8 +75,8 @@ def test_samhap_axis_both_vs_day_zhi():
     day_do = {h.pillar for h in day if h.name == "도화살"}
     assert both_do == {"year", "month"}, both_do
     assert day_do == {"year"}, day_do
-    # 평탄 이름은 동일(도화살·양인)
-    assert ss.flat_names(both) == ss.flat_names(day) == ["도화살", "양인"]
+    # 평탄 이름은 축 무관 동일(도화살·양인 + 천문성 년지 卯)
+    assert ss.flat_names(both) == ss.flat_names(day) == ["도화살", "양인", "천문성"]
 
 
 def test_goegang_scope_switch():
@@ -104,3 +105,76 @@ def test_order_stable_and_deduped():
     r = _r()
     keys = [(h.name, h.pillar) for h in r.myeongni.shinsal_detail]
     assert len(keys) == len(set(keys)), keys
+
+
+# --- Phase B: 공망·12신살·확장 길신 ---
+
+
+def test_gongmang_xunkong_six_xun():
+    # 60갑자 6개 旬首의 공망 전수
+    assert ss._xunkong("甲子") == ["戌", "亥"]
+    assert ss._xunkong("甲戌") == ["申", "酉"]
+    assert ss._xunkong("甲申") == ["午", "未"]
+    assert ss._xunkong("甲午") == ["辰", "巳"]
+    assert ss._xunkong("甲辰") == ["寅", "卯"]
+    assert ss._xunkong("甲寅") == ["子", "丑"]
+
+
+def _case1():
+    # 1997-10-27 09:46 서울 남 = 乙巳(시)/壬寅(일)/庚戌(월)/丁丑(년), 일간 壬
+    return engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
+
+
+def test_case1_pillars_guard():
+    m = _case1().myeongni
+    assert (m.year.ganzhi, m.month.ganzhi, m.day.ganzhi, m.hour.ganzhi) == (
+        "丁丑",
+        "庚戌",
+        "壬寅",
+        "乙巳",
+    ), (m.year.ganzhi, m.month.ganzhi, m.day.ganzhi, m.hour.ganzhi)
+
+
+def test_case1_gongmang():
+    # 일주 壬寅(甲午旬)→辰巳, 년주 丁丑(甲戌旬)→申酉. docs/11 레퍼런스 일치.
+    g = _case1().myeongni.gongmang
+    assert g["day"] == ["辰", "巳"], g
+    assert g["year"] == ["申", "酉"], g
+
+
+def test_case1_per_pillar_golden():
+    # 포스텔러 대조 — 엔진이 재현하는 항목(docs/12 §3-1 채택분)
+    m = _case1().myeongni
+    got = {(h.name, h.pillar) for h in m.shinsal_detail}
+    expected = {
+        ("천을귀인", "hour"),  # 壬→巳(시지)
+        ("태극귀인", "hour"),  # 壬→巳
+        ("문창귀인", "day"),  # 壬→寅(일지)
+        ("암록", "day"),  # 壬→寅
+        ("고신살", "day"),  # 년지 丑 방국 → 寅
+        ("금여", "year"),  # 壬→丑(년지)
+        ("백호", "year"),  # 丁丑 년주
+        ("화개살", "year"),  # 년지 丑 삼합 → 丑
+        ("화개살", "month"),  # 일지 寅 삼합 → 戌
+        ("천문성", "month"),  # 戌(월지)
+        ("과숙살", "month"),  # 년지 丑 방국 → 戌
+    }
+    assert expected <= got, sorted(expected - got)
+    # known-diff(미채택): 천주귀인 미구현, 역마 사생지 느슨표기 미채택
+    assert not any(h.name == "천주귀인" for h in m.shinsal_detail)
+
+
+def test_case1_twelve_shinsal():
+    # 일지 기준(寅午戌국, 일지 寅): 년丑=천살 월戌=화개 일寅=지살 시巳=망신
+    tw = _case1().myeongni.twelve_shinsal
+    assert tw == {"year": "천살", "month": "화개살", "day": "지살", "hour": "망신살"}, tw
+
+
+def test_extended_gilsin_tables():
+    # 문창 壬→寅, 금여 壬→丑, 암록 壬→寅 표 점검
+    P = _pillars("壬丑", "甲寅", "壬寅", "丙午")
+    hits = ss.evaluate(P, "壬", {})
+    by_name = {h.name for h in hits}
+    assert "문창귀인" in by_name  # 寅(월·일)
+    assert "금여" in by_name  # 丑(년)
+    assert "암록" in by_name  # 寅

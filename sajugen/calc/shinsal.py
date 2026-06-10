@@ -44,10 +44,14 @@ ORDER = [
 DEFAULT_PROFILE = {
     "profile": "default",
     "goegang_scope": "day_only",  # day_only(현행) | all_pillars
-    "samhap_axis": "both",  # day_zhi | year_zhi | both — 도화·역마·화개·12신살 공유
-    "twelve_axis": "both",  # year_zhi | day_zhi | both
+    "samhap_axis": "both",  # day_zhi | year_zhi | both — 도화·역마·화개
+    "twelve_axis": "day_zhi",  # day_zhi(현대 대세) | year_zhi — 12신살 기준 축
     "gongmang_display": "year_day",  # year_day | day_only
 }
+
+# 60갑자 산술용 인덱스 문자열
+_GAN = "甲乙丙丁戊己庚辛壬癸"
+_ZHI = "子丑寅卯辰巳午未申酉戌亥"
 
 # --- 일간 기준 길신 표 (지지 집합) ---
 _CHEONEUL = {  # 천을귀인: 일간 → 지지(주류 표, 辰戌 제외)
@@ -76,6 +80,124 @@ _SAMHAP = {
 # 괴강: 현대 통용형 4종(docs/03 §1). 고전 4주설(戊戌 포함·壬戌 제외)과 차이는 note.
 _GOEGANG = {"庚辰", "庚戌", "壬辰", "壬戌"}
 _BAEKHO = {"甲辰", "乙未", "丙戌", "丁丑", "戊辰", "壬戌", "癸丑"}  # 백호 7종
+
+# --- 일간 기준 길신 확장 표(docs/12 §2-1 채택분) ---
+_MUNCHANG = {  # 문창귀인(식신 위치). A등급
+    "甲": "巳",
+    "乙": "午",
+    "丙": "申",
+    "丁": "酉",
+    "戊": "申",
+    "己": "酉",
+    "庚": "亥",
+    "辛": "子",
+    "壬": "寅",
+    "癸": "卯",
+}
+_HAKDANG = {  # 학당귀인(장생지설). B등급 — note 동반
+    "甲": "亥",
+    "乙": "午",
+    "丙": "寅",
+    "丁": "酉",
+    "戊": "寅",
+    "己": "酉",
+    "庚": "亥",
+    "辛": "子",
+    "壬": "申",
+    "癸": "卯",
+}
+_GEUMYEO = {  # 금여(건록+2). A등급
+    "甲": "辰",
+    "乙": "巳",
+    "丙": "未",
+    "丁": "申",
+    "戊": "未",
+    "己": "申",
+    "庚": "戌",
+    "辛": "亥",
+    "壬": "丑",
+    "癸": "寅",
+}
+_AMNOK = {  # 암록(건록의 육합). A등급
+    "甲": "亥",
+    "乙": "戌",
+    "丙": "申",
+    "丁": "未",
+    "戊": "申",
+    "己": "未",
+    "庚": "巳",
+    "辛": "辰",
+    "壬": "寅",
+    "癸": "丑",
+}
+_TAEGEUK = {  # 태극귀인(일간→지지 집합). B등급
+    "甲": {"子", "午"},
+    "乙": {"子", "午"},
+    "丙": {"卯", "酉"},
+    "丁": {"卯", "酉"},
+    "戊": {"辰", "戌", "丑", "未"},
+    "己": {"辰", "戌", "丑", "未"},
+    "庚": {"寅", "亥"},
+    "辛": {"寅", "亥"},
+    "壬": {"巳", "申"},
+    "癸": {"巳", "申"},
+}
+
+# 천문성(지지 자체, 강 그룹만 채택해 노이즈 억제). B등급
+_CHEONMUN = {"卯", "戌", "亥", "未"}
+
+# 고신살·과숙살: 년지 방국 기준(docs/12 §2-2). B등급
+_GOSIN = {  # 년지 → 고신 지지
+    "亥": "寅",
+    "子": "寅",
+    "丑": "寅",
+    "寅": "巳",
+    "卯": "巳",
+    "辰": "巳",
+    "巳": "申",
+    "午": "申",
+    "未": "申",
+    "申": "亥",
+    "酉": "亥",
+    "戌": "亥",
+}
+_GWASUK = {  # 년지 → 과숙 지지
+    "亥": "戌",
+    "子": "戌",
+    "丑": "戌",
+    "寅": "丑",
+    "卯": "丑",
+    "辰": "丑",
+    "巳": "辰",
+    "午": "辰",
+    "未": "辰",
+    "申": "未",
+    "酉": "未",
+    "戌": "未",
+}
+
+# 12신살: 寅午戌국 기준 12지지 순서(겁살→화개). 다른 국은 회전.
+_TWELVE_NAMES = [
+    "겁살",
+    "재살",
+    "천살",
+    "지살",
+    "연살",
+    "월살",
+    "망신살",
+    "장성살",
+    "반안살",
+    "역마살",
+    "육해살",
+    "화개살",
+]
+# 각 삼합국의 겁살 시작 지지(생지의 직전=절지)
+_TWELVE_START = {
+    frozenset({"寅", "午", "戌"}): "亥",
+    frozenset({"申", "子", "辰"}): "巳",
+    frozenset({"巳", "酉", "丑"}): "寅",
+    frozenset({"亥", "卯", "未"}): "申",
+}
 
 
 @dataclass
@@ -158,7 +280,71 @@ def evaluate(pillars: dict, day_master: str, profile: dict | None = None) -> lis
         if pil.ganzhi in _BAEKHO:
             hits.append(Hit("백호", ko, f"{_PILLAR_LABEL[ko]}주 {pil.ganzhi}"))
 
+    # --- 확장 길신(일간 기준 단일 지지) ---
+    for nm, table in (
+        ("문창귀인", _MUNCHANG),
+        ("학당귀인", _HAKDANG),
+        ("금여", _GEUMYEO),
+        ("암록", _AMNOK),
+    ):
+        tz = table.get(day_master)
+        if not tz:
+            continue
+        for ko, pil in items:
+            if pil.zhi == tz:
+                hits.append(Hit(nm, ko, f"일간 {day_master} → {_PILLAR_LABEL[ko]}지 {tz}"))
+
+    # 태극귀인 — 일간 기준 지지 집합
+    taegeuk = _TAEGEUK.get(day_master, set())
+    for ko, pil in items:
+        if pil.zhi in taegeuk:
+            hits.append(Hit("태극귀인", ko, f"일간 {day_master} → {_PILLAR_LABEL[ko]}지 {pil.zhi}"))
+
+    # 천문성 — 지지 자체(강 그룹)
+    for ko, pil in items:
+        if pil.zhi in _CHEONMUN:
+            hits.append(Hit("천문성", ko, f"{_PILLAR_LABEL[ko]}지 {pil.zhi}(천문 지지)"))
+
+    # 고신살·과숙살 — 년지 방국 기준
+    gosin = _GOSIN.get(year_zhi)
+    gwasuk = _GWASUK.get(year_zhi)
+    for ko, pil in items:
+        if gosin and pil.zhi == gosin:
+            hits.append(Hit("고신살", ko, f"년지 {year_zhi} 방국 → {_PILLAR_LABEL[ko]}지 {gosin}"))
+        if gwasuk and pil.zhi == gwasuk:
+            hits.append(Hit("과숙살", ko, f"년지 {year_zhi} 방국 → {_PILLAR_LABEL[ko]}지 {gwasuk}"))
+
     return _dedup(hits)
+
+
+def twelve_shinsal(pillars: dict, profile: dict | None = None) -> dict[str, str]:
+    """12신살 — 기둥당 1개. 기준 축(일지/년지)의 삼합국으로 12지지를 순환 배정."""
+    p = {**DEFAULT_PROFILE, **(profile or {})}
+    ref = pillars["Day"].zhi if p["twelve_axis"] == "day_zhi" else pillars["Year"].zhi
+    start = next((s for g, s in _TWELVE_START.items() if ref in g), None)
+    if start is None:
+        return {}
+    base = _ZHI.index(start)
+    pos = {_ZHI[(base + i) % 12]: _TWELVE_NAMES[i] for i in range(12)}
+    return {PILLAR_KO[w]: pos[pillars[w].zhi] for w in ("Year", "Month", "Day", "Time")}
+
+
+def _xunkong(ganzhi: str) -> list[str]:
+    """순중공망(旬空) 산술 — 간지의 공망 2지지. lunar-python API 비의존."""
+    g = _GAN.index(ganzhi[0])
+    z = _ZHI.index(ganzhi[1])
+    return [_ZHI[(z - g + 10) % 12], _ZHI[(z - g + 11) % 12]]
+
+
+def gongmang(
+    year_ganzhi: str, day_ganzhi: str, profile: dict | None = None
+) -> dict[str, list[str]]:
+    """공망 — 일주 기준 본령(+ 년주 병기). 입력=파이프라인 확정 간지(자시정책 정합)."""
+    p = {**DEFAULT_PROFILE, **(profile or {})}
+    out = {"day": _xunkong(day_ganzhi)}
+    if p["gongmang_display"] == "year_day":
+        out["year"] = _xunkong(year_ganzhi)
+    return out
 
 
 def _dedup(hits: list[Hit]) -> list[Hit]:

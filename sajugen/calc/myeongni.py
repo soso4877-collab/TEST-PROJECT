@@ -173,6 +173,8 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
     sal_hits = shinsal_mod.evaluate(pillars, dm, sal_profile)
     sal = shinsal_mod.flat_names(sal_hits)
     sal_detail = [ShinsalHit(name=h.name, pillar=h.pillar, basis=h.basis) for h in sal_hits]
+    twelve = shinsal_mod.twelve_shinsal(pillars, sal_profile)
+    gong = shinsal_mod.gongmang(pillars["Year"].ganzhi, pillars["Day"].ganzhi, sal_profile)
     seun, worun = advanced.seun_worun(yun, ref_year)
 
     return Myeongni(
@@ -195,6 +197,8 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
         yongshin_axis=eb["axis"],
         shinsal=sal,
         shinsal_detail=sal_detail,
+        twelve_shinsal=twelve,
+        gongmang=gong,
         shinsal_profile=str(sal_profile.get("profile", "default")),
         seun=seun,
         worun=worun,

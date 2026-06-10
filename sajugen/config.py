@@ -28,7 +28,7 @@ _DEFAULTS = {
         "profile": "default",
         "goegang_scope": "day_only",  # day_only(현행) | all_pillars
         "samhap_axis": "both",  # day_zhi | year_zhi | both
-        "twelve_axis": "both",  # year_zhi | day_zhi | both
+        "twelve_axis": "day_zhi",  # day_zhi(현대 대세) | year_zhi
         "gongmang_display": "year_day",  # year_day | day_only
     },
 }
