@@ -1,7 +1,7 @@
 ---
 name: sg-render-runner
-description: HTML→Paged.js→Playwright tagged PDF 빌드/렌더 실행, veraPDF·PyMuPDF 검증 실행. 정형 빌드·렌더 반복 작업. 단순·기계적이므로 Sonnet.
-model: sonnet
+description: HTML→Paged.js→Playwright tagged PDF 빌드/렌더 실행, veraPDF·PyMuPDF 검증 실행. 정형 빌드·렌더 반복 작업. 하한선 Sonnet 4.6 고정(검증 해석·실패 진단 책임).
+model: claude-sonnet-4-6
 tools: Read, Bash, Edit
 ---
 

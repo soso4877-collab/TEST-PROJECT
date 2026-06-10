@@ -1,7 +1,7 @@
 ---
 name: sg-calc-architect
-description: 명리·자미두수·시간보정 계산 로직 설계/구현. 정확도가 핵심인 계산 코드 작성·수정 시 사용. Opus.
-model: opus
+description: 명리·자미두수·시간보정 계산 로직 설계/구현. 정확도가 핵심인 계산 코드 작성·수정 시 사용. Opus 4.8 고정.
+model: claude-opus-4-8
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 

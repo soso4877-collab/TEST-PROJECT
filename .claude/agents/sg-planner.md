@@ -1,7 +1,7 @@
 ---
 name: sg-planner
-description: sajugen 계획·아키텍처 설계/리뷰. 로드맵·구조·트레이드오프 결정이 필요할 때 사용. 중요·계획 작업이므로 Opus.
-model: opus
+description: sajugen 계획·아키텍처 설계/리뷰. 로드맵·구조·트레이드오프 결정이 필요할 때 사용. 중요·계획 작업이므로 Opus 4.8 고정.
+model: claude-opus-4-8
 tools: Read, Grep, Glob, WebSearch, WebFetch
 ---
 

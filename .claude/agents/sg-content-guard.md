@@ -1,7 +1,7 @@
 ---
 name: sg-content-guard
-description: 문안 사실일치·§12 안전표현·그라운딩 트레이스 검증(MD 할루시네이션 가드). 콘텐츠 생성/검수 시 사용. Opus.
-model: opus
+description: 문안 사실일치·§12 안전표현·그라운딩 트레이스 검증(MD 할루시네이션 가드). 콘텐츠 생성/검수 시 사용. Opus 4.8 고정.
+model: claude-opus-4-8
 tools: Read, Edit, Bash, Grep
 ---
 

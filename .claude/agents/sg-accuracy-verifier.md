@@ -1,7 +1,7 @@
 ---
 name: sg-accuracy-verifier
-description: 골든 만세력 회귀·3원 교차검증(lunar↔Skyfield↔KASI)·정확도 감사. 정확도 검증이 필요할 때 사용. Opus.
-model: opus
+description: 골든 만세력 회귀·3원 교차검증(lunar↔Skyfield↔KASI)·정확도 감사. 정확도 검증이 필요할 때 사용. Opus 4.8 고정.
+model: claude-opus-4-8
 tools: Read, Bash, Grep, Glob
 ---
 

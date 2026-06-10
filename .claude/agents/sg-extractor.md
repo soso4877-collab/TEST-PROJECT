@@ -1,7 +1,7 @@
 ---
 name: sg-extractor
-description: 정형 데이터 추출·골든 스냅샷 갱신·반복 변환(PDF 텍스트 추출, 표 정리 등). 단순·기계적이므로 Sonnet.
-model: sonnet
+description: 정형 데이터 추출·골든 스냅샷 갱신·반복 변환(PDF 텍스트 추출, 표 정리 등). 하한선 Sonnet 4.6 고정(골든 스냅샷 = 회귀 기준선이라 오염 리스크).
+model: claude-sonnet-4-6
 tools: Read, Bash, Grep, Glob
 ---
 
