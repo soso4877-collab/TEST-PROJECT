@@ -18,7 +18,15 @@ P3(2026-06-11): iztro_py↔iztro JS 100건 동등성 — 구조(배치·사화·
   config/rule_profile.yaml 유파 외부화(sajugen/config.py 로더), 연경계=正월一일·사화표=iztro기본 확정.
 P4(2026-06-11): models/report.py(Unified JSON, docs/04 round-trip) + store/orders.py(상태머신
   RECEIVED→…→DELIVERED·SQLite·audit_log, APPROVED 전 issue_final_pdf 차단=절대규칙16). test_orders 8 PASS.
-전체 회귀 65 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
+신살보강(2026-06-11): 만세력 대조(docs/11 케이스#1)에서 발견한 신살 간극을 조사·보강.
+  docs/12-shinsal-research.md(권위 출처 교차검증, 간극=정확도 아닌 채택범위·표시구조·기준축 차이,
+  엔진 7종 대부분 A등급, 괴강만 고전 4주설과 차이=known-diff). calc/shinsal.py 신설(레지스트리·기둥별·
+  공망 자체산술·12신살), 길신 7종 확장(문창·학당·금여·암록·태극·천문·고신·과숙). config myeongni_shinsal
+  (괴강범위·삼합축both·12신살축day_zhi·공망표기). content/rules.py 문안 계층(기둥별·상한·공망·12신살 비단정).
+  케이스#1 골든: 포스텔러 기둥별 신살 11종 재현·공망 일치. 전체 회귀 79 PASS.
+조사대상(미해결): (1) 대운 시작나이 2년차(엔진8세 vs 레퍼런스6세, docs/11). (2) lunar-python sect=2 고정이
+  JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈(공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
+전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
   운영자 ANTHROPIC_API_KEY 준비 필요, 무키 시 룰 폴백).
 헤드리스(경로1 Max) 폐기 — 런타임 LLM은 Anthropic 공식 API로 확정.
 

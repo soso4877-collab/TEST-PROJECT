@@ -190,15 +190,70 @@ _PALACE_ORDER = [
 ]
 
 
-_SHINSAL_MEAN = {
-    "천을귀인": "도움을 주는 인연·귀인의 결을 보는 참고",
-    "도화살": "매력·인기·관계의 활기를 보는 참고",
-    "역마살": "이동·변화·활동성이 강조되는 결",
-    "화개살": "몰입·예술·학문 쪽으로 기우는 결",
-    "양인": "강한 추진력 — 과하지 않게 쓰는 관점",
-    "괴강": "강단·결단의 기운 — 균형의 관점",
-    "백호": "에너지가 큰 결 — 신중함과 함께 쓰는 관점",
+# 신살 메타: mean(문안)·group(섹션 분류)·weight(노출 우선순위, 길흉 등급 아님).
+# weight 는 섹션 상한 적용 시 정렬용 내부값일 뿐 고객 문안에 등급으로 표기 금지(§12).
+_SHINSAL_META = {
+    "천을귀인": {"mean": "도움을 주는 인연·귀인의 결을 보는 참고", "group": "귀인", "weight": 9},
+    "태극귀인": {"mean": "복록·반전의 결을 보는 참고", "group": "귀인", "weight": 6},
+    "문창귀인": {"mean": "학업·표현·기획 쪽 재능의 결", "group": "학문", "weight": 8},
+    "학당귀인": {"mean": "학문·가르침·배움 쪽의 결", "group": "학문", "weight": 6},
+    "금여": {"mean": "안정·배우자복·재물의 결을 보는 참고", "group": "재물", "weight": 7},
+    "암록": {"mean": "보이지 않는 조력·뒷배의 결", "group": "재물", "weight": 7},
+    "도화살": {"mean": "매력·인기·관계의 활기를 보는 참고", "group": "활동", "weight": 7},
+    "역마살": {"mean": "이동·변화·활동성이 강조되는 결", "group": "활동", "weight": 7},
+    "화개살": {"mean": "몰입·예술·학문 쪽으로 기우는 결", "group": "학문", "weight": 6},
+    "천문성": {
+        "mean": "철학·종교·역학·의료 등 깊이 보는 분야와의 결",
+        "group": "적성",
+        "weight": 4,
+    },
+    "고신살": {"mean": "혼자만의 거리·고독의 결을 살피는 참고", "group": "관계", "weight": 5},
+    "과숙살": {"mean": "관계에서 거리·여백의 결을 살피는 참고", "group": "관계", "weight": 5},
+    "양인": {"mean": "강한 추진력 — 과하지 않게 쓰는 관점", "group": "에너지", "weight": 6},
+    "괴강": {"mean": "강단·결단의 기운 — 균형의 관점", "group": "에너지", "weight": 6},
+    "백호": {"mean": "에너지가 큰 결 — 신중함과 함께 쓰는 관점", "group": "에너지", "weight": 6},
 }
+# 하위호환: 기존 _SHINSAL_MEAN.get(s, ...) 호출부 유지용 파생 dict.
+_SHINSAL_MEAN = {k: v["mean"] for k, v in _SHINSAL_META.items()}
+# 12신살(기둥별 영역 색채) 의미 — 비단정·참고.
+_TWELVE_MEAN = {
+    "겁살": "갑작스런 변동을 미리 살피는 자리",
+    "재살": "구설·다툼을 점검하는 자리",
+    "천살": "위에서 내려오는 흐름·신념의 자리",
+    "지살": "이동·독립·터전 변화의 자리",
+    "연살": "인기·매력이 드러나는 자리",
+    "월살": "한 박자 멈춰 가다듬는 자리",
+    "망신살": "노출·드러남을 다루는 자리",
+    "장성살": "중심·주도의 자리",
+    "반안살": "안정·자리 잡음의 자리",
+    "역마살": "이동·활동이 커지는 자리",
+    "육해살": "소모를 줄이고 챙기는 자리",
+    "화개살": "몰입·학문·예술의 자리",
+}
+_PILLAR_KO_LABEL = {"year": "년주", "month": "월주", "day": "일주", "hour": "시주"}
+
+
+def _shinsal_by_weight(detail) -> list:
+    """기둥별 신살 detail → (이름, weight) 내림차순 유일 이름 목록."""
+    best: dict[str, int] = {}
+    for h in detail:
+        w = _SHINSAL_META.get(h.name, {}).get("weight", 0)
+        best[h.name] = max(best.get(h.name, 0), w)
+    return [n for n, _ in sorted(best.items(), key=lambda x: (-x[1], x[0]))]
+
+
+def _shinsal_per_pillar(detail) -> str:
+    """'시주: 천을귀인·태극귀인 / 일주: …' 형식 기둥별 요약."""
+    by_pillar: dict[str, list[str]] = {"year": [], "month": [], "day": [], "hour": []}
+    for h in detail:
+        if h.name not in by_pillar[h.pillar]:
+            by_pillar[h.pillar].append(h.name)
+    parts = [
+        f"{_PILLAR_KO_LABEL[p]}: {'·'.join(by_pillar[p])}"
+        for p in ("hour", "day", "month", "year")
+        if by_pillar[p]
+    ]
+    return " / ".join(parts)
 
 
 def _pick(seed: str, options: list[str]) -> str:
@@ -692,9 +747,11 @@ def build_all(
         f"아니라 당신이 다룰 수 있는 경향입니다."
     )
 
+    # character 종합: 상위 3개만 캡(신살 수가 많아도 문단이 비대해지지 않게)
+    _sal_top3 = _shinsal_by_weight(m.shinsal_detail)[:3]
     sal_txt = (
-        ", ".join(f"{s}({_SHINSAL_MEAN.get(s, '기운의 한 색')})" for s in m.shinsal)
-        if m.shinsal
+        ", ".join(f"{s}({_SHINSAL_MEAN.get(s, '기운의 한 색')})" for s in _sal_top3)
+        if _sal_top3
         else "두드러진 전통 신살은 적은 편"
     )
     _sg_q = f"'{m.singang}'(점수 {m.singang_score})"
@@ -734,25 +791,57 @@ def build_all(
         f"기운을 어떻게 쓰면 좋을지의 방향을 보는 도구로 활용하시면 됩니다."
     )
 
-    if m.shinsal:
+    # 공망·12신살 공통 블록(비단정)
+    _gong = getattr(m, "gongmang", {}) or {}
+    _gong_parts = []
+    if _gong.get("day"):
+        _gong_parts.append(f"일주 기준 {'·'.join(_gong['day'])}")
+    if _gong.get("year"):
+        _gong_parts.append(f"년주 기준 {'·'.join(_gong['year'])}")
+    _gong_line = (
+        f"공망(空亡)은 비어 보이는 자리를 표시하는 전통 표기입니다 — {', '.join(_gong_parts)}. "
+        f"해당 글자의 영역은 '없다'가 아니라 채워 가는 여백으로 읽는 참고입니다.\n"
+        if _gong_parts
+        else ""
+    )
+    _twelve = getattr(m, "twelve_shinsal", {}) or {}
+    _tw_parts = [
+        f"{_PILLAR_KO_LABEL[p]} {_twelve[p]}({_TWELVE_MEAN.get(_twelve[p], '영역의 색')})"
+        for p in ("year", "month", "day", "hour")
+        if _twelve.get(p)
+    ]
+    _twelve_line = (
+        f"십이신살(十二神殺)로 본 기둥별 영역의 색은 {', '.join(_tw_parts)}입니다. "
+        f"이 역시 길흉이 아니라 영역의 결을 보는 참고입니다.\n"
+        if _tw_parts
+        else ""
+    )
+
+    if m.shinsal_detail:
+        _ordered = _shinsal_by_weight(m.shinsal_detail)
+        _per_pillar = _shinsal_per_pillar(m.shinsal_detail)
+        _top = _ordered[:8]
         sal_lines = "\n".join(
-            f"· {s} — {_SHINSAL_MEAN.get(s, '기운의 한 색을 보는 참고')}" for s in m.shinsal
+            f"· {s} — {_SHINSAL_MEAN.get(s, '기운의 한 색을 보는 참고')}" for s in _top
         )
+        _overflow = _ordered[8:]
+        _overflow_line = f"\n그 외 참고로 잡히는 신살: {'·'.join(_overflow)}." if _overflow else ""
         T["shinsal"] = (
             f"신살(神殺)은 전통적으로 사주의 특정 기운을 표 기준으로 살피는 "
-            f"보조 참고입니다. 당신의 사주에서 전통 표 기준으로 잡히는 것은 "
-            f"다음과 같습니다.\n{sal_lines}\n"
+            f"보조 참고입니다. 기둥별로 잡히는 자리는 — {_per_pillar} — 이고, "
+            f"주요 항목의 결은 다음과 같습니다.\n{sal_lines}{_overflow_line}\n"
+            f"{_gong_line}{_twelve_line}"
             f"신살은 길흉의 단정이 아니라 기운의 색을 더하는 보조 참고이고, "
             f"같은 신살도 사주 전체 맥락 안에서 다르게 작동합니다. 무게를 크게 "
             f"두기보다 전체 흐름과 함께 가볍게 곁들여 보시길 권합니다."
         )
     else:
         T["shinsal"] = (
-            "신살(神殺)은 전통적으로 사주의 특정 기운을 표 기준으로 살피는 "
-            "보조 참고입니다. 당신의 사주에서는 대표 신살(천을귀인·도화·역마·"
-            "화개·양인·괴강·백호)을 기준으로 두드러지게 잡히는 항목이 적은 "
-            "편입니다. 신살이 적다는 것은 좋고 나쁨의 문제가 아니라, 특정 "
-            "기운으로 크게 치우치지 않은 구성으로 읽을 수 있다는 참고입니다."
+            f"신살(神殺)은 전통적으로 사주의 특정 기운을 표 기준으로 살피는 "
+            f"보조 참고입니다. 당신의 사주에서는 길신·살을 기준으로 두드러지게 "
+            f"잡히는 항목이 적은 편입니다. 신살이 적다는 것은 좋고 나쁨의 문제가 "
+            f"아니라, 특정 기운으로 크게 치우치지 않은 구성으로 읽을 수 있다는 "
+            f"참고입니다.\n{_gong_line}{_twelve_line}"
         )
 
     love_p = _palace(z, "부처궁")
@@ -836,7 +925,7 @@ def build_all(
     )
 
     health_p = _palace(z, _DOMAIN_PALACE["건강"])
-    health_sal = [s for s in m.shinsal if s in ("양인", "괴강", "백호")]
+    health_sal = [s for s in m.shinsal if _SHINSAL_META.get(s, {}).get("group") == "에너지"][:3]
     T["health"] = (
         f"먼저 분명히 해 둡니다. 명리·자미두수는 의학이 아니며, 이 장은 "
         f"진단이나 예측이 아니라 '생활에서 살피면 좋은 결'을 보는 참고일 "
