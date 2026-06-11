@@ -44,7 +44,8 @@ def polish(rule_text: str, title: str) -> str:
         client = instructor.from_anthropic(anthropic.Anthropic())
         res = client.messages.create(
             model="claude-haiku-4-5-20251001",  # 윤문=단순작업 → 저비용 모델
-            max_tokens=1200,
+            # 긴 섹션은 instructor 도구JSON 래핑으로 1200 초과→절단→폴백되던 이슈가 있어 상향
+            max_tokens=2000,
             system=_SYSTEM,
             messages=[{"role": "user", "content": f"[섹션:{title}]\n원문:\n{rule_text}"}],
             response_model=Polished,

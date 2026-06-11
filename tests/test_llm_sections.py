@@ -41,6 +41,15 @@ def test_backend_protocol_surface(monkeypatch):
     assert b.polish("원문 그대로", "직업·일") == "원문 그대로"  # 패스스루
 
 
+def test_rule_backend_compose_passthrough(monkeypatch):
+    # 구간2·3·4 본문 생성: 무키(RuleBackend)면 근거 본문 그대로(결정론·무비용)
+    _no_key(monkeypatch)
+    b = llm_sections.get_backend()
+    for sid in ("cross", "consult", "advice", "closing"):
+        out = b.compose(section_id=sid, title="제목", category="직업", base_text="근거 본문 그대로")
+        assert out == "근거 본문 그대로", sid
+
+
 # --- 질문 분류 골든(결정론 키워드) ---
 
 

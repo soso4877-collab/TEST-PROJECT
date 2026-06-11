@@ -9,6 +9,11 @@ from __future__ import annotations
 from . import factcheck, llm_polish, llm_sections, question_router, rules, safe_lint, trace
 from .sections_schema import SECTION_SPECS, GuardReport, Report23, Section
 
+# 부분 LLM 본문 생성 구간(docs/06): 구간2=cross(통합 관점), 구간3=consult(질문 답변),
+# 구간4=advice·closing(마지막 조언). 키+use_llm+anthropic 일 때만 compose, 그 외엔 룰 골격.
+# 나머지 섹션은 기존 윤문(polish) 경로 유지. 어떤 경우든 가드 재검증 후 실패 시 룰 폴백.
+_COMPOSE_SECTIONS = {"cross", "consult", "advice", "closing"}
+
 # 3단 상품 토글 — 제외할 섹션 집합. integrated=전부, myeongni=명리만,
 # ziwei=자미만. 개요·각론·정적·부록 섹션은 공통 유지(v1: 혼합 섹션 보존).
 _PRODUCT_DROP = {
@@ -40,8 +45,9 @@ def build_report(
     concern: str | None = None,
 ) -> Report23:
     # Phase5 구간1: 고민 분류. use_llm+키면 LLM 분류, 아니면 결정론 룰(무키·재현성).
+    backend = llm_sections.get_backend()
     if concern and use_llm:
-        category = llm_sections.get_backend().classify(concern)
+        category = backend.classify(concern)
     else:
         category = question_router.classify(concern)
 
@@ -71,7 +77,14 @@ def build_report(
         applied_violations = list(rule_violations)
 
         if use_llm and not rule_violations:
-            cand = llm_polish.polish(rule_text, title)
+            # 구간2·3·4(통합·질문답변·조언) = 본문 생성(compose, anthropic 키 필요),
+            # 그 외 = 윤문(polish). 무키/룰백엔드면 둘 다 원문 반환 → 변화 없음.
+            if sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
+                cand = backend.compose(
+                    section_id=sid, title=title, category=category.value, base_text=rule_text
+                )
+            else:
+                cand = llm_polish.polish(rule_text, title)
             if cand and cand != rule_text:
                 csv = safe_lint.lint(cand)
                 cfv = factcheck.check(cand, saju)
@@ -79,7 +92,7 @@ def build_report(
                     final, polished = cand, True
                     polished_n += 1
                 else:
-                    fallback_n += 1  # 윤문이 가드 실패 → 룰 원문 유지
+                    fallback_n += 1  # 생성/윤문이 가드 실패 → 룰 원문 유지
 
         safe_total += len(safe_lint.lint(final))
         fact_total += len(factcheck.check(final, saju))
