@@ -14,29 +14,29 @@ _SAJU = engine.build(2000, 1, 1, 12, 0, is_male=True, horoscope_date="2026-06-01
 
 
 def test_all_sections_present_and_nonempty():
-    # 섹션 수는 SECTION_SPECS 계약을 따른다(부록 'appendix_terms' 추가로 24).
+    # 챕터 수는 SECTION_SPECS 계약을 따른다(주제별 챕터 재편 후 >=15).
     r = builder.build_report(_SAJU, use_llm=False)
-    assert len(r.sections) == len(SECTION_SPECS) >= 24
+    assert len(r.sections) == len(SECTION_SPECS) >= 15
     assert all(s.final_text.strip() for s in r.sections)
     assert any(s.id == "appendix_terms" for s in r.sections)
 
 
 def test_gakron_and_new_sections_present_and_deep():
-    # 각론 심화 + health/character 신설(룰만). 비어있지 않고 일정 분량 이상.
+    # 주제별 챕터(흐르는 산문). 비어있지 않고 일정 분량 이상(병합으로 상향).
     r = builder.build_report(_SAJU, use_llm=False)
     by = {s.id: s for s in r.sections}
-    for sid in ("love", "job", "wealth", "character", "health"):
-        assert sid in by, f"{sid} 섹션 누락"
-        assert len(by[sid].final_text.strip()) >= 350, (sid, len(by[sid].final_text))
+    for sid in ("love", "work", "nature", "health", "flow"):
+        assert sid in by, f"{sid} 챕터 누락"
+        assert len(by[sid].final_text.strip()) >= 500, (sid, len(by[sid].final_text))
     # health 는 의료 단정 금지 + 의료 전문가 안내 포함
     ht = by["health"].final_text
     for term in ("병에 걸린", "병이 생긴", "불치", "수명이 짧", "죽는다", "사망", "단명"):
         assert term not in ht, f"health 의료 단정어: {term}"
     assert "의료 전문가" in ht
-    # 상품 토글: 자미단독은 명리계열(character/strength) 제외
+    # 상품 토글: 자미단독은 명리계열 챕터(nature/flow) 제외, 자미 챕터는 유지
     rz = builder.build_report(_SAJU, use_llm=False, product="ziwei")
     zids = {s.id for s in rz.sections}
-    assert "character" not in zids and "ziwei_palaces" in zids
+    assert "nature" not in zids and "ziwei" in zids
     assert rz.guard.clean is True
 
 

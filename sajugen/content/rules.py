@@ -1214,4 +1214,27 @@ def build_all(
         f"참고로 두시길 권합니다. 더 깊은 부분은 시점을 정해 상담에서 함께 살펴볼 수 "
         f"있습니다(선택)."
     )
-    return T
+
+    # --- 주제별 챕터 조립 (2026-06-11 재편 1단계: 옛 섹션을 새 챕터 키로 병합) ---
+    # 산문화·기호 제거는 2단계에서. 여기서는 키 정합만 맞춘다. toc 는 빌더가 생성.
+    def _join(*keys: str) -> str:
+        return "\n\n".join(T[k].strip() for k in keys if T.get(k, "").strip())
+
+    NT: dict[str, str] = {
+        "cover": T["cover"],
+        "intro": _join("summary", "howto", "keywords"),
+        "wonguk": _join("wonguk", "ohaeng"),
+        "nature": _join("ilgan", "sipseong", "character", "strength"),
+        "frame": _join("geukguk", "shinsal"),
+        "love": T["love"],
+        "work": _join("job", "wealth"),
+        "health": T["health"],
+        "flow": _join("daewoon", "thisyear", "seun", "monthly"),
+        "ziwei": _join("ziwei_summary", "ziwei_palaces"),
+        "together": T["cross"],
+        "consult": T["consult"],
+        "closing": _join("advice", "caution", "closing"),
+        "appendix_terms": T["appendix_terms"],
+        "colophon": T["next"],
+    }
+    return NT

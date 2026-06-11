@@ -9,28 +9,16 @@ from __future__ import annotations
 from . import factcheck, llm_polish, llm_sections, question_router, rules, safe_lint, trace
 from .sections_schema import SECTION_SPECS, GuardReport, Report23, Section
 
-# 부분 LLM 본문 생성 구간(docs/06): 구간2=cross(통합 관점), 구간3=consult(질문 답변),
-# 구간4=advice·closing(마지막 조언). 키+use_llm+anthropic 일 때만 compose, 그 외엔 룰 골격.
-# 나머지 섹션은 기존 윤문(polish) 경로 유지. 어떤 경우든 가드 재검증 후 실패 시 룰 폴백.
-_COMPOSE_SECTIONS = {"cross", "consult", "advice", "closing"}
+# LLM 챕터 작성 구간(docs/06, 절대규칙15 개정). 키+use_llm+anthropic 일 때만 compose,
+# 그 외엔 룰 골격. 나머지 챕터는 윤문(polish). 어떤 경우든 가드 재검증 후 실패 시 룰 폴백.
+# (3단계에서 해석 챕터 전반으로 확대 예정 — 현재는 통합·질문답변·마무리.)
+_COMPOSE_SECTIONS = {"together", "consult", "closing"}
 
-# 3단 상품 토글 — 제외할 섹션 집합. integrated=전부, myeongni=명리만,
-# ziwei=자미만. 개요·각론·정적·부록 섹션은 공통 유지(v1: 혼합 섹션 보존).
+# 3단 상품 토글 — 제외할 챕터. integrated=전부, myeongni=명리만, ziwei=자미만.
 _PRODUCT_DROP = {
     "integrated": set(),
-    "myeongni": {"ziwei_summary", "ziwei_palaces", "cross"},
-    "ziwei": {
-        "wonguk",
-        "ohaeng",
-        "ilgan",
-        "sipseong",
-        "strength",
-        "character",
-        "daewoon",
-        "thisyear",
-        "monthly",
-        "cross",
-    },
+    "myeongni": {"ziwei", "together"},
+    "ziwei": {"wonguk", "nature", "frame", "flow", "together"},
 }
 
 
@@ -62,10 +50,14 @@ def build_report(
     sections: list[Section] = []
     safe_total = fact_total = polished_n = fallback_n = 0
 
+    # 목차(toc): 보이는 챕터 제목을 나열(노동착시·호기심격차·책 권위, docs/13). 빌더가 생성.
+    visible_titles = [t for s, t, _ in SECTION_SPECS if s not in drop and s not in ("cover", "toc")]
+    toc_text = "이 풀이는 다음 순서로 이어집니다.\n" + "\n".join(visible_titles)
+
     for sid, title, src in SECTION_SPECS:
         if sid in drop:
             continue
-        rule_text = skeletons[sid].strip()
+        rule_text = (toc_text if sid == "toc" else skeletons[sid]).strip()
 
         # 룰 골격 자체 가드(설계상 통과해야 함; 위반 시 버그로 표면화)
         sv = safe_lint.lint(rule_text)

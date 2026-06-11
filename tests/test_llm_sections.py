@@ -45,7 +45,7 @@ def test_rule_backend_compose_passthrough(monkeypatch):
     # 구간2·3·4 본문 생성: 무키(RuleBackend)면 근거 본문 그대로(결정론·무비용)
     _no_key(monkeypatch)
     b = llm_sections.get_backend()
-    for sid in ("cross", "consult", "advice", "closing"):
+    for sid in ("together", "consult", "closing"):
         out = b.compose(section_id=sid, title="제목", category="직업", base_text="근거 본문 그대로")
         assert out == "근거 본문 그대로", sid
 

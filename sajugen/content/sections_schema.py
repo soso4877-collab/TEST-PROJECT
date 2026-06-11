@@ -6,40 +6,37 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 # (id, 한글 제목, 그라운딩 소스 키) — 모든 해석 섹션은 source가 비면 안 됨
+# 2026-06-11 재편: 27라벨 섹션 → 주제별 챕터(흐르는 산문). 배치는 피크엔드·계열위치 근거(docs/13):
+# 따뜻한 도입(primacy) → 깊이 빌드업 → 신청질문 답변(개인화 피크) → 격려 마무리(recency·peak).
+# 챕터 제목은 정보격차 호기심 근거로 질문형. 흡수한 옛 섹션은 주석 참조.
 SECTION_SPECS: list[tuple[str, str, list[str]]] = [
     ("cover", "표지", ["input"]),
-    ("summary", "내 사주 한 장 요약", ["myeongni", "ziwei"]),
-    ("howto", "이 결과지 읽는 법", []),  # 정적 안내(그라운딩 예외 허용)
-    ("keywords", "내 사주 핵심 키워드 5", ["myeongni"]),
-    ("consult", "신청하신 고민 풀이(참고)", ["input"]),  # Phase5 구간3: 고객 고민 라우팅(비단정)
-    ("wonguk", "원국 해설", ["myeongni"]),
-    ("ohaeng", "오행 밸런스", ["myeongni.elements"]),
-    ("ilgan", "일간과 성향", ["myeongni.day_master"]),
-    ("sipseong", "십성 구조", ["myeongni"]),
-    ("strength", "강점과 취약점", ["myeongni.elements"]),
-    ("character", "성격·기질 종합", ["myeongni"]),
-    ("geukguk", "격국과 용신(참고)", ["myeongni"]),
-    ("shinsal", "신살 풀이(참고)", ["myeongni"]),
-    ("love", "연애·관계", ["myeongni", "ziwei"]),
-    ("job", "직업·일", ["myeongni", "ziwei"]),
-    ("wealth", "재물·돈", ["myeongni", "ziwei"]),
-    ("health", "건강 — 생활 관리의 결(참고)", ["myeongni", "ziwei"]),
-    ("daewoon", "대운 흐름", ["myeongni.daewoon"]),
-    ("thisyear", "올해·가까운 시기", ["ziwei.yearly", "myeongni.daewoon"]),
-    ("seun", "세운·월운 흐름", ["myeongni"]),
-    ("monthly", "월별 흐름", ["myeongni.daewoon"]),
-    ("ziwei_summary", "자미두수 명반 요약", ["ziwei"]),
-    ("ziwei_palaces", "자미두수 핵심 궁", ["ziwei.palaces"]),
-    ("cross", "명리×자미두수 교차검증", ["crosscheck"]),
-    ("advice", "현실 적용 조언", ["myeongni.elements"]),
-    ("caution", "주의할 선택 패턴", ["myeongni"]),
-    ("questions", "상담 추천 질문", ["myeongni", "ziwei"]),
-    ("closing", "마무리 격려", ["input"]),
-    ("appendix_terms", "부록 — 용어 풀이", []),  # 정적 교육(본문 뒤 부록화)
-    ("next", "다음 행동·후기·해석 한계", []),  # 정적 안내
+    ("toc", "목차", []),  # 정적 — 노동착시·호기심격차·책 권위(템플릿/빌더 생성)
+    (
+        "intro",
+        "들어가며 — 이 풀이를 읽는 법",
+        ["input", "myeongni", "ziwei"],
+    ),  # summary+howto+keywords
+    ("wonguk", "내 사주의 짜임", ["myeongni", "myeongni.elements"]),  # wonguk+ohaeng
+    ("nature", "나의 바탕과 기질에 대하여", ["myeongni"]),  # ilgan+sipseong+character+strength
+    ("frame", "격국과 신살이 더하는 결", ["myeongni"]),  # geukguk+shinsal
+    ("love", "나의 사랑에 대하여", ["myeongni", "ziwei"]),
+    ("work", "나의 일과 재물에 대하여", ["myeongni", "ziwei"]),  # job+wealth
+    ("health", "몸과 마음을 살피며", ["myeongni", "ziwei"]),
+    (
+        "flow",
+        "시간의 흐름에 대하여",
+        ["myeongni.daewoon", "myeongni", "ziwei.yearly"],
+    ),  # daewoon+thisyear+seun+monthly
+    ("ziwei", "자미두수로 본 삶의 구조", ["ziwei", "ziwei.palaces"]),  # ziwei_summary+ziwei_palaces
+    ("together", "두 체계를 함께 읽으며", ["crosscheck"]),  # cross
+    ("consult", "신청하신 질문에 대하여", ["input", "myeongni", "ziwei"]),  # 개인화 피크
+    ("closing", "마무리하며", ["myeongni.elements", "input"]),  # advice+caution+closing
+    ("appendix_terms", "부록 — 용어 풀이", []),  # 정적 교육(노동착시 가치 장치)
+    ("colophon", "이 자료에 대하여", []),  # 감수 고지·해석 한계·기술메타(후기/CTA 제거)
 ]
-# 그라운딩 면제(정적 안내·교육) — 교육 콘텐츠는 본문이 아닌 부록으로 분리
-_STATIC_OK = {"howto", "appendix_terms", "next"}
+# 그라운딩 면제(정적 안내·교육·판권) — 해석 챕터는 source가 비면 trace 실패
+_STATIC_OK = {"toc", "appendix_terms", "colophon"}
 
 
 class Section(BaseModel):
