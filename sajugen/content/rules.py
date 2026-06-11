@@ -585,6 +585,7 @@ def build_all(
     ref_year: int | None = None,
     name: str | None = None,
     unknown_time: bool = False,
+    concern_category: str | None = None,
 ) -> dict[str, str]:
     m, z, x = saju.myeongni, saju.ziwei, saju.crosscheck
     nm_pfx = f"{name}님, " if name else ""
@@ -1189,5 +1190,28 @@ def build_all(
         "선택이며 강요하지 않습니다. 이 풀이는 명리학·자미두수 전통 해석 "
         "체계에 기반한 참고용 상담 자료이며, 의료·법률·투자 등 중요한 결정은 "
         "해당 분야 전문가와 상의하시기를 권합니다."
+    )
+
+    # Phase5 구간3(룰 폴백) — 신청 고민 라우팅. 카테고리→도메인 결로 안내(비단정).
+    # 고객 원문은 본문에 넣지 않는다(가드 주입·PII 회피). 카테고리는 안전한 enum 값뿐.
+    _CONSULT_DOMAIN = {
+        "연애": "연애·관계의 결",
+        "직업": "일·직업의 결",
+        "재물": "재물·돈의 결",
+        "건강": "건강·생활 관리의 결",
+        "대인": "대인관계와 성향의 결",
+        "시기": "대운·시기의 흐름",
+        "전반": "사주 전반의 큰 흐름",
+    }
+    _cc = concern_category or "전반"
+    _domain = _CONSULT_DOMAIN.get(_cc, _CONSULT_DOMAIN["전반"])
+    T["consult"] = (
+        f"{nm_pfx}신청해 주신 고민은 '{_cc}' 영역으로 살펴보겠습니다. "
+        f"이 결과지에서는 {_domain}을 중심으로 관련된 경향을 함께 보실 수 있습니다. "
+        f"사주는 정해진 결과를 단정하거나 보장하는 도구가 아니라, 타고난 경향과 "
+        f"시기의 흐름을 참고로 읽는 자료입니다. 같은 기운도 상황과 선택에 따라 다르게 "
+        f"나타나니, 위 영역을 중심으로 결과지를 읽으시고 구체적인 상황별 판단은 "
+        f"참고로 두시길 권합니다. 더 깊은 부분은 시점을 정해 상담에서 함께 살펴볼 수 "
+        f"있습니다(선택)."
     )
     return T

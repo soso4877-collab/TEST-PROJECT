@@ -89,3 +89,35 @@ def test_build_report_no_key_is_rule_fallback_and_clean(monkeypatch):
     for s in rep.sections:
         assert s.final_text == s.rule_text
         assert s.polished is False
+
+
+# --- 고민 입력 배선(구간1 분류 + 구간3 라우팅 섹션) ---
+
+
+def test_concern_flows_to_category_and_consult_section(monkeypatch):
+    _no_key(monkeypatch)
+    rep = builder.build_report(_saju(), use_llm=False, concern="올해 이직해도 될까요")
+    assert rep.concern_category == "직업", rep.concern_category
+    consult = next(s for s in rep.sections if s.id == "consult")
+    assert "직업" in consult.final_text and consult.final_text.strip()
+    # 라우팅 섹션도 가드 clean(비단정·간지 없음)
+    assert rep.guard.clean is True
+
+
+def test_no_concern_defaults_general_and_section_present():
+    rep = builder.build_report(_saju(), use_llm=False)  # concern 없음
+    assert rep.concern_category == "전반"
+    consult = next(s for s in rep.sections if s.id == "consult")
+    assert "전반" in consult.final_text
+    assert rep.guard.clean is True
+
+
+def test_concern_raw_text_not_injected_into_body():
+    # 고객 원문(단정·간지 포함)이 본문에 그대로 들어가지 않아야 함(주입 차단)
+    rep = builder.build_report(
+        _saju(), use_llm=False, concern="저는 甲寅생인데 반드시 100% 성공하나요"
+    )
+    consult = next(s for s in rep.sections if s.id == "consult")
+    assert "甲寅" not in consult.final_text  # 차트에 없는 간지 미주입
+    assert "100%" not in consult.final_text and "반드시" not in consult.final_text
+    assert rep.guard.clean is True  # 카테고리(전반) 기반 안전 템플릿만

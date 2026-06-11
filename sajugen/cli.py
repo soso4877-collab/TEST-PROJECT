@@ -26,6 +26,7 @@ def gen(
     horoscope: str = typer.Option(None, help="대한/유년 기준일 'YYYY-MM-DD'"),
     llm: bool = typer.Option(False, help="LLM 윤문 사용(무키 시 자동 룰 폴백)"),
     name: str = typer.Option(None, help="이름(개인화 호명, 선택)"),
+    concern: str = typer.Option(None, help="고객 고민/질문(선택). 분류→맞춤 안내 섹션"),
     product: str = typer.Option("integrated", help="상품: integrated|myeongni|ziwei"),
     out: str = typer.Option("saju_report.pdf", help="출력 파일명"),
 ) -> None:
@@ -65,6 +66,7 @@ def gen(
         name=name,
         unknown_time=unknown_time,
         product=product,
+        concern=concern,
     )
 
     typer.echo(f"사주팔자: {r.bazi}")

@@ -11,6 +11,7 @@ SECTION_SPECS: list[tuple[str, str, list[str]]] = [
     ("summary", "내 사주 한 장 요약", ["myeongni", "ziwei"]),
     ("howto", "이 결과지 읽는 법", []),  # 정적 안내(그라운딩 예외 허용)
     ("keywords", "내 사주 핵심 키워드 5", ["myeongni"]),
+    ("consult", "신청하신 고민 풀이(참고)", ["input"]),  # Phase5 구간3: 고객 고민 라우팅(비단정)
     ("wonguk", "원국 해설", ["myeongni"]),
     ("ohaeng", "오행 밸런스", ["myeongni.elements"]),
     ("ilgan", "일간과 성향", ["myeongni.day_master"]),
@@ -63,6 +64,7 @@ class GuardReport(BaseModel):
 class Report23(BaseModel):
     sections: list[Section]
     guard: GuardReport
+    concern_category: str | None = None  # Phase5 구간1: 신청 고민 분류 결과(감사·검수용)
 
     def section(self, sid: str) -> Section:
         return next(s for s in self.sections if s.id == sid)

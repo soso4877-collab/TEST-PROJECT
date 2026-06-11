@@ -54,6 +54,7 @@ def generate(
     name: str | None = None,
     unknown_time: bool = False,
     product: str = "integrated",
+    concern: str | None = None,
 ) -> GenResult:
     saju = engine.build(
         year,
@@ -87,6 +88,7 @@ def generate(
         name=name,
         unknown_time=unknown_time,
         product=product,
+        concern=concern,
     )
     pdf_path = render_pdf.render_pdf(
         report, saju, out_name, age=age, name=name, unknown_time=unknown_time

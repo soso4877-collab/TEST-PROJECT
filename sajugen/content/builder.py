@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from . import factcheck, llm_polish, rules, safe_lint, trace
+from . import factcheck, llm_polish, llm_sections, question_router, rules, safe_lint, trace
 from .sections_schema import SECTION_SPECS, GuardReport, Report23, Section
 
 # 3단 상품 토글 — 제외할 섹션 집합. integrated=전부, myeongni=명리만,
@@ -37,8 +37,21 @@ def build_report(
     name: str | None = None,
     unknown_time: bool = False,
     product: str = "integrated",
+    concern: str | None = None,
 ) -> Report23:
-    skeletons = rules.build_all(saju, ref_year=ref_year, name=name, unknown_time=unknown_time)
+    # Phase5 구간1: 고민 분류. use_llm+키면 LLM 분류, 아니면 결정론 룰(무키·재현성).
+    if concern and use_llm:
+        category = llm_sections.get_backend().classify(concern)
+    else:
+        category = question_router.classify(concern)
+
+    skeletons = rules.build_all(
+        saju,
+        ref_year=ref_year,
+        name=name,
+        unknown_time=unknown_time,
+        concern_category=category.value,
+    )
     drop = _PRODUCT_DROP.get(product, set())
     sections: list[Section] = []
     safe_total = fact_total = polished_n = fallback_n = 0
@@ -86,6 +99,7 @@ def build_report(
     clean = safe_total == 0 and fact_total == 0 and grounding_ok
     return Report23(
         sections=sections,
+        concern_category=category.value,
         guard=GuardReport(
             safe_lint_total=safe_total,
             factcheck_total=fact_total,

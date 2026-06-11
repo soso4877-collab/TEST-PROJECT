@@ -32,6 +32,7 @@ _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</t
  <p>경도: <input name="longitude" value="126.978"> 위도: <input name="latitude" value="37.566"></p>
  <p><label><input type="checkbox" name="yajasi"> 야자시/조자시 분리</label></p>
  <p>대한·유년 기준일: <input name="horoscope" placeholder="2026-06-01"></p>
+ <p>고민/질문(선택): <input name="concern" placeholder="예: 올해 이직해도 될까요"></p>
  <p><label><input type="checkbox" name="llm"> LLM 윤문(무키 시 룰 폴백)</label></p>
  <button type="submit">PDF 생성</button>
 </form></body>"""
@@ -55,6 +56,7 @@ def gen(
     llm: bool = Form(False),
     name: str = Form(""),
     product: str = Form("integrated"),
+    concern: str = Form(""),
 ):
     parts = birth.split()
     iy, imo, ida = (int(x) for x in parts[0].split("-"))
@@ -88,6 +90,7 @@ def gen(
         name=name or None,
         unknown_time=unknown_time,
         product=product,
+        concern=concern or None,
     )
 
     if not r.ok:
