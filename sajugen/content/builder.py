@@ -6,13 +6,67 @@
 
 from __future__ import annotations
 
-from . import factcheck, llm_polish, llm_sections, question_router, rules, safe_lint, trace
-from .sections_schema import SECTION_SPECS, GuardReport, Report23, Section
+import re
 
-# LLM 챕터 작성 구간(docs/06, 절대규칙15 개정). 키+use_llm+anthropic 일 때만 compose,
-# 그 외엔 룰 골격. 나머지 챕터는 윤문(polish). 어떤 경우든 가드 재검증 후 실패 시 룰 폴백.
-# (3단계에서 해석 챕터 전반으로 확대 예정 — 현재는 통합·질문답변·마무리.)
-_COMPOSE_SECTIONS = {"together", "consult", "closing"}
+from . import factcheck, llm_polish, llm_sections, question_router, rules, safe_lint, trace
+from .sections_schema import _STATIC_OK, SECTION_SPECS, GuardReport, Report23, Section
+
+# LLM 챕터 작성 구간(docs/06, 절대규칙15 개정). 키+use_llm+anthropic 일 때만 compose(사실 슬롯 기반
+# 흐르는 산문), 그 외엔 룰 골격. intro·wonguk 등 사실 위주 챕터는 윤문(polish). 어떤 경우든 가드
+# 재검증 후 실패 시 룰 폴백. 결정론 룰은 고객마다 동일 패턴 → 사람 목소리는 챕터 작성으로만 확보(docs/13).
+_COMPOSE_SECTIONS = {
+    "intro",
+    "wonguk",
+    "nature",
+    "frame",
+    "love",
+    "work",
+    "health",
+    "flow",
+    "ziwei",
+    "together",
+    "consult",
+    "closing",
+}
+
+
+def _strip_artifacts(text: str) -> str:
+    """LLM 출력의 메타 누출 제거 — 섹션 표시·마크다운 제목/굵게 등 AI틱 표식을 걷어낸다."""
+    out = []
+    for ln in text.splitlines():
+        s = ln.strip()
+        if s.startswith("[섹션:") or s.startswith("[섹션 "):
+            continue
+        if s.startswith("#"):  # 마크다운 제목(# 일과 직업…) 누출 제거
+            continue
+        ln = ln.replace("**", "").replace("##", "")  # 굵게/잔여 마크다운
+        out.append(ln)
+    return "\n".join(out).strip()
+
+
+# CJK 한자(통합·확장A·호환) — 본문은 한글 전용이므로 표시 직전 제거(AI/기술티 제거).
+# factcheck(환각 간지 차단)는 이 제거 이전에 이미 수행되므로 그라운딩은 유지된다.
+_CJK_RX = re.compile(r"[㐀-䶿一-鿿豈-﫿]+")
+
+
+_CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩"
+
+
+def _hanja_clean(text: str) -> str:
+    # 한자 제거 + 기호 산문화. '수면·식사'(무간격) 보존, 불릿용 ' · '(양옆 공백)만 환원.
+    t = _CJK_RX.sub("", text)
+    t = t.replace("[원국]", "").replace("[기운 분포]", "")
+    t = t.replace("[자미 구조]", "").replace("[읽는 방향]", "")
+    t = re.sub(rf"^\s*[{_CIRCLED}]\s*", "", t, flags=re.M)  # 줄머리 원문자
+    t = re.sub(r"^\s*·\s*", "", t, flags=re.M)  # 줄머리 불릿
+    t = t.replace("첫째,", "먼저,").replace("둘째,", "그리고,").replace("셋째,", "끝으로,")
+    t = re.sub(r"\s*→\s*", ", ", t)  # 화살표 → 쉼표(서사화)
+    t = re.sub(r" · ", ", ", t)  # 불릿 구분(양옆 공백) → 쉼표
+    t = re.sub(r"\(\s*\)", "", t)  # 빈 괄호
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    t = re.sub(r" +([,.)])", r"\1", t)  # 구두점 앞 공백 정리
+    return t.strip()
+
 
 # 3단 상품 토글 — 제외할 챕터. integrated=전부, myeongni=명리만, ziwei=자미만.
 _PRODUCT_DROP = {
@@ -54,29 +108,82 @@ def build_report(
     visible_titles = [t for s, t, _ in SECTION_SPECS if s not in drop and s not in ("cover", "toc")]
     toc_text = "이 풀이는 다음 순서로 이어집니다.\n" + "\n".join(visible_titles)
 
+    # 챕터별 룰 골격 텍스트 + 룰 가드 결과 선계산
+    rule_texts: dict[str, str] = {}
+    rule_viol: dict[str, list] = {}
+    title_of: dict[str, str] = {}
     for sid, title, src in SECTION_SPECS:
         if sid in drop:
             continue
-        rule_text = (toc_text if sid == "toc" else skeletons[sid]).strip()
+        rt = (toc_text if sid == "toc" else skeletons[sid]).strip()
+        rule_texts[sid] = rt
+        rule_viol[sid] = safe_lint.lint(rt) + factcheck.check(rt, saju)
+        title_of[sid] = title
 
-        # 룰 골격 자체 가드(설계상 통과해야 함; 위반 시 버그로 표면화)
-        sv = safe_lint.lint(rule_text)
-        fv = factcheck.check(rule_text, saju)
-        rule_violations = sv + fv
+    # LLM 챕터 작성은 챕터당 ~60초라 병렬 실행(독립 호출) — 12챕터 12분 → 1~2분.
+    # 무키/룰백엔드면 compose 가 원문 반환하므로 호출 자체를 생략(비용·시간 0).
+    cand_map: dict[str, str] = {}
+    if use_llm and backend.name == "anthropic":
+        targets = [
+            sid
+            for sid in rule_texts
+            if sid in _COMPOSE_SECTIONS and sid not in _STATIC_OK and not rule_viol[sid]
+        ]
+        if targets:
+            import concurrent.futures
+
+            # consult(신청 질문)는 카테고리 라우팅 골격만으론 사실이 없어 LLM이 답을 거부한다.
+            # 명식 사실(기질·시간 흐름)을 근거로 합쳐 넣어 개인화 답변이 가능하게 한다.
+            def _base_for(sid: str) -> str:
+                if sid == "consult":
+                    facts = "\n\n".join(
+                        rule_texts[k] for k in ("nature", "flow", "consult") if k in rule_texts
+                    )
+                    return facts
+                return rule_texts[sid]
+
+            def _compose_one(sid: str) -> str:
+                # 일시적 오류(속도제한 등) 1회 재시도 후 실패 시 룰 폴백.
+                for _ in range(2):
+                    try:
+                        return backend.compose(
+                            section_id=sid,
+                            title=title_of[sid],
+                            category=category.value,
+                            base_text=_base_for(sid),
+                        )
+                    except Exception:
+                        continue
+                return rule_texts[sid]
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+                futs = {ex.submit(_compose_one, sid): sid for sid in targets}
+                for f in concurrent.futures.as_completed(futs):
+                    sid = futs[f]
+                    try:
+                        cand_map[sid] = f.result()
+                    except Exception:
+                        cand_map[sid] = rule_texts[sid]  # 실패 시 룰 폴백
+
+    for sid, title, src in SECTION_SPECS:
+        if sid in drop:
+            continue
+        rule_text = rule_texts[sid]
+        rule_violations = rule_viol[sid]
 
         final = rule_text
         polished = False
         applied_violations = list(rule_violations)
 
-        if use_llm and not rule_violations:
-            # 구간2·3·4(통합·질문답변·조언) = 본문 생성(compose, anthropic 키 필요),
-            # 그 외 = 윤문(polish). 무키/룰백엔드면 둘 다 원문 반환 → 변화 없음.
+        # 정적 챕터(목차·부록·판권)는 LLM 미적용 — 참고/법적 문안 그대로 유지(룰 원문).
+        if use_llm and not rule_violations and sid not in _STATIC_OK:
+            # 해석 챕터 = 병렬 생성분(compose), 그 외 = 윤문(polish). 무키/룰백엔드면 변화 없음.
             if sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
-                cand = backend.compose(
-                    section_id=sid, title=title, category=category.value, base_text=rule_text
-                )
+                cand = cand_map.get(sid, rule_text)
             else:
                 cand = llm_polish.polish(rule_text, title)
+            if cand:
+                cand = _strip_artifacts(cand)  # 섹션 제목 누출 등 메타 제거
             if cand and cand != rule_text:
                 csv = safe_lint.lint(cand)
                 cfv = factcheck.check(cand, saju)
@@ -85,6 +192,10 @@ def build_report(
                     polished_n += 1
                 else:
                     fallback_n += 1  # 생성/윤문이 가드 실패 → 룰 원문 유지
+
+        # 표시 직전 한자 제거(정적 챕터 제외 — 부록 용어집의 한자 병기는 교육용으로 유지).
+        if sid not in _STATIC_OK:
+            final = _hanja_clean(final)
 
         safe_total += len(safe_lint.lint(final))
         fact_total += len(factcheck.check(final, saju))

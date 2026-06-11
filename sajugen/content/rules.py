@@ -100,7 +100,21 @@ _BRIGHT_KO = {
     "闲": "한가",
     "閑": "한가",
 }
-_ELEM_KO = {"木": "목(木)", "火": "화(火)", "土": "토(土)", "金": "금(金)", "水": "수(水)"}
+_ELEM_KO = {"木": "목", "火": "화", "土": "토", "金": "금", "水": "수"}
+# 자미 오행국 한글(한자 폐기). 例 土五局->토오국
+_OGUK_KO = {
+    "水二局": "수이국",
+    "木三局": "목삼국",
+    "金四局": "금사국",
+    "土五局": "토오국",
+    "火六局": "화육국",
+}
+
+
+def _oguk(s: str) -> str:
+    return _OGUK_KO.get(s, s)
+
+
 _GAN_ELEM = {
     "甲": "木",
     "乙": "木",
@@ -290,9 +304,10 @@ def _stars_ko(p, n=3):
 
 
 def _gz_ko(ganzhi: str) -> str:
-    """干支 -> '壬申(임신)' 한자+한글 병기. 실재 사주팔자/대운 간지에만 사용."""
+    """干支 -> 한글 reading('庚午'->'경오'). 한자 병기 폐기(AI/기술티 제거, 금강산식 한글 간지).
+    실재 사주팔자/대운/세운/월운 간지에만 사용. 한자는 본문에 노출하지 않는다."""
     if len(ganzhi) >= 2 and ganzhi[0] in _GAN_KO and ganzhi[1] in _ZHI_KO:
-        return f"{ganzhi}({_GAN_KO[ganzhi[0]]}{_ZHI_KO[ganzhi[1]]})"
+        return f"{_GAN_KO[ganzhi[0]]}{_ZHI_KO[ganzhi[1]]}"
     return ganzhi
 
 
@@ -304,7 +319,8 @@ def _gz_elem(ganzhi: str) -> str:
 
 
 def _hidegan_ko(hide) -> str:
-    return " · ".join(f"{g}({_GAN_KO.get(g, g)})" for g in hide) if hide else "-"
+    # 한글 reading 만(한자 병기·가운뎃점 폐기). 예: '신, 경, 무'
+    return ", ".join(_GAN_KO.get(g, g) for g in hide) if hide else "-"
 
 
 def _ss(x: str) -> str:
@@ -404,7 +420,7 @@ def _pillar_line(label: str, p) -> str:
     )
     inner = (
         f"속에 든 지장간은 {_hidegan_ko(p.hide_gan)}, 십이운성으로는 "
-        f"{_dishi_phrase(p.dishi)}, 납음은 {p.nayin}입니다."
+        f"{_dishi_phrase(p.dishi)}의 결입니다."
     )
     read = _pick(
         label + "R",
@@ -603,6 +619,7 @@ def build_all(
     )
     dm = m.day_master
     dm_ko = _GAN_KO.get(dm, "")
+    gk = (m.geukguk or "").split("(")[0]  # 격국 한자 병기 제거(상관격(傷官格)->상관격)
     dm_elem = _ELEM_KO.get(_GAN_ELEM.get(dm, ""), "오행")
     dm_elem_mn = _ELEM_MEAN.get(_GAN_ELEM.get(dm, ""), "자기 중심축")
     mon_sg, mon_sgm = _ss(m.month.shishen_gan), _ss_mean(m.month.shishen_gan)
@@ -627,12 +644,12 @@ def build_all(
             if name
             else "사주를 한 장으로 압축해 보겠습니다.\n"
         )
-        + f"[원국] 사주팔자 {bazi} · 일간 {dm}({dm_ko}) — 이 글자가 당신을 "
+        + f"[원국] 사주팔자 {bazi} · 일간 {dm_ko} — 이 글자가 당신을 "
         f"나타내는 중심입니다.\n"
         f"[기운 분포] {mx_ko} 기운({mx_mn})이 비교적 또렷하고, {mn_ko} "
         f"기운({mn_mn})은 채워 가면 좋은 자리로 봅니다.\n"
         f"[자미 구조] 명궁은 지지 {sp.branch}에 놓이고 주성은 {_stars_ko(sp)}, "
-        f"오행국은 {z.five_elements_class}, 신궁은 {z.body_palace}입니다.\n"
+        f"오행국은 {_oguk(z.five_elements_class)}, 신궁은 {z.body_palace}입니다.\n"
         f"[읽는 방향] 큰 그림 → 영역별 흐름 → 시간의 결 → 현실 적용 순으로 "
         f"이어집니다. 어느 것도 정해진 운명이 아니라, 당신의 선택과 노력으로 "
         f"달라질 수 있는 참고용 경향입니다."
@@ -644,14 +661,13 @@ def build_all(
         "상징하는 글자), 십성(관계의 작용), 십이운성(기운의 단계), 지장간(지지 "
         "속 숨은 기운), 자미두수 명반(12궁의 구조) 같은 말은 처음 나올 때 "
         "괄호로 짧게 풀어 드리고, 자세한 뜻은 마지막 부록에 한데 모았습니다. "
-        "본문 사이의 만세력 표와 명반 그림을 같이 보시면 훨씬 빨리 잡힙니다. "
         "모든 풀이는 단정이 아니라 참고용 경향이니, 중요한 결정은 전문가와 "
         "함께 검토하시길 권합니다."
     )
 
     T["keywords"] = (
         f"이 사주를 빨리 이해할 다섯 단서를 먼저 짚어 드립니다.\n"
-        f"① 일간 {dm}({dm_ko}) — 당신을 상징하는 중심 글자로, 모든 풀이를 "
+        f"① 일간 {dm_ko} — 당신을 상징하는 중심 글자로, 모든 풀이를 "
         f"읽는 기준점입니다.\n"
         f"② 오행 균형 — {mx_ko}({mx_mn})이 강하고 {mn_ko}({mn_mn})이 옅은 "
         f"분포라, 강점을 살리고 약한 쪽을 채우는 방향을 봅니다.\n"
@@ -659,20 +675,18 @@ def build_all(
         f"읽는 자리입니다.\n"
         f"④ 대운 {daewoon_dir}(대운수 {m.daewoon_count}) — 시간이 흐르는 "
         f"방향과 큰 시기가 바뀌는 결을 가리킵니다.\n"
-        f"⑤ 오행국 {z.five_elements_class} — 자미두수 명반 해석의 토대입니다.\n"
+        f"⑤ 오행국 {_oguk(z.five_elements_class)} — 자미두수 명반 해석의 토대입니다.\n"
         f"이 다섯을 머리에 두고 읽으면 전체 흐름이 한결 또렷해집니다."
     )
 
     T["wonguk"] = (
         f"원국(原局)은 당신이 태어난 네 기둥, 곧 사주팔자입니다. 중심 글자인 "
-        f"일간 {_J(f'{dm}({dm_ko})', '을를')} 기준으로 네 기둥의 짜임을 차례로 풀어 "
-        f"보겠습니다. 옆의 만세력 표와 같이 보시면 좋습니다.\n"
+        f"일간 {_J(dm_ko, '을를')} 기준으로 네 기둥의 짜임을 차례로 풀어 봅니다.\n"
         f"{_pillar_line('연주(年柱)', m.year)}\n"
         f"{_pillar_line('월주(月柱)', m.month)}\n"
         f"{_pillar_line('일주(日柱)', m.day)}\n"
         f"{_pillar_line('시주(時柱)', m.hour)}\n"
-        f"명궁 납음은 {m.ming_gong_nayin}, 신궁 납음은 {_ro(m.shen_gong_nayin)} "
-        f"봅니다. 네 기둥은 연주(뿌리·환경), 월주(성장·사회), 일주(나 자신), "
+        f"네 기둥은 연주(뿌리·환경), 월주(성장·사회), 일주(나 자신), "
         f"시주(지향·후반)의 결로 나누어 읽되, 한 기둥의 길흉을 따로 떼어 "
         f"단정하기보다 네 기둥이 어떻게 어울리는지를 보는 것이 핵심입니다. "
         f"지장간은 겉으로 잘 드러나지 않는 속기운이라, 천간과 함께 보면 결이 "
@@ -702,10 +716,10 @@ def build_all(
     )
 
     T["ilgan"] = (
-        f"일간 {_J(f'{dm}({dm_ko})', '은는')} 당신 자신을 상징하는 글자입니다. 당신의 "
+        f"일간 {_J(f'{dm_ko}', '은는')} 당신 자신을 상징하는 글자입니다. 당신의 "
         f"일주는 {_gz_ko(m.day.ganzhi)}이고, 그 속에는 지장간 "
         f"{_J(_hidegan_ko(m.day.hide_gan), '이가')} 들어 있으며, 십이운성으로는 "
-        f"{_dishi_phrase(m.day.dishi)}, 납음은 {m.day.nayin}입니다. 일주의 "
+        f"{_dishi_phrase(m.day.dishi)}의 결입니다. 일주의 "
         f"지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} {day_zhi_mn}의 결로, "
         f"당신이 관계와 일을 풀어 가는 기본 방식을 읽는 단서가 됩니다. 일간이 "
         f"속한 {dm_elem}의 성질, 곧 {dm_elem_mn}의 결을 강점으로 살리고 "
@@ -740,7 +754,7 @@ def build_all(
         f"쓰이는 결로 읽습니다. 지장간 {_J(_hidegan_ko(m.day.hide_gan), '은는')} "
         f"평소엔 잘 안 보이다가 특정 상황에서 드러나는 숨은 자원으로 봅니다.\n"
         f"신강약은 '{m.singang}'(균형 점수 {m.singang_score})입니다. "
-        f"{_singang_phrase(m.singang)}이 도움이 되고, {m.geukguk}의 틀에서는 "
+        f"{_singang_phrase(m.singang)}이 도움이 되고, {gk}의 틀에서는 "
         f"그 격의 결을 살리는 쪽이 강점으로 이어지기 쉽습니다.\n"
         f"보완할 점은 {mn_ko} 기운({mn_mn})이 옅다는 자리입니다. 관련 상황에선 "
         f"한 박자 신중하게, 미리 준비하면 한결 수월합니다. 옅은 축은 결핍이 "
@@ -759,7 +773,7 @@ def build_all(
     T["character"] = (
         f"이번에는 성격·기질을 일간·십성·신강약·신살로 한데 모아 보겠습니다"
         f"(앞의 '일간과 성향'이 중심 글자라면, 여기서는 전체 윤곽을 종합합니다).\n"
-        f"중심은 일간 {dm}({dm_ko}) — {dm_elem_mn}의 바탕입니다. 바깥에서 "
+        f"중심은 일간 {dm_ko} — {dm_elem_mn}의 바탕입니다. 바깥에서 "
         f"보이는 결(천간 십성)은 연 {_ss(m.year.shishen_gan)}·월 {mon_sg}·시 "
         f"{_ss(m.hour.shishen_gan)} 쪽이고, 마음이 편한 안쪽 결(일주 지지 "
         f"십성)은 {_ss_list(m.day.shishen_zhi)}입니다. 즉 사회에서 드러나는 "
@@ -782,7 +796,7 @@ def build_all(
 
     T["geukguk"] = (
         f"격국(格局)은 태어난 달의 기운(월령)을 중심으로 사주의 큰 틀을 보는 "
-        f"분류입니다. 당신의 사주는 {m.geukguk}으로 봅니다 — {m.geukguk_note} "
+        f"분류입니다. 당신의 사주는 {gk}으로 봅니다 — {m.geukguk_note} "
         f"일간의 힘(신강약)은 '{m.singang}'(균형 점수 {m.singang_score})이고, "
         f"억부(抑扶) 방식으로 본 참고 용신은 {m.yongshin_eokbu}"
         f"({m.yongshin_axis}) 방향입니다. 다만 용신은 억부·조후·통관·병약·"
@@ -864,7 +878,7 @@ def build_all(
             f"정리하면, 일주의 지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} "
             f"당신이 관계에서 편하게 여기는 거리와 방식의 결을 보여 주고, "
             f"신강약 '{m.singang}'{_josa(m.singang, '은는')} {_singang_phrase(m.singang, kind='rel')}"
-            f"입니다. {m.geukguk}의 틀에서 보면, 가까운 사이일수록 {day_sgm}의 "
+            f"입니다. {gk}의 틀에서 보면, 가까운 사이일수록 {day_sgm}의 "
             f"방식이 자연스럽게 드러나기 쉽습니다.\n"
             f"이 사주의 결에서 나온 관계 점검 세 가지를 권합니다. 첫째, "
             f"{day_sgm}의 방식이 상대에게 어떻게 가닿고 있는지 한 번 떠올려 "
@@ -890,7 +904,7 @@ def build_all(
         f"{_pillar_block('시주(지향·후반의 일)', m.hour)}\n"
         f"{_palace_para(job_p, '일과 성취')}\n"
         f"월간 십성 {_J(f'{mon_sg}({mon_sgm})', '은는')} 당신이 일하는 방식의 결을, "
-        f"{m.geukguk}과 억부 참고용신({m.yongshin_eokbu}, {m.yongshin_axis})은 "
+        f"{gk}과 억부 참고용신({m.yongshin_eokbu}, {m.yongshin_axis})은 "
         f"어떤 환경에서 강점이 잘 쓰이는지의 방향을 보는 단서입니다."
         + (
             f" 활동·이동의 결은 천이궁도 함께 보는데, 거기에는 "
@@ -919,7 +933,7 @@ def build_all(
         f"이 사주의 결에서 나온 재정 점검 세 가지를 권합니다. 첫째, "
         f"{_J(_singang_phrase(m.singang, kind='money'), '을를')} 염두에 두고, "
         f"버는 흐름과 쓰는 흐름의 균형을 한 번 점검해 보세요. 둘째, "
-        f"{m.geukguk}의 결을 크게 거스르는 결정 "
+        f"{gk}의 결을 크게 거스르는 결정 "
         f"앞에서는 충분히 검토하고 분산해 두세요. 셋째, 세운 흐름이 바뀌는 "
         f"전환기에 맞춰 관리의 리듬을 한 번 조정해 보세요. 수익이나 손실을 "
         f"단정하거나 보장하지 않으며, 큰 결정은 전문가 상담을 함께 권합니다."
@@ -961,8 +975,7 @@ def build_all(
     )
     T["daewoon"] = (
         f"대운은 약 10년 단위로 흐르는 큰 시기의 결입니다. 당신의 대운은 "
-        f"{daewoon_dir}이고 대운수는 {m.daewoon_count}입니다. 함께 실은 대운 "
-        f"타임라인 그림과 같이 보시면 시기별 준비에 쓰기 좋습니다.\n"
+        f"{daewoon_dir}이고 대운수는 {m.daewoon_count}입니다.\n"
         f"{dw_lines}\n"
         f"각 대운의 간지는 그 시기에 강조되는 기운의 방향을 가리키는 "
         f"참고입니다. 대운이 바뀌는 전환기에는 환경과 역할의 변화를 미리 "
@@ -1050,11 +1063,10 @@ def build_all(
         )
 
     T["ziwei_summary"] = (
-        f"자미두수 명반은 인생의 '구조'를 보는 그림입니다. 함께 실은 12궁 "
-        f"명반과 같이 보시면 좋습니다. 당신의 명궁은 {z.soul_palace}(지지 "
+        f"자미두수 명반은 인생의 '구조'를 보는 틀입니다. 당신의 명궁은 {z.soul_palace}(지지 "
         f"{sp.branch})에 놓이고 거기에는 {_stars_full(sp)} 들어 있습니다. "
         f"신궁은 {z.body_palace}(지지 {bp.branch})로, {_stars_full(bp)} "
-        f"있습니다. 오행국은 {z.five_elements_class}입니다. 명궁은 타고난 "
+        f"있습니다. 오행국은 {_oguk(z.five_elements_class)}입니다. 명궁은 타고난 "
         f"기본 바탕을, 신궁은 살아가며 힘이 실리는 자리를 보는 참고입니다. "
         f"별이 밝을수록 그 자리의 기운이 또렷하게 드러나고, 사화(화록·화권·"
         f"화과·화기)는 그 힘이 향하는 쪽을 읽는 단서가 됩니다. 명반은 길흉의 "
@@ -1127,7 +1139,7 @@ def build_all(
     )
 
     T["caution"] = (
-        f"반복되기 쉬운 선택의 결을 일간 {_J(f'{dm}({dm_ko})', '과와')} 십성 구조로 함께 "
+        f"반복되기 쉬운 선택의 결을 일간 {_J(f'{dm_ko}', '과와')} 십성 구조로 함께 "
         f"점검해 보세요. 강한 축은 잘 쓰이면 강점이지만 과하면 같은 패턴을 "
         f"되풀이하게 만들 수 있고, 약한 축은 중요한 결정에서 놓치기 쉬운 "
         f"지점이 됩니다. 예컨대 {mon_sg}의 결이 두드러질 때는 그 방향으로만 "
@@ -1183,13 +1195,11 @@ def build_all(
     )
 
     T["next"] = (
-        "더 깊은 풀이나 시기별 상담이 필요하시면 상담을 신청하실 수 있습니다"
-        "(선택입니다). 만세력 표와 자미두수 명반을 놓고 시점을 정해 함께 보면, "
-        "결과지보다 한층 구체적인 방향을 정리할 수 있습니다. 도움이 되셨다면 "
-        "후기를 남겨 주시면 큰 힘이 됩니다. 상담과 후기는 모두 자발적 "
-        "선택이며 강요하지 않습니다. 이 풀이는 명리학·자미두수 전통 해석 "
-        "체계에 기반한 참고용 상담 자료이며, 의료·법률·투자 등 중요한 결정은 "
-        "해당 분야 전문가와 상의하시기를 권합니다."
+        "이 자료는 자동 분석 도구로 사주와 자미두수를 산출하고, 운영자가 직접 검수·"
+        "감수하여 정리한 참고용 상담 자료입니다. 명리학과 자미두수는 전통 해석 체계로, "
+        "타고난 경향과 시기의 흐름을 읽는 참고일 뿐 정해진 결과를 단정하거나 보장하지 "
+        "않습니다. 같은 사주라도 선택과 노력, 환경에 따라 길은 충분히 달라질 수 있습니다. "
+        "의료·법률·투자처럼 중요한 결정은 해당 분야의 전문가와 상의하시기를 권합니다."
     )
 
     # Phase5 구간3(룰 폴백) — 신청 고민 라우팅. 카테고리→도메인 결로 안내(비단정).

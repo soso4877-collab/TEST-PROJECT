@@ -66,3 +66,6 @@ data/
 
 # iztro 동등성 사이드카(test-only)는 sajugen/tools/ 아래라 전체 비추적.
 # 브릿지 소스는 scripts/verify_ziwei_parity.py 가 부트스트랩(재생성)한다.
+preview_out.log
+preview_err.log
+err_dump.txt

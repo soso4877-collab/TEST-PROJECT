@@ -94,13 +94,29 @@ def test_build_report_no_key_is_rule_fallback_and_clean(monkeypatch):
     assert rep.guard.polished_sections == 0, rep.guard.polished_sections
     assert rep.guard.clean is True
     assert rep.guard.safe_lint_total == 0 and rep.guard.factcheck_total == 0
-    # 모든 섹션 final == rule(폴백)
+    # 무키 → LLM 미수행(polished False). final 은 한자 표시정리만 적용될 수 있음(LLM 아님).
     for s in rep.sections:
-        assert s.final_text == s.rule_text
         assert s.polished is False
 
 
 # --- 고민 입력 배선(구간1 분류 + 구간3 라우팅 섹션) ---
+
+
+def test_no_ai_tells_in_nonstatic_chapters(monkeypatch):
+    # 재편 회귀 앵커: 룰 폴백(무키)이라도 해석 챕터에 AI틱 표식이 없어야 한다.
+    # 한자·원문자·대괄호 라벨·줄머리 불릿·화살표·'첫째/둘째' 부재. (정적 챕터는 면제)
+    import re
+
+    _no_key(monkeypatch)
+    rep = builder.build_report(_saju(), use_llm=False, ref_year=2026, concern="올해 이직")
+    static = {"cover", "toc", "appendix_terms", "colophon"}
+    bad = re.compile(r"첫째,|둘째,|셋째,|[①②③④⑤]|→|\[원국\]|\[기운 분포\]| · |[一-鿿]")
+    offenders = {
+        s.id: sorted(set(bad.findall(s.final_text)))
+        for s in rep.sections
+        if s.id not in static and bad.search(s.final_text)
+    }
+    assert not offenders, offenders
 
 
 def test_concern_flows_to_category_and_consult_section(monkeypatch):
