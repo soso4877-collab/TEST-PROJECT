@@ -31,6 +31,12 @@ P4(2026-06-11): models/report.py(Unified JSON, docs/04 round-trip) + store/order
   손대조 0 — 공망=lunar LunarUtil.getXunKong(60갑자 전수), 4기둥=iztro↔lunar, 대운방향=양남음녀,
   표=건록·제왕·육합 1차원리 재도출(양인·암록·금여) + 스냅샷, 12신살=독립 재구현. 결정론 격자 21차트 +
   명명 8케이스(순/역·남/여·대운수0·자시·입춘·윤달). 방법론 docs/12 §6. 전체 회귀 103 PASS.
+Phase5 착수(2026-06-11): LLM 백엔드 결정 — 내 계정 API 키(상업, 규칙14 만족) 확정, 자체호스팅 로컬은
+  제외(하드웨어 필요·의도 아님). 백엔드 2종(rule/anthropic). 1단계 룰폴백 골격 완료:
+  content/question_router.py(QuestionCategory enum + 키워드 룰분류) + content/llm_sections.py
+  (LLMBackend 프로토콜·RuleBackend·AnthropicBackend·get_backend, 무키→Rule). 기존 llm_polish/builder
+  폴백·가드 패턴 재사용(미변경). test_llm_sections 6건. 전체 회귀 109 PASS.
+  다음: 고객 질문입력 필드(cli/app/pipeline --concern) + ANTHROPIC_API_KEY 시 AnthropicBackend 실호출·A/B.
 조사대상(미해결): lunar-python sect=2 고정이 JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈
   (공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
 전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
