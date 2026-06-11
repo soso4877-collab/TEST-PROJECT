@@ -27,6 +27,10 @@ P4(2026-06-11): models/report.py(Unified JSON, docs/04 round-trip) + store/order
 대운수정(2026-06-11): 대운 시작나이 2년차 해결. lunar-python getStartAge()=起運연도 虚岁(케이스마다 +1~2
   드리프트)를 쓰던 버그 → start_age=대운수(getStartYear)+10*순번 으로 도출(calc/myeongni.py). 케이스#1
   6/16/26 레퍼런스 일치·daewoon_count 내부정합. 회귀 2건 추가. 한국관행=대운수=만나이=시작나이.
+골든확장(2026-06-11): tests/test_golden_sweep.py 신설(22건). 독립 오라클·속성기반 검증으로 기댓값
+  손대조 0 — 공망=lunar LunarUtil.getXunKong(60갑자 전수), 4기둥=iztro↔lunar, 대운방향=양남음녀,
+  표=건록·제왕·육합 1차원리 재도출(양인·암록·금여) + 스냅샷, 12신살=독립 재구현. 결정론 격자 21차트 +
+  명명 8케이스(순/역·남/여·대운수0·자시·입춘·윤달). 방법론 docs/12 §6. 전체 회귀 103 PASS.
 조사대상(미해결): lunar-python sect=2 고정이 JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈
   (공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
 전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
