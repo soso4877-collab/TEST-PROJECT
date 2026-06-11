@@ -48,34 +48,18 @@ def render_html(
     name: str | None = None,
     unknown_time: bool = False,
 ) -> str:
-    secs = []
-    for s in report.sections:
-        secs.append(
-            {
-                "id": s.id,
-                "title": s.title,
-                "final_text": s.final_text,
-                "source_keys": s.source_keys,
-                "chapter": _CHAPTERS.get(s.id),
-            }
-        )
+    # 도판 전면 제거(운영자 지시 — 목차+글만). 챕터·번호·차트 변수 미전달.
+    secs = [{"id": s.id, "title": s.title, "final_text": s.final_text} for s in report.sections]
     tmpl = _env.get_template("report.html.j2")
     return tmpl.render(
         title="사주풀이 결과지",
         font_dir=_FONT_DIR,
         cover_sub=(
             (f"{name}님\n" if name else "")
-            + f"입력 {saju.input_civil}"
-            + ("(생시 미상·추정)" if unknown_time else "")
-            + f"\n진태양시 {saju.true_solar}\n"
-            + f"경도보정 {saju.eot_minutes}분 · 자시정책 {saju.zasi_policy}"
+            + f"{saju.input_civil}"
+            + ("  (생시 미상·추정)" if unknown_time else "")
         ),
         sections=secs,
-        ohaeng_svg=charts.ohaeng_bar(saju.myeongni.elements),
-        daewoon_svg=charts.daewoon_timeline(saju.myeongni.daewoon, current_age=age),
-        manse_svg=charts.manse_table(saju.myeongni),
-        sipseong_svg=charts.sipseong_card(saju.myeongni),
-        ziwei_svg=charts.ziwei_chart(saju.ziwei),
         disclaimer=_DISCLAIMER,
     )
 
@@ -109,7 +93,7 @@ def render_pdf(
             outline=True,
             print_background=True,
             prefer_css_page_size=True,
-            margin={"top": "16mm", "bottom": "16mm", "left": "15mm", "right": "15mm"},
+            margin={"top": "22mm", "bottom": "22mm", "left": "20mm", "right": "20mm"},
         )
         b.close()
 
