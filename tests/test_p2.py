@@ -35,6 +35,19 @@ def test_daewoon_reverse_for_yin_year_male():
     assert len(r.myeongni.daewoon) >= 6
 
 
+def test_daewoon_start_age_uses_daewoon_count():
+    # 起運 나이(대운수)=만나이 관행. lunar-python 虚岁(getStartAge) 미사용.
+    # 골든 2000-01-01: 대운수 8 → 8/18/28… (虚岁였다면 9/19/29). 내부 정합 회귀.
+    r = _r()
+    m = r.myeongni
+    assert m.daewoon_count == 8, m.daewoon_count
+    assert m.daewoon[0].start_age == m.daewoon_count, (m.daewoon[0].start_age, m.daewoon_count)
+    ages = [d.start_age for d in m.daewoon[:4]]
+    assert ages == [8, 18, 28, 38], ages
+    assert [d.end_age for d in m.daewoon[:2]] == [17, 27]
+    assert [d.start_year for d in m.daewoon[:4]] == [2008, 2018, 2028, 2038]
+
+
 def test_month_branch_crosscheck_skyfield_ok():
     r = _r()
     assert r.myeongni.month_branch_crosscheck_ok, (

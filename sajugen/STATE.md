@@ -24,8 +24,11 @@ P4(2026-06-11): models/report.py(Unified JSON, docs/04 round-trip) + store/order
   공망 자체산술·12신살), 길신 7종 확장(문창·학당·금여·암록·태극·천문·고신·과숙). config myeongni_shinsal
   (괴강범위·삼합축both·12신살축day_zhi·공망표기). content/rules.py 문안 계층(기둥별·상한·공망·12신살 비단정).
   케이스#1 골든: 포스텔러 기둥별 신살 11종 재현·공망 일치. 전체 회귀 79 PASS.
-조사대상(미해결): (1) 대운 시작나이 2년차(엔진8세 vs 레퍼런스6세, docs/11). (2) lunar-python sect=2 고정이
-  JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈(공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
+대운수정(2026-06-11): 대운 시작나이 2년차 해결. lunar-python getStartAge()=起運연도 虚岁(케이스마다 +1~2
+  드리프트)를 쓰던 버그 → start_age=대운수(getStartYear)+10*순번 으로 도출(calc/myeongni.py). 케이스#1
+  6/16/26 레퍼런스 일치·daewoon_count 내부정합. 회귀 2건 추가. 한국관행=대운수=만나이=시작나이.
+조사대상(미해결): lunar-python sect=2 고정이 JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈
+  (공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
 전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
   운영자 ANTHROPIC_API_KEY 준비 필요, 무키 시 룰 폴백).
 헤드리스(경로1 Max) 폐기 — 런타임 LLM은 Anthropic 공식 API로 확정.

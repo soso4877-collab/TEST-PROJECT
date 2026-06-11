@@ -136,15 +136,19 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
     # 대운 (남=1, 여=0; sect=1 기본 流派) — 방향은 시퀀스로 판정(단정 회피)
     yun = ec.getYun(1 if is_male else 0, 1)
     dy = yun.getDaYun()
+    # 起運 나이(대운수) = getStartYear(). 한국 관행은 대운수=만나이 시작(레퍼런스 만세력 일치).
+    # lunar-python d.getStartAge()는 起運 캘린더연도의 중국식 세는나이(虚岁)라 대운수와 +1~2 어긋남
+    #   → 사용 금지. start_age = 대운수 + 10*순번 으로 도출(daewoon_count 와 내부 정합).
+    qiyun = yun.getStartYear()
+    _dy_items = [d for d in dy[1:9] if d.getGanZhi()]
     daewoon = [
         DaYunItem(
-            start_age=d.getStartAge(),
-            end_age=d.getEndAge(),
+            start_age=qiyun + 10 * i,
+            end_age=qiyun + 10 * i + 9,
             start_year=d.getStartYear(),
             ganzhi=d.getGanZhi(),
         )
-        for d in dy[1:9]
-        if d.getGanZhi()
+        for i, d in enumerate(_dy_items)
     ]
     # 순행/역행: 60갑자 인덱스 증감으로 판정
     SX = "甲乙丙丁戊己庚辛壬癸"

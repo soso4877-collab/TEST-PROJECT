@@ -164,6 +164,15 @@ def test_case1_per_pillar_golden():
     assert not any(h.name == "천주귀인" for h in m.shinsal_detail)
 
 
+def test_case1_daewoon_start_age():
+    # 레퍼런스(포스텔러·전문가용) 6 己酉 / 16 戊申 / 26 丁未 와 일치.
+    # 버그 수정 전엔 8/18/28(lunar 虚岁)이었음.
+    m = _case1().myeongni
+    assert m.daewoon_count == 6, m.daewoon_count
+    got = [(d.start_age, d.ganzhi) for d in m.daewoon[:4]]
+    assert got == [(6, "己酉"), (16, "戊申"), (26, "丁未"), (36, "丙午")], got
+
+
 def test_case1_twelve_shinsal():
     # 일지 기준(寅午戌국, 일지 寅): 년丑=천살 월戌=화개 일寅=지살 시巳=망신
     tw = _case1().myeongni.twelve_shinsal
