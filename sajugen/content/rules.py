@@ -1285,3 +1285,48 @@ def build_all(
         "colophon": T["next"],
     }
     return NT
+
+
+def partner_block(pf, saju) -> str:
+    """상대방 명식 사실 슬롯(consult 근거 주입용) — calc/partner.PartnerFacts 표시 계층.
+
+    상대 생년월일 원본은 넣지 않는다(절대규칙 17 — LLM에는 파생 간지·오행·십성만).
+    라벨을 분명히 해 LLM이 본인 사주와 혼동하지 않게 한다.
+    """
+    m = saju.myeongni
+    my_dm_ko = _GAN_KO.get(m.day.gan, m.day.gan)
+    my_dm_elem = _gz_elem(m.day.ganzhi)  # 천간 기준 오행 한글
+    d_animal = _gz_animal(pf.day.ganzhi)
+    lines = [
+        "[상대방 명식 — 신청 글에 적힌 상대의 생년월일 기준. 태어난 시간은 미상이라 "
+        "시주는 제외하고, 대운도 산출하지 않은 자료다. 아래는 신청자 본인이 아니라 "
+        "'상대방'의 사실이다]",
+        f"상대는 {_gz_ko(pf.year.ganzhi)}년 {_gz_ko(pf.month.ganzhi)}월 "
+        f"{_gz_ko(pf.day.ganzhi)}일생 — 상대는 {_gz_ko(pf.day.ganzhi)}일주"
+        + (f", 일주로 보면 {d_animal}의 기운" if d_animal else "")
+        + ".",
+        f"상대 일간은 {_GAN_KO.get(pf.day.gan, pf.day.gan)}, 오행으로 {pf.day_gan_elem_ko}.",
+        f"신청자 일간 {my_dm_ko}({my_dm_elem}) 기준으로 상대 일간 "
+        f"{_J(pf.day_gan_elem_ko, '은는')} {_ss(pf.shishen_to_me)}에 해당한다.",
+    ]
+    if pf.gan_hap:
+        lines.append(f"두 사람의 일간은 천간합 — {pf.gan_hap}의 짝이다.")
+    if pf.ilji_relation == "육합":
+        lines.append("신청자 일지와 상대 일지는 육합 — 서로 끌어당겨 묶이는 자리다.")
+    elif pf.ilji_relation == "충":
+        lines.append("신청자 일지와 상대 일지는 충 — 강하게 부딪히며 흔드는 자리다.")
+    if pf.ilji_banhap:
+        lines.append(
+            f"신청자 일지와 상대 일지는 삼합의 짝 — 만나면 {pf.ilji_banhap}의 기운이 "
+            f"살아나는 구조다."
+        )
+    if pf.complements_elems_ko:
+        lines.append(
+            "상대 명식에는 신청자에게 옅은 "
+            + ", ".join(pf.complements_elems_ko)
+            + " 기운이 들어 있다 — 부족한 기운을 건드리는 사람이다."
+        )
+    if pf.matches_my_yongshin:
+        lines.append("상대 일간의 오행은 신청자의 억부용신과 같다 — 기대고 싶어지는 구조다.")
+    lines.append("(시간 미상이라 상대 풀이는 연월일 기준까지만 — 본문에 이 한계를 한 번 짚는다)")
+    return "\n".join(lines)

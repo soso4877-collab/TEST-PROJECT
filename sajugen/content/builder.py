@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import re
 
-from . import factcheck, llm_polish, llm_sections, question_router, rules, safe_lint, trace
+from ..calc import partner as calc_partner
+from ..input import partner as input_partner
+from . import factcheck, llm_polish, llm_sections, masking, question_router, rules, safe_lint, trace
 from .sections_schema import _STATIC_OK, SECTION_SPECS, GuardReport, Report23, Section
 
 # LLM 챕터 작성 구간(docs/06, 절대규칙15 개정). 키+use_llm+anthropic 일 때만 compose(사실 슬롯 기반
@@ -93,6 +95,49 @@ def build_report(
     else:
         category = question_router.classify(concern)
 
+    # 상대방 사주(2026-06-12): 고민 원문의 상대 생년월일 감지 → 결정론 calc →
+    # consult 사실 슬롯. 미감지·계산 실패 = 기능 생략(안전 기본값).
+    partner_text = ""
+    partner_gz: frozenset[str] = frozenset()
+    partner_spans: list[tuple[int, int]] = []
+    if concern:
+        try:
+            matches = input_partner.find_partner_births(concern)
+            partner_spans = [(pm.start, pm.end) for pm in matches]
+            if matches:
+                pm0 = matches[0]  # 첫 번째 상대만(복수 상대는 차후)
+                _m = saju.myeongni
+                pf = calc_partner.partner_pillars(
+                    pm0.year,
+                    pm0.month,
+                    pm0.day,
+                    None,  # 시각은 질문에 사실상 없음 → 시주 제외
+                    my_day_gan=_m.day.gan,
+                    my_day_zhi=_m.day.zhi,
+                    my_elements=_m.elements,
+                    my_yongshin=getattr(_m, "yongshin_eokbu", "") or "",
+                )
+                partner_text = rules.partner_block(pf, saju)
+                partner_gz = frozenset(
+                    p.ganzhi for p in (pf.year, pf.month, pf.day) if p is not None
+                )
+        except Exception as e:
+            import sys
+
+            print(f"[partner-skip] {type(e).__name__}: {str(e)[:120]}", file=sys.stderr, flush=True)
+            partner_text, partner_gz, partner_spans = "", frozenset(), []
+
+    # consult 인용 블록(절대규칙 17 a~b·d): 결정론 마스킹본만 LLM 전달·기록.
+    masked_concern = (
+        masking.mask_concern(
+            concern,
+            self_civil=getattr(saju, "input_civil", None),
+            partner_spans=partner_spans,
+        )
+        if concern
+        else ""
+    )
+
     skeletons = rules.build_all(
         saju,
         ref_year=ref_year,
@@ -116,8 +161,10 @@ def build_report(
         if sid in drop:
             continue
         rt = (toc_text if sid == "toc" else skeletons[sid]).strip()
+        if sid == "consult" and partner_text:
+            rt = rt + "\n\n" + partner_text  # 상대방 명식 사실 슬롯(룰 폴백에도 포함)
         rule_texts[sid] = rt
-        rule_viol[sid] = safe_lint.lint(rt) + factcheck.check(rt, saju)
+        rule_viol[sid] = safe_lint.lint(rt) + factcheck.check(rt, saju, partner_gz)
         title_of[sid] = title
 
     # consult(신청 질문)는 카테고리 라우팅 골격만으론 사실이 없어 LLM이 답을 거부한다.
@@ -147,6 +194,7 @@ def build_report(
                     title=title_of[sid],
                     category=category.value,
                     base_text=_base_for(sid),
+                    quoted_concern=(masked_concern if sid == "consult" else None),
                 )
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
@@ -179,7 +227,7 @@ def build_report(
                 cand = _strip_artifacts(cand)  # 섹션 제목 누출 등 메타 제거
             if cand and cand != rule_text:
                 csv = safe_lint.lint(cand)
-                cfv = factcheck.check(cand, saju)
+                cfv = factcheck.check(cand, saju, partner_gz)
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
                 if (csv or cfv) and sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
@@ -189,12 +237,13 @@ def build_report(
                             title=title,
                             category=category.value,
                             base_text=_base_for(sid),
+                            quoted_concern=(masked_concern if sid == "consult" else None),
                         )
                         or ""
                     )
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
                     if retry and retry != rule_text:
-                        rsv, rfv = safe_lint.lint(retry), factcheck.check(retry, saju)
+                        rsv, rfv = safe_lint.lint(retry), factcheck.check(retry, saju, partner_gz)
                         if not rsv and not rfv:
                             cand, csv, cfv = retry, rsv, rfv
                 if not csv and not cfv:
@@ -216,7 +265,7 @@ def build_report(
             final = _hanja_clean(final)
 
         safe_total += len(safe_lint.lint(final))
-        fact_total += len(factcheck.check(final, saju))
+        fact_total += len(factcheck.check(final, saju, partner_gz))
         sections.append(
             Section(
                 id=sid,

@@ -14,6 +14,25 @@ _GAN = set("甲乙丙丁戊己庚辛壬癸")
 _ZHI = set("子丑寅卯辰巳午未申酉戌亥")
 _GANZHI_RX = re.compile(r"[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]")
 
+# 한글 간지 검사(2026-06-12 신설) — 본문 간지 표기가 한글 전용으로 바뀌어
+# 한자 검사만으로는 LLM 한글 간지 출력이 사각지대였다. 접미 문맥(일주·년·대운 등)
+# 필수로 오탐 억제("기미가 보인다", 인명 '신유' 등 일반어 회피).
+_GAN_KO = "갑을병정무기경신임계"
+_ZHI_KO = "자축인묘진사오미신유술해"
+_GAN_KO_OF = dict(zip("甲乙丙丁戊己庚辛壬癸", _GAN_KO))
+_ZHI_KO_OF = dict(zip("子丑寅卯辰巳午未申酉戌亥", _ZHI_KO))
+_GANZHI_KO_RX = re.compile(rf"[{_GAN_KO}][{_ZHI_KO}](?=\s*(일주|년|월|일|시|대운|세운|월운|운|생))")
+
+
+def _gz_ko(ganzhi_hanja: str) -> str:
+    """한자 간지쌍 → 한글쌍 (己卯 → 기묘)."""
+    if len(ganzhi_hanja) >= 2:
+        g, z = _GAN_KO_OF.get(ganzhi_hanja[0]), _ZHI_KO_OF.get(ganzhi_hanja[1])
+        if g and z:
+            return g + z
+    return ""
+
+
 # 자미두수 14주성(한글) — 텍스트에 별 언급 시 차트 보유 별과 대조
 _ZIWEI_MAJORS = {
     "자미",
@@ -33,28 +52,34 @@ _ZIWEI_MAJORS = {
 }
 
 
-def allowed_tokens(saju) -> dict:
-    """SajuResult → 허용 사실 토큰 집합."""
+def allowed_tokens(saju, extra_ganzhi: frozenset[str] = frozenset()) -> dict:
+    """SajuResult → 허용 사실 토큰 집합.
+
+    extra_ganzhi: 이 주문에서 추가 계산된 실재 간지(예: 상대방 명식, 한자) —
+    content.md 규칙대로 계산 데이터 추가와 동시에만 확장한다.
+    """
     m = saju.myeongni
     gz = {m.year.ganzhi, m.month.ganzhi, m.day.ganzhi, m.hour.ganzhi}
     gz |= {d.ganzhi for d in m.daewoon}
     # 세운·월운 간지(lunar-python 산출 실재값) — 본문 언급 시 허용
     gz |= {g for _, g in getattr(m, "seun", [])}
     gz |= {g for _, g in getattr(m, "worun", [])}
+    gz |= set(extra_ganzhi)
     star_ko = set()
     for p in saju.ziwei.palaces:
         for s in (*p.major_stars, *p.minor_stars, *p.adjective_stars):
             star_ko.add(s.name)
     return {
         "ganzhi": gz,
+        "ganzhi_ko": {k for k in (_gz_ko(g) for g in gz) if k},
         "ziwei_majors_in_chart": {s for s in star_ko if s in _ZIWEI_MAJORS},
         "all_star_ko": star_ko,
     }
 
 
-def check(text: str, saju) -> list[dict]:
+def check(text: str, saju, extra_ganzhi: frozenset[str] = frozenset()) -> list[dict]:
     """위반 목록. 빈 리스트면 통과."""
-    allow = allowed_tokens(saju)
+    allow = allowed_tokens(saju, extra_ganzhi)
     out: list[dict] = []
 
     # 1) 干支 토큰: 텍스트의 모든 간지쌍이 이 사주 허용 집합에 있어야 함
@@ -70,6 +95,19 @@ def check(text: str, saju) -> list[dict]:
                 }
             )
 
+    # 1b) 한글 간지(접미 문맥 필수): '갑자년·경오일주'처럼 간지로 쓰인 것만 검사
+    for m in _GANZHI_KO_RX.finditer(text):
+        tok = m.group(0)
+        if tok not in allow["ganzhi_ko"]:
+            out.append(
+                {
+                    "type": "ganzhi_ko",
+                    "token": tok,
+                    "why": "이 사주의 사주팔자/대운/세운에 없는 한글 간지",
+                    "pos": m.start(),
+                }
+            )
+
     # 2) 자미 14주성: 텍스트에 언급된 주성은 이 명반에 실재해야 함
     chart_majors = allow["ziwei_majors_in_chart"]
     for star in _ZIWEI_MAJORS:
@@ -80,5 +118,5 @@ def check(text: str, saju) -> list[dict]:
     return out
 
 
-def is_consistent(text: str, saju) -> bool:
-    return not check(text, saju)
+def is_consistent(text: str, saju, extra_ganzhi: frozenset[str] = frozenset()) -> bool:
+    return not check(text, saju, extra_ganzhi)
