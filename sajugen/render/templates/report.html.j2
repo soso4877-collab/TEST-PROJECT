@@ -22,12 +22,14 @@
 
   :root{
     /* 절제된 색: 거의 무채색 잉크 + 옅은 골드 룰(비텍스트). 처리유창성=균일·차분. */
-    --bg:#fffdf8; --panel:#f7f1e2; --line:#ddd3bb; --ink:#222630; --mut:#5b6675;
+    --bg:#fffdf8; --panel:#f7f1e2; --line:#ddd3bb; --ink:#111111; --mut:#4a4438;
     --gold:#9a6f1e; --gold-ink:#7d5610;
-    --fs:11.5pt;          /* 본문 기준(명조) */
-    --lh:1.72;            /* 단문 호흡 본문 행간 — 문단 간격이 호흡을 담당 */
+    /* 본문 타이포(2026-06-12 운영자 지시·금강산 실측 15pt/행송 28pt 기반 상향):
+       한글 본문 행간 권장 180~210% 범위 안. 잉크는 한지 위 과대비 피해 #111. */
+    --fs:14.5pt;
+    --lh:1.8;
     --lh-tight:1.32;
-    --ls:-0.003em;        /* 명조 한글 자간(거의 0) */
+    --ls:0;
     --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
     --maxw:148mm}
   *{box-sizing:border-box}
@@ -42,7 +44,7 @@
      하단 생년월일시. */
   .cover{height:245mm;display:flex;flex-direction:column;align-items:center;
     text-align:center;page-break-after:always;padding-top:26mm}
-  .cover h1{font-family:'SajuBrush','SajuMyeongjo',serif;font-size:34pt;font-weight:400;
+  .cover h1{font-family:'SajuBrush','SajuMyeongjo',serif;font-size:38pt;font-weight:400;
     letter-spacing:.10em;line-height:1.25;margin:0}
   .cover .cover-name{font-size:13.5pt;color:var(--ink);margin:9mm 0 0;letter-spacing:.14em}
   .cover .cover-box{margin:24mm 0 0;border:1px solid #6b6353;padding:2.2mm}
@@ -69,7 +71,7 @@
   section.chapter{page-break-before:always;page-break-inside:auto}
   .cnum{font-family:'Saju',sans-serif;color:var(--gold-ink);font-size:10.5pt;
     letter-spacing:.32em;text-align:center;margin:14mm 0 0}
-  h2.ctitle{font-size:23pt;font-weight:400;letter-spacing:.02em;line-height:var(--lh-tight);
+  h2.ctitle{font-size:26pt;font-weight:700;letter-spacing:.02em;line-height:var(--lh-tight);
     text-align:center;color:var(--ink);margin:5mm 0 0}
   .crule{width:52px;height:1px;background:var(--gold);margin:8mm auto var(--s7)}
 
