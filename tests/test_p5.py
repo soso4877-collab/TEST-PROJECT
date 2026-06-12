@@ -33,6 +33,8 @@ def test_cli_gen_runs_and_passes():
             "2000-01-01 12:00",
             "--gender",
             "남",
+            "--name",  # 필수화(운영자 지시 2026-06-12 — 호명 개인화)
+            "홍길동",
             "--horoscope",
             "2026-06-01",
             "--out",
@@ -53,6 +55,7 @@ def test_fastapi_form_and_generate():
         data={
             "birth": "2000-01-01 12:00",
             "gender": "male",
+            "name": "홍길동",  # 필수화(운영자 지시 2026-06-12)
             "longitude": "126.978",
             "latitude": "37.566",
             "horoscope": "2026-06-01",
