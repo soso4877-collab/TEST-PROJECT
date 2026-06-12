@@ -165,6 +165,30 @@ _COMPOSE_GUIDE = {
 }
 
 
+# --- API 사용량 집계(비용 실측, 2026-06-12) — compose 호출 토큰 누적(스레드 안전) ---
+import threading as _threading
+
+_usage_lock = _threading.Lock()
+_usage = {"input_tokens": 0, "output_tokens": 0, "calls": 0}
+
+
+def usage_reset() -> None:
+    with _usage_lock:
+        _usage.update(input_tokens=0, output_tokens=0, calls=0)
+
+
+def usage_snapshot() -> dict:
+    with _usage_lock:
+        return dict(_usage)
+
+
+def _usage_add(input_tokens: int, output_tokens: int) -> None:
+    with _usage_lock:
+        _usage["input_tokens"] += input_tokens
+        _usage["output_tokens"] += output_tokens
+        _usage["calls"] += 1
+
+
 @runtime_checkable
 class LLMBackend(Protocol):
     name: str
@@ -320,6 +344,10 @@ class AnthropicBackend:
                 system=_COMPOSE_SYSTEM,
                 messages=[{"role": "user", "content": user}],
             )
+            try:
+                _usage_add(msg.usage.input_tokens, msg.usage.output_tokens)
+            except Exception:
+                pass  # 집계 실패가 생성 기능을 막지 않는다
             parts = [b.text for b in msg.content if getattr(b, "type", "") == "text"]
             out = "".join(parts).strip()
             if not out:
