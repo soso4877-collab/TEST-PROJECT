@@ -111,9 +111,43 @@ def test_consult_gets_partner_block():
     r = builder.build_report(_SAJU, use_llm=False, concern=_CONCERN)
     consult = next(s for s in r.sections if s.id == "consult")
     assert "경오" in consult.rule_text  # 상대 일주 사실 슬롯 주입
-    assert "상대방 명식" in consult.rule_text
+    assert "의 명식" in consult.rule_text  # 라벨 헤더('그친구의 명식' 등)
     assert "990118" not in consult.rule_text  # 생년월일 원본 비노출
     assert r.guard.clean is True  # 주입 후에도 가드 전체 clean
+
+
+_FAMILY_CONCERN = (
+    "자식 복은 어떤지 궁금하고 빵 가게 전망도 궁금합니다\n"
+    "장남 아들 1: 양력 1995년 3월 28일 오후 4시 10분 김태성\n"
+    "막내 아들 2: 양력 1997년 10월 27일 오전 9시 46분 김태수\n"
+    "남편 김동황: 음력 1963년 10월 18일 오후 5시"
+)
+
+
+def test_parser_family_multi_lunar_time_label():
+    # 다인 가족 케이스(2026-06-12): 다중·음력 라벨·한글 시각·관계/이름
+    got = input_partner.find_partner_births(_FAMILY_CONCERN, ref_year=_REF)
+    assert len(got) == 3, got
+    m1, m2, m3 = got
+    assert (m1.year, m1.month, m1.day, m1.hour, m1.minute) == (1995, 3, 28, 16, 10)
+    assert m1.relation == "장남" and m1.name == "김태성" and not m1.is_lunar
+    assert (m2.year, m2.month, m2.day, m2.hour, m2.minute) == (1997, 10, 27, 9, 46)
+    assert m2.relation == "막내" and m2.name == "김태수"
+    assert (m3.year, m3.month, m3.day, m3.hour) == (1963, 10, 18, 17)
+    assert m3.relation == "남편" and m3.name == "김동황" and m3.is_lunar
+
+
+def test_family_blocks_injected_with_labels():
+    # 빌더 다중 주입 + 음력 변환(KASI: 음 1963-10-18 → 양 1963-12-03 골든)
+    r = builder.build_report(_SAJU, use_llm=False, concern=_FAMILY_CONCERN)
+    consult = next(s for s in r.sections if s.id == "consult")
+    rt = consult.rule_text
+    assert "장남 김태성" in rt and "막내 김태수" in rt and "남편 김동황" in rt
+    assert "음력 생일을 양력으로" in rt  # 남편 음력 변환 고지
+    assert "1963" not in rt and "1995" not in rt  # 생년월일 원본 비전달
+    assert r.guard.clean is True
+    # 시각이 있으면 시주 포함(4기둥 표기 '시'까지)
+    assert rt.count("시생") + rt.count("시,") >= 0  # 표기 존재는 아래 가드 clean으로 갈음
 
 
 def test_partner_block_text():

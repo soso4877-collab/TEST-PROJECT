@@ -129,8 +129,9 @@ def build_report(
     else:
         category = question_router.classify(concern)
 
-    # 상대방 사주(2026-06-12): 고민 원문의 상대 생년월일 감지 → 결정론 calc →
-    # consult 사실 슬롯. 미감지·계산 실패 = 기능 생략(안전 기본값).
+    # 상대방·가족 사주(2026-06-12 다인 확장): 고민 원문의 생년월일 전부 감지 →
+    # 결정론 calc(음력=KASI 1차 변환, 시각 있으면 4주) → consult 사실 슬롯.
+    # 미감지·계산 실패 = 해당 인물 생략(안전 기본값).
     partner_text = ""
     partner_gz: frozenset[str] = frozenset()
     partner_spans: list[tuple[int, int]] = []
@@ -138,23 +139,48 @@ def build_report(
         try:
             matches = input_partner.find_partner_births(concern)
             partner_spans = [(pm.start, pm.end) for pm in matches]
-            if matches:
-                pm0 = matches[0]  # 첫 번째 상대만(복수 상대는 차후)
-                _m = saju.myeongni
-                pf = calc_partner.partner_pillars(
-                    pm0.year,
-                    pm0.month,
-                    pm0.day,
-                    None,  # 시각은 질문에 사실상 없음 → 시주 제외
-                    my_day_gan=_m.day.gan,
-                    my_day_zhi=_m.day.zhi,
-                    my_elements=_m.elements,
-                    my_yongshin=getattr(_m, "yongshin_eokbu", "") or "",
-                )
-                partner_text = rules.partner_block(pf, saju)
-                partner_gz = frozenset(
-                    p.ganzhi for p in (pf.year, pf.month, pf.day) if p is not None
-                )
+            partner_spans += [pm.time_span for pm in matches if pm.time_span]
+            blocks: list[str] = []
+            gz_all: set[str] = set()
+            _m = saju.myeongni
+            for pm0 in matches[:4]:  # 가족 케이스 상한 4인
+                try:
+                    y, mo, d = pm0.year, pm0.month, pm0.day
+                    lunar_note = False
+                    if pm0.is_lunar:
+                        from ..input import normalize as _norm
+
+                        nd = _norm.normalize_date(y, mo, d, is_lunar=True, is_leap=False)
+                        y, mo, d = nd.year, nd.month, nd.day
+                        lunar_note = True
+                    pf = calc_partner.partner_pillars(
+                        y,
+                        mo,
+                        d,
+                        pm0.hour,
+                        pm0.minute,
+                        my_day_gan=_m.day.gan,
+                        my_day_zhi=_m.day.zhi,
+                        my_elements=_m.elements,
+                        my_yongshin=getattr(_m, "yongshin_eokbu", "") or "",
+                    )
+                    label = " ".join(x for x in (pm0.relation, pm0.name) if x).strip()
+                    blocks.append(
+                        rules.partner_block(pf, saju, label=label, lunar_input=lunar_note)
+                    )
+                    gz_all |= {
+                        p.ganzhi for p in (pf.year, pf.month, pf.day, pf.hour) if p is not None
+                    }
+                except Exception as e:
+                    import sys
+
+                    print(
+                        f"[partner-skip-one] {type(e).__name__}: {str(e)[:120]}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            partner_text = "\n\n".join(blocks)
+            partner_gz = frozenset(gz_all)
         except Exception as e:
             import sys
 

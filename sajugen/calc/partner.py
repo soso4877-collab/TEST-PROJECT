@@ -105,6 +105,7 @@ def partner_pillars(
     month: int,
     day: int,
     hour: int | None,
+    minute: int = 0,
     *,
     my_day_gan: str,
     my_day_zhi: str,
@@ -114,7 +115,7 @@ def partner_pillars(
     """상대 명식 계산 + 본인과의 관계 사실. calc/myeongni.build 와 동일 경로
     (진태양시 보정 → lunar-python EightChar), 자시정책 동일(JST_2300)."""
     hour_known = hour is not None
-    ct = tc.correct(year, month, day, hour if hour_known else 12, 0)
+    ct = tc.correct(year, month, day, hour if hour_known else 12, minute if hour_known else 0)
     ts = ct.true_solar
     ec = (
         Solar.fromYmdHms(ts.year, ts.month, ts.day, ts.hour, ts.minute, 0).getLunar().getEightChar()
@@ -148,9 +149,9 @@ def partner_pillars(
                 banhap = elem_ko
                 break
 
-    # 상대 3주(시주 제외)가 품은 오행 — 나의 부족 오행(0~최소치) 보완 여부
+    # 상대 명식(시 미상이면 3주)이 품은 오행 — 나의 부족 오행(0~최소치) 보완 여부
     partner_elems: set[str] = set()
-    for p in (py, pm, pd):
+    for p in (py, pm, pd) + ((ph,) if ph else ()):
         partner_elems.add(_ELEM[p.gan])
         partner_elems.add(_ELEM[p.zhi])
     weak = [e for e, n in my_elements.items() if n == 0]
