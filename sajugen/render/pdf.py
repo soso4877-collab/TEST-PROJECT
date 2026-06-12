@@ -129,13 +129,13 @@ def render_pdf(
     return pdf_path
 
 
-# 낙관 — 인주색(#a23b2c)·번들 나눔명조 Bold. 브랜드 가변이라 배경에 굽지 않고
-# 런타임에 그린다(2026-06-12 운영자 지시: 다계정 운영). 나눔브러시 흘림체는
-# '목차→목과'로 읽힐 만큼 지저분하다는 운영자 지적으로 폐기(명조 Bold = 금강산 톤).
-_INJOO = (0.635, 0.231, 0.173)
+# 낙관 — 브랜드별 투명 PNG(assets/make_assets.build_seal)로 삽입.
+# PyMuPDF insert_text 텍스트 임베드는 일부 뷰어에서 글리프 깨짐(운영자 실증
+# 2026-06-12) — PDF에 텍스트를 써넣는 건 Chromium 경로만 신뢰, PyMuPDF는
+# 벡터(광곽 선)·이미지(낙관·한지)만 그린다.
 _GWAK = (0.42, 0.365, 0.286)  # 광곽 먹갈색(#6b5d49)
 _MM = 72.0 / 25.4  # 1mm in pt
-_SEAL_TTF = os.path.join(_DIR, "fonts", "NanumMyeongjo-Bold.ttf")
+_SEAL_W_PT = 32.0  # 낙관 배치 폭(pt) — 높이는 PNG 비율 따름
 
 
 def _draw_gwakgwak(page) -> None:
@@ -153,118 +153,44 @@ def _draw_gwakgwak(page) -> None:
     )
 
 
-def _brush_subset_buffer(seal_text: str) -> bytes:
-    """낙관 글자만 담은 나눔브러시 서브셋(TTF 바이트) — fontTools 사전 서브셋.
-
-    doc.subset_fonts()는 Chromium이 임베드한 본문 폰트까지 전부 재서브셋해
-    뷰어 호환성 리스크가 있다 → 낙관 폰트만 미리 서브셋해 주입하고, 문서는
-    saveIncr로 본문 폰트 바이트를 원본 그대로 보존한다(2026-06-12 하드닝).
-    """
-    import io as _io
-
-    from fontTools import subset as _fs
-
-    opts = _fs.Options()
-    font = _fs.load_font(_SEAL_TTF, opts)
-    ss = _fs.Subsetter(opts)
-    ss.populate(text=seal_text + "사주명리")
-    ss.subset(font)
-    buf = _io.BytesIO()
-    font.save(buf)
-    return buf.getvalue()
-
-
-def _draw_seal(page, seal_text: str, fontbuffer: bytes) -> None:
-    """우하단 세로 낙관(이중 테두리 + 글자 적층) — overlay=False 언더레이.
-    광곽(13mm 내선) 안쪽에 배치해 테두리와 겹치지 않게 한다."""
-    chars = list(seal_text.strip())[:4] or list("사주명리")
-    fs = 17.0  # 글자 크기(pt)
-    pad_x, pad_top = 7.5, 10.0
-    step = fs + 6.5
-    w = fs + pad_x * 2
-    h = pad_top * 2 + step * len(chars)
-    r = page.rect
-    x1 = r.width - 15.5 * _MM  # 광곽 내선(13mm) 안쪽
-    y1 = r.height - 16 * _MM
-    x0, y0 = x1 - w, y1 - h
-    page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=_INJOO, width=1.1, overlay=False)
-    page.draw_rect(
-        fitz.Rect(x0 + 2.6, y0 + 2.6, x1 - 2.6, y1 - 2.6),
-        color=_INJOO,
-        width=0.45,
-        overlay=False,
-    )
-    page.insert_font(fontname="sealbrush", fontbuffer=fontbuffer)
-    brush = fitz.Font(fontbuffer=fontbuffer)  # 글자 폭 측정용(공식 API: Font.text_length)
-    for i, ch in enumerate(chars):
-        tw = brush.text_length(ch, fontsize=fs)
-        page.insert_text(
-            fitz.Point(x0 + (w - tw) / 2, y0 + pad_top + step * (i + 0.82)),
-            ch,
-            fontname="sealbrush",
-            fontsize=fs,
-            color=_INJOO,
-            fill_opacity=0.85,
-            overlay=False,
-        )
-
-
 def _apply_background(pdf_path: str, seal_text: str = "사주명리") -> None:
-    """전 페이지 언더레이: 낙관(브랜드 가변) + 한지 배경 — 텍스트·태그 비파괴.
+    """전 페이지 언더레이: 낙관 PNG(브랜드 가변) + 광곽 + 한지 배경.
 
     PyMuPDF overlay=False 는 콘텐츠 스트림 '맨 앞'에 prepend — 나중에 넣은 것이
-    가장 아래 깔린다. 따라서 낙관을 먼저 그리고 한지 이미지를 마지막에 삽입해야
-    낙관이 한지 위에 보인다. 이미지는 xref 재사용으로 1회만 임베드, 낙관 폰트는
-    subset 후 전체 save(글자 2~4자 분량만 임베드).
+    가장 아래 깔린다. 낙관·광곽을 먼저, 한지 이미지를 마지막에 삽입.
+    이미지(낙관·한지)는 xref 재사용으로 각 1회만 임베드. 텍스트 임베드 없음
+    (PyMuPDF insert_text 글리프 깨짐 실증 — 낙관은 build_seal PNG).
     """
     if not os.path.isfile(_BG_PATH):
         return
+    from .assets.make_assets import build_seal
+
     try:
-        fontbuffer = _brush_subset_buffer(seal_text)
+        seal_path = build_seal(seal_text)
     except Exception:
-        with open(_SEAL_TTF, "rb") as f:
-            fontbuffer = f.read()  # 서브셋 실패 시 전체 폰트(기능 우선)
+        seal_path = None  # 낙관 생성 실패 시 배경·광곽만(기능 우선)
     doc = fitz.open(pdf_path)
-    xref = 0
+    bg_xref = 0
+    seal_xref = 0
+    seal_rect = None
+    if seal_path and os.path.isfile(seal_path):
+        pix = fitz.Pixmap(seal_path)
+        h_pt = _SEAL_W_PT * pix.height / pix.width
+        pix = None
+        r0 = doc[0].rect
+        x1 = r0.width - 15.5 * _MM  # 광곽 내선(13mm) 안쪽
+        y1 = r0.height - 16 * _MM
+        seal_rect = fitz.Rect(x1 - _SEAL_W_PT, y1 - h_pt, x1, y1)
     for page in doc:
-        _draw_seal(page, seal_text, fontbuffer)
+        if seal_rect is not None:
+            seal_xref = page.insert_image(
+                seal_rect, filename=seal_path, xref=seal_xref, overlay=False
+            )
         _draw_gwakgwak(page)
         # 한지를 '마지막에' 삽입 = 최하층(prepend 규칙)
-        xref = page.insert_image(page.rect, filename=_BG_PATH, xref=xref, overlay=False)
-    _fix_cid_to_gid(doc)
-    # saveIncr — Chromium이 임베드한 본문 폰트 바이트를 원본 그대로 보존
-    # (doc.subset_fonts()+전체 재저장은 전 폰트 재서브셋 → 뷰어 호환성 리스크).
-    doc.saveIncr()
+        bg_xref = page.insert_image(page.rect, filename=_BG_PATH, xref=bg_xref, overlay=False)
+    doc.saveIncr()  # 본문 폰트 바이트 원본 보존
     doc.close()
-
-
-def _fix_cid_to_gid(doc) -> None:
-    """PyMuPDF insert_font 의 CIDFontType2에 CIDToGIDMap 누락 보정.
-
-    ISO 32000-1 Table 117: 임베드된 CIDFontType2는 CIDToGIDMap 필수 — 누락 시
-    veraPDF PDF/UA-1 clause 7.21.3.2-1 실패(실측 2026-06-12, 낙관 폰트만 해당).
-    PyMuPDF는 Identity-H 인코딩에 CID=GID 매핑이므로 /Identity 명시가 정확.
-    """
-    seen: set[int] = set()
-    for i in range(doc.page_count):
-        for f in doc.get_page_fonts(i, full=True):
-            xref = f[0]
-            if xref in seen:
-                continue
-            seen.add(xref)
-            try:
-                obj = doc.xref_object(xref)
-                if "/Type0" not in obj:
-                    continue
-                ok, desc = doc.xref_get_key(xref, "DescendantFonts")
-                if ok != "array" or not desc:
-                    continue
-                d_xref = int(desc.strip("[] ").split()[0])
-                d_obj = doc.xref_object(d_xref)
-                if "CIDFontType2" in d_obj and "CIDToGIDMap" not in d_obj:
-                    doc.xref_set_key(d_xref, "CIDToGIDMap", "/Identity")
-            except Exception:
-                continue  # 보정 실패 시 해당 폰트만 건너뜀(기능 우선)
 
 
 def harden_pdf_ua(pdf_path: str, *, title: str, lang: str = "ko-KR") -> None:
