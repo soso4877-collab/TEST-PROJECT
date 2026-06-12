@@ -35,6 +35,10 @@ class GenResult:
     guard: dict
     crosscheck_warnings: list[str] = field(default_factory=list)
     bazi: str = ""
+    # 검수 UI 연결(2026-06-13, additive — CLI 경로 영향 없음)
+    report: object | None = None  # Report23 (섹션 본문·가드·허용 토큰)
+    calc_consistent: bool = True  # 명리↔자미·월지 교차 일치(절대규칙 7 — False 면 주문 차단)
+    input_civil: str = ""  # 표지용 시민시각 문자열(최종 재렌더에 필요)
 
 
 def generate(
@@ -126,4 +130,7 @@ def generate(
         guard=report.guard.model_dump(),
         crosscheck_warnings=saju.crosscheck.warnings,
         bazi=saju.crosscheck.bazi_myeongni,
+        report=report,
+        calc_consistent=(saju.crosscheck.bazi_consistent and saju.crosscheck.month_branch_ok),
+        input_civil=str(saju.input_civil),
     )

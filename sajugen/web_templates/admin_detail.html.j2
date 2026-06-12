@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+{% if in_progress %}<meta http-equiv="refresh" content="5">{% endif %}
+<title>주문 검수 - {{ order_id }}</title>
+<style>
+  body { font-family: 'Malgun Gothic', sans-serif; max-width: 920px; margin: 30px auto; color: #222; }
+  h2 { border-bottom: 2px solid #444; padding-bottom: 6px; }
+  h3 { margin-top: 26px; border-left: 4px solid #7d5610; padding-left: 8px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 3px; font-size: 13px; color: #fff; }
+  .st-RECEIVED, .st-NORMALIZED, .st-CALC_OK { background: #888; }
+  .st-CALC_MISMATCH { background: #b3261e; }
+  .st-DRAFTED { background: #7d5610; }
+  .st-IN_REVIEW { background: #1a5fb4; }
+  .st-APPROVED { background: #1f7a33; }
+  .st-DELIVERED { background: #333; }
+  .panel { border: 1px solid #ccc; background: #faf8f4; padding: 10px 14px; margin: 10px 0; font-size: 14px; }
+  .panel.red { border-color: #b3261e; background: #fdf0ef; color: #7a1a14; }
+  .sec { border: 1px solid #ddd; margin: 12px 0; }
+  .sec .head { background: #f3f0ea; padding: 6px 10px; font-weight: bold; font-size: 14px; }
+  .sec .body { padding: 10px 14px; white-space: pre-wrap; font-size: 14px; line-height: 1.7; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: #1a5fb4; color: #fff; margin-left: 6px; }
+  .tag.rule { background: #888; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
+  th { background: #f3f0ea; }
+  textarea { width: 100%; min-height: 110px; font-family: inherit; font-size: 13px; }
+  .actions form { display: inline-block; margin-right: 8px; }
+  button { padding: 5px 14px; }
+  ul.check { font-size: 13px; }
+  a.btn { font-size: 13px; margin-right: 10px; }
+</style>
+</head>
+<body>
+<p><a href="/admin">&lt; 주문 목록</a></p>
+<h2>{{ order_id }} <span class="badge st-{{ state }}">{{ state }}</span>
+  {% if flags.needs_review %}<span class="badge" style="background:#b3261e">검수 필요</span>{% endif %}
+</h2>
+
+{% if in_progress %}
+<div class="panel">풀이 생성 중입니다. 이 페이지는 5초마다 자동 새로고침됩니다. (룰 경로 수십 초, LLM 경로 3~5분)</div>
+{% endif %}
+
+{% if action_error %}
+<div class="panel red">최종 발급 실패: {{ action_error }} (상태는 APPROVED 에 머물러 있습니다. 조치 후 재시도)</div>
+{% endif %}
+
+{% if state == "CALC_MISMATCH" %}
+<div class="panel red">
+  <b>계산 교차검증 불일치 — 진행 차단(절대규칙 7)</b><br>
+  사유는 아래 이력의 최근 전이 note 를 확인하세요. 입력을 점검한 뒤 재시도하세요.
+  <form method="post" action="/admin/orders/{{ order_id }}/retry" style="margin-top:8px">
+    <button type="submit">재계산 재시도</button>
+  </form>
+</div>
+{% endif %}
+
+<h3>입력·정규화</h3>
+<div class="panel">
+  이름: {{ report.birth.name }} / 성별: {{ "남" if report.birth.gender == "M" else "여" }} /
+  입력: {{ report.birth.input_date }} ({{ "음력" if report.birth.input_calendar == "lunar" else "양력" }}{% if report.birth.is_leap_month %}, 윤달{% endif %})
+  {{ report.birth.birth_time or "시진 미상(정오 추정)" }}<br>
+  확정 양력: {{ report.calendar_verification.solar_date }} /
+  상품: {{ report.report_plan.product }} / 브랜드: {{ gen_params.brand }} /
+  LLM: {{ "사용" if gen_params.use_llm else "룰 전용" }}<br>
+  {% if meta.normalize_warnings %}정규화 경고: {{ meta.normalize_warnings | join(" / ") }}<br>{% endif %}
+  {% if report.birth.concern_text %}고민/질문: {{ report.birth.concern_text }}{% endif %}
+</div>
+
+{% if meta.bazi %}
+<h3>계산·게이트</h3>
+<div class="panel">
+  사주팔자: {{ meta.bazi }}{% if meta.age is not none %} / 기준 나이: {{ meta.age }}{% endif %}<br>
+  {% if meta.verify %}렌더 게이트: {{ "PASS" if meta.verify.gate_pass else "FAIL" }}
+    (페이지 {{ meta.verify.pages }}, 추출 {{ meta.verify.text_chars }}자,
+    tagged={{ meta.verify.tagged }}, fonts={{ meta.verify.fonts_embedded }})<br>{% endif %}
+  {% if meta.crosscheck_warnings %}교차검증 경고: {{ meta.crosscheck_warnings | join(" / ") }}<br>{% endif %}
+  <a class="btn" href="/admin/orders/{{ order_id }}/pdf?kind=draft">드래프트 PDF 다운로드</a>
+  {% if meta.final_pdf %}<a class="btn" href="/admin/orders/{{ order_id }}/pdf?kind=final">최종 PDF 다운로드</a>{% endif %}
+</div>
+{% endif %}
+
+{% if guard %}
+<h3>가드 결과</h3>
+{% set guard_bad = (not guard.clean) or meta.reasons %}
+<div class="panel{% if guard_bad %} red{% endif %}">
+  safe_lint {{ guard.safe_lint_total }}건 / factcheck {{ guard.factcheck_total }}건 /
+  grounding {{ "OK" if guard.grounding_ok else "FAIL" }} /
+  LLM 작성 {{ guard.polished_sections }}섹션 / 룰 폴백 {{ guard.fallback_sections }}섹션
+  {% if meta.reasons %}<br>미통과 사유: {{ meta.reasons | join(" / ") }}{% endif %}
+</div>
+{% endif %}
+
+{% if edit_violations %}
+<div class="panel red">
+  <b>본문 수정 저장 거부 — 가드 위반 {{ edit_violations | length }}건 (섹션: {{ edit_section_id }})</b>
+  <ul>
+  {% for v in edit_violations %}
+    <li>{{ v.why }}: "{{ v.match or v.token }}"{% if v.suggest %} — 권장: {{ v.suggest }}{% endif %}</li>
+  {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% if sections %}
+<h3>섹션 본문 ({{ sections | length }}개)</h3>
+{% for s in sections %}
+<div class="sec">
+  <div class="head">{{ s.title }} ({{ s.id }})
+    {% if s.polished %}<span class="tag">LLM 작성</span>{% else %}<span class="tag rule">룰 골격</span>{% endif %}
+  </div>
+  <div class="body">{{ s.final_text }}</div>
+  {% if state == "IN_REVIEW" %}
+  <form method="post" action="/admin/orders/{{ order_id }}/sections/{{ s.id }}" style="padding: 0 14px 12px">
+    <textarea name="text">{% if edit_section_id == s.id and edit_text %}{{ edit_text }}{% else %}{{ s.final_text }}{% endif %}</textarea>
+    <button type="submit">이 섹션 수정 저장 (가드 재검증)</button>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<h3>검수 체크리스트 (docs/10)</h3>
+<ul class="check">
+{% for c in checklist %}<li><label><input type="checkbox"> {{ c }}</label></li>{% endfor %}
+</ul>
+
+<h3>액션</h3>
+<div class="actions panel">
+  {% if state == "DRAFTED" %}
+  <form method="post" action="/admin/orders/{{ order_id }}/review"><button type="submit">검수 시작</button></form>
+  {% elif state == "IN_REVIEW" %}
+  <form method="post" action="/admin/orders/{{ order_id }}/approve"><button type="submit">승인</button></form>
+  <form method="post" action="/admin/orders/{{ order_id }}/reject">
+    <input name="note" placeholder="반려 사유" required>
+    <button type="submit">반려 (드래프트로 회귀)</button>
+  </form>
+  {% elif state == "APPROVED" %}
+  <form method="post" action="/admin/orders/{{ order_id }}/deliver">
+    <button type="submit">최종 PDF 발급 (재렌더 + 게이트)</button>
+  </form>
+  {% elif state == "DELIVERED" %}
+  발급 완료 — 최종 PDF 를 내려받아 고객에게 수동 발송하세요.
+  {% else %}
+  진행 가능한 액션 없음 (생성 완료 후 표시됩니다)
+  {% endif %}
+</div>
+
+<h3>이력 (audit)</h3>
+<table>
+  <tr><th>시각(UTC)</th><th>주체</th><th>동작</th><th>전이</th><th>섹션</th><th>비고</th></tr>
+  {% for a in audit %}
+  <tr>
+    <td>{{ a.at }}</td><td>{{ a.actor }}</td><td>{{ a.action }}</td>
+    <td>{% if a.to_state %}{{ a.from_state or "" }} → {{ a.to_state }}{% endif %}</td>
+    <td>{{ a.section }}</td><td>{{ a.note }}</td>
+  </tr>
+  {% endfor %}
+</table>
+</body>
+</html>

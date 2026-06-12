@@ -81,9 +81,18 @@ def allowed_tokens(saju, extra_ganzhi: frozenset[str] = frozenset()) -> dict:
     }
 
 
-def check(text: str, saju, extra_ganzhi: frozenset[str] = frozenset()) -> list[dict]:
-    """위반 목록. 빈 리스트면 통과."""
-    allow = allowed_tokens(saju, extra_ganzhi)
+def check_with_allow(text: str, allow: dict) -> list[dict]:
+    """위반 목록 — 허용 토큰 dict 직접 대조. 빈 리스트면 통과.
+
+    검수 UI의 관리자 수정 재검증처럼 saju 객체 없이 저장된 allowed_tokens
+    (JSON 직렬화로 set 이 list 가 된 형태 포함)로 검사할 때 사용.
+    기존 check() 는 이 함수에 위임 — 검사 로직은 단일 소스.
+    """
+    allow = {
+        "ganzhi": set(allow.get("ganzhi", ())),
+        "ganzhi_ko": set(allow.get("ganzhi_ko", ())),
+        "ziwei_majors_in_chart": set(allow.get("ziwei_majors_in_chart", ())),
+    }
     out: list[dict] = []
 
     # 1) 干支 토큰: 텍스트의 모든 간지쌍이 이 사주 허용 집합에 있어야 함
@@ -122,6 +131,11 @@ def check(text: str, saju, extra_ganzhi: frozenset[str] = frozenset()) -> list[d
                 {"type": "ziwei_star", "token": star, "why": "이 명반에 없는 자미 주성 언급"}
             )
     return out
+
+
+def check(text: str, saju, extra_ganzhi: frozenset[str] = frozenset()) -> list[dict]:
+    """위반 목록. 빈 리스트면 통과."""
+    return check_with_allow(text, allowed_tokens(saju, extra_ganzhi))
 
 
 def is_consistent(text: str, saju, extra_ganzhi: frozenset[str] = frozenset()) -> bool:

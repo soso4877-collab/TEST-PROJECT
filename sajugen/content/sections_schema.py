@@ -62,6 +62,9 @@ class Report23(BaseModel):
     sections: list[Section]
     guard: GuardReport
     concern_category: str | None = None  # Phase5 구간1: 신청 고민 분류 결과(감사·검수용)
+    # factcheck 허용 토큰(set→list 직렬화). 검수 UI의 관리자 수정 재검증용 —
+    # saju 객체 없이도 계산 시점과 동일한 허용 집합으로 검사(상대방 간지 포함).
+    allow_tokens: dict = Field(default_factory=dict)
 
     def section(self, sid: str) -> Section:
         return next(s for s in self.sections if s.id == sid)

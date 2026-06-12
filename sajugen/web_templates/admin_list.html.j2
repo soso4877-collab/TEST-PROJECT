@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>주문 검수 - 목록</title>
+<style>
+  body { font-family: 'Malgun Gothic', sans-serif; max-width: 860px; margin: 30px auto; color: #222; }
+  h2 { border-bottom: 2px solid #444; padding-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+  th, td { border: 1px solid #ccc; padding: 6px 10px; font-size: 14px; text-align: left; }
+  th { background: #f3f0ea; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 12px; color: #fff; }
+  .st-RECEIVED, .st-NORMALIZED, .st-CALC_OK { background: #888; }
+  .st-CALC_MISMATCH { background: #b3261e; }
+  .st-NEEDS_INFO { background: #b3261e; }
+  .st-DRAFTED { background: #7d5610; }
+  .st-IN_REVIEW { background: #1a5fb4; }
+  .st-APPROVED { background: #1f7a33; }
+  .st-DELIVERED { background: #333; }
+  .warn { color: #b3261e; font-weight: bold; font-size: 12px; }
+  form.intake { border: 1px solid #ccc; padding: 14px 18px; background: #faf8f4; margin-bottom: 18px; }
+  form.intake p { margin: 6px 0; font-size: 14px; }
+  .filter a { margin-right: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h2>주문 접수</h2>
+<form class="intake" method="post" action="/admin/orders">
+ <p>생년월일시(시민시각): <input name="birth" placeholder="2000-01-01 12:00 (생시 미상이면 날짜만)" required size="32"></p>
+ <p><label><input type="checkbox" name="lunar" value="true"> 음력 입력</label>
+   <label><input type="checkbox" name="leap" value="true"> 윤달(음력 체크 시)</label></p>
+ <p>이름(필수): <input name="name" placeholder="홍길동" required>
+    성별: <select name="gender"><option value="male">남</option><option value="female">여</option></select>
+    상품: <select name="product"><option value="integrated">통합(명리+자미)</option>
+      <option value="myeongni">명리만</option><option value="ziwei">자미만</option></select></p>
+ <p>브랜드: <input name="brand" value="default" size="10">
+    경도: <input name="longitude" value="{{ seoul_lon }}" size="8">
+    위도: <input name="latitude" value="{{ seoul_lat }}" size="8">
+    <label><input type="checkbox" name="yajasi" value="true"> 야자시 분리</label></p>
+ <p>대한·유년 기준일: <input name="horoscope" placeholder="2026-06-01" size="12">
+    <label><input type="checkbox" name="llm" value="true" checked> LLM 작성(무키 시 룰 폴백)</label></p>
+ <p>고민/질문(선택): <input name="concern" size="60" placeholder="예: 올해 이직해도 될까요"></p>
+ <button type="submit">접수하고 생성 시작</button>
+</form>
+
+<h2>주문 목록</h2>
+<p class="filter">
+  <a href="/admin">전체</a>
+  {% for s in states %}<a href="/admin?state={{ s }}"{% if state == s %} style="font-weight:bold"{% endif %}>{{ s }}</a> {% endfor %}
+</p>
+<table>
+  <tr><th>주문</th><th>이름</th><th>생년월일(입력)</th><th>상태</th><th>검수 주의</th><th>접수 시각(UTC)</th></tr>
+  {% for r in rows %}
+  <tr>
+    <td><a href="/admin/orders/{{ r.order_id }}">{{ r.order_id }}</a></td>
+    <td>{{ r.name or "" }}</td>
+    <td>{{ r.input_date or "" }}</td>
+    <td><span class="badge st-{{ r.state }}">{{ r.state }}</span></td>
+    <td>{% if r.needs_review %}<span class="warn">검수 필요</span>{% endif %}</td>
+    <td>{{ r.created_at }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6">주문 없음</td></tr>
+  {% endfor %}
+</table>
+</body>
+</html>

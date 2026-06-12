@@ -93,3 +93,6 @@ class UnifiedReport(BaseModel):
     safety_flags: SafetyFlags = Field(default_factory=SafetyFlags)
     report_plan: ReportPlan = Field(default_factory=ReportPlan)
     audit_log: list[AuditEntry] = Field(default_factory=list)
+    # 검수 UI 연결(2026-06-13, additive — 기본값 있어 기존 직렬화 왕복 유지):
+    content: dict = Field(default_factory=dict)  # Report23.model_dump() — 섹션 본문·가드
+    render_meta: dict = Field(default_factory=dict)  # 생성 파라미터·드래프트 경로 등(재렌더용)

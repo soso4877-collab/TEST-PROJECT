@@ -5,7 +5,7 @@
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
-> 최종 갱신: 2026-06-12  (4차 G1~G4 완료 — 3엔진 검증·폰트 업그레이드(고운바탕+본명조)·가족 다중 명식·비용 실측 $0.5/건)
+> 최종 갱신: 2026-06-13  (Phase 6 검수 UI 1차 MVP — /admin 접수→생성→검수→승인→발급 루프 완성, pytest 138 PASS)
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
@@ -159,6 +159,32 @@ Phase5 4단계 구간2·3·4 본문생성(2026-06-11): llm_sections 에 compose(
     API 외 비용 = 0원(KASI 무료키·폰트 전부 무료 라이선스·Playwright/PyMuPDF(AGPL, 내부도구
     비배포라 무료)/pypdfium2/veraPDF 무료 — 잔여는 전기뿐).
     산출물: sajugen/render/out/final_sinsoonja.pdf (서담선생 브랜드).
+Phase6 검수 UI 1차 MVP(2026-06-13, 플랜 sleepy-sleeping-puppy 승인): 운영자 결정 = "완성 우선,
+  이후 실주문 돌리며 풀이 디벨롭". 주문 접수→백그라운드 생성→검수→승인→최종 발급 루프를 /admin 으로 완성.
+  - 신설: order_flow.py(오케스트레이션 — pipeline 은 store 를 모름, 전이는 전부 여기서.
+    create_order=정규화+RECEIVED→NORMALIZED, run_generation=교차불일치 시 CALC_MISMATCH 차단(규칙7)/
+    일치 시 CALC_OK→DRAFTED, 게이트실패·가드미클린=DRAFTED+needs_review(검수강화, 우회아님),
+    edit_section=IN_REVIEW 한정+가드 재검증(safe_lint+factcheck 허용토큰+빈본문, 위반 시 저장거부),
+    final_render_fn=항상 재렌더+verify 게이트(실패 시 예외→APPROVED 에 머묾=규칙16 비우회)),
+    admin.py(APIRouter /admin — 목록 필터·상세·review/approve/reject/retry/deliver/섹션수정/PDF 다운로드,
+    IllegalTransition·ApprovalRequired→409), web_templates/(admin_list·admin_detail, JS 없음·PRG·
+    생성 중 meta refresh 5s. 주의: 최신 Starlette 은 TemplateResponse(request, name, ctx) 신형만).
+  - additive 수정: GenResult+report/calc_consistent/input_civil, UnifiedReport+content/render_meta,
+    Report23+allow_tokens(builder 가 계산시점 허용토큰 영속 — 검수 수정 재검증용, 상대방 간지 포함),
+    factcheck.check_with_allow 추출(기존 check 위임), store busy_timeout=5000+list_orders+add_audit.
+    커넥션은 요청마다 새로 열고 닫음(스레드 공유 금지). DB 경로 env SAJUGEN_ORDERS_DB(테스트 격리).
+  - 장시간 생성 = FastAPI BackgroundTasks(sync→threadpool, Playwright sync 호환). 기존 POST /generate
+    구형 경로 보존(주문 기록 없는 즉시 PDF), 홈에 /admin 링크.
+  - tests/test_admin_ui.py 12건(happy path·승인전 발급 409=규칙16 회귀·반려·CALC_MISMATCH 차단·
+    수정가드 4종·수정반영 발급 증명·needs_review·목록필터·신규필드 왕복). 전체 회귀 138 PASS.
+  - 실경로 E2E(룰 경로 실측): 접수→DRAFTED→금지표현 수정 422→정상 수정 200→승인전 발급 409→
+    승인→발급 200→DELIVERED. 최종 PDF 27p·12,655자, 검수 수정문 반영·호명 확인. audit 전체 기록.
+  - [발견·미수정] render/verify.py:34 veraPDF subprocess.run(text=True)이 encoding 미지정 →
+    Windows cp949 디코드가 veraPDF UTF-8 출력에서 UnicodeDecodeError(리더 스레드) → 해당 런의
+    veraPDF 측정 누락 가능(게이트는 무관, 측정만). pytest p4/p5 스레드 경고의 원인. 수정 후보 =
+    encoding="utf-8", errors="replace" 1줄.
+  다음 후보: 검수 UI 2차(섹션 재생성·하이라이트·diff), 운영자 확인 2건(표지 표제 문구·한지 질감),
+    실주문/지인 베타 2~3건 돌리며 풀이 디벨롭 백로그 수집(고객 반응 기준 우선순위).
 조사대상(미해결): lunar-python sect=2 고정이 JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈
   (공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
 전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;

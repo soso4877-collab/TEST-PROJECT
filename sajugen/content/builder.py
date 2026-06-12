@@ -358,9 +358,12 @@ def build_report(
 
     grounding_ok, _bad = trace.check(sections)
     clean = safe_total == 0 and fact_total == 0 and grounding_ok
+    # 허용 토큰 영속(검수 UI 수정 재검증용) — 계산 시점 집합 그대로, set→list 직렬화
+    allow_ser = {k: sorted(v) for k, v in factcheck.allowed_tokens(saju, partner_gz).items()}
     return Report23(
         sections=sections,
         concern_category=category.value,
+        allow_tokens=allow_ser,
         guard=GuardReport(
             safe_lint_total=safe_total,
             factcheck_total=fact_total,

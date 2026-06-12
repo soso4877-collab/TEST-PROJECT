@@ -79,6 +79,8 @@ class OrderStore:
         self._init()
 
     def _init(self) -> None:
+        # 검수 UI: 생성 스레드(쓰기)와 화면 폴링(읽기) 동시 접근 시 잠금 대기
+        self._conn.execute("PRAGMA busy_timeout=5000")
         self._conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS orders (
@@ -145,6 +147,36 @@ class OrderStore:
             (report.model_dump_json(), _now(), order_id),
         )
         self._audit(order_id, actor, "save_report", None, None)
+        self._conn.commit()
+
+    def list_orders(self, state: OrderState | None = None) -> list[dict]:
+        """주문 목록(최신순) — 검수 UI 목록 화면용 요약."""
+        q = (
+            "SELECT order_id, state, created_at, updated_at, "
+            "json_extract(report_json,'$.birth.name') AS name, "
+            "json_extract(report_json,'$.birth.input_date') AS input_date, "
+            "json_extract(report_json,'$.safety_flags.needs_review') AS needs_review "
+            "FROM orders"
+        )
+        args: tuple = ()
+        if state is not None:
+            q += " WHERE state=?"
+            args = (state.value,)
+        q += " ORDER BY created_at DESC, order_id DESC"
+        return [dict(r) for r in self._conn.execute(q, args).fetchall()]
+
+    def add_audit(
+        self,
+        order_id: str,
+        *,
+        action: str,
+        actor: str = "system",
+        section: str = "",
+        note: str = "",
+    ) -> None:
+        """상태 전이 없는 감사 기록(생성 실패·섹션 수정 등)."""
+        self.get_state(order_id)  # 존재 확인(없으면 KeyError)
+        self._audit(order_id, actor, action, None, None, section=section, note=note)
         self._conn.commit()
 
     # ───────────────── 상태 전이 ─────────────────

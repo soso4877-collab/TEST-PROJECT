@@ -11,15 +11,20 @@ from urllib.parse import quote
 from fastapi import FastAPI, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
+from . import admin
 from .input import normalize as norm
 from .input import time_correction as tc
 from .pipeline import generate
 
 app = FastAPI(title="사주풀이 PDF 생성기 (내부 도구)")
+app.include_router(admin.router)  # 검수 화면(/admin) — 주문 접수·검수·승인·발급
 
 _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</title>
 <body style="font-family:Malgun Gothic,sans-serif;max-width:520px;margin:40px auto">
 <h2>사주풀이 PDF 생성 (운영자)</h2>
+<p><a href="/admin">주문 검수 화면(접수·검수·승인·발급)으로 이동</a></p>
+<p style="font-size:13px;color:#555">아래 폼은 주문 기록 없이 즉시 PDF 만 받는 구형 경로입니다.
+실주문은 검수 화면에서 접수하세요.</p>
 <form method="post" action="/generate">
  <p>생년월일시(시민시각): <input name="birth" placeholder="2000-01-01 12:00 (생시 미상이면 날짜만)" required></p>
  <p><label><input type="checkbox" name="lunar"> 음력 입력</label>
