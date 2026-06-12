@@ -87,6 +87,16 @@ def test_call_name_and_no_dangsin():
         assert "당신" not in s.final_text, s.id
 
 
+def test_no_symbol_spam_in_report():
+    # 기호 난발 금지(운영자 지시 2026-06-12): 줄표(—)는 제목 포함 전 섹션 0,
+    # 가운뎃점(·)은 정적 부록 포함 본문 0 (cover 의 기술 메타 라인만 예외).
+    r = builder.build_report(_SAJU, use_llm=False, name="김수하")
+    for s in r.sections:
+        assert "—" not in s.final_text and "—" not in s.title, s.id
+        if s.id != "cover":
+            assert "·" not in s.final_text, (s.id, s.final_text[:80])
+
+
 def test_no_tool_disclosure_anywhere():
     # 절대규칙 18 개정(2026-06-12 운영자 지시): 본문에 산출 방식 고지(자동 분석
     # 도구·AI·프로그램 언급) 금지 — AI 산출 인상 일절 제거. 역앵커.

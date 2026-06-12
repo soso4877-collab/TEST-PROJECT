@@ -14,9 +14,9 @@ SECTION_SPECS: list[tuple[str, str, list[str]]] = [
     ("toc", "목차", []),  # 정적 — 노동착시·호기심격차·책 권위(템플릿/빌더 생성)
     (
         "intro",
-        "들어가며 — 이 풀이를 읽는 법",
+        "이 풀이를 읽는 법",
         ["input", "myeongni", "ziwei"],
-    ),  # summary+howto+keywords
+    ),  # summary+howto+keywords. 제목 줄표(—) 제거(기호 금지, 2026-06-12)
     ("wonguk", "내 사주의 짜임", ["myeongni", "myeongni.elements"]),  # wonguk+ohaeng
     ("nature", "나의 바탕과 기질에 대하여", ["myeongni"]),  # ilgan+sipseong+character+strength
     ("frame", "격국과 신살이 더하는 결", ["myeongni"]),  # geukguk+shinsal
@@ -32,7 +32,7 @@ SECTION_SPECS: list[tuple[str, str, list[str]]] = [
     ("together", "두 체계를 함께 읽으며", ["crosscheck"]),  # cross
     ("consult", "신청하신 질문에 대하여", ["input", "myeongni", "ziwei"]),  # 개인화 피크
     ("closing", "마무리하며", ["myeongni.elements", "input"]),  # advice+caution+closing
-    ("appendix_terms", "부록 — 용어 풀이", []),  # 정적 교육(노동착시 가치 장치)
+    ("appendix_terms", "용어 풀이", []),  # 정적 교육(노동착시 가치 장치). 줄표 제거
     ("colophon", "글을 맺으며", []),  # 맺음 서명(절대규칙 18 개정 — 도구·AI 언급 고지 금지)
 ]
 # 그라운딩 면제(정적 안내·교육·판권) — 해석 챕터는 source가 비면 trace 실패
