@@ -56,9 +56,12 @@ def render_html(
     age: int | None = None,
     name: str | None = None,
     unknown_time: bool = False,
+    brand: dict | None = None,
 ) -> str:
     # 도판 전면 제거(운영자 지시 — 목차+글만). 챕터·번호·차트 변수 미전달.
     # 본문은 빈 줄 기준 문단 분할 → 템플릿 <p> 렌더(단문 호흡 보존 + tagged 구조 개선).
+    # brand = config.brand() 프로필(다계정 — 표지 표제·세로 박스 가변).
+    b = brand or {}
     secs = [
         {"id": s.id, "title": s.title, "paragraphs": _split_paragraphs(s.final_text)}
         for s in report.sections
@@ -68,6 +71,8 @@ def render_html(
         title="사주풀이 결과지",
         font_dir=_FONT_DIR,
         page_margin_css=_PAGE_MARGIN_CSS,
+        brand_title=b.get("cover_title", "종합 사주 풀이"),
+        brand_seal=b.get("seal", "사주명리"),
         cover_name=(f"{name} 님" if name else ""),
         cover_sub=(f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")),
         sections=secs,
@@ -88,9 +93,10 @@ def render_pdf(
     age: int | None = None,
     name: str | None = None,
     unknown_time: bool = False,
+    brand: dict | None = None,
 ) -> str:
     os.makedirs(_OUT, exist_ok=True)
-    html = render_html(report, saju, age=age, name=name, unknown_time=unknown_time)
+    html = render_html(report, saju, age=age, name=name, unknown_time=unknown_time, brand=brand)
     html_path = os.path.join(_OUT, out_name.replace(".pdf", ".html"))
     pdf_path = os.path.join(_OUT, out_name)
     with open(html_path, "w", encoding="utf-8") as f:
@@ -118,25 +124,105 @@ def render_pdf(
         )
         b.close()
 
-    _apply_background(pdf_path)
+    _apply_background(pdf_path, seal_text=(brand or {}).get("seal", "사주명리"))
     harden_pdf_ua(pdf_path, title="사주풀이 결과지", lang="ko-KR")
     return pdf_path
 
 
-def _apply_background(pdf_path: str) -> None:
-    """전 페이지 한지 배경 언더레이 — 텍스트 레이어·태그 트리 비파괴.
+# 낙관 — 인주색(#a23b2c)·번들 나눔브러시. 브랜드 가변이라 배경에 굽지 않고
+# 런타임에 그린다(2026-06-12 운영자 지시: 다계정 운영).
+_INJOO = (0.635, 0.231, 0.173)
+_BRUSH_TTF = os.path.join(_DIR, "fonts", "NanumBrushScript-Regular.ttf")
 
-    overlay=False 로 기존 콘텐츠 아래에 깔고, xref 재사용으로 이미지 1회만 임베드.
-    (배경 이미지는 비태깅 콘텐츠지만 veraPDF 7.1-3은 이미 잔존 clause — 목록 비악화.)
+
+def _draw_seal(page, seal_text: str) -> None:
+    """우하단 세로 낙관(이중 테두리 + 글자 적층) — overlay=False 언더레이."""
+    chars = list(seal_text.strip())[:4] or list("사주명리")
+    fs = 17.0  # 글자 크기(pt)
+    pad_x, pad_top = 7.5, 10.0
+    step = fs + 6.5
+    w = fs + pad_x * 2
+    h = pad_top * 2 + step * len(chars)
+    r = page.rect
+    x1 = r.width - 26  # 우측 여백 26pt(약 9.2mm)
+    y1 = r.height - 30
+    x0, y0 = x1 - w, y1 - h
+    page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=_INJOO, width=1.1, overlay=False)
+    page.draw_rect(
+        fitz.Rect(x0 + 2.6, y0 + 2.6, x1 - 2.6, y1 - 2.6),
+        color=_INJOO,
+        width=0.45,
+        overlay=False,
+    )
+    page.insert_font(fontname="sealbrush", fontfile=_BRUSH_TTF)
+    brush = fitz.Font(fontfile=_BRUSH_TTF)  # 글자 폭 측정용(공식 API: Font.text_length)
+    for i, ch in enumerate(chars):
+        tw = brush.text_length(ch, fontsize=fs)
+        page.insert_text(
+            fitz.Point(x0 + (w - tw) / 2, y0 + pad_top + step * (i + 0.82)),
+            ch,
+            fontname="sealbrush",
+            fontsize=fs,
+            color=_INJOO,
+            fill_opacity=0.85,
+            overlay=False,
+        )
+
+
+def _apply_background(pdf_path: str, seal_text: str = "사주명리") -> None:
+    """전 페이지 언더레이: 낙관(브랜드 가변) + 한지 배경 — 텍스트·태그 비파괴.
+
+    PyMuPDF overlay=False 는 콘텐츠 스트림 '맨 앞'에 prepend — 나중에 넣은 것이
+    가장 아래 깔린다. 따라서 낙관을 먼저 그리고 한지 이미지를 마지막에 삽입해야
+    낙관이 한지 위에 보인다. 이미지는 xref 재사용으로 1회만 임베드, 낙관 폰트는
+    subset 후 전체 save(글자 2~4자 분량만 임베드).
     """
     if not os.path.isfile(_BG_PATH):
         return
     doc = fitz.open(pdf_path)
     xref = 0
     for page in doc:
+        _draw_seal(page, seal_text)
+        # 한지를 '마지막에' 삽입 = 최하층(prepend 규칙)
         xref = page.insert_image(page.rect, filename=_BG_PATH, xref=xref, overlay=False)
-    doc.saveIncr()
+    try:
+        doc.subset_fonts()  # 나눔브러시 사용 글리프만 임베드(3.5MB→수 KB)
+    except Exception:
+        pass  # 서브셋 실패 시 전체 임베드 유지(기능 우선)
+    _fix_cid_to_gid(doc)
+    tmp = pdf_path + ".tmp"
+    doc.save(tmp, garbage=3, deflate=True)
     doc.close()
+    os.replace(tmp, pdf_path)
+
+
+def _fix_cid_to_gid(doc) -> None:
+    """PyMuPDF insert_font 의 CIDFontType2에 CIDToGIDMap 누락 보정.
+
+    ISO 32000-1 Table 117: 임베드된 CIDFontType2는 CIDToGIDMap 필수 — 누락 시
+    veraPDF PDF/UA-1 clause 7.21.3.2-1 실패(실측 2026-06-12, 낙관 폰트만 해당).
+    PyMuPDF는 Identity-H 인코딩에 CID=GID 매핑이므로 /Identity 명시가 정확.
+    """
+    seen: set[int] = set()
+    for i in range(doc.page_count):
+        for f in doc.get_page_fonts(i, full=True):
+            xref = f[0]
+            if xref in seen:
+                continue
+            seen.add(xref)
+            try:
+                obj = doc.xref_object(xref)
+                if "/Type0" not in obj:
+                    continue
+                ok, desc = doc.xref_get_key(xref, "DescendantFonts")
+                if ok != "array" or not desc:
+                    continue
+                d_xref = int(desc.strip("[] ").split()[0])
+                d_obj = doc.xref_object(d_xref)
+                if "CIDFontType2" in d_obj and "CIDToGIDMap" not in d_obj:
+                    doc.xref_set_key(d_xref, "CIDToGIDMap", "/Identity")
+            except Exception:
+                continue  # 보정 실패 시 해당 폰트만 건너뜀(기능 우선)
 
 
 def harden_pdf_ua(pdf_path: str, *, title: str, lang: str = "ko-KR") -> None:

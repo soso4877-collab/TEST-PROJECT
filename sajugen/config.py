@@ -59,3 +59,34 @@ def ziwei() -> dict:
 def myeongni_shinsal() -> dict:
     """명리 신살 학파 정책 섹션(괴강 범위·삼합 축·12신살 축·공망 표기)."""
     return load().get("myeongni_shinsal", _DEFAULTS["myeongni_shinsal"])
+
+
+# --- 브랜드 프로필(config/brands.yaml) — 다계정 운영(2026-06-12) ---
+_BRANDS = Path(__file__).resolve().parents[1] / "config" / "brands.yaml"
+_BRAND_DEFAULT = {
+    "seal": "사주명리",
+    "cover_title": "종합 사주 풀이",
+    "closing_sign": "사주명리 드림",
+}
+
+
+@lru_cache(maxsize=1)
+def _brands() -> dict:
+    try:
+        if _BRANDS.exists():
+            data = yaml.safe_load(_BRANDS.read_text(encoding="utf-8")) or {}
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass  # 손상 시 기본 프로필만(런타임 보장)
+    return {"default": dict(_BRAND_DEFAULT)}
+
+
+def brand(profile: str | None = None) -> dict:
+    """브랜드 프로필 — 미지정/미존재 키는 default, default도 없으면 내장 기본값."""
+    data = _brands()
+    p = data.get(profile or "default") or data.get("default") or {}
+    out = dict(_BRAND_DEFAULT)
+    if isinstance(p, dict):
+        out.update({k: v for k, v in p.items() if v})
+    return out

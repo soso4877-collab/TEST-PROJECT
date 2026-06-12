@@ -660,6 +660,7 @@ def build_all(
     name: str | None = None,
     unknown_time: bool = False,
     concern_category: str | None = None,
+    closing_sign: str | None = None,
 ) -> dict[str, str]:
     m, z, x = saju.myeongni, saju.ziwei, saju.crosscheck
     # 호명 = 성 제외('김수하'→'수하님'), '당신' 금지(운영자 지시 2026-06-12).
@@ -1265,6 +1266,7 @@ def build_all(
         "이 풀이도 그 오랜 틀 위에서, 한 글자 한 글자 정성을 들여 적었습니다.\n\n"
         "같은 사주라도 길은 선택과 걸음에 따라 달라집니다. "
         "이 글이 그 걸음에 작은 등불이 되기를 바랍니다."
+        + (f"\n\n— {closing_sign}" if closing_sign else "")
     )
 
     # Phase5 구간3(룰 폴백) — 신청 고민 라우팅. 카테고리→도메인 결로 안내(비단정).

@@ -55,6 +55,7 @@ def generate(
     unknown_time: bool = False,
     product: str = "integrated",
     concern: str | None = None,
+    brand: str | None = None,
 ) -> GenResult:
     saju = engine.build(
         year,
@@ -81,6 +82,10 @@ def generate(
             age = ref_year - int(str(saju.input_civil)[:4])
         except Exception:
             age = None
+    # 브랜드 프로필(다계정, config/brands.yaml) — 표지·낙관·맺음 서명 가변
+    from . import config as cfg
+
+    bp = cfg.brand(brand)
     report = builder.build_report(
         saju,
         use_llm=use_llm,
@@ -89,9 +94,10 @@ def generate(
         unknown_time=unknown_time,
         product=product,
         concern=concern,
+        closing_sign=bp.get("closing_sign"),
     )
     pdf_path = render_pdf.render_pdf(
-        report, saju, out_name, age=age, name=name, unknown_time=unknown_time
+        report, saju, out_name, age=age, name=name, unknown_time=unknown_time, brand=bp
     )
     v = render_verify.verify(pdf_path)
 

@@ -28,6 +28,7 @@ def gen(
     name: str = typer.Option(..., help="이름(필수 — 호명 '수하님' 개인화, 운영자 지시 2026-06-12)"),
     concern: str = typer.Option(None, help="고객 고민/질문(선택). 분류→맞춤 안내 섹션"),
     product: str = typer.Option("integrated", help="상품: integrated|myeongni|ziwei"),
+    brand: str = typer.Option("default", help="브랜드 프로필(config/brands.yaml 키)"),
     out: str = typer.Option("saju_report.pdf", help="출력 파일명"),
 ) -> None:
     parts = birth.split()
@@ -67,6 +68,7 @@ def gen(
         unknown_time=unknown_time,
         product=product,
         concern=concern,
+        brand=brand,
     )
 
     typer.echo(f"사주팔자: {r.bazi}")

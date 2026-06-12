@@ -42,6 +42,34 @@ def test_render_gate_pass():
     assert _V["gate_pass"] is True, _V
 
 
+def test_brand_seal_drawn_every_page():
+    # 런타임 낙관(브랜드 가변, R5) — 우하단 인주색 픽셀 존재 + 한지 위 z순서
+    # (PyMuPDF overlay=False prepend 규칙: 낙관 먼저→한지 마지막 삽입 회귀 앵커)
+    import fitz
+
+    doc = fitz.open(_PDF)
+    for i in (0, doc.page_count - 1):
+        pix = doc.load_page(i).get_pixmap(dpi=100)
+        red = 0
+        for dx in range(20, 110):
+            for dy in range(30, 220):
+                r, g, b = pix.pixel(pix.width - dx, pix.height - dy)
+                if r > 120 and r > g + 30 and r > b + 30:
+                    red += 1
+        assert red > 300, (i + 1, red)  # 테두리+글자 인주색이 충분히 찍혀야 함
+    doc.close()
+
+
+def test_brand_profile_in_html():
+    # config/brands.yaml 프로필이 표지 표제·세로 박스에 주입되는지
+    from sajugen import config as cfg
+
+    bp = cfg.brand("seodam")
+    html = render_pdf.render_html(_REPORT, _SAJU, name="홍길동", brand=bp)
+    assert "서담선생" in html
+    assert cfg.brand("없는키")["seal"] == "사주명리"  # 미존재 키는 default 폴백
+
+
 def test_hanji_background_full_bleed_every_page():
     # 한지 배경 언더레이 — 마진 영역 포함 풀블리드가 1·2·마지막 페이지 모두 적용
     # (CSS 캔버스 배경은 마진·마지막 페이지 미도색 실측 → PyMuPDF 언더레이 회귀 앵커)
