@@ -10,7 +10,17 @@ import re
 
 from ..calc import partner as calc_partner
 from ..input import partner as input_partner
-from . import factcheck, llm_polish, llm_sections, masking, question_router, rules, safe_lint, trace
+from . import (
+    factcheck,
+    llm_polish,
+    llm_sections,
+    masking,
+    question_router,
+    rules,
+    safe_lint,
+    style_lint,
+    trace,
+)
 from .sections_schema import _STATIC_OK, SECTION_SPECS, GuardReport, Report23, Section
 
 # LLM 챕터 작성 구간(docs/06, 절대규칙15 개정). 키+use_llm+anthropic 일 때만 compose(사실 슬롯 기반
@@ -74,6 +84,7 @@ def _hanja_clean(text: str) -> str:
     # '첫째→먼저' 류 치환은 폐기(2026-06-12 운영자 지적 — '먼저/그리고/끝으로'
     # 나열 잔재 자체가 AI틱). 나열은 룰 골격·프롬프트에서 원천 제거.
     t = re.sub(r"\s*→\s*", ", ", t)  # 화살표 → 쉼표(서사화)
+    t = re.sub(r"\s*[—–]\s*", ", ", t)  # em/en dash(AI 시그니처) → 쉼표(이중 방어)
     t = re.sub(r" · ", ", ", t)  # 불릿 구분(양옆 공백) → 쉼표
     t = re.sub(r"\(\s*\)", "", t)  # 빈 괄호
     t = re.sub(r"[ \t]{2,}", " ", t)
@@ -255,6 +266,9 @@ def build_report(
             if cand and cand != rule_text:
                 csv = safe_lint.lint(cand)
                 cfv = factcheck.check(cand, saju, partner_gz)
+                # 스타일 린트(2026-06-12 신설) — LLM 후보에만: 규칙 누설·시적 비유·
+                # em dash·기호·반복 남발 = AI 신호를 검증 가능하게(가드 추가).
+                csv = csv + (style_lint.lint(cand) if sid in _COMPOSE_SECTIONS else [])
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
                 if (csv or cfv) and sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
@@ -272,7 +286,8 @@ def build_report(
                     )
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
                     if retry and retry != rule_text:
-                        rsv, rfv = safe_lint.lint(retry), factcheck.check(retry, saju, partner_gz)
+                        rsv = safe_lint.lint(retry) + style_lint.lint(retry)
+                        rfv = factcheck.check(retry, saju, partner_gz)
                         if not rsv and not rfv:
                             cand, csv, cfv = retry, rsv, rfv
                 if not csv and not cfv:
