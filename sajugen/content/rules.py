@@ -69,6 +69,43 @@ _ZHI_KO = {
     "戌": "술",
     "亥": "해",
 }
+# 일주 동물·빛깔 표현(결정론 매핑) — "임술 = 검은 개" 식의 사람 풀이 어휘.
+# 천간 오행 빛깔(갑을=푸른, 병정=붉은, 무기=누런, 경신=흰, 임계=검은) + 십이지 동물.
+_GAN_COLOR = {
+    "甲": "푸른",
+    "乙": "푸른",
+    "丙": "붉은",
+    "丁": "붉은",
+    "戊": "누런",
+    "己": "누런",
+    "庚": "흰",
+    "辛": "흰",
+    "壬": "검은",
+    "癸": "검은",
+}
+_ZHI_ANIMAL = {
+    "子": "쥐",
+    "丑": "소",
+    "寅": "호랑이",
+    "卯": "토끼",
+    "辰": "용",
+    "巳": "뱀",
+    "午": "말",
+    "未": "양",
+    "申": "원숭이",
+    "酉": "닭",
+    "戌": "개",
+    "亥": "돼지",
+}
+
+
+def _gz_animal(ganzhi: str) -> str:
+    """간지 -> '검은 개' 빛깔+동물 표현 (예: 壬戌 -> 검은 개). 미지 간지는 빈 문자열."""
+    if len(ganzhi) >= 2 and ganzhi[0] in _GAN_COLOR and ganzhi[1] in _ZHI_ANIMAL:
+        return f"{_GAN_COLOR[ganzhi[0]]} {_ZHI_ANIMAL[ganzhi[1]]}"
+    return ""
+
+
 _DISHI_KO = {
     "长生": "장생",
     "長生": "장생",
@@ -712,9 +749,12 @@ def build_all(
         f"생활에서 채워 가는 관점으로 활용해 보세요."
     )
 
+    _animal = _gz_animal(m.day.ganzhi)
     T["ilgan"] = (
         f"일간 {_J(f'{dm_ko}', '은는')} 당신 자신을 상징하는 글자입니다. 당신의 "
-        f"일주는 {_gz_ko(m.day.ganzhi)}이고, 그 속에는 지장간 "
+        f"일주는 {_gz_ko(m.day.ganzhi)}"
+        + (f" — 일주로 보면 {_animal}의 기운을 갖고 태어나셨습니다" if _animal else "")
+        + f". 그 속에는 지장간 "
         f"{_J(_hidegan_ko(m.day.hide_gan), '이가')} 들어 있으며, 십이운성으로는 "
         f"{_dishi_phrase(m.day.dishi)}의 결입니다. 일주의 "
         f"지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} {day_zhi_mn}의 결로, "
