@@ -33,7 +33,7 @@ SECTION_SPECS: list[tuple[str, str, list[str]]] = [
     ("consult", "신청하신 질문에 대하여", ["input", "myeongni", "ziwei"]),  # 개인화 피크
     ("closing", "마무리하며", ["myeongni.elements", "input"]),  # advice+caution+closing
     ("appendix_terms", "부록 — 용어 풀이", []),  # 정적 교육(노동착시 가치 장치)
-    ("colophon", "이 자료에 대하여", []),  # 감수 고지·해석 한계·기술메타(후기/CTA 제거)
+    ("colophon", "글을 맺으며", []),  # 맺음 서명(절대규칙 18 개정 — 도구·AI 언급 고지 금지)
 ]
 # 그라운딩 면제(정적 안내·교육·판권) — 해석 챕터는 source가 비면 trace 실패
 _STATIC_OK = {"toc", "appendix_terms", "colophon"}

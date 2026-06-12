@@ -81,9 +81,6 @@
     line-height:var(--lh);text-align:left;word-break:keep-all}
   .body p{white-space:pre-line;text-indent:0;margin:0 0 .95em;
     orphans:2;widows:2}
-  .disclaimer{font-size:.86em;color:var(--mut);background:var(--panel);
-    border:1px solid var(--line);border-radius:4px;padding:var(--s4);
-    margin-top:var(--s6);line-height:1.7;letter-spacing:0;text-align:left}
   @media print{section{break-inside:auto}.cnum,h2.ctitle{break-after:avoid}
     .subhead{break-after:avoid}}
 </style></head><body>
@@ -114,7 +111,6 @@
   <h2 class="ctitle">{{ s.title }}</h2>
   <div class="crule"></div>
   <div class="body">{% for p in s.paragraphs %}<p>{{ p }}</p>{% endfor %}</div>
-  {% if s.id == 'colophon' %}<div class="disclaimer">{{ disclaimer }}</div>{% endif %}
 </section>
 {% endif %}
 {% endfor %}

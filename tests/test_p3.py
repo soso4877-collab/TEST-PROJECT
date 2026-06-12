@@ -52,6 +52,17 @@ def test_rule_skeleton_passes_all_guards():
     assert r.guard.fallback_sections == 0  # LLM off → 폴백 발생 없음
 
 
+def test_no_tool_disclosure_anywhere():
+    # 절대규칙 18 개정(2026-06-12 운영자 지시): 본문에 산출 방식 고지(자동 분석
+    # 도구·AI·프로그램 언급) 금지 — AI 산출 인상 일절 제거. 역앵커.
+    r = builder.build_report(_SAJU, use_llm=False)
+    for s in r.sections:
+        for banned in ("자동 분석", "도구로 산출", "검수하고 감수", "프로그램", "AI"):
+            assert banned not in s.final_text, (s.id, banned)
+    # colophon은 맺음 서명 슬롯으로 존재해야 함(render.md)
+    assert any(s.id == "colophon" for s in r.sections)
+
+
 def test_safe_lint_catches_forbidden():
     # 2026-06-12 완화 후에도 유지되는 법적 리스크 패턴(보장·과장·적중)
     bad = "이 사람과는 반드시 재회합니다. 올해 무조건 대박납니다. 100% 적중."

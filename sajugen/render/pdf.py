@@ -32,12 +32,8 @@ _BG_PATH = os.path.join(_DIR, "assets", "hanji_bg.jpg")
 _PAGE_MARGIN_CSS = (
     f"{_PAGE_MARGIN['top']} {_PAGE_MARGIN['right']} {_PAGE_MARGIN['bottom']} {_PAGE_MARGIN['left']}"
 )
-# 감수 명시형 고지(절대규칙 18) — 운영자 지시(2026-06-12)로 '참고용 상담 자료'·
-# '전문가와 상의' 류 문구는 PDF에 넣지 않는다.
-_DISCLAIMER = (
-    "이 자료는 자동 분석 도구로 사주와 자미두수를 산출하고, "
-    "운영자가 처음부터 끝까지 직접 검수하고 감수하여 작성했습니다."
-)
+# 본문 내 산출 방식 고지(자동 분석 도구·AI 언급)는 넣지 않는다
+# (절대규칙 18 개정, 2026-06-12 운영자 지시). colophon = 맺음 서명 슬롯.
 # 챕터 마스트헤드(페이지 시작) — 5챕터. id → (번호, 제목, 설명).
 # .chapter 가 page-break-before 를 가지므로 강제 디바이더는 이 5곳만.
 _CHAPTERS = {
@@ -75,7 +71,6 @@ def render_html(
         cover_name=(f"{name} 님" if name else ""),
         cover_sub=(f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")),
         sections=secs,
-        disclaimer=_DISCLAIMER,
     )
 
 
