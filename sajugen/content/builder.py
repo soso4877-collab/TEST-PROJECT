@@ -261,9 +261,16 @@ def build_report(
                 cand = cand_map.get(sid, rule_text)
             else:
                 cand = llm_polish.polish(rule_text, title)
-            if cand:
+            llm_changed = bool(cand) and cand != rule_text  # 정규화 '이전'에 판정
+            if cand and llm_changed:
                 cand = _strip_artifacts(cand)  # 섹션 제목 누출 등 메타 제거
-            if cand and cand != rule_text:
+                # 기계적 기호는 가드 전에 결정론 정규화(— · → 쉼표) — 같은 변환을
+                # 표시 단계(_hanja_clean)에도 적용하므로 우회가 아니라 선반영.
+                # 비유·메타발화·반복 남발은 변환 불가 → style_lint 하드 차단 유지.
+                # 룰 패스스루(무키)는 변형하지 않는다(결정론·폴백 판정 보존).
+                cand = re.sub(r"\s*[—–]\s*", ", ", cand)
+                cand = re.sub(r"\s*·\s*", ", ", cand)
+            if cand and llm_changed:
                 csv = safe_lint.lint(cand)
                 cfv = factcheck.check(cand, saju, partner_gz)
                 # 스타일 린트(2026-06-12 신설) — LLM 후보에만: 규칙 누설·시적 비유·

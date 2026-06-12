@@ -33,8 +33,9 @@ RULES: list[tuple[str, str]] = [
 ]
 _COMPILED = [(re.compile(p), why) for p, why in RULES]
 
-# 반복 남발 상한(챕터 단위) — 같은 단어를 버릇처럼 반복 = AI 신호
-_REPEAT_CAPS = {"기운": 12, "의 결": 8, "흐름": 10, "구조": 10}
+# 반복 남발 상한(챕터 단위) — 같은 단어를 버릇처럼 반복 = AI 신호.
+# '구조'는 자미 챕터(삶의 구조) 주제어라 약간 여유(실측 폴백 11회).
+_REPEAT_CAPS = {"기운": 12, "의 결": 8, "흐름": 10, "구조": 12}
 
 
 def lint(text: str) -> list[dict]:
