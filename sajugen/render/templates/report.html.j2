@@ -1,14 +1,17 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <title>{{ title }}</title>
 <style>
-  /* 폰트 번들(SIL OFL). 본문·제목 = 나눔명조 R/B(금강산 레퍼런스와 동일 패밀리).
-     나눔명조는 한자 글리프 0 → 한자는 스택 폴백 'SajuHanja'(Source Han Serif K)가 받음
-     (부록 용어 병기·표지 장식 한정). 'SajuBrush'(나눔브러시)는 표지 표제·목차 헤더 전용.
+  /* 폰트 번들(전부 SIL OFL — 임베드 허용 검증 완료, 2026-06-12 업그레이드).
+     본문 'SajuBody' = 고운바탕 R/B(따뜻한 고전 바탕, 한글 11,172자).
+     제목·표제 'SajuHead' = 본명조(Source Han Serif KR) Bold — 격조·한자 일체.
+     한자 폴백 'SajuHanja' = 본명조 Regular(부록 병기·장식 한정).
      'Saju'(Pretendard, sans)는 목차 칩 등 보조에만. Chromium 서브셋 임베드. */
-  @font-face{font-family:'SajuMyeongjo';font-weight:400;font-style:normal;
-    src:url('{{ font_dir }}/NanumMyeongjo-Regular.ttf') format('truetype')}
-  @font-face{font-family:'SajuMyeongjo';font-weight:700;font-style:normal;
-    src:url('{{ font_dir }}/NanumMyeongjo-Bold.ttf') format('truetype')}
+  @font-face{font-family:'SajuBody';font-weight:400;font-style:normal;
+    src:url('{{ font_dir }}/GowunBatang-Regular.ttf') format('truetype')}
+  @font-face{font-family:'SajuBody';font-weight:700;font-style:normal;
+    src:url('{{ font_dir }}/GowunBatang-Bold.ttf') format('truetype')}
+  @font-face{font-family:'SajuHead';font-weight:700;font-style:normal;
+    src:url('{{ font_dir }}/SourceHanSerifKR-Bold.otf') format('opentype')}
   @font-face{font-family:'SajuHanja';font-weight:400;font-style:normal;
     src:url('{{ font_dir }}/SourceHanSerifK-Regular.otf') format('opentype')}
   @font-face{font-family:'Saju';font-weight:400;font-style:normal;
@@ -34,7 +37,7 @@
   @page{size:A4;margin:{{ page_margin_css }}}
   /* 배경은 PDF 후처리 언더레이(한지 텍스처) — 여기서 칠하면 텍스처를 가린다 */
   html,body{margin:0;padding:0;background:transparent;color:var(--ink);
-    font-family:'SajuMyeongjo','SajuHanja','Saju',serif;
+    font-family:'SajuBody','SajuHanja','Saju',serif;
     line-height:var(--lh);font-size:var(--fs);letter-spacing:var(--ls);
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
 
@@ -44,13 +47,13 @@
     text-align:center;page-break-after:always;padding-top:26mm}
   /* 붓글씨(나눔브러시) 폐기 — '목차→목과'로 읽힐 만큼 흘림(운영자 지적 2026-06-12)
      → 금강산 방식: 명조 Bold 대형 + 넓은 자간(단정한 학문 톤) */
-  .cover h1{font-family:'SajuMyeongjo',serif;font-size:34pt;font-weight:700;
+  .cover h1{font-family:'SajuHead','SajuBody',serif;font-size:34pt;font-weight:700;
     letter-spacing:.22em;line-height:1.3;margin:0}
   .cover .cover-name{font-size:13.5pt;color:var(--ink);margin:9mm 0 0;letter-spacing:.14em}
   .cover .cover-box{margin:24mm 0 0;border:1px solid #6b6353;padding:2.2mm}
   .cover .cover-box-in{border:1px solid #6b6353;padding:11mm 6.5mm}
   .cover .cover-vert{writing-mode:vertical-rl;text-orientation:upright;
-    font-family:'SajuMyeongjo',serif;font-size:38pt;font-weight:700;line-height:1;
+    font-family:'SajuHead','SajuBody',serif;font-size:38pt;font-weight:700;line-height:1;
     letter-spacing:.5em;color:var(--ink)}
   .cover .cover-seal{margin:11mm 0 0}
   .cover .sub{color:var(--mut);font-size:11.5pt;white-space:pre-line;line-height:1.95;
@@ -58,7 +61,7 @@
 
   /* 목차 — 금강산 구도: 붓글씨 헤더 + 장 칩 + 대시 리더 + 챕터명 */
   .toc{page-break-after:always;padding:14mm 0 0}
-  .toc .toc-head{font-family:'SajuMyeongjo',serif;font-size:24pt;
+  .toc .toc-head{font-family:'SajuHead','SajuBody',serif;font-size:24pt;
     font-weight:700;letter-spacing:.55em;text-indent:.55em;text-align:center;
     margin:0 0 4mm;color:var(--ink)}
   .toc .toc-rule{width:34mm;height:1px;background:var(--line);margin:0 auto var(--s7)}
@@ -73,7 +76,8 @@
   section.chapter{page-break-before:always;page-break-inside:auto}
   .cnum{font-family:'Saju',sans-serif;color:var(--gold-ink);font-size:10.5pt;
     letter-spacing:.32em;text-align:center;margin:14mm 0 0}
-  h2.ctitle{font-size:26pt;font-weight:700;letter-spacing:.02em;line-height:var(--lh-tight);
+  h2.ctitle{font-family:'SajuHead','SajuBody',serif;font-size:26pt;font-weight:700;
+    letter-spacing:.02em;line-height:var(--lh-tight);
     text-align:center;color:var(--ink);margin:5mm 0 0}
   /* 어미(魚尾) 모티프 — 전통 판식의 장 시작 장식(절제 차용, 인주색) */
   .crule{width:76px;margin:7mm auto var(--s7);display:block}
@@ -96,9 +100,9 @@
   <div class="cover-box"><div class="cover-box-in"><div class="cover-vert">{{ brand_seal }}</div></div></div>
   <svg class="cover-seal" role="img" aria-label="낙관" width="46" height="46" viewBox="0 0 46 46">
     <rect x="1.5" y="1.5" width="43" height="43" rx="3" fill="#a23b2c" opacity="0.88"/>
-    <text x="23" y="19.5" font-family="SajuMyeongjo" font-weight="700" font-size="15"
+    <text x="23" y="19.5" font-family="SajuHead" font-weight="700" font-size="15"
           fill="#f6f0e0" text-anchor="middle">{{ brand_seal[:2] }}</text>
-    <text x="23" y="38.5" font-family="SajuMyeongjo" font-weight="700" font-size="15"
+    <text x="23" y="38.5" font-family="SajuHead" font-weight="700" font-size="15"
           fill="#f6f0e0" text-anchor="middle">{{ brand_seal[2:4] }}</text>
   </svg>
   <div class="sub">{{ cover_sub }}</div>

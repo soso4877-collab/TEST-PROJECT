@@ -17,7 +17,7 @@ import os
 from playwright.sync_api import sync_playwright
 
 _DIR = os.path.dirname(__file__)
-_FONT_BOLD = os.path.join(_DIR, "..", "fonts", "NanumMyeongjo-Bold.ttf")
+_FONT_BOLD = os.path.join(_DIR, "..", "fonts", "SourceHanSerifKR-Bold.otf")  # 본명조 Bold(낙관)
 _SEAL_DIR = os.path.join(_DIR, "seal_cache")
 W, H = 1240, 1754  # A4 150dpi
 
