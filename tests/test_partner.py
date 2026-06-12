@@ -85,8 +85,10 @@ def test_factcheck_hangul_ganzhi():
     # 실제 일주(무술? -> 엔진 산출)의 한글 간지는 통과
     ko_day = factcheck._gz_ko(_SAJU.myeongni.day.ganzhi)
     assert not factcheck.check(f"당신은 {ko_day}일주예요.", _SAJU)
-    # 일반어 오탐 없음(접미 문맥 게이트)
+    # 일반어 오탐 없음(접미 문맥 게이트 + 동형 일상어 제외 — 실사고 앵커)
     assert not factcheck.check("기미가 보입니다. 무사히 넘어갑니다.", _SAJU)
+    assert not factcheck.check("좋은 시기에 들어와 계신 시기예요.", _SAJU)
+    assert not factcheck.check("임신 시기가 궁금하실 수 있어요.", _SAJU)
     # 상대 간지는 extra_ganzhi 있을 때만 허용
     assert factcheck.check("그분은 경오일주예요.", _SAJU)
     assert not factcheck.check("그분은 경오일주예요.", _SAJU, frozenset({"庚午"}))

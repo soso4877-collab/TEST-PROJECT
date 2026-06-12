@@ -22,6 +22,10 @@ _ZHI_KO = "자축인묘진사오미신유술해"
 _GAN_KO_OF = dict(zip("甲乙丙丁戊己庚辛壬癸", _GAN_KO))
 _ZHI_KO_OF = dict(zip("子丑寅卯辰巳午未申酉戌亥", _ZHI_KO))
 _GANZHI_KO_RX = re.compile(rf"[{_GAN_KO}][{_ZHI_KO}](?=\s*(일주|년|월|일|시|대운|세운|월운|운|생))")
+# 간지와 동형인 일상어(빈출) — 허용 집합에 없을 때 오탐 방지(실사고 2026-06-12:
+# '들어와 계신 시기'의 '계신'+'시'가 癸申 간지로 오인 → 정상 문장 차단 → consult
+# 룰 폴백). 실제 간지로 쓰였다면 계산 집합에 있으므로 여기 도달하지 않는다.
+_GANZHI_KO_COMMON_WORDS = {"계신", "임신", "기사", "무사", "병사", "정사", "기미"}
 
 
 def _gz_ko(ganzhi_hanja: str) -> str:
@@ -98,6 +102,8 @@ def check(text: str, saju, extra_ganzhi: frozenset[str] = frozenset()) -> list[d
     # 1b) 한글 간지(접미 문맥 필수): '갑자년·경오일주'처럼 간지로 쓰인 것만 검사
     for m in _GANZHI_KO_RX.finditer(text):
         tok = m.group(0)
+        if tok in _GANZHI_KO_COMMON_WORDS and tok not in allow["ganzhi_ko"]:
+            continue  # 일상어 동형(계신·임신 등) — 간지 아님
         if tok not in allow["ganzhi_ko"]:
             out.append(
                 {
