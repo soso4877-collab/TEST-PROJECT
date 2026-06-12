@@ -5,7 +5,7 @@
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
-> 최종 갱신: 2026-06-12  (2차 개편 R1~R7 완료 — 브랜드 가변·판식 디자인·타이포 15pt급·호명 강제·AI 흔적 박멸)
+> 최종 갱신: 2026-06-12  (3차 수정 F1~F4 완료 — 낙관 이미지화(뷰어 호환)·스타일 가드 신설·기호/비유/반복 0)
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
@@ -126,6 +126,24 @@ Phase5 4단계 구간2·3·4 본문생성(2026-06-11): llm_sections 에 compose(
     산출물: sajugen/render/out/final_19971027.pdf (운영자 검수 대기 — 이름은 임시 '홍길동').
   전체 회귀 133 PASS(테스트 14파일). 작업 원칙(메모리 feedback-debug-research-and-record): 오류=공식자료
     조사로 해결, 돌파구=즉시 메모리 기록.
+3차 수정(2026-06-12, 운영자 2차 검수 — 낙관 깨짐·말투 하자 원인 보고 포함, F1~F4 + 7커밋):
+  [원인 진단] (1) 낙관 깨짐 = PyMuPDF insert_text 텍스트 임베드 자체의 뷰어 호환성 구멍.
+    내 검증(MuPDF·PDFium)은 관대한 엔진이라 통과 → 검증 사각. CIDToGIDMap 보정으로도 불충분.
+    (2) 말투 하자 = 가드 3단이 사실·안전만 검사, 스타일은 프롬프트 지시뿐 검증 0 → 규칙 누설·
+    시적 비유·기호 난발(— 52회·· 49회)·반복(기운 92회)이 통과.
+  - F1(1361528) 낙관 이미지화: PyMuPDF 텍스트 임베드 전면 폐기 → make_assets.build_seal
+    브랜드별 투명 PNG(Chromium 렌더·캐시) 삽입. 원칙 확립: PDF 텍스트는 Chromium 경로만,
+    PyMuPDF는 벡터·이미지만(메모리 기록). 알파 PNG 무압축 저장 실측 → 4x 스케일.
+  - F2+F3(5101db5) content/style_lint.py 신설(규칙 누설·em dash·가운뎃점·기호·시적 비유·
+    반복 상한) → builder 가드 4번째 검사(재작성→폴백). 프롬프트 재작성(비유=오행 자연물
+    하나만·규칙 침묵·반복 금지·줄표 금지), _COMPOSE_GUIDE '결' 어휘 정리(반복 유도 원천).
+  - 기호 정규화 선반영(454faea): —·를 가드 전 결정론 변환(폴백 2→0), 구조 상한 12.
+  - 기호 잔존 0(915dc5b): intro 제목 줄표·부록 불릿 14줄·합성어 가운뎃점 29곳 제거,
+    _hanja_clean 가운뎃점 전부 쉼표화. 회귀 앵커(전 섹션 —·0).
+  - 종합 실측(서담선생·태수님·1997-10-27): polished 12/12·fallback 0·clean, 44p·676KB,
+    veraPDF ['7.1-3'], 231s. 전수 감사 전 항목 0(줄표/가운뎃점/당신/점수/메타발화/비유어),
+    '기운' 92→23·'의 결' 49→2, 호명 103회. 전체 pytest 135+ PASS.
+    산출물: sajugen/render/out/final_19971027_seodam.pdf.
 조사대상(미해결): lunar-python sect=2 고정이 JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈
   (공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
 전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
