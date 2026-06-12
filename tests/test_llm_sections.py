@@ -127,7 +127,7 @@ def test_no_ai_tells_in_nonstatic_chapters(monkeypatch):
     static = {"cover", "toc", "appendix_terms", "colophon"}
     bad = re.compile(
         r"첫째,|둘째,|셋째,|먼저, |그리고, |끝으로, |[①②③④⑤]|→|\[원국\]"
-        r"|\[기운 분포\]| · |[一-鿿]|^-{3,}\s*$|당신",
+        r"|\[기운 분포\]| · |[一-鿿]|^-{3,}\s*$|당신|점수",
         re.M,
     )
     offenders = {

@@ -813,7 +813,7 @@ def build_all(
         f"속이 같은 방향이면 일관된 힘으로, 다르면 상황에 따라 다른 모습으로 "
         f"쓰이는 결로 읽습니다. 지장간 {_J(_hidegan_ko(m.day.hide_gan), '은는')} "
         f"평소엔 잘 안 보이다가 특정 상황에서 드러나는 숨은 자원으로 봅니다.\n"
-        f"신강약은 '{m.singang}'(균형 점수 {m.singang_score})입니다. "
+        f"신강약은 '{m.singang}'입니다. "
         f"{_singang_phrase(m.singang)}이 도움이 되고, {gk}의 틀에서는 "
         f"그 격의 결을 살리는 쪽이 강점으로 이어지기 쉽습니다.\n"
         f"보완할 점은 {mn_ko} 기운({mn_mn})이 옅다는 자리입니다. 관련 상황에선 "
@@ -829,7 +829,7 @@ def build_all(
         if _sal_top3
         else "두드러진 전통 신살은 적은 편"
     )
-    _sg_q = f"'{m.singang}'(점수 {m.singang_score})"
+    _sg_q = f"'{m.singang}'"
     T["character"] = (
         f"이번에는 성격·기질을 일간·십성·신강약·신살로 한데 모아 보겠습니다"
         f"(앞의 '일간과 성향'이 중심 글자라면, 여기서는 전체 윤곽을 종합합니다).\n"
@@ -857,7 +857,7 @@ def build_all(
     T["geukguk"] = (
         f"격국(格局)은 태어난 달의 기운(월령)을 중심으로 사주의 큰 틀을 보는 "
         f"분류입니다. {nm_call}의 사주는 {gk}으로 봅니다 — {m.geukguk_note} "
-        f"일간의 힘(신강약)은 '{m.singang}'(균형 점수 {m.singang_score})이고, "
+        f"일간의 힘(신강약)은 '{m.singang}'이고, "
         f"억부(抑扶) 방식으로 본 참고 용신은 {m.yongshin_eokbu}"
         f"({m.yongshin_axis}) 방향입니다. 다만 용신은 억부·조후·통관·병약·"
         f"종격 등 방식에 따라 달라질 수 있어, 이 결과지는 억부 한 가지 방식의 "
@@ -985,8 +985,8 @@ def build_all(
         f"봅니다(기둥 세부는 앞 '일과 직업'의 시주 풀이를 같이 참고하세요).\n"
         f"{_palace_para(wealth_p, '재물을 다루는 방식')}\n"
         f"재물은 버는 힘(재성)과 만들어 내는 힘(식상 — 일간이 생하는 결, "
-        f"{mon_sgm} 등)의 균형으로 봅니다. 신강약 '{m.singang}'(점수 "
-        f"{m.singang_score})에 따라 {m.yongshin_axis} 방향이 재정 운용의 결을 "
+        f"{mon_sgm} 등)의 균형으로 봅니다. 신강약 '{m.singang}'에 따라 "
+        f"{m.yongshin_axis} 방향이 재정 운용의 결을 "
         f"읽는 참고가 되고, 별의 밝기와 사화는 모으기·굴리기·지키기 가운데 "
         f"어느 쪽이 더 자연스러운지의 색을 보여 줍니다.\n"
         f"재정에서는 {_J(_singang_phrase(m.singang, kind='money'), '을를')} 염두에 "

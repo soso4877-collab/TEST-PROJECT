@@ -129,12 +129,13 @@ def render_pdf(
     return pdf_path
 
 
-# 낙관 — 인주색(#a23b2c)·번들 나눔브러시. 브랜드 가변이라 배경에 굽지 않고
-# 런타임에 그린다(2026-06-12 운영자 지시: 다계정 운영).
+# 낙관 — 인주색(#a23b2c)·번들 나눔명조 Bold. 브랜드 가변이라 배경에 굽지 않고
+# 런타임에 그린다(2026-06-12 운영자 지시: 다계정 운영). 나눔브러시 흘림체는
+# '목차→목과'로 읽힐 만큼 지저분하다는 운영자 지적으로 폐기(명조 Bold = 금강산 톤).
 _INJOO = (0.635, 0.231, 0.173)
 _GWAK = (0.42, 0.365, 0.286)  # 광곽 먹갈색(#6b5d49)
 _MM = 72.0 / 25.4  # 1mm in pt
-_BRUSH_TTF = os.path.join(_DIR, "fonts", "NanumBrushScript-Regular.ttf")
+_SEAL_TTF = os.path.join(_DIR, "fonts", "NanumMyeongjo-Bold.ttf")
 
 
 def _draw_gwakgwak(page) -> None:
@@ -164,7 +165,7 @@ def _brush_subset_buffer(seal_text: str) -> bytes:
     from fontTools import subset as _fs
 
     opts = _fs.Options()
-    font = _fs.load_font(_BRUSH_TTF, opts)
+    font = _fs.load_font(_SEAL_TTF, opts)
     ss = _fs.Subsetter(opts)
     ss.populate(text=seal_text + "사주명리")
     ss.subset(font)
@@ -221,7 +222,7 @@ def _apply_background(pdf_path: str, seal_text: str = "사주명리") -> None:
     try:
         fontbuffer = _brush_subset_buffer(seal_text)
     except Exception:
-        with open(_BRUSH_TTF, "rb") as f:
+        with open(_SEAL_TTF, "rb") as f:
             fontbuffer = f.read()  # 서브셋 실패 시 전체 폰트(기능 우선)
     doc = fitz.open(pdf_path)
     xref = 0

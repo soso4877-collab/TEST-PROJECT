@@ -9,8 +9,6 @@
     src:url('{{ font_dir }}/NanumMyeongjo-Regular.ttf') format('truetype')}
   @font-face{font-family:'SajuMyeongjo';font-weight:700;font-style:normal;
     src:url('{{ font_dir }}/NanumMyeongjo-Bold.ttf') format('truetype')}
-  @font-face{font-family:'SajuBrush';font-weight:400;font-style:normal;
-    src:url('{{ font_dir }}/NanumBrushScript-Regular.ttf') format('truetype')}
   @font-face{font-family:'SajuHanja';font-weight:400;font-style:normal;
     src:url('{{ font_dir }}/SourceHanSerifK-Regular.otf') format('opentype')}
   @font-face{font-family:'Saju';font-weight:400;font-style:normal;
@@ -44,22 +42,25 @@
      하단 생년월일시. */
   .cover{height:245mm;display:flex;flex-direction:column;align-items:center;
     text-align:center;page-break-after:always;padding-top:26mm}
-  .cover h1{font-family:'SajuBrush','SajuMyeongjo',serif;font-size:38pt;font-weight:400;
-    letter-spacing:.10em;line-height:1.25;margin:0}
+  /* 붓글씨(나눔브러시) 폐기 — '목차→목과'로 읽힐 만큼 흘림(운영자 지적 2026-06-12)
+     → 금강산 방식: 명조 Bold 대형 + 넓은 자간(단정한 학문 톤) */
+  .cover h1{font-family:'SajuMyeongjo',serif;font-size:34pt;font-weight:700;
+    letter-spacing:.22em;line-height:1.3;margin:0}
   .cover .cover-name{font-size:13.5pt;color:var(--ink);margin:9mm 0 0;letter-spacing:.14em}
   .cover .cover-box{margin:24mm 0 0;border:1px solid #6b6353;padding:2.2mm}
   .cover .cover-box-in{border:1px solid #6b6353;padding:11mm 6.5mm}
   .cover .cover-vert{writing-mode:vertical-rl;text-orientation:upright;
-    font-family:'SajuBrush','SajuMyeongjo',serif;font-size:42pt;line-height:1;
-    letter-spacing:.32em;color:var(--ink)}
+    font-family:'SajuMyeongjo',serif;font-size:38pt;font-weight:700;line-height:1;
+    letter-spacing:.5em;color:var(--ink)}
   .cover .cover-seal{margin:11mm 0 0}
   .cover .sub{color:var(--mut);font-size:11.5pt;white-space:pre-line;line-height:1.95;
     letter-spacing:var(--ls);margin-top:auto;padding-bottom:6mm}
 
   /* 목차 — 금강산 구도: 붓글씨 헤더 + 장 칩 + 대시 리더 + 챕터명 */
   .toc{page-break-after:always;padding:14mm 0 0}
-  .toc .toc-head{font-family:'SajuBrush','SajuMyeongjo',serif;font-size:26pt;
-    font-weight:400;letter-spacing:.18em;text-align:center;margin:0 0 4mm;color:var(--ink)}
+  .toc .toc-head{font-family:'SajuMyeongjo',serif;font-size:24pt;
+    font-weight:700;letter-spacing:.55em;text-indent:.55em;text-align:center;
+    margin:0 0 4mm;color:var(--ink)}
   .toc .toc-rule{width:34mm;height:1px;background:var(--line);margin:0 auto var(--s7)}
   .toc-row{display:flex;align-items:center;gap:var(--s4);
     padding:var(--s3) 0;max-width:128mm;margin:0 auto}
@@ -95,10 +96,10 @@
   <div class="cover-box"><div class="cover-box-in"><div class="cover-vert">{{ brand_seal }}</div></div></div>
   <svg class="cover-seal" role="img" aria-label="낙관" width="46" height="46" viewBox="0 0 46 46">
     <rect x="1.5" y="1.5" width="43" height="43" rx="3" fill="#a23b2c" opacity="0.88"/>
-    <text x="23" y="20" font-family="SajuBrush" font-size="16" fill="#f6f0e0"
-          text-anchor="middle">{{ brand_seal[:2] }}</text>
-    <text x="23" y="39" font-family="SajuBrush" font-size="16" fill="#f6f0e0"
-          text-anchor="middle">{{ brand_seal[2:4] }}</text>
+    <text x="23" y="19.5" font-family="SajuMyeongjo" font-weight="700" font-size="15"
+          fill="#f6f0e0" text-anchor="middle">{{ brand_seal[:2] }}</text>
+    <text x="23" y="38.5" font-family="SajuMyeongjo" font-weight="700" font-size="15"
+          fill="#f6f0e0" text-anchor="middle">{{ brand_seal[2:4] }}</text>
   </svg>
   <div class="sub">{{ cover_sub }}</div>
 </div>
