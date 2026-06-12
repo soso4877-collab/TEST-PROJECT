@@ -198,6 +198,8 @@ def build_report(
         if targets:
             import concurrent.futures
 
+            _call = rules.call_name(name)
+
             def _compose_one(sid: str) -> str:
                 return backend.compose(
                     section_id=sid,
@@ -206,6 +208,7 @@ def build_report(
                     base_text=_base_for(sid),
                     quoted_concern=(masked_concern if sid == "consult" else None),
                     ref_year=ref_year,
+                    call_name=_call,
                 )
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
@@ -250,6 +253,7 @@ def build_report(
                             base_text=_base_for(sid),
                             quoted_concern=(masked_concern if sid == "consult" else None),
                             ref_year=ref_year,
+                            call_name=rules.call_name(name),
                         )
                         or ""
                     )

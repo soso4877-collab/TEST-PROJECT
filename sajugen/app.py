@@ -24,7 +24,7 @@ _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</t
  <p>생년월일시(시민시각): <input name="birth" placeholder="2000-01-01 12:00 (생시 미상이면 날짜만)" required></p>
  <p><label><input type="checkbox" name="lunar"> 음력 입력</label>
    &nbsp;<label><input type="checkbox" name="leap"> 윤달(음력 체크 시)</label></p>
- <p>이름(선택, 개인화): <input name="name" placeholder="홍길동"></p>
+ <p>이름(필수, 호명 개인화): <input name="name" placeholder="홍길동" required></p>
  <p>성별: <select name="gender"><option value="male">남</option>
    <option value="female">여</option></select></p>
  <p>상품: <select name="product"><option value="integrated">통합(명리+자미)</option>
@@ -54,7 +54,7 @@ def gen(
     yajasi: bool = Form(False),
     horoscope: str = Form(""),
     llm: bool = Form(False),
-    name: str = Form(""),
+    name: str = Form(...),  # 필수 — 호명 개인화(운영자 지시 2026-06-12)
     product: str = Form("integrated"),
     concern: str = Form(""),
 ):

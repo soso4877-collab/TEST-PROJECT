@@ -69,6 +69,24 @@ def test_ref_year_anchor_no_past_year_as_now():
     assert listed_seun and min(listed_seun) >= 2026, sorted(listed_seun)
 
 
+def test_call_name_and_no_dangsin():
+    # 운영자 지시(2026-06-12): '당신' 전면 금지, 호명='김수하'→'수하님'(성 제외)
+    from sajugen.content.rules import call_name
+
+    assert call_name("김수하") == "수하님"
+    assert call_name("수하") == "수하님"
+    assert call_name("남궁민수") == "민수님"
+    assert call_name(None) == "그대"
+    r = builder.build_report(_SAJU, use_llm=False, name="김수하")
+    for s in r.sections:
+        assert "당신" not in s.final_text, s.id
+    body = "".join(s.final_text for s in r.sections)
+    assert "수하님" in body
+    r2 = builder.build_report(_SAJU, use_llm=False)  # 무이름 폴백 경로
+    for s in r2.sections:
+        assert "당신" not in s.final_text, s.id
+
+
 def test_no_tool_disclosure_anywhere():
     # 절대규칙 18 개정(2026-06-12 운영자 지시): 본문에 산출 방식 고지(자동 분석
     # 도구·AI·프로그램 언급) 금지 — AI 산출 인상 일절 제거. 역앵커.

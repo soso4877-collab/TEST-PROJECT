@@ -25,7 +25,7 @@ def gen(
     yajasi: bool = typer.Option(False, help="야자시/조자시 분리 정책 사용"),
     horoscope: str = typer.Option(None, help="대한/유년 기준일 'YYYY-MM-DD'"),
     llm: bool = typer.Option(False, help="LLM 윤문 사용(무키 시 자동 룰 폴백)"),
-    name: str = typer.Option(None, help="이름(개인화 호명, 선택)"),
+    name: str = typer.Option(..., help="이름(필수 — 호명 '수하님' 개인화, 운영자 지시 2026-06-12)"),
     concern: str = typer.Option(None, help="고객 고민/질문(선택). 분류→맞춤 안내 섹션"),
     product: str = typer.Option("integrated", help="상품: integrated|myeongni|ziwei"),
     out: str = typer.Option("saju_report.pdf", help="출력 파일명"),

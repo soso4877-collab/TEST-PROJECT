@@ -44,7 +44,8 @@ _COMPOSE_SYSTEM = (
     "· 짧은 문장과 조금 긴 문장을 섞어 리듬을 만든다. 같은 문형 반복 금지.\n\n"
     "[말투]\n"
     "· '~예요/~해요'와 '~합니다'를 자연스럽게 섞은 따뜻한 구어체.\n"
-    "· 거의 모든 의미 덩어리에서 그 사람을 부른다(이름이 있으면 '○○님', 없으면 '당신').\n"
+    "· 거의 모든 의미 덩어리에서 그 사람을 [호칭]으로 부른다. '당신'이라는 말은 절대 쓰지 마라. "
+    "호칭이 '그대'면 주어를 자연스럽게 생략하는 쪽을 우선하고 강조 자리에서만 부른다.\n"
     "· 계산된 사실은 단정해서 또렷하게 말한다. '○○님은 임술일주에요', '토의 기운이 아주 강합니다', "
     "'관성이 강한 사주라 인연 자체가 없는 분은 아닙니다'처럼. 얼버무리지 마라.\n"
     "· 미래의 결과만은 보장하지 않는다. '결혼 이야기가 나올 수 있는 해'처럼 흐름과 방향은 분명히 "
@@ -168,6 +169,7 @@ class LLMBackend(Protocol):
         base_text: str,
         quoted_concern: str | None = None,
         ref_year: int | None = None,
+        call_name: str | None = None,
     ) -> str: ...
 
 
@@ -194,6 +196,7 @@ class RuleBackend:
         base_text: str,
         quoted_concern: str | None = None,
         ref_year: int | None = None,
+        call_name: str | None = None,
     ) -> str:
         return base_text  # 본문 생성 없음 = 룰 골격 그대로(항상 가드 통과)
 
@@ -252,6 +255,7 @@ class AnthropicBackend:
         base_text: str,
         quoted_concern: str | None = None,
         ref_year: int | None = None,
+        call_name: str | None = None,
     ) -> str:
         # 구간2·3·4 본문 생성 — Sonnet 4.6(통합·답변·조언). 근거 본문의 사실만 사용.
         # 호출측(builder)이 결과를 3단 가드 재검증하고, 실패/무변경이면 룰 골격 폴백.
@@ -267,6 +271,11 @@ class AnthropicBackend:
             import anthropic
 
             user = f"[이 챕터에서 쓸 글]\n{guide}\n"
+            if call_name:
+                user += (
+                    f"\n[호칭 — 절대 어기지 마라]\n이 사람은 '{call_name}'으로 부른다. "
+                    f"'당신'·'고객님'·다른 호칭은 쓰지 마라.\n"
+                )
             if ref_year:
                 user += (
                     f"\n[기준 시점 — 절대 어기지 마라]\n이 풀이의 '지금'과 '올해'는 "
