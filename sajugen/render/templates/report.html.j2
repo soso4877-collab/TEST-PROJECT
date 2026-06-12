@@ -32,28 +32,38 @@
     --maxw:148mm}
   *{box-sizing:border-box}
   @page{size:A4;margin:{{ page_margin_css }}}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  /* 배경은 PDF 후처리 언더레이(한지 텍스처) — 여기서 칠하면 텍스처를 가린다 */
+  html,body{margin:0;padding:0;background:transparent;color:var(--ink);
     font-family:'SajuMyeongjo','SajuHanja','Saju',serif;
     line-height:var(--lh);font-size:var(--fs);letter-spacing:var(--ls);
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
 
-  /* 표지 — 영문 키커·기술메타 제거(docs/13). 제목 + 가는 룰 + 이름/입력일만. */
-  .cover{height:245mm;display:flex;flex-direction:column;justify-content:center;
-    align-items:center;text-align:center;page-break-after:always}
-  .cover h1{font-size:30pt;font-weight:400;letter-spacing:.18em;line-height:1.3;margin:0}
-  .cover .rule{width:48px;height:1px;background:var(--gold);margin:11mm 0}
-  .cover .sub{color:var(--mut);font-size:12pt;white-space:pre-line;line-height:1.95;
-    letter-spacing:var(--ls)}
+  /* 표지 — 금강산 구도: 상단 붓글씨 표제 + 이름, 중앙 이중 테두리 세로 표제 박스,
+     하단 생년월일시. */
+  .cover{height:245mm;display:flex;flex-direction:column;align-items:center;
+    text-align:center;page-break-after:always;padding-top:26mm}
+  .cover h1{font-family:'SajuBrush','SajuMyeongjo',serif;font-size:34pt;font-weight:400;
+    letter-spacing:.10em;line-height:1.25;margin:0}
+  .cover .cover-name{font-size:13.5pt;color:var(--ink);margin:9mm 0 0;letter-spacing:.14em}
+  .cover .cover-box{margin:24mm 0 0;border:1px solid #6b6353;padding:2.2mm}
+  .cover .cover-box-in{border:1px solid #6b6353;padding:11mm 6.5mm}
+  .cover .cover-vert{writing-mode:vertical-rl;text-orientation:upright;
+    font-family:'SajuBrush','SajuMyeongjo',serif;font-size:42pt;line-height:1;
+    letter-spacing:.32em;color:var(--ink)}
+  .cover .sub{color:var(--mut);font-size:11.5pt;white-space:pre-line;line-height:1.95;
+    letter-spacing:var(--ls);margin-top:auto;padding-bottom:6mm}
 
-  /* 목차 — 노동착시·정보격차 호기심·책 권위(docs/13) */
-  .toc{page-break-after:always;padding:18mm 0 0}
-  .toc .toc-head{font-size:18pt;font-weight:400;letter-spacing:.2em;text-align:center;
-    margin:0 0 var(--s7);color:var(--ink)}
-  .toc-row{display:flex;align-items:baseline;gap:var(--s4);
-    padding:var(--s3) 0;border-bottom:1px solid var(--line);max-width:var(--maxw);margin:0 auto}
-  .toc-no{font-family:'Saju',sans-serif;color:var(--gold-ink);font-size:.85em;
-    letter-spacing:.1em;min-width:2.4em}
-  .toc-name{font-size:1.05em;color:var(--ink)}
+  /* 목차 — 금강산 구도: 붓글씨 헤더 + 장 칩 + 대시 리더 + 챕터명 */
+  .toc{page-break-after:always;padding:14mm 0 0}
+  .toc .toc-head{font-family:'SajuBrush','SajuMyeongjo',serif;font-size:26pt;
+    font-weight:400;letter-spacing:.18em;text-align:center;margin:0 0 4mm;color:var(--ink)}
+  .toc .toc-rule{width:34mm;height:1px;background:var(--line);margin:0 auto var(--s7)}
+  .toc-row{display:flex;align-items:center;gap:var(--s4);
+    padding:var(--s3) 0;max-width:128mm;margin:0 auto}
+  .toc-no{color:#8a3b2c;font-size:.92em;letter-spacing:.28em;min-width:5.2em;
+    text-align:justify;text-align-last:justify}
+  .toc-dash{flex:0 0 16mm;border-bottom:1px solid #8d8268;height:0}
+  .toc-name{font-size:1.06em;color:var(--ink);letter-spacing:.04em}
 
   /* 챕터 = 한 장(章). 새 페이지에서 시작, 제N장 라벨 + 제목(=h2 아웃라인 소스) + 가는 룰. */
   section.chapter{page-break-before:always;page-break-inside:auto}
@@ -79,17 +89,19 @@
 </style></head><body>
 
 <div class="cover">
-  <h1>사 주 풀 이</h1>
-  <div class="rule"></div>
+  <h1>종합 사주 풀이</h1>
+  {% if cover_name %}<div class="cover-name">{{ cover_name }}</div>{% endif %}
+  <div class="cover-box"><div class="cover-box-in"><div class="cover-vert">사주명리</div></div></div>
   <div class="sub">{{ cover_sub }}</div>
 </div>
 
 {# 목차 — 보이는 챕터(표지·목차 제외) 나열 #}
 <div class="toc">
-  <div class="toc-head">목 차</div>
+  <div class="toc-head">목차</div>
+  <div class="toc-rule"></div>
   {% set ns = namespace(n=0) %}
   {% for s in sections %}{% if s.id not in ['cover','toc'] %}{% set ns.n = ns.n + 1 %}
-  <div class="toc-row"><span class="toc-no">{% if s.id in ['appendix_terms','colophon'] %}·{% else %}제 {{ ns.n }} 장{% endif %}</span><span class="toc-name">{{ s.title }}</span></div>
+  <div class="toc-row"><span class="toc-no">{% if s.id == 'appendix_terms' %}부록{% elif s.id == 'colophon' %}끝으로{% else %}제 {{ ns.n }} 장{% endif %}</span><span class="toc-dash"></span><span class="toc-name">{{ s.title.replace('부록 — ', '') if s.id == 'appendix_terms' else s.title }}</span></div>
   {% endif %}{% endfor %}
 </div>
 

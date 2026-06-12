@@ -40,3 +40,16 @@ def test_selectable_known_facts_end_to_end():
 
 def test_render_gate_pass():
     assert _V["gate_pass"] is True, _V
+
+
+def test_hanji_background_full_bleed_every_page():
+    # 한지 배경 언더레이 — 마진 영역 포함 풀블리드가 1·2·마지막 페이지 모두 적용
+    # (CSS 캔버스 배경은 마진·마지막 페이지 미도색 실측 → PyMuPDF 언더레이 회귀 앵커)
+    import fitz
+
+    doc = fitz.open(_PDF)
+    for i in (0, 1, doc.page_count - 1):
+        pix = doc.load_page(i).get_pixmap(dpi=50)
+        r, g, b = pix.pixel(5, 5)  # 좌상단 모서리 = @page 마진 영역
+        assert r > 0xC8 and r > b and g > b, (i + 1, (r, g, b))  # 베이지(흰색/투명 아님)
+    doc.close()

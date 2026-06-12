@@ -25,6 +25,10 @@ _FONT_DIR = "file:///" + os.path.join(_DIR, "fonts").replace("\\", "/")
 # 페이지 마진 단일 소스 — @page CSS(Jinja 주입)와 pg.pdf margin이 같은 상수를 쓴다
 # (render.md: 둘은 반드시 동기화).
 _PAGE_MARGIN = {"top": "22mm", "bottom": "22mm", "left": "20mm", "right": "20mm"}
+# 한지 배경(낙관 합성, assets/make_assets.py 산출). CSS 캔버스 배경은 Chromium
+# print에서 마진 영역·마지막 페이지가 칠해지지 않는 것을 실측(2026-06-12)
+# → PyMuPDF 언더레이(전 페이지·XObject 1회 임베드)로 풀블리드 적용.
+_BG_PATH = os.path.join(_DIR, "assets", "hanji_bg.jpg")
 _PAGE_MARGIN_CSS = (
     f"{_PAGE_MARGIN['top']} {_PAGE_MARGIN['right']} {_PAGE_MARGIN['bottom']} {_PAGE_MARGIN['left']}"
 )
@@ -68,11 +72,8 @@ def render_html(
         title="사주풀이 결과지",
         font_dir=_FONT_DIR,
         page_margin_css=_PAGE_MARGIN_CSS,
-        cover_sub=(
-            (f"{name}님\n" if name else "")
-            + f"{saju.input_civil}"
-            + ("  (생시 미상·추정)" if unknown_time else "")
-        ),
+        cover_name=(f"{name} 님" if name else ""),
+        cover_sub=(f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")),
         sections=secs,
         disclaimer=_DISCLAIMER,
     )
@@ -122,8 +123,25 @@ def render_pdf(
         )
         b.close()
 
+    _apply_background(pdf_path)
     harden_pdf_ua(pdf_path, title="사주풀이 결과지", lang="ko-KR")
     return pdf_path
+
+
+def _apply_background(pdf_path: str) -> None:
+    """전 페이지 한지 배경 언더레이 — 텍스트 레이어·태그 트리 비파괴.
+
+    overlay=False 로 기존 콘텐츠 아래에 깔고, xref 재사용으로 이미지 1회만 임베드.
+    (배경 이미지는 비태깅 콘텐츠지만 veraPDF 7.1-3은 이미 잔존 clause — 목록 비악화.)
+    """
+    if not os.path.isfile(_BG_PATH):
+        return
+    doc = fitz.open(pdf_path)
+    xref = 0
+    for page in doc:
+        xref = page.insert_image(page.rect, filename=_BG_PATH, xref=xref, overlay=False)
+    doc.saveIncr()
+    doc.close()
 
 
 def harden_pdf_ua(pdf_path: str, *, title: str, lang: str = "ko-KR") -> None:
