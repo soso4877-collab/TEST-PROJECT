@@ -152,7 +152,28 @@ def _draw_gwakgwak(page) -> None:
     )
 
 
-def _draw_seal(page, seal_text: str) -> None:
+def _brush_subset_buffer(seal_text: str) -> bytes:
+    """낙관 글자만 담은 나눔브러시 서브셋(TTF 바이트) — fontTools 사전 서브셋.
+
+    doc.subset_fonts()는 Chromium이 임베드한 본문 폰트까지 전부 재서브셋해
+    뷰어 호환성 리스크가 있다 → 낙관 폰트만 미리 서브셋해 주입하고, 문서는
+    saveIncr로 본문 폰트 바이트를 원본 그대로 보존한다(2026-06-12 하드닝).
+    """
+    import io as _io
+
+    from fontTools import subset as _fs
+
+    opts = _fs.Options()
+    font = _fs.load_font(_BRUSH_TTF, opts)
+    ss = _fs.Subsetter(opts)
+    ss.populate(text=seal_text + "사주명리")
+    ss.subset(font)
+    buf = _io.BytesIO()
+    font.save(buf)
+    return buf.getvalue()
+
+
+def _draw_seal(page, seal_text: str, fontbuffer: bytes) -> None:
     """우하단 세로 낙관(이중 테두리 + 글자 적층) — overlay=False 언더레이.
     광곽(13mm 내선) 안쪽에 배치해 테두리와 겹치지 않게 한다."""
     chars = list(seal_text.strip())[:4] or list("사주명리")
@@ -172,8 +193,8 @@ def _draw_seal(page, seal_text: str) -> None:
         width=0.45,
         overlay=False,
     )
-    page.insert_font(fontname="sealbrush", fontfile=_BRUSH_TTF)
-    brush = fitz.Font(fontfile=_BRUSH_TTF)  # 글자 폭 측정용(공식 API: Font.text_length)
+    page.insert_font(fontname="sealbrush", fontbuffer=fontbuffer)
+    brush = fitz.Font(fontbuffer=fontbuffer)  # 글자 폭 측정용(공식 API: Font.text_length)
     for i, ch in enumerate(chars):
         tw = brush.text_length(ch, fontsize=fs)
         page.insert_text(
@@ -197,22 +218,23 @@ def _apply_background(pdf_path: str, seal_text: str = "사주명리") -> None:
     """
     if not os.path.isfile(_BG_PATH):
         return
+    try:
+        fontbuffer = _brush_subset_buffer(seal_text)
+    except Exception:
+        with open(_BRUSH_TTF, "rb") as f:
+            fontbuffer = f.read()  # 서브셋 실패 시 전체 폰트(기능 우선)
     doc = fitz.open(pdf_path)
     xref = 0
     for page in doc:
-        _draw_seal(page, seal_text)
+        _draw_seal(page, seal_text, fontbuffer)
         _draw_gwakgwak(page)
         # 한지를 '마지막에' 삽입 = 최하층(prepend 규칙)
         xref = page.insert_image(page.rect, filename=_BG_PATH, xref=xref, overlay=False)
-    try:
-        doc.subset_fonts()  # 나눔브러시 사용 글리프만 임베드(3.5MB→수 KB)
-    except Exception:
-        pass  # 서브셋 실패 시 전체 임베드 유지(기능 우선)
     _fix_cid_to_gid(doc)
-    tmp = pdf_path + ".tmp"
-    doc.save(tmp, garbage=3, deflate=True)
+    # saveIncr — Chromium이 임베드한 본문 폰트 바이트를 원본 그대로 보존
+    # (doc.subset_fonts()+전체 재저장은 전 폰트 재서브셋 → 뷰어 호환성 리스크).
+    doc.saveIncr()
     doc.close()
-    os.replace(tmp, pdf_path)
 
 
 def _fix_cid_to_gid(doc) -> None:
