@@ -23,7 +23,7 @@
   :root{
     /* 절제된 색: 거의 무채색 잉크 + 옅은 골드 룰(비텍스트). 처리유창성=균일·차분. */
     --bg:#fffdf8; --panel:#f7f1e2; --line:#ddd3bb; --ink:#111111; --mut:#4a4438;
-    --gold:#9a6f1e; --gold-ink:#7d5610;
+    --gold:#9a6f1e; --gold-ink:#7d5610; --injoo:#a23b2c;
     /* 본문 타이포(2026-06-12 운영자 지시·금강산 실측 15pt/행송 28pt 기반 상향):
        한글 본문 행간 권장 180~210% 범위 안. 잉크는 한지 위 과대비 피해 #111. */
     --fs:14.5pt;
@@ -52,6 +52,7 @@
   .cover .cover-vert{writing-mode:vertical-rl;text-orientation:upright;
     font-family:'SajuBrush','SajuMyeongjo',serif;font-size:42pt;line-height:1;
     letter-spacing:.32em;color:var(--ink)}
+  .cover .cover-seal{margin:11mm 0 0}
   .cover .sub{color:var(--mut);font-size:11.5pt;white-space:pre-line;line-height:1.95;
     letter-spacing:var(--ls);margin-top:auto;padding-bottom:6mm}
 
@@ -62,7 +63,7 @@
   .toc .toc-rule{width:34mm;height:1px;background:var(--line);margin:0 auto var(--s7)}
   .toc-row{display:flex;align-items:center;gap:var(--s4);
     padding:var(--s3) 0;max-width:128mm;margin:0 auto}
-  .toc-no{color:#8a3b2c;font-size:.92em;letter-spacing:.28em;min-width:5.2em;
+  .toc-no{color:var(--injoo);font-size:.92em;letter-spacing:.28em;min-width:5.2em;
     text-align:justify;text-align-last:justify}
   .toc-dash{flex:0 0 16mm;border-bottom:1px solid #8d8268;height:0}
   .toc-name{font-size:1.06em;color:var(--ink);letter-spacing:.04em}
@@ -73,7 +74,8 @@
     letter-spacing:.32em;text-align:center;margin:14mm 0 0}
   h2.ctitle{font-size:26pt;font-weight:700;letter-spacing:.02em;line-height:var(--lh-tight);
     text-align:center;color:var(--ink);margin:5mm 0 0}
-  .crule{width:52px;height:1px;background:var(--gold);margin:8mm auto var(--s7)}
+  /* 어미(魚尾) 모티프 — 전통 판식의 장 시작 장식(절제 차용, 인주색) */
+  .crule{width:76px;margin:7mm auto var(--s7);display:block}
 
   .subhead{font-size:1.28em;font-weight:400;color:var(--ink);
     line-height:1.4;margin:var(--s6) 0 var(--s3)}
@@ -91,6 +93,13 @@
   <h1>{{ brand_title }}</h1>
   {% if cover_name %}<div class="cover-name">{{ cover_name }}</div>{% endif %}
   <div class="cover-box"><div class="cover-box-in"><div class="cover-vert">{{ brand_seal }}</div></div></div>
+  <svg class="cover-seal" role="img" aria-label="낙관" width="46" height="46" viewBox="0 0 46 46">
+    <rect x="1.5" y="1.5" width="43" height="43" rx="3" fill="#a23b2c" opacity="0.88"/>
+    <text x="23" y="20" font-family="SajuBrush" font-size="16" fill="#f6f0e0"
+          text-anchor="middle">{{ brand_seal[:2] }}</text>
+    <text x="23" y="39" font-family="SajuBrush" font-size="16" fill="#f6f0e0"
+          text-anchor="middle">{{ brand_seal[2:4] }}</text>
+  </svg>
   <div class="sub">{{ cover_sub }}</div>
 </div>
 
@@ -111,7 +120,11 @@
 <section id="sec-{{ s.id }}" class="chapter">
   {% if s.id not in ['appendix_terms','colophon'] %}<div class="cnum">제 {{ cs.n }} 장</div>{% endif %}
   <h2 class="ctitle">{{ s.title }}</h2>
-  <div class="crule"></div>
+  <svg class="crule" role="img" aria-label="장식" width="76" height="10" viewBox="0 0 76 10">
+    <line x1="0" y1="5" x2="29" y2="5" stroke="#a23b2c" stroke-width="0.9"/>
+    <path d="M33 1 L43 1 L38 9 Z" fill="#a23b2c" opacity="0.88"/>
+    <line x1="47" y1="5" x2="76" y2="5" stroke="#a23b2c" stroke-width="0.9"/>
+  </svg>
   <div class="body">{% for p in s.paragraphs %}<p>{{ p }}</p>{% endfor %}</div>
 </section>
 {% endif %}

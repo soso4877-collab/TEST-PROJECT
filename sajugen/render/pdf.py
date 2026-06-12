@@ -132,11 +132,29 @@ def render_pdf(
 # 낙관 — 인주색(#a23b2c)·번들 나눔브러시. 브랜드 가변이라 배경에 굽지 않고
 # 런타임에 그린다(2026-06-12 운영자 지시: 다계정 운영).
 _INJOO = (0.635, 0.231, 0.173)
+_GWAK = (0.42, 0.365, 0.286)  # 광곽 먹갈색(#6b5d49)
+_MM = 72.0 / 25.4  # 1mm in pt
 _BRUSH_TTF = os.path.join(_DIR, "fonts", "NanumBrushScript-Regular.ttf")
 
 
+def _draw_gwakgwak(page) -> None:
+    """사주쌍변 광곽(匡廓) — 전통 한적 판식의 이중 테두리(굵은 외선+가는 내선).
+
+    본문 마진(22/20mm) 바깥, 페이지 가장자리 11/13mm 인셋. 한지 위·본문 아래.
+    """
+    r = page.rect
+    o, i = 11 * _MM, 13 * _MM
+    page.draw_rect(
+        fitz.Rect(o, o, r.width - o, r.height - o), color=_GWAK, width=0.9, overlay=False
+    )
+    page.draw_rect(
+        fitz.Rect(i, i, r.width - i, r.height - i), color=_GWAK, width=0.35, overlay=False
+    )
+
+
 def _draw_seal(page, seal_text: str) -> None:
-    """우하단 세로 낙관(이중 테두리 + 글자 적층) — overlay=False 언더레이."""
+    """우하단 세로 낙관(이중 테두리 + 글자 적층) — overlay=False 언더레이.
+    광곽(13mm 내선) 안쪽에 배치해 테두리와 겹치지 않게 한다."""
     chars = list(seal_text.strip())[:4] or list("사주명리")
     fs = 17.0  # 글자 크기(pt)
     pad_x, pad_top = 7.5, 10.0
@@ -144,8 +162,8 @@ def _draw_seal(page, seal_text: str) -> None:
     w = fs + pad_x * 2
     h = pad_top * 2 + step * len(chars)
     r = page.rect
-    x1 = r.width - 26  # 우측 여백 26pt(약 9.2mm)
-    y1 = r.height - 30
+    x1 = r.width - 15.5 * _MM  # 광곽 내선(13mm) 안쪽
+    y1 = r.height - 16 * _MM
     x0, y0 = x1 - w, y1 - h
     page.draw_rect(fitz.Rect(x0, y0, x1, y1), color=_INJOO, width=1.1, overlay=False)
     page.draw_rect(
@@ -183,6 +201,7 @@ def _apply_background(pdf_path: str, seal_text: str = "사주명리") -> None:
     xref = 0
     for page in doc:
         _draw_seal(page, seal_text)
+        _draw_gwakgwak(page)
         # 한지를 '마지막에' 삽입 = 최하층(prepend 규칙)
         xref = page.insert_image(page.rect, filename=_BG_PATH, xref=xref, overlay=False)
     try:

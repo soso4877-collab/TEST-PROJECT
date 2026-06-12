@@ -70,6 +70,23 @@ def test_brand_profile_in_html():
     assert cfg.brand("없는키")["seal"] == "사주명리"  # 미존재 키는 default 폴백
 
 
+def test_gwakgwak_frame_every_page():
+    # 사주쌍변 광곽(R6) — 페이지 가장자리 11mm 인셋(dpi100 기준 x=43px)에
+    # 먹갈색 세로선이 전 페이지 존재(한지 위·본문 아래 z순서 포함 검증)
+    import fitz
+
+    doc = fitz.open(_PDF)
+    for i in (0, doc.page_count - 1):
+        pix = doc.load_page(i).get_pixmap(dpi=100)
+        hits = 0
+        for y in range(60, pix.height - 60, 7):
+            r, g, b = pix.pixel(43, y)
+            if r < 200 and g < 190:  # 베이지(>0xE0)보다 어두운 선
+                hits += 1
+        assert hits > 50, (i + 1, hits)
+    doc.close()
+
+
 def test_hanji_background_full_bleed_every_page():
     # 한지 배경 언더레이 — 마진 영역 포함 풀블리드가 1·2·마지막 페이지 모두 적용
     # (CSS 캔버스 배경은 마진·마지막 페이지 미도색 실측 → PyMuPDF 언더레이 회귀 앵커)
