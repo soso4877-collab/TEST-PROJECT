@@ -69,3 +69,6 @@ data/
 preview_out.log
 preview_err.log
 err_dump.txt
+diag_out.txt
+diag_stdout.log
+diag_stderr.log
