@@ -29,6 +29,7 @@ class SajuResult(BaseModel):
     eot_minutes: float
     longitude: float
     zasi_policy: str
+    ref_year: int | None = None  # 풀이 기준 연도(horoscope_date 연도) — '올해' 서술의 닻
     myeongni: mod_my.Myeongni
     ziwei: mod_zw.Ziwei
     crosscheck: CrossCheck
@@ -83,6 +84,7 @@ def build(
         eot_minutes=ct.eot_minutes,
         longitude=ct.longitude,
         zasi_policy=ct.policy.value,
+        ref_year=ref_year,
         myeongni=my,
         ziwei=zw,
         crosscheck=CrossCheck(

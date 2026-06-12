@@ -88,6 +88,16 @@ def build_report(
     product: str = "integrated",
     concern: str | None = None,
 ) -> Report23:
+    # 기준 연도 방어(2026-06-12 버그: ref_year 미전달 시 골격이 seun 첫 해(과거)를
+    # '기준 해'로 폴백 → LLM이 "지금은 2025년" 오서술). 우선순위:
+    # 인자 > saju.ref_year(horoscope_date 연도) > 오늘.
+    if ref_year is None:
+        ref_year = getattr(saju, "ref_year", None)
+    if ref_year is None:
+        import datetime
+
+        ref_year = datetime.date.today().year
+
     # Phase5 구간1: 고민 분류. use_llm+키면 LLM 분류, 아니면 결정론 룰(무키·재현성).
     backend = llm_sections.get_backend()
     if concern and use_llm:
@@ -195,6 +205,7 @@ def build_report(
                     category=category.value,
                     base_text=_base_for(sid),
                     quoted_concern=(masked_concern if sid == "consult" else None),
+                    ref_year=ref_year,
                 )
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
@@ -238,6 +249,7 @@ def build_report(
                             category=category.value,
                             base_text=_base_for(sid),
                             quoted_concern=(masked_concern if sid == "consult" else None),
+                            ref_year=ref_year,
                         )
                         or ""
                     )

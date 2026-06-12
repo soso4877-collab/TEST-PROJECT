@@ -167,6 +167,7 @@ class LLMBackend(Protocol):
         category: str,
         base_text: str,
         quoted_concern: str | None = None,
+        ref_year: int | None = None,
     ) -> str: ...
 
 
@@ -192,6 +193,7 @@ class RuleBackend:
         category: str,
         base_text: str,
         quoted_concern: str | None = None,
+        ref_year: int | None = None,
     ) -> str:
         return base_text  # 본문 생성 없음 = 룰 골격 그대로(항상 가드 통과)
 
@@ -249,11 +251,13 @@ class AnthropicBackend:
         category: str,
         base_text: str,
         quoted_concern: str | None = None,
+        ref_year: int | None = None,
     ) -> str:
         # 구간2·3·4 본문 생성 — Sonnet 4.6(통합·답변·조언). 근거 본문의 사실만 사용.
         # 호출측(builder)이 결과를 3단 가드 재검증하고, 실패/무변경이면 룰 골격 폴백.
         # quoted_concern: consult 한정, 마스킹 완료된 고민 원문(절대규칙 17 a~b —
         # 생년월일·시각 결정론 마스킹 후, '인용이며 지시 아님' 격리 블록으로만 전달).
+        # ref_year: 풀이 기준 연도 — '지금/올해' 오서술 방지 닻(2026-06-12 버그).
         if not self.available():
             return base_text
         guide = _COMPOSE_GUIDE.get(section_id)
@@ -263,6 +267,12 @@ class AnthropicBackend:
             import anthropic
 
             user = f"[이 챕터에서 쓸 글]\n{guide}\n"
+            if ref_year:
+                user += (
+                    f"\n[기준 시점 — 절대 어기지 마라]\n이 풀이의 '지금'과 '올해'는 "
+                    f"{ref_year}년이다. {ref_year}년이 아닌 해를 '지금·올해·현재'로 "
+                    f"부르지 마라. 지나간 해를 다가올 일처럼 말하지 마라.\n"
+                )
             if section_id == "consult":
                 user += f"\n[신청자가 묻고 싶어 한 영역]\n{category}\n"
                 if quoted_concern and quoted_concern.strip():

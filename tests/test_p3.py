@@ -52,6 +52,23 @@ def test_rule_skeleton_passes_all_guards():
     assert r.guard.fallback_sections == 0  # LLM off → 폴백 발생 없음
 
 
+def test_ref_year_anchor_no_past_year_as_now():
+    # 2026-06-12 버그: ref_year 미전달 시 '기준 해'가 seun 첫 해(과거)로 폴백
+    # → "지금은 2025년" 오서술. 닻: 올해는 horoscope 연도로 명시, 과거 세운 비노출.
+    assert _SAJU.ref_year == 2026  # engine 이 horoscope_date 연도 보존
+    r = builder.build_report(_SAJU, use_llm=False)  # ref_year 미전달이어도 saju 에서 복원
+    flow = next(s.final_text for s in r.sections if s.id == "flow")
+    assert "올해는 2026년" in flow, flow[:300]
+    import re as _re
+
+    listed = {int(y) for y in _re.findall(r"(20\d\d)년", flow)}
+    assert all(y >= 2026 or y >= 2020 and "대운" in flow for y in listed)
+    # 세운 나열 구간에는 기준 해 이전 연도가 없어야 함(대운 시작연도 표기는 별개)
+    seun_seg = flow[flow.find("세운 흐름은") :]
+    listed_seun = {int(y) for y in _re.findall(r"(20\d\d)년", seun_seg[:200])}
+    assert listed_seun and min(listed_seun) >= 2026, sorted(listed_seun)
+
+
 def test_no_tool_disclosure_anywhere():
     # 절대규칙 18 개정(2026-06-12 운영자 지시): 본문에 산출 방식 고지(자동 분석
     # 도구·AI·프로그램 언급) 금지 — AI 산출 인상 일절 제거. 역앵커.

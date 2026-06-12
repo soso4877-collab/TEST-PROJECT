@@ -1029,19 +1029,24 @@ def build_all(
         else "자미두수 유년·대한(상담에서 시점을 정해 함께 살피는 구간)"
     )
     age_str = f" 현재 약 {age}세 전후로 보면," if age is not None else ""
+    # 기준 연도 닻(2026-06-12 버그 수정): '올해'는 ref_year 와 정확히 일치하는
+    # 세운만. 과거 해 폴백 금지(LLM "지금은 2025년" 오서술 원인). 세운 나열도
+    # 기준 해 이후만 — 현재 대운 구간의 지난 해는 풀이 대상 아님.
     cur_seun = None
-    if m.seun:
-        cur_seun = next((g for y, g in m.seun if y == ref_year), m.seun[0][1])
-    seun_flow = " · ".join(f"{y}년 {_gz_ko(g)}" for y, g in m.seun[:5]) if m.seun else ""
+    if m.seun and ref_year:
+        cur_seun = next((g for y, g in m.seun if y == ref_year), None)
+    seun_fwd = [(y, g) for y, g in m.seun if not ref_year or y >= ref_year]
+    seun_flow = " · ".join(f"{y}년 {_gz_ko(g)}" for y, g in seun_fwd[:5]) if seun_fwd else ""
     T["thisyear"] = (
         f"가까운 시기의 흐름은 {_J(period_str, '과와')} 대운의 결을 겹쳐서 "
         f"봅니다.{age_str} 대운 {daewoon_dir}이라는 큰 방향 위에 그해의 기운이 "
         f"어떻게 포개지는지를, 단정이 아니라 경향으로 읽습니다.\n"
         + (
-            f"세운(해마다의 기운) 흐름은 {seun_flow}입니다. 기준 해의 세운은 "
-            f"{_ro(_gz_ko(cur_seun))}, {_gz_elem(cur_seun)} 기운"
-            f"({_ELEM_MEAN.get(_GAN_ELEM.get(cur_seun[0], ''), '')})이 그해에 "
-            f"강조되는 결입니다. 대운({daewoon_dir})이라는 큰 물길 위에 그해 "
+            f"올해는 {ref_year}년, {_ro(_gz_ko(cur_seun))}의 해입니다. "
+            f"{_gz_elem(cur_seun)} 기운"
+            f"({_ELEM_MEAN.get(_GAN_ELEM.get(cur_seun[0], ''), '')})이 올해 "
+            f"강조되는 결입니다. 앞으로의 세운 흐름은 {seun_flow}입니다. "
+            f"대운({daewoon_dir})이라는 큰 물길 위에 그해 "
             f"세운이 어떤 색으로 겹치는지를 함께 읽는 것이 핵심입니다.\n"
             if cur_seun
             else ""
@@ -1063,7 +1068,7 @@ def build_all(
         f"결과지에서는 큰 흐름만 짚어 드리며, 특정 달에 특정 사건이 일어난다고 "
         f"단정하지 않습니다.\n"
         + (
-            f"기준 해의 월운을 분기로 나눠 보면 {wol_q}입니다. 분기마다 "
+            f"{'올해(' + str(ref_year) + '년)' if ref_year else '기준 해'}의 월운을 분기로 나눠 보면 {wol_q}입니다. 분기마다 "
             f"강조되는 기운의 색이 달라지니, 앞쪽은 시작과 준비, 가운데는 "
             f"추진과 점검, 뒤쪽은 마무리와 정리의 결로 리듬을 잡는 참고가 "
             f"됩니다.\n"
@@ -1074,18 +1079,19 @@ def build_all(
         f"달별 조언은 시점을 정해 상담에서 함께 정리하시길 권합니다."
     )
 
-    if m.seun:
-        seun_str = ", ".join(f"{y}년 {_gz_ko(g)}" for y, g in m.seun)
+    if seun_fwd:
+        seun_str = ", ".join(f"{y}년 {_gz_ko(g)}" for y, g in seun_fwd)
         wol_str = (
             ", ".join(f"{i + 1}월 {_gz_ko(g)}" for i, (_, g) in enumerate(m.worun))
             if m.worun
             else "상담에서 기준 시점을 정해 함께 봅니다"
         )
+        _yr_lab = f"올해({ref_year}년)의" if ref_year else "기준 해의"
         T["seun"] = (
             f"세운(歲運)은 해마다 바뀌는 기운, 월운(月運)은 달마다의 결입니다. "
             f"특정 사건의 단정이 아니라 준비의 리듬을 보는 참고입니다.\n"
-            f"세운 흐름은 {seun_str}입니다.\n"
-            f"기준 해의 월운은 {wol_str}입니다.\n"
+            f"올해부터의 세운 흐름은 {seun_str}입니다.\n"
+            f"{_yr_lab} 월운은 {wol_str}입니다.\n"
             f"각 해·달의 간지는 그 시기에 강조되는 기운의 방향을 가리키며, "
             f"대운({daewoon_dir})의 큰 흐름 위에서 함께 봅니다. 좋게 보이는 "
             f"해에는 강점을 펼치고, 조심스러운 해에는 속도를 고르며 리듬을 "
