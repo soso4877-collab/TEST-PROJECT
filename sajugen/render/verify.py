@@ -82,7 +82,8 @@ def verify(pdf_path: str) -> dict:
         "fonts_embedded": embedded,
         "outline_items": len(toc),
         "tagged": tagged,
-        "contains_known_ganzhi": ("己卯" in text) or ("戊午" in text),
+        # 풀이 재설계(2026-06-12)로 본문 간지 표기 = 한글 전용 — 한자/한글 모두 인정
+        "contains_known_ganzhi": any(t in text for t in ("己卯", "戊午", "기묘", "무오")),
     }
     doc.close()
 

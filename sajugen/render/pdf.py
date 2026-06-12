@@ -2,13 +2,14 @@
 """Report23 → Jinja2 HTML → Playwright Chromium tagged PDF.
 
 #1 결함(통이미지) 해결: 선택·검색 가능한 텍스트 레이어 + 폰트 임베드 + 태그/아웃라인.
-Paged.js 대신 견고한 @page CSS + Chromium 네이티브 페이지네이션 + Playwright
-header/footer(러닝헤더·페이지번호). 한글 폰트는 시스템(Malgun Gothic) 서브셋 임베드.
+@page CSS + Chromium 네이티브 페이지네이션. 폰트는 번들 OFL(나눔명조 본문,
+한자 폴백 Source Han Serif K)만 서브셋 임베드 — 시스템 폰트 의존 금지.
 """
 
 from __future__ import annotations
 
 import os
+import re
 
 import fitz
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -21,9 +22,17 @@ _OUT = os.path.join(_DIR, "out")
 # 번들 폰트(SIL OFL) 디렉터리 → @font-face file:/// 절대경로. Chromium 이
 # PDF 생성 시 사용 글리프만 서브셋 임베드(PDF/UA 7.1-3 개선·결정론).
 _FONT_DIR = "file:///" + os.path.join(_DIR, "fonts").replace("\\", "/")
+# 페이지 마진 단일 소스 — @page CSS(Jinja 주입)와 pg.pdf margin이 같은 상수를 쓴다
+# (render.md: 둘은 반드시 동기화).
+_PAGE_MARGIN = {"top": "22mm", "bottom": "22mm", "left": "20mm", "right": "20mm"}
+_PAGE_MARGIN_CSS = (
+    f"{_PAGE_MARGIN['top']} {_PAGE_MARGIN['right']} {_PAGE_MARGIN['bottom']} {_PAGE_MARGIN['left']}"
+)
+# 감수 명시형 고지(절대규칙 18) — 운영자 지시(2026-06-12)로 '참고용 상담 자료'·
+# '전문가와 상의' 류 문구는 PDF에 넣지 않는다.
 _DISCLAIMER = (
-    "본 풀이는 명리학·자미두수 전통 해석 체계에 기반한 참고용 상담 자료이며, "
-    "의료·법률·투자 등 중요한 결정은 전문가와 상의하시기 바랍니다."
+    "이 자료는 자동 분석 도구로 사주와 자미두수를 산출하고, "
+    "운영자가 처음부터 끝까지 직접 검수하고 감수하여 작성했습니다."
 )
 # 챕터 마스트헤드(페이지 시작) — 5챕터. id → (번호, 제목, 설명).
 # .chapter 가 page-break-before 를 가지므로 강제 디바이더는 이 5곳만.
@@ -49,11 +58,16 @@ def render_html(
     unknown_time: bool = False,
 ) -> str:
     # 도판 전면 제거(운영자 지시 — 목차+글만). 챕터·번호·차트 변수 미전달.
-    secs = [{"id": s.id, "title": s.title, "final_text": s.final_text} for s in report.sections]
+    # 본문은 빈 줄 기준 문단 분할 → 템플릿 <p> 렌더(단문 호흡 보존 + tagged 구조 개선).
+    secs = [
+        {"id": s.id, "title": s.title, "paragraphs": _split_paragraphs(s.final_text)}
+        for s in report.sections
+    ]
     tmpl = _env.get_template("report.html.j2")
     return tmpl.render(
         title="사주풀이 결과지",
         font_dir=_FONT_DIR,
+        page_margin_css=_PAGE_MARGIN_CSS,
         cover_sub=(
             (f"{name}님\n" if name else "")
             + f"{saju.input_civil}"
@@ -62,6 +76,13 @@ def render_html(
         sections=secs,
         disclaimer=_DISCLAIMER,
     )
+
+
+def _split_paragraphs(text: str) -> list[str]:
+    """빈 줄(연속 개행) 기준 문단 분할 — 문단 내부 단일 개행은 보존(pre-line)."""
+    if not text:
+        return []
+    return [p.strip("\n") for p in re.split(r"\n\s*\n+", text) if p.strip()]
 
 
 def render_pdf(
@@ -86,6 +107,10 @@ def render_pdf(
         pg = b.new_page()
         pg.goto("file:///" + html_path.replace("\\", "/"))
         pg.emulate_media(media="print")
+        # pdf()는 screenshot과 달리 웹폰트 로딩을 기다리지 않는다 — 대용량 폰트
+        # (Source Han Serif 24MB)가 콜드 캐시일 때 본문 글리프가 통째로 빠지는
+        # 레이스 실측(2026-06-12, text_chars 13467→606). 명시 대기 필수.
+        pg.evaluate("document.fonts.ready")
         pg.pdf(
             path=pdf_path,
             format="A4",
@@ -93,7 +118,7 @@ def render_pdf(
             outline=True,
             print_background=True,
             prefer_css_page_size=True,
-            margin={"top": "22mm", "bottom": "22mm", "left": "20mm", "right": "20mm"},
+            margin=_PAGE_MARGIN,
         )
         b.close()
 
@@ -107,7 +132,7 @@ def harden_pdf_ua(pdf_path: str, *, title: str, lang: str = "ko-KR") -> None:
     """
     doc = fitz.open(pdf_path)
     doc.set_metadata(
-        {"title": title, "author": "사주풀이 생성기", "subject": "명리·자미두수 참고 상담 자료"}
+        {"title": title, "author": "사주풀이 생성기", "subject": "명리·자미두수 종합 풀이"}
     )
     xmp = f"""<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
 <x:xmpmeta xmlns:x="adobe:ns:meta/">

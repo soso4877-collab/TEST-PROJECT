@@ -1,10 +1,17 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8">
 <title>{{ title }}</title>
 <style>
-  /* 폰트 번들(SIL OFL). 본문·제목 = Source Han Serif K(명조) — 책 느낌·처리유창성(docs/13).
-     'SajuSerif' 한 본만으로 한글·한자·라틴 전부 명조. 굵은 제목은 가짜굵게 방지 위해 weight 400 유지
-     (크기·여백으로 위계). 'Saju'(Pretendard, sans)는 목차 번호 등 보조에만. Chromium 서브셋 임베드. */
-  @font-face{font-family:'SajuSerif';font-weight:400;font-style:normal;
+  /* 폰트 번들(SIL OFL). 본문·제목 = 나눔명조 R/B(금강산 레퍼런스와 동일 패밀리).
+     나눔명조는 한자 글리프 0 → 한자는 스택 폴백 'SajuHanja'(Source Han Serif K)가 받음
+     (부록 용어 병기·표지 장식 한정). 'SajuBrush'(나눔브러시)는 표지 표제·목차 헤더 전용.
+     'Saju'(Pretendard, sans)는 목차 칩 등 보조에만. Chromium 서브셋 임베드. */
+  @font-face{font-family:'SajuMyeongjo';font-weight:400;font-style:normal;
+    src:url('{{ font_dir }}/NanumMyeongjo-Regular.ttf') format('truetype')}
+  @font-face{font-family:'SajuMyeongjo';font-weight:700;font-style:normal;
+    src:url('{{ font_dir }}/NanumMyeongjo-Bold.ttf') format('truetype')}
+  @font-face{font-family:'SajuBrush';font-weight:400;font-style:normal;
+    src:url('{{ font_dir }}/NanumBrushScript-Regular.ttf') format('truetype')}
+  @font-face{font-family:'SajuHanja';font-weight:400;font-style:normal;
     src:url('{{ font_dir }}/SourceHanSerifK-Regular.otf') format('opentype')}
   @font-face{font-family:'Saju';font-weight:400;font-style:normal;
     src:url('{{ font_dir }}/Pretendard-Regular.woff2') format('woff2');
@@ -18,15 +25,15 @@
     --bg:#fffdf8; --panel:#f7f1e2; --line:#ddd3bb; --ink:#222630; --mut:#5b6675;
     --gold:#9a6f1e; --gold-ink:#7d5610;
     --fs:11.5pt;          /* 본문 기준(명조) */
-    --lh:1.85;            /* 책 본문 행간(넉넉히 — 신뢰·가독, docs/13 처리유창성) */
+    --lh:1.72;            /* 단문 호흡 본문 행간 — 문단 간격이 호흡을 담당 */
     --lh-tight:1.32;
     --ls:-0.003em;        /* 명조 한글 자간(거의 0) */
     --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
     --maxw:148mm}
   *{box-sizing:border-box}
-  @page{size:A4;margin:22mm 20mm}
+  @page{size:A4;margin:{{ page_margin_css }}}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
-    font-family:'SajuSerif','Saju',serif;
+    font-family:'SajuMyeongjo','SajuHanja','Saju',serif;
     line-height:var(--lh);font-size:var(--fs);letter-spacing:var(--ls);
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
 
@@ -58,9 +65,12 @@
 
   .subhead{font-size:1.28em;font-weight:400;color:var(--ink);
     line-height:1.4;margin:var(--s6) 0 var(--s3)}
-  .body{white-space:pre-line;margin:0;max-width:var(--maxw);
-    line-height:var(--lh);text-align:justify;word-break:keep-all}
-  .body p{text-indent:1em;margin:0 0 var(--s3)}
+  /* 본문 = 단문 호흡: 문단(<p>)별 분리 + 여백이 빈 줄 호흡을 담당.
+     좌측정렬(ragged right) — 금강산 방식, justify 강제 줄간 늘임 제거. */
+  .body{margin:0;max-width:var(--maxw);
+    line-height:var(--lh);text-align:left;word-break:keep-all}
+  .body p{white-space:pre-line;text-indent:0;margin:0 0 .95em;
+    orphans:2;widows:2}
   .disclaimer{font-size:.86em;color:var(--mut);background:var(--panel);
     border:1px solid var(--line);border-radius:4px;padding:var(--s4);
     margin-top:var(--s6);line-height:1.7;letter-spacing:0;text-align:left}
@@ -91,7 +101,7 @@
   {% if s.id not in ['appendix_terms','colophon'] %}<div class="cnum">제 {{ cs.n }} 장</div>{% endif %}
   <h2 class="ctitle">{{ s.title }}</h2>
   <div class="crule"></div>
-  <div class="body">{{ s.final_text }}</div>
+  <div class="body">{% for p in s.paragraphs %}<p>{{ p }}</p>{% endfor %}</div>
   {% if s.id == 'colophon' %}<div class="disclaimer">{{ disclaimer }}</div>{% endif %}
 </section>
 {% endif %}

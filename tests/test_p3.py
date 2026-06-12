@@ -28,11 +28,14 @@ def test_gakron_and_new_sections_present_and_deep():
     for sid in ("love", "work", "nature", "health", "flow"):
         assert sid in by, f"{sid} 챕터 누락"
         assert len(by[sid].final_text.strip()) >= 500, (sid, len(by[sid].final_text))
-    # health 는 의료 단정 금지 + 의료 전문가 안내 포함
+    # health 는 의료 단정 금지 + 진료 안내 포함(운영자 지시 2026-06-12:
+    # '전문가와 상의' 보일러플레이트 금지 → '병원 진료/확인' 자연 문구로 대체)
     ht = by["health"].final_text
     for term in ("병에 걸린", "병이 생긴", "불치", "수명이 짧", "죽는다", "사망", "단명"):
         assert term not in ht, f"health 의료 단정어: {term}"
-    assert "의료 전문가" in ht
+    assert "병원" in ht
+    for hedge in ("전문가와 상의", "참고용", "참고로만"):
+        assert hedge not in ht, f"health 책임회피 문구 잔존: {hedge}"
     # 상품 토글: 자미단독은 명리계열 챕터(nature/flow) 제외, 자미 챕터는 유지
     rz = builder.build_report(_SAJU, use_llm=False, product="ziwei")
     zids = {s.id for s in rz.sections}
