@@ -53,10 +53,11 @@ def test_rule_skeleton_passes_all_guards():
 
 
 def test_safe_lint_catches_forbidden():
+    # 2026-06-12 완화 후에도 유지되는 법적 리스크 패턴(보장·과장·적중)
     bad = "이 사람과는 반드시 재회합니다. 올해 무조건 대박납니다. 100% 적중."
     v = safe_lint.lint(bad)
     whys = {x["why"] for x in v}
-    assert "단정" in whys and "관계 단정" in whys and "재물 단정" in whys
+    assert "관계 결과 보장" in whys and "재물 보장·과장" in whys and "과장·허위(적중 주장)" in whys
     assert not safe_lint.is_clean(bad)
 
 
