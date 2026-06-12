@@ -5,7 +5,7 @@
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
-> 최종 갱신: 2026-06-10  (상용화 플랜 승인 + Phase 0 문서화 완료)
+> 최종 갱신: 2026-06-12  (대개편 D1·D2·C1·C2·C3 완료 — 금강산급 디자인 + 샘플급 직설 말투 + 상대방 사주)
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
@@ -73,6 +73,34 @@ Phase5 4단계 구간2·3·4 본문생성(2026-06-11): llm_sections 에 compose(
   다음 세션: (1) PDF 최종 생성 후 veraPDF/게이트 재측정·운영자 PDF 육안 A/B, (2) 폴백 시 룰 산문 풍부화(보강),
       (3) 검수 UI(store/orders APPROVED) 연결, (4) 다양한 케이스(여성·미성년·자미단독 등) 톤 점검.
   착수 전 필독 메모리: feedback-sajugen-llm-content-pitfalls(반복실수 체크리스트 — '로그로 원인 먼저' 가 이번에 적중).
+대개편(2026-06-12, 플랜 quizzical-brewing-hejlsberg 승인·D1~C3 5커밋): 운영자 지시 = 금강산급 디자인 +
+  샘플(웹AI 풀이) 수준 직설 말투 필수 하한 + 상대방 사주 포함 + '참고용·전문가와 상의' 류 문구 PDF 금지.
+  - D1 폰트·타이포(5078314): 나눔명조 R/B 본문(금강산 동일 패밀리)+나눔브러시 표제(OFL 동반), 한자=
+    SourceHanSerifK 스택 폴백. 좌측정렬·행간 1.72·문단 <p> 분할(빈 줄 호흡 보존). 마진 _PAGE_MARGIN 단일
+    소스. [중요 발견] Playwright pdf()는 웹폰트 로딩 비대기 → 콜드 캐시에서 본문 글리프 통째 소실
+    (13467→606자 실측) → document.fonts.ready 명시 대기로 해결. verify 한글 간지 토큰 인정.
+  - D2 한지 배경·표지(0c12011): assets/hanji.svg 절차생성(시드 고정)+make_assets.py 로 낙관('사주명리'
+    세로·붉은 이중테두리) 합성 → hanji_bg.jpg. CSS 캔버스 배경은 print 에서 마진·마지막 페이지 미도색
+    실측 → PyMuPDF 전 페이지 언더레이(XObject 1회)로 풀블리드. 표지=붓글씨 표제+이름 필수+세로 표제 박스.
+    목차=장 칩+대시 리더. 배경 픽셀 회귀앵커(test_p4).
+  - C1 가드 완화(44e607d, 운영자 명시 지시=절대규칙12 단서): 단정 부사 단독 허용, 부사+결과동사 결합
+    (보장 진술)만 차단. 적중·100%·의료/생사·운명론·보장형은 불변. test_safe_lint 신설(샘플 원문 허용 앵커).
+  - C2 말투 재작성(6a1781e): docs/14-tone-spec.md(샘플 익명화+스펙 10항목). _COMPOSE_SYSTEM=단문 호흡
+    (한 호흡 줄바꿈+빈 줄)·공감 미러링→핵심 직답→직설 사실→흐름→행동지침→격려·구어체 혼용·헤지 금지.
+    rules 일주 동물·빛깔 슬롯(_gz_animal '검은 개'). 실호출 스모크: love 2382자·24문단·가드 0.
+  - C3 상대방 사주(db63f88): input/partner.py(생년월일 감지·스팬), calc/partner.py(결정론 — 990118=
+    무인 을축 경오 골든, 시미상=시주 제외, 십성=SHI_SHEN·천간합·육합/충·삼합 반합·부족오행 보완),
+    rules.partner_block(파생값만, 원본 비전달), masking.py+compose(quoted_concern)=절대규칙17 a~d 구현
+    (마스킹 인용블록, consult 한정). factcheck 한글 간지 검사 신설(접미 문맥 필수)+extra_ganzhi.
+  - 고지 정비(운영자 지시): '참고용 상담 자료·전문가와 상의' 전면 제거, 감수 명시형(규칙18)은 유지,
+    health=의료 비단정+'병원에서 확인' 자연 문구로 대체(test_p3 앵커 갱신).
+  - 종합 실측(2026-06-12, 샘플 케이스 1989-01-02 07:40 여+상대 990118 질문): polished 12/12·fallback 0·
+    가드 clean, 41p·26,020자·431KB, 게이트 GREEN, veraPDF failed=['7.1-3'] 비악화, 빌드 188s.
+    consult=상대 경오일주·술오 삼합(화 살아남)·편인 끌림 설명 재현, 생년월일 비노출. 전체 pytest 125 PASS.
+    산출물: sajugen/render/out/final_sample.pdf (운영자 육안 A/B 대기).
+  운영자 확인 대기 2건: (1) 표지/낙관 표제 문구(현재 '사주명리'·'종합 사주 풀이' — 상품명 확정 필요),
+    (2) 한지 질감 강도(현 SVG 절차생성 — 미달 판정 시 CC0 래스터 교체 경로 준비됨).
+  다음 후보: 검수 UI 연결, 다양한 케이스 톤 점검, intro 인사말 1인칭 서명(운영자 브랜드) 추가.
 조사대상(미해결): lunar-python sect=2 고정이 JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈
   (공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
 전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
