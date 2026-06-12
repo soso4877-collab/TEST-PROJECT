@@ -32,8 +32,13 @@ _COMPOSE_SECTIONS = {
 }
 
 
+_HR_RX = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,}|={3,})\s*$")  # 마크다운 수평선('---' 누출)
+_LIST_MARK_RX = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")  # 줄머리 불릿/번호 마커
+
+
 def _strip_artifacts(text: str) -> str:
-    """LLM 출력의 메타 누출 제거 — 섹션 표시·마크다운 제목/굵게 등 AI틱 표식을 걷어낸다."""
+    """LLM 출력의 메타 누출 제거 — 섹션 표시·마크다운(제목/굵게/수평선/리스트/
+    인용) 등 AI틱 표식을 걷어낸다. '---' 본문 인쇄 실사고(2026-06-12) 재발 방지."""
     out = []
     for ln in text.splitlines():
         s = ln.strip()
@@ -41,7 +46,12 @@ def _strip_artifacts(text: str) -> str:
             continue
         if s.startswith("#"):  # 마크다운 제목(# 일과 직업…) 누출 제거
             continue
-        ln = ln.replace("**", "").replace("##", "")  # 굵게/잔여 마크다운
+        if _HR_RX.match(ln):  # 수평선 구분선 라인 통째 드롭
+            continue
+        ln = _LIST_MARK_RX.sub("", ln)  # 줄머리 리스트 마커만 제거(내용 보존)
+        ln = ln.replace("**", "").replace("##", "").replace("`", "")  # 굵게/코드 잔재
+        if ln.lstrip().startswith("> "):  # 인용 머리
+            ln = ln.lstrip()[2:]
         out.append(ln)
     return "\n".join(out).strip()
 
@@ -61,7 +71,8 @@ def _hanja_clean(text: str) -> str:
     t = t.replace("[자미 구조]", "").replace("[읽는 방향]", "")
     t = re.sub(rf"^\s*[{_CIRCLED}]\s*", "", t, flags=re.M)  # 줄머리 원문자
     t = re.sub(r"^\s*·\s*", "", t, flags=re.M)  # 줄머리 불릿
-    t = t.replace("첫째,", "먼저,").replace("둘째,", "그리고,").replace("셋째,", "끝으로,")
+    # '첫째→먼저' 류 치환은 폐기(2026-06-12 운영자 지적 — '먼저/그리고/끝으로'
+    # 나열 잔재 자체가 AI틱). 나열은 룰 골격·프롬프트에서 원천 제거.
     t = re.sub(r"\s*→\s*", ", ", t)  # 화살표 → 쉼표(서사화)
     t = re.sub(r" · ", ", ", t)  # 불릿 구분(양옆 공백) → 쉼표
     t = re.sub(r"\(\s*\)", "", t)  # 빈 괄호

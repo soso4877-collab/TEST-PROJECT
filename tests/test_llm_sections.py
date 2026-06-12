@@ -102,15 +102,34 @@ def test_build_report_no_key_is_rule_fallback_and_clean(monkeypatch):
 # --- 고민 입력 배선(구간1 분류 + 구간3 라우팅 섹션) ---
 
 
+def test_strip_artifacts_markdown_leak():
+    # 2026-06-12 실사고: LLM 출력의 '---' 수평선이 본문에 인쇄됨 — 재발 방지 앵커
+    raw = (
+        "그래서 구체적으로 이야기하면,\n\n- 쉬는 것을 일과로 넣어야 해요.\n"
+        "1. 수면이 중요합니다.\n---\n***\n> 몸의 신호를 그냥 넘기지 마세요.\n"
+        "**강조**도 `코드`도 안 됩니다."
+    )
+    out = builder._strip_artifacts(raw)
+    assert "---" not in out and "***" not in out
+    assert "- 쉬는" not in out and "1. 수면" not in out
+    assert "**" not in out and "`" not in out and "> " not in out
+    assert "쉬는 것을 일과로 넣어야 해요." in out  # 내용은 보존
+    assert "몸의 신호를 그냥 넘기지 마세요." in out
+
+
 def test_no_ai_tells_in_nonstatic_chapters(monkeypatch):
     # 재편 회귀 앵커: 룰 폴백(무키)이라도 해석 챕터에 AI틱 표식이 없어야 한다.
-    # 한자·원문자·대괄호 라벨·줄머리 불릿·화살표·'첫째/둘째' 부재. (정적 챕터는 면제)
+    # 한자·원문자·라벨·불릿·화살표·나열('첫째/먼저,')·수평선·'당신' 부재. (정적 면제)
     import re
 
     _no_key(monkeypatch)
     rep = builder.build_report(_saju(), use_llm=False, ref_year=2026, concern="올해 이직")
     static = {"cover", "toc", "appendix_terms", "colophon"}
-    bad = re.compile(r"첫째,|둘째,|셋째,|[①②③④⑤]|→|\[원국\]|\[기운 분포\]| · |[一-鿿]")
+    bad = re.compile(
+        r"첫째,|둘째,|셋째,|먼저, |그리고, |끝으로, |[①②③④⑤]|→|\[원국\]"
+        r"|\[기운 분포\]| · |[一-鿿]|^-{3,}\s*$|당신",
+        re.M,
+    )
     offenders = {
         s.id: sorted(set(bad.findall(s.final_text)))
         for s in rep.sections
