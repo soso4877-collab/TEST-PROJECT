@@ -14,11 +14,18 @@
 from __future__ import annotations
 
 import os
+import sys
 from typing import Protocol, runtime_checkable
 
 from . import llm_polish
 from .question_router import QuestionCategory
 from .question_router import classify as _rule_classify
+
+
+def _compose_log(section_id: str, kind: str, detail: str = "") -> None:
+    """compose 폴백 원인 진단 — stderr 로 흘려 폴백을 삼키지 않는다(신뢰성 디버깅)."""
+    print(f"[compose-fallback] {section_id}: {kind} {detail}".rstrip(), file=sys.stderr, flush=True)
+
 
 _CLASSIFY_SYSTEM = (
     "너는 한국어 사주 상담 신청 문장을 한 개의 카테고리로 분류한다. "
@@ -49,6 +56,9 @@ _COMPOSE_SYSTEM = (
     "· 거의 모든 문단에서 그 사람을 자연스럽게 부른다(이름이 있으면 '○○님', 없으면 '당신').\n"
     "· 문장 길이를 다양하게. 같은 문형 반복 금지. 따뜻하고 확신 있되 강요하지 않는다.\n\n"
     "[안전 — 절대]\n"
+    "· 다음 단어를 절대 쓰지 마라(가드가 즉시 폐기한다): '반드시', '무조건', '틀림없이/틀림없다', '확실히 된다/됩니다', "
+    "'100%', '대박', '쪽박', '꼭 돌아온다', '재회한다', '헤어진다/이혼한다', '합격한다/불합격', '임신한다', '운명이 정해졌다', "
+    "'죽는다/사망/단명', '병에 걸린다/암'. 강조하고 싶으면 '대체로·흔히·~하기 쉽다·~인 편이다'처럼 연다.\n"
     "· 단정·보장·공포·운명론·적중 주장 금지. 미래는 '경향과 준비'로 연다. 의료·법률·투자·합격·재회는 단정하지 말고 "
     "'점검'·'전문가와 상의' 틀로 쓴다.\n"
     "· 분량은 근거 자료를 충분히 풀어 금강산 수준 이상으로 깊게. 짧게 요약하지 말고 상담하듯 충분히 써라."
@@ -218,8 +228,12 @@ class AnthropicBackend:
             )
             parts = [b.text for b in msg.content if getattr(b, "type", "") == "text"]
             out = "".join(parts).strip()
+            if not out:
+                _compose_log(section_id, "empty-output", f"stop={getattr(msg, 'stop_reason', '?')}")
             return out or base_text
-        except Exception:
+        except Exception as e:
+            # 진짜 원인 진단(429/529/timeout/400 등) — 폴백 원인을 삼키지 않는다.
+            _compose_log(section_id, type(e).__name__, str(e)[:200])
             return base_text  # 어떤 실패든 룰 골격 폴백
 
 

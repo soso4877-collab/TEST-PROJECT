@@ -120,6 +120,15 @@ def build_report(
         rule_viol[sid] = safe_lint.lint(rt) + factcheck.check(rt, saju)
         title_of[sid] = title
 
+    # consult(신청 질문)는 카테고리 라우팅 골격만으론 사실이 없어 LLM이 답을 거부한다.
+    # 명식 사실(기질·시간 흐름)을 근거로 합쳐 넣어 개인화 답변이 가능하게 한다.
+    def _base_for(sid: str) -> str:
+        if sid == "consult":
+            return "\n\n".join(
+                rule_texts[k] for k in ("nature", "flow", "consult") if k in rule_texts
+            )
+        return rule_texts[sid]
+
     # LLM 챕터 작성은 챕터당 ~60초라 병렬 실행(독립 호출) — 12챕터 12분 → 1~2분.
     # 무키/룰백엔드면 compose 가 원문 반환하므로 호출 자체를 생략(비용·시간 0).
     cand_map: dict[str, str] = {}
@@ -132,29 +141,13 @@ def build_report(
         if targets:
             import concurrent.futures
 
-            # consult(신청 질문)는 카테고리 라우팅 골격만으론 사실이 없어 LLM이 답을 거부한다.
-            # 명식 사실(기질·시간 흐름)을 근거로 합쳐 넣어 개인화 답변이 가능하게 한다.
-            def _base_for(sid: str) -> str:
-                if sid == "consult":
-                    facts = "\n\n".join(
-                        rule_texts[k] for k in ("nature", "flow", "consult") if k in rule_texts
-                    )
-                    return facts
-                return rule_texts[sid]
-
             def _compose_one(sid: str) -> str:
-                # 일시적 오류(속도제한 등) 1회 재시도 후 실패 시 룰 폴백.
-                for _ in range(2):
-                    try:
-                        return backend.compose(
-                            section_id=sid,
-                            title=title_of[sid],
-                            category=category.value,
-                            base_text=_base_for(sid),
-                        )
-                    except Exception:
-                        continue
-                return rule_texts[sid]
+                return backend.compose(
+                    section_id=sid,
+                    title=title_of[sid],
+                    category=category.value,
+                    base_text=_base_for(sid),
+                )
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
                 futs = {ex.submit(_compose_one, sid): sid for sid in targets}
@@ -163,7 +156,7 @@ def build_report(
                     try:
                         cand_map[sid] = f.result()
                     except Exception:
-                        cand_map[sid] = rule_texts[sid]  # 실패 시 룰 폴백
+                        cand_map[sid] = rule_texts[sid]  # API 실패 시 룰 폴백
 
     for sid, title, src in SECTION_SPECS:
         if sid in drop:
@@ -187,11 +180,36 @@ def build_report(
             if cand and cand != rule_text:
                 csv = safe_lint.lint(cand)
                 cfv = factcheck.check(cand, saju)
+                # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
+                # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
+                if (csv or cfv) and sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
+                    retry = _strip_artifacts(
+                        backend.compose(
+                            section_id=sid,
+                            title=title,
+                            category=category.value,
+                            base_text=_base_for(sid),
+                        )
+                        or ""
+                    )
+                    # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
+                    if retry and retry != rule_text:
+                        rsv, rfv = safe_lint.lint(retry), factcheck.check(retry, saju)
+                        if not rsv and not rfv:
+                            cand, csv, cfv = retry, rsv, rfv
                 if not csv and not cfv:
                     final, polished = cand, True
                     polished_n += 1
                 else:
-                    fallback_n += 1  # 생성/윤문이 가드 실패 → 룰 원문 유지
+                    fallback_n += 1  # 재작성도 실패 → 룰 원문 유지
+                    import sys
+
+                    _bad = [v.get("match") or v.get("token") for v in (csv + cfv)][:5]
+                    print(
+                        f"[compose-fallback] {sid}: guard-fail safe={len(csv)} fact={len(cfv)} {_bad}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
 
         # 표시 직전 한자 제거(정적 챕터 제외 — 부록 용어집의 한자 병기는 교육용으로 유지).
         if sid not in _STATIC_OK:
