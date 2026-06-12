@@ -5,7 +5,7 @@
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
-> 최종 갱신: 2026-06-12  (3차 수정 F1~F4 완료 — 낙관 이미지화(뷰어 호환)·스타일 가드 신설·기호/비유/반복 0)
+> 최종 갱신: 2026-06-12  (4차 G1~G4 완료 — 3엔진 검증·폰트 업그레이드(고운바탕+본명조)·가족 다중 명식·비용 실측 $0.5/건)
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
@@ -144,6 +144,21 @@ Phase5 4단계 구간2·3·4 본문생성(2026-06-11): llm_sections 에 compose(
     veraPDF ['7.1-3'], 231s. 전수 감사 전 항목 0(줄표/가운뎃점/당신/점수/메타발화/비유어),
     '기운' 92→23·'의 결' 49→2, 호명 103회. 전체 pytest 135+ PASS.
     산출물: sajugen/render/out/final_19971027_seodam.pdf.
+4차(2026-06-12, G1~G4 + 오탐 수정 2건):
+  - G1 뷰어 진단 종결: MuPDF·PDFium(Edge/Chrome)·pdf.js(Firefox) 3엔진 정상 — 깨짐은 Cursor
+    내장 미리보기 한계(고객 영향 없음, 검수는 Edge/Acrobat). pdf.js 검증법 메모리 기록.
+  - G2 폰트 업그레이드(c041682): 본문=고운바탕 R/B(OFL), 제목·표제·낙관=본명조 Bold(Adobe OFL).
+    마루부리(라이선스 원문 미확보)·KoPub(임베딩 별도 승인) 기각. 송명(OFL)은 동봉만.
+  - G3 가족 다중 명식(d775c16): 파서 다중·음력(KASI 변환)·한글 시각(오전/오후)·관계+이름 라벨,
+    빌더 전원 주입(상한 4), partner_block 라벨·시주 조건부. 골든: 음1963-10-18→양1963-12-03.
+  - 오탐 수정: (1) 반복 상한 길이 비례화(절대값이 4인 consult 정상 밀도 차단),
+    (2) factcheck 한글 간지 동형 일상어(계신=癸申 등 7종) 제외 — '들어와 계신 시기' 차단 실사고.
+  - G4 비용 계측(usage 토큰 집계)+신순자 생성: 음1972-05-20 09:30 여(양1972-06-30, 壬子 丙午
+    壬辰 甲辰)+가족 3인. 최종 실측 polished 12/12·fallback 0·clean, 42p·732KB, 176s,
+    Sonnet 12콜 in 56,770/out 22,996 = $0.515/건(약 700원, Haiku 분류 +1원 미만).
+    API 외 비용 = 0원(KASI 무료키·폰트 전부 무료 라이선스·Playwright/PyMuPDF(AGPL, 내부도구
+    비배포라 무료)/pypdfium2/veraPDF 무료 — 잔여는 전기뿐).
+    산출물: sajugen/render/out/final_sinsoonja.pdf (서담선생 브랜드).
 조사대상(미해결): lunar-python sect=2 고정이 JST_2300과 23:00~24:00 출생에서 일주 어긋날 잠재 이슈
   (공망은 자체산술로 회피했으나 일주 자체는 별도 조사).
 전체 회귀 79 PASS. 다음 = Phase 5(Question Router + 부분 LLM 4구간, content/question_router.py·llm_sections.py;
