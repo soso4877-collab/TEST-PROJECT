@@ -5,7 +5,9 @@
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
-> 최종 갱신: 2026-06-13  (Phase 0~9 완료. 현재 단계 = 지인 베타 검증 — docs/15-beta-plan.md, 운영자 대상 섭외 대기)
+> 최종 갱신: 2026-06-14  (지인 베타 2건(장순조·김태성) LLM 생성·피드백. 베타 재정비 Phase A 완료
+>   = 브랜드 서담선생 기본+자유입력 / 가정어 제거(세운 연도 앵커)+style_lint 가정어 가드, pytest 159 PASS.
+>   B(챕터 반복)·C(저장·재사용, 보존정책 선행)·D(promptfoo 측정) 보류. 재정비 플랜: ~/.claude/plans/subprocess-run-recursive-rivest.md)
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
