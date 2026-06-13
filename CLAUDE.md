@@ -38,3 +38,16 @@
 - Bash 도구로 PowerShell/cmd 실행 금지. 파일 탐색은 Read/Glob/Grep 사용.
 - 한 번에 한 작업(Phase 단위), 각 Phase 완료 시 STATE.md 갱신 + pytest 전체 GREEN 확인.
 - 커밋 메시지·주석·문서는 한국어. 푸시는 사용자 지시가 있을 때만.
+
+## Git 컨벤션 (2026-06-13 확정 — 솔로 내부도구, GitHub Flow/트렁크 기반)
+- 브랜치 모델: `main` = 항상 GREEN인 안정 베이스라인(복구·발송 기준점). `feat/...` = 활성 작업.
+  Phase 완료 + pytest 전체 GREEN 시점에만 `main`을 feat로 fast-forward 전진(머지 커밋 없이 선형 유지).
+- 커밋 단위: 논리적 1변경 = 1커밋. 한국어 Conventional Commit.
+  type 매핑 — 기능=feat / 버그=fix / 문서·STATE=docs / 테스트=test / 잡무=chore / 성능=perf.
+- 커밋 시점: 의미 있는 작업 경계(서브태스크/Phase)마다. 커밋 전 항상 pytest GREEN.
+  계산(calc/, input/) 수정은 같은 커밋에 테스트 + 골든 회귀 동반(절대규칙 20).
+- 푸시 시점: 어시스턴트(claude)는 사용자 지시가 있을 때만 push(절대 자동 push 금지).
+  운영자는 유실 방어를 위해 매 작업 세션/Phase 종료 시 feat를 push 권장. main을 전진시킨 회차엔 main도 push.
+- 커밋 안전: `.env`·`data/`(KASI)·`sajugen/tools/`(288MB)·`render/out/` 등은 .gitignore로 격리됨.
+  커밋 훅(block-env-commit.js·pre-commit-security.js)이 비밀정보 커밋을 이중 차단.
+- 원격: `origin` = github.com/soso4877-collab/TEST-PROJECT (단일 운영자).
