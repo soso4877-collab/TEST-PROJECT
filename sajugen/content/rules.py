@@ -773,11 +773,12 @@ def build_all(
     )
 
     _animal = _gz_animal(m.day.ganzhi)
+    # 일주 간지 자기소개("○○님은 ◇◇일주")는 원국(wonguk) 장이 소유 — 여기(기질 장)서는 재소개하지
+    # 않고 일간부터 바로 풀어, 챕터 간 반복을 근원에서 차단(2026-06-14 운영자 베타 지적). 동물 비유는 유지.
     T["ilgan"] = (
-        f"일간 {_J(f'{dm_ko}', '은는')} {nm_call} 자신을 상징하는 글자입니다. {nm_call}의 "
-        f"일주는 {_gz_ko(m.day.ganzhi)}"
-        + (f" — 일주로 보면 {_animal}의 기운을 갖고 태어나셨습니다" if _animal else "")
-        + f". 그 속에는 지장간 "
+        f"일간 {_J(f'{dm_ko}', '은는')} {nm_call} 자신을 상징하는 글자입니다. "
+        + (f"{_animal}의 기운을 타고난 결이에요. " if _animal else "")
+        + f"일지 속에는 지장간 "
         f"{_J(_hidegan_ko(m.day.hide_gan), '이가')} 들어 있으며, 십이운성으로는 "
         f"{_dishi_phrase(m.day.dishi)}의 결입니다. 일주의 "
         f"지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} {day_zhi_mn}의 결로, "

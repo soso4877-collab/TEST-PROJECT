@@ -16,6 +16,7 @@ from . import (
     llm_sections,
     masking,
     question_router,
+    repetition,
     rules,
     safe_lint,
     style_lint,
@@ -355,6 +356,11 @@ def build_report(
                 guard_violations=applied_violations if not polished else [],
             )
         )
+
+    # 크로스챕터 반복 억제(결정론 백스톱): 일주 자기소개는 원국(wonguk) 장에만 — 병렬 compose가
+    # 프롬프트·골격 수정에도 잔존시키는 중복 도입 줄을 다른 장에서 제거(2026-06-14 베타 지적).
+    if use_llm and backend.name == "anthropic":
+        repetition.dedup_ilju_intro(sections, owner_id="wonguk")
 
     grounding_ok, _bad = trace.check(sections)
     clean = safe_total == 0 and fact_total == 0 and grounding_ok
