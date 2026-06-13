@@ -90,7 +90,7 @@ def intake(
     name: str = Form(...),
     product: str = Form("integrated"),
     concern: str = Form(""),
-    brand: str = Form("default"),
+    brand: str = Form("seodam"),
 ):
     try:
         order_id, _warnings = order_flow.create_order(

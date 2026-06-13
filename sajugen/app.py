@@ -34,7 +34,7 @@ _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</t
    <option value="female">여</option></select></p>
  <p>상품: <select name="product"><option value="integrated">통합(명리+자미)</option>
    <option value="myeongni">명리만</option><option value="ziwei">자미만</option></select></p>
- <p>브랜드 프로필: <input name="brand" value="default" placeholder="config/brands.yaml 키"></p>
+ <p>브랜드: <input name="brand" value="seodam" placeholder="seodam·default 또는 원하는 문구"></p>
  <p>경도: <input name="longitude" value="126.978"> 위도: <input name="latitude" value="37.566"></p>
  <p><label><input type="checkbox" name="yajasi"> 야자시/조자시 분리</label></p>
  <p>대한·유년 기준일: <input name="horoscope" placeholder="2026-06-01"></p>

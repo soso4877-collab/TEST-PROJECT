@@ -63,30 +63,57 @@ def myeongni_shinsal() -> dict:
 
 # --- 브랜드 프로필(config/brands.yaml) — 다계정 운영(2026-06-12) ---
 _BRANDS = Path(__file__).resolve().parents[1] / "config" / "brands.yaml"
-_BRAND_DEFAULT = {
-    "seal": "사주명리",
-    "cover_title": "종합 사주 풀이",
-    "closing_sign": "사주명리 드림",
+# 내장 프리셋(yaml 부재/손상 시에도 동작 보장). yaml 이 있으면 그 위에 병합.
+_PRESETS = {
+    "default": {
+        "seal": "사주명리",
+        "cover_title": "종합 사주 풀이",
+        "closing_sign": "사주명리 드림",
+    },
+    "seodam": {
+        "seal": "서담선생",
+        "cover_title": "서담선생 종합 사주 풀이",
+        "closing_sign": "서담선생 드림",
+    },
 }
+_BRAND_DEFAULT = _PRESETS["default"]
+_SEAL_MAX = 24  # 자유 입력 브랜드 문구 길이 상한(표지·낙관 안전)
 
 
 @lru_cache(maxsize=1)
 def _brands() -> dict:
+    out = {k: dict(v) for k, v in _PRESETS.items()}
     try:
         if _BRANDS.exists():
             data = yaml.safe_load(_BRANDS.read_text(encoding="utf-8")) or {}
             if isinstance(data, dict):
-                return data
+                for k, v in data.items():
+                    if isinstance(v, dict):
+                        out.setdefault(k, {}).update(v)
     except Exception:
-        pass  # 손상 시 기본 프로필만(런타임 보장)
-    return {"default": dict(_BRAND_DEFAULT)}
+        pass  # 손상 시 프리셋 유지(런타임 보장)
+    return out
 
 
 def brand(profile: str | None = None) -> dict:
-    """브랜드 프로필 — 미지정/미존재 키는 default, default도 없으면 내장 기본값."""
+    """브랜드 프로필 해석.
+
+    - 미지정 → default 프리셋.
+    - 프리셋/yaml 키(예: seodam) → 해당 프로필.
+    - 프리셋에 없는 임의 문구 → 그 문구를 브랜드명으로 합성(운영자 자유 입력 지원).
+      합성 시 입력은 표지·낙관 텍스트로만 쓰이고 길이 상한(_SEAL_MAX)으로 trim.
+    """
     data = _brands()
-    p = data.get(profile or "default") or data.get("default") or {}
+    key = (profile or "default").strip()
+    if key in data and isinstance(data[key], dict):
+        p = data[key]
+    else:
+        name = key[:_SEAL_MAX]  # 자유 입력 문구
+        p = {
+            "seal": name,
+            "cover_title": f"{name} 종합 사주 풀이",
+            "closing_sign": f"{name} 드림",
+        }
     out = dict(_BRAND_DEFAULT)
-    if isinstance(p, dict):
-        out.update({k: v for k, v in p.items() if v})
+    out.update({k: v for k, v in p.items() if v})
     return out

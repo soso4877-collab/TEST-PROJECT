@@ -67,7 +67,9 @@ def test_brand_profile_in_html():
     bp = cfg.brand("seodam")
     html = render_pdf.render_html(_REPORT, _SAJU, name="홍길동", brand=bp)
     assert "서담선생" in html
-    assert cfg.brand("없는키")["seal"] == "사주명리"  # 미존재 키는 default 폴백
+    # 브랜드 계약(2026-06-14 개정): 미지정→default, 프리셋 키→그 프로필, 그 외 임의 문구→그 문구로 합성
+    assert cfg.brand(None)["seal"] == "사주명리"  # 미지정 = default
+    assert cfg.brand("서담선생직접입력")["seal"] == "서담선생직접입력"  # 자유 입력 브랜드명 합성
 
 
 def test_gwakgwak_frame_every_page():
