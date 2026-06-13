@@ -5,7 +5,7 @@
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
-> 최종 갱신: 2026-06-13  (Phase 9 익명 계산특이점 데이터셋 완료 — insight.py 화이트리스트 추출·delete 연계·PII 부재 검증, pytest 159 PASS)
+> 최종 갱신: 2026-06-13  (Phase 0~9 완료. 현재 단계 = 지인 베타 검증 — docs/15-beta-plan.md, 운영자 대상 섭외 대기)
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
