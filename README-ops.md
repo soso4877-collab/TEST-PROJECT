@@ -81,8 +81,21 @@ python -m venv .venv
 - `--reason`에 개인정보(이름·생일 등) 기재 금지.
 - 고객의 삭제 요구(제36조) 대응 경로도 동일.
 
-> 엔진 개선용 데이터가 필요하면 원본 PII 보존이 아니라 **익명/가명 처리된 계산특이점
-> 데이터셋**(제28조의2·58조의2)으로 별도 구축한다(향후 Phase 9 예정).
+**엔진 개선용 데이터 = 익명 추출(파기와 병행).** 원본 PII 보존이 아니라 식별자를 제거한
+계산특이점만 보존한다(제28조의2 연구·통계 / 제58조의2 익명 적용제외).
+
+```
+# 단건 추출(기본: 경계 케이스만, --all 로 전수)
+./.venv/Scripts/python.exe -m sajugen.insight extract --order-id ord_XXXX
+# 전체 스윕
+./.venv/Scripts/python.exe -m sajugen.insight sweep --all
+# 파기와 동시에(extract-then-purge)
+./.venv/Scripts/python.exe -m sajugen.delete_order --order-id ord_XXXX \
+  --extract-insight --reason "발송 완료 파기" --yes
+```
+
+산출: `data/calc_insights.jsonl`(이름·출생지·고민·order_id 미포함). 입력(분단위)·4주·경계
+플래그만 담겨 기존 골든 케이스와 동형 — 엔진 회귀/개선 후보로 사용.
 
 ---
 

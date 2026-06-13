@@ -14,5 +14,6 @@
 | 6 | Admin Review UI | sajugen/admin/, content/repetition.py | 주문 1건 풀사이클 리허설 | 완료 2026-06-13 (/admin 접수→검수→승인→발급 루프·실경로 E2E, test_admin_ui 12 PASS) |
 | 7 | 안전·반복 필터 보강+테스트 100+ | safe_lint 확장, 골든 자동 케이스 | pytest 100+ GREEN, veraPDF 비악화 | 부분 — 테스트 153 GREEN(100+ 충족)·veraPDF 7.1-3 비악화. safe_lint 추가 확장·골든 자동화는 백로그 |
 | 8 | MVP 릴리스 체크리스트 | delete_order.py, README-ops, CLAUDE.md | E2E 3건(평일/윤달/시진불명) PASS | 완료 2026-06-13 (delete_order.py 하드삭제+감사·README-ops·test_p8 E2E 3건 PASS) |
+| 9 | 익명 계산특이점 데이터셋(엔진 개선) | sajugen/insight.py, delete_order --extract-insight | 식별자 제거 화이트리스트 추출·PII 부재 검증 | 완료 2026-06-13 (insight.py 추출/append/CLI·delete 연계·test_insight 4건, 제28조의2·58조의2 근거) |
 
 외부 의존(운영자 액션): Phase 1 시작 전 data.go.kr 인증키 발급(음양력 15012679 + 특일 15012690 활용신청, 자동승인·무료), Phase 5 전 ANTHROPIC_API_KEY 준비.
