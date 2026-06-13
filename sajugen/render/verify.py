@@ -47,6 +47,8 @@ def _verapdf_ua1(pdf_path: str) -> dict:
             ],
             capture_output=True,
             text=True,
+            encoding="utf-8",  # veraPDF MRR XML = UTF-8 (Windows cp949 디코드 오류 차단)
+            errors="replace",  # 잔여 바이트 방어 — 측정값이라 손실 무해
             timeout=180,
         )
         xml = out.stdout
