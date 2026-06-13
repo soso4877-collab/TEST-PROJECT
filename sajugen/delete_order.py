@@ -26,6 +26,11 @@ def delete(
         help="파기 사유(감사 기록용 — 개인정보 기재 금지)",
     ),
     db: str = typer.Option("data/orders.sqlite", "--db", help="주문 DB 경로"),
+    extract_insight: bool = typer.Option(
+        False,
+        "--extract-insight",
+        help="파기 전 익명 계산특이점 레코드를 추출·보존(식별자 제거, 엔진 개선용)",
+    ),
     yes: bool = typer.Option(
         False, "--yes", help="실제 삭제 실행(미지정 시 미리보기만 — 되돌릴 수 없음)"
     ),
@@ -44,6 +49,14 @@ def delete(
                 f"되돌릴 수 없습니다. 실제 파기하려면 --yes 를 붙여 다시 실행하세요."
             )
             raise typer.Exit(code=0)
+
+        # 파기 전 익명 추출(extract-then-purge): 식별자 제거된 계산특이점만 보존
+        if extract_insight:
+            from . import insight as ins
+
+            report = store.get_report(order_id)
+            ins.append_insight(ins.extract_insight(report, extracted_at=ins._now_iso()))
+            typer.echo("익명 계산특이점 추출·보존 완료(파기 전).")
 
         store.delete(order_id, actor="admin", reason=reason)
         typer.echo(f"파기 완료: {order_id} (PII 복구불가 삭제, audit에 파기 기록 보존)")
