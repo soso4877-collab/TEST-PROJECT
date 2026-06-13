@@ -136,3 +136,33 @@ def test_audit_log_records_all(store):
     assert actions == ["create", "transition", "transition"]
     trans = [(a.from_state, a.to_state) for a in store.audit(oid) if a.action == "transition"]
     assert trans == [("RECEIVED", "NORMALIZED"), ("NORMALIZED", "CALC_OK")]
+
+
+# ─────────────────── 하드 삭제(개인정보 파기, 제21조) ───────────────────
+
+
+def test_delete_destroys_pii_and_keeps_audit(store):
+    oid = store.create(_report())
+    # 파기 전: 조회·목록에 존재
+    assert store.get_report(oid).order_id == oid
+    assert any(r["order_id"] == oid for r in store.list_orders())
+
+    store.delete(oid, actor="admin", reason="발송 완료 파기")
+
+    # PII(report) 복구불가 파기: 조회 불가
+    with pytest.raises(KeyError):
+        store.get_report(oid)
+    with pytest.raises(KeyError):
+        store.get_state(oid)
+    assert all(r["order_id"] != oid for r in store.list_orders())
+
+    # 파기 추적 기록은 audit_log에 보존(별도 테이블) — 마지막 액션이 delete
+    aud = store.audit(oid)
+    assert aud and aud[-1].action == "delete"
+    assert aud[-1].from_state == "RECEIVED" and aud[-1].to_state == ""
+    assert aud[-1].note == "발송 완료 파기"
+
+
+def test_delete_unknown_order_raises(store):
+    with pytest.raises(KeyError):
+        store.delete("ord_does_not_exist")

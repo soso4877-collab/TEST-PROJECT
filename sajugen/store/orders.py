@@ -179,6 +179,17 @@ class OrderStore:
         self._audit(order_id, actor, action, None, None, section=section, note=note)
         self._conn.commit()
 
+    def delete(self, order_id: str, *, actor: str = "admin", reason: str = "") -> None:
+        """주문 하드 삭제 — PII(생년월일·출생지·고민 원문) 복구불가 파기.
+        개인정보보호법 제21조(보유기간 경과·목적 달성 시 지체 없이 파기) 이행 경로.
+        파기 전 audit_log에 'delete'를 기록하되, audit에는 PII를 남기지 않는다
+        (order_id·actor·사유·시각만 — reason에 개인정보 기재 금지). audit_log는 별도
+        테이블이라 orders 행 삭제 후에도 파기 추적 기록은 보존된다."""
+        cur = self.get_state(order_id)  # 존재 확인(없으면 KeyError)
+        self._audit(order_id, actor, "delete", cur, None, note=reason)
+        self._conn.execute("DELETE FROM orders WHERE order_id=?", (order_id,))
+        self._conn.commit()
+
     # ───────────────── 상태 전이 ─────────────────
 
     def transition(
