@@ -8,7 +8,12 @@
 > 최종 갱신: 2026-06-14  (베타 재정비 Phase A+B 완료. A=브랜드 서담선생 기본+자유입력 / 가정어 제거(세운
 >   연도 앵커)+style_lint 가드. B=챕터 간 일주 자기소개 반복 해소: 프롬프트(소유권)+rules ilgan 골격 근원수정
 >   +결정론 백스톱 content/repetition.py(소유 챕터 wonguk 외 짧은 자기소개 줄 제거). 베타 v5 실측 일주
->   자기소개 2·3회→1회, 가정어 0. pytest 162 PASS. C(저장·재사용, 보존정책 선행)·D(promptfoo) 보류.
+>   자기소개 2·3회→1회, 가정어 0. C(저장·재사용, 보존정책 선행)·D(promptfoo) 보류.
+>   [신규] sajugen/gunghap.py — 다인(2인+) 사업 궁합 리포트: 결정론 개인 사실(격국·용신 재사용 + 식신생재·
+>   재고 신규 탐지) + 쌍별 partner_pillars 관계 + 세운 호기 겹침 → 궁합 전용 compose(3인 허용토큰 factcheck·
+>   가정어 가드·반복 백스톱·서담선생) → tagged PDF. 한글 간지 전용(천간지지 한자→한글 변환). CLI
+>   `python -m sajugen.gunghap gen --person '이름,YYYY-MM-DD,HH:MM' ...`. 실주문(김태수·김태성·장순조)
+>   gunghap_3in_v3.pdf 13p, 식신생재·재고·포지션·시기 반영. test_gunghap 5건. pytest 167 PASS.
 >   재정비 플랜: ~/.claude/plans/subprocess-run-recursive-rivest.md)
 
 ## 한 줄 상태
