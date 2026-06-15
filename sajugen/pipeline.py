@@ -103,7 +103,7 @@ def generate(
     pdf_path = render_pdf.render_pdf(
         report, saju, out_name, age=age, name=name, unknown_time=unknown_time, brand=bp
     )
-    v = render_verify.verify(pdf_path)
+    v = render_verify.verify(pdf_path, ref_year=ref_year, names=[name] if name else None)
 
     reasons: list[str] = []
     if not v["gate_pass"]:

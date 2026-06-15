@@ -48,6 +48,20 @@ def test_daewoon_start_age_uses_daewoon_count():
     assert [d.start_year for d in m.daewoon[:4]] == [2008, 2018, 2028, 2038]
 
 
+def test_current_daewoon_single_fact():
+    # 현재 대운 = start_year <= ref_year 인 마지막 대운(2026-06-14 신규, 대운 모순 차단).
+    from sajugen.calc.myeongni import current_daewoon
+
+    m = _r().myeongni
+    cur = current_daewoon(m, 2026)  # start_years [..2008,2018,2028..] → 2018 대운
+    assert cur is not None and cur.start_year == 2018, cur
+    assert cur.start_age == 18 and cur.end_age == 27, (cur.start_age, cur.end_age)
+    # 起運(대운수 8세=2008) 이전 기준 연도 → 현재 대운 없음
+    assert current_daewoon(m, 2000) is None
+    # ref_year 미지정 → None(단정 회피)
+    assert current_daewoon(m, None) is None
+
+
 def test_month_branch_crosscheck_skyfield_ok():
     r = _r()
     assert r.myeongni.month_branch_crosscheck_ok, (

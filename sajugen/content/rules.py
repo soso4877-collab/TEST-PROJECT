@@ -550,8 +550,10 @@ def _stars_full(p) -> str:
     """주성(밝기·사화) + 보좌성. 객체에 실재하는 별만 — factcheck 정합."""
     if p is None:
         return "정보 없음"
-    maj = ", ".join(_star_one(s) for s in p.major_stars) or "주성 없음(공궁)"
-    out = f"주성은 {maj}"
+    if not p.major_stars:
+        out = "주성이 없는 공궁"  # 공궁 자연 표현(기존 '주성은 주성 없음(공궁)' 중복 제거)
+    else:
+        out = f"주성은 {', '.join(_star_one(s) for s in p.major_stars)}"
     minr = ", ".join(s.name for s in p.minor_stars)
     if minr:
         out += f", 보좌성은 {minr}"
@@ -561,7 +563,11 @@ def _stars_full(p) -> str:
 def _palace_brief(p, role: str) -> str:
     if p is None:
         return ""
-    tag = "(명궁)" if p.is_soul else ("(신궁)" if p.is_body else "")
+    tag = (
+        "(명궁)"
+        if (p.is_soul and p.name != "명궁")
+        else ("(신궁)" if (p.is_body and p.name != "신궁") else "")
+    )
     return f"· {p.name}{tag}(지지 {p.branch}) — {role}: {_stars_full(p)}."
 
 
@@ -569,7 +575,11 @@ def _palace_para(p, role: str) -> str:
     """한 궁을 상담 화법으로 — 같은 꼬리말이 궁마다 반복되지 않게 _pick."""
     if p is None:
         return f"{_J(role, '을를')} 보는 자리는 이 명반 구성에서는 정보가 제한적입니다."
-    tag = "(명궁)" if p.is_soul else ("(신궁)" if p.is_body else "")
+    tag = (
+        "(명궁)"
+        if (p.is_soul and p.name != "명궁")
+        else ("(신궁)" if (p.is_body and p.name != "신궁") else "")
+    )
     pb = f"{p.name}{tag}(지지 {p.branch})"
     head = _pick(
         "pp" + p.name + role,
@@ -1025,16 +1035,39 @@ def build_all(
         f"병원에서 확인해 보세요."
     )
 
+    # 현재 대운 단일 사실(실사고 2026-06-14): 기준 연도의 현재 대운 하나를 명시 주입해
+    # 모든 챕터가 같은 대운을 '현재'로 다루게 한다(정미/병오 혼서 모순 근원 차단).
+    from ..calc.myeongni import current_daewoon as _current_daewoon
+
+    cur_dw = _current_daewoon(m, ref_year)
+    cur_ko = _gz_ko(cur_dw.ganzhi) if cur_dw else ""
+
+    def _dw_tag(d) -> str:
+        if cur_dw is None:
+            return ""
+        if d.start_year == cur_dw.start_year:
+            return "(지금 이 시기)"
+        return "(지난 시기)" if d.start_year < cur_dw.start_year else "(앞으로 올 시기)"
+
     dw_lines = "\n".join(
-        f"· {d.start_age}~{d.end_age}세 {_gz_ko(d.ganzhi)} — "
+        f"· {d.start_age}~{d.end_age}세 {_gz_ko(d.ganzhi)}{_dw_tag(d)} — "
         f"{_gz_elem(d.ganzhi)} 기운"
         f"({_ELEM_MEAN.get(_GAN_ELEM.get(d.ganzhi[0], ''), '')})이 강조되는 "
         f"시기로 봅니다."
         for d in m.daewoon
     )
+    cur_line = (
+        f"기준 {ref_year}년 현재, {nm_call}의 대운은 {cur_dw.start_age}~"
+        f"{cur_dw.end_age}세 {cur_ko} 대운 하나입니다. 지금은 이 {cur_ko} 대운을 "
+        f"지나는 시기이며, 그 앞의 대운은 지난 시기, 그 뒤의 대운은 아직 오지 않은 "
+        f"시기이므로 '지금·현재·초입'으로 부르지 않습니다.\n"
+        if cur_dw
+        else ""
+    )
     T["daewoon"] = (
         f"대운은 약 10년 단위로 흐르는 큰 시기의 결입니다. {nm_call}의 대운은 "
         f"{daewoon_dir}이고 대운수는 {m.daewoon_count}입니다.\n"
+        f"{cur_line}"
         f"{dw_lines}\n"
         f"각 대운의 간지는 그 시기에 강조되는 기운의 방향을 가리키는 "
         f"참고입니다. 대운이 바뀌는 전환기에는 환경과 역할의 변화를 미리 "
@@ -1161,11 +1194,9 @@ def build_all(
         if p.name not in _KEY_PALACES and p.name not in seen:
             all_lines.append(_palace_brief(p, _PALACE_ROLE_ALL.get(p.name, "삶의 한 영역")))
     T["ziwei_palaces"] = (
-        "자미두수 12궁은 삶의 영역별 구조를 봅니다. 먼저 핵심 궁을 자세히, "
-        "이어 나머지 궁을 한 줄로 모두 짚어 드리겠습니다.\n"
-        "[핵심 궁]\n"
+        "자미두수 12궁은 삶의 영역별 구조를 봅니다. 먼저 핵심 궁을 자세히 봅니다.\n"
         + "\n".join(key_para)
-        + "\n[그 밖의 궁]\n"
+        + "\n이제 나머지 궁을 한 줄씩 짚어 봅니다.\n"
         + "\n".join(all_lines)
         + "\n각 궁의 주성·보좌성과 별의 밝기·사화를 함께 보면, 영역별로 힘이 "
         "실리는 곳과 한 번 더 챙길 곳의 결이 보입니다. 어느 궁도 길흉의 "

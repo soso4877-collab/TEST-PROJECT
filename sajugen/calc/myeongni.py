@@ -104,6 +104,25 @@ class Myeongni(BaseModel):
     note: str = ""
 
 
+def current_daewoon(m: "Myeongni", ref_year: int | None) -> Optional[DaYunItem]:
+    """기준 연도(ref_year)에 해당하는 '현재 대운' 하나를 결정론으로 반환.
+
+    현재 대운 = start_year <= ref_year 인 마지막(가장 늦게 시작한) 대운.
+    ref_year 가 첫 대운 시작 이전(起運 전)이거나 미지정이면 None.
+    리포트의 모든 챕터가 '현재 대운'을 이 단일 값으로만 서술하도록 단일 사실원을 제공한다
+    (대운 모순 = 정미/병오 혼서 실사고 2026-06-14 근원 수정).
+    """
+    if not ref_year or not m.daewoon:
+        return None
+    cur: Optional[DaYunItem] = None
+    for d in m.daewoon:
+        if d.start_year <= ref_year:
+            cur = d
+        else:
+            break
+    return cur
+
+
 def _pillar(ec, who: str) -> Pillar:
     g = getattr(ec, f"get{who}")()
     return Pillar(

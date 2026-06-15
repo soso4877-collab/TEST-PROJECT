@@ -52,7 +52,65 @@ def test_pair_facts_runs():
 
 
 def test_compose_fallback_no_key(monkeypatch):
-    # 무키 시 _compose 는 base_text(룰 슬롯) 폴백(무API)
+    # 무키 시 _compose 는 base_text(룰 슬롯) 폴백(무API) — 정제 후 깨끗한 텍스트는 불변
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     out = g._compose("each", "근거 슬롯 텍스트", {"ganzhi": [], "ganzhi_ko": []}, "상황")
     assert out == "근거 슬롯 텍스트"
+
+
+def test_finalize_cleans_markdown_and_hanja():
+    # 개인 경로와 동일 정제: 마크다운 라인 드롭, 굵게 제거, 간지 한자→한글, 비간지 한자 제거
+    out = g._finalize("앞줄\n---\n**굵게** 七殺 구조, 壬寅 일주, 용신 火")
+    assert "---" not in out and "**" not in out
+    assert "七" not in out and "殺" not in out and "火" not in out
+    assert "임인" in out  # 壬寅 → 임인(간지 한자 보존 변환)
+    assert "굵게" in out and "구조" in out
+
+
+def test_compose_fallback_is_finalized(monkeypatch):
+    # 회귀(2026-06-14): 무키 폴백도 정제돼야 함 — 슬롯의 비간지 한자(火)·마크다운 누출 차단
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    out = g._compose("each", "용신 火 구조\n---\n**강조**", {"ganzhi": [], "ganzhi_ko": []}, "")
+    assert "火" not in out and "---" not in out and "**" not in out
+    assert "용신" in out and "구조" in out
+
+
+def test_gender_flips_daewoon_direction():
+    # 성별 하드코딩 제거 검증 — 같은 출생이라도 성별이 대운 방향(양남음녀)을 뒤집는다
+    male = g.person_facts("갑", (1997, 10, 27, 9, 46), ref_year=2026, is_male=True)
+    female = g.person_facts("을", (1997, 10, 27, 9, 46), ref_year=2026, is_male=False)
+    assert male["m"].daewoon_forward != female["m"].daewoon_forward
+
+
+def _fake_anthropic(monkeypatch, text):
+    """anthropic 모듈을 모의 — client.messages.create 가 주어진 text 를 반환."""
+    import sys as _sys
+    import types
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    fake = types.ModuleType("anthropic")
+
+    class _Messages:
+        def create(self, *a, **k):
+            return types.SimpleNamespace(content=[types.SimpleNamespace(text=text)])
+
+    class _Anthropic:
+        def __init__(self, *a, **k):
+            self.messages = _Messages()
+
+    fake.Anthropic = _Anthropic
+    monkeypatch.setitem(_sys.modules, "anthropic", fake)
+
+
+def test_compose_falls_back_on_quality_violation(monkeypatch):
+    # 이슈4·5: LLM이 모순/오타 문장을 내면 quality_lint 가 잡아 룰 슬롯 폴백
+    _fake_anthropic(monkeypatch, "두 사람은 신강한 신약의 차이가 큽니다.")
+    out = g._compose("each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026)
+    assert "신강한 신약" not in out and out == "근거 슬롯"
+
+
+def test_compose_falls_back_on_temporal_violation(monkeypatch):
+    # 이슈6: ref_year 이하 연도를 '오기 전'으로 쓰면 temporal_lint 가 잡아 폴백
+    _fake_anthropic(monkeypatch, "2026년이 오기 전까지 준비하세요.")
+    out = g._compose("timing", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026)
+    assert "오기 전까지" not in out and out == "근거 슬롯"
