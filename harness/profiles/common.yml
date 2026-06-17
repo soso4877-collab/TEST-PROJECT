@@ -1,0 +1,24 @@
+# 하네스 공통 설정 — PII 없음(커밋됨). 실제 고객 데이터는 harness/profiles/local/(gitignore)에만 둔다.
+# 강제 장치는 scripts/hpreflight.py·hrun.py의 실제 검사와 exit code다. 이 YAML은 입력값일 뿐이다.
+
+python: ./.venv/Scripts/python.exe       # 인터프리터 경로(운영자 환경)
+test_cmd: "-m pytest tests/ -q"          # 전체 테스트
+report_dir: handoff/reports              # 리포트 출력 위치(.gitignore 대상)
+
+# 재생성/LLM 3중 잠금: hrun 은 (--regen AND --allow-llm AND env SAJUGEN_HARNESS_ALLOW_REGEN=1)
+# 셋을 모두 만족할 때만 PDF 재생성/LLM 호출을 시도한다. 기본은 전부 OFF(검증만).
+allow_regen_default: false
+
+# verify 게이트 키(요약 표시 순서). 판정 로직은 sajugen.render.verify.verify 가 소유(여기 복제 아님).
+gate_keys:
+  - gate_pass
+  - markdown_clean
+  - daewoon_consistent
+  - quality_clean
+  - temporal_clean
+  - no_orphan
+  - loanword_clean
+  - raw_calc_head_clean
+  - name_policy_clean
+  - identity_role_clean
+  - singang_role_clean

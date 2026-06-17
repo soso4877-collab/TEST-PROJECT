@@ -1,0 +1,31 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "hrun: preflight (read-only)",
+      "type": "shell",
+      "command": "./.venv/Scripts/python.exe scripts/hpreflight.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "pytest (full)",
+      "type": "shell",
+      "command": "./.venv/Scripts/python.exe -m pytest tests/ -q",
+      "problemMatcher": []
+    },
+    {
+      "label": "hrun: verify (no-regen)",
+      "detail": "preflight + pytest + PDF 검증. 재생성/LLM/커밋 안 함. local 프로파일 경로를 넣어 사용.",
+      "type": "shell",
+      "command": "./.venv/Scripts/python.exe scripts/hrun.py --profile harness/profiles/local/personal_h153.yml --profile harness/profiles/local/gunghap_h153.yml",
+      "problemMatcher": []
+    },
+    {
+      "label": "hrun: regen+verify (승인 필요 — 기본 비실행)",
+      "detail": "PDF 재생성+LLM 호출(과금). 3중 잠금: --regen --allow-llm + env SAJUGEN_HARNESS_ALLOW_REGEN=1 을 직접 셸에서 설정해 실행할 것. 이 태스크는 안내용.",
+      "type": "shell",
+      "command": "echo '재생성은 승인 후 셸에서: SAJUGEN_HARNESS_ALLOW_REGEN=1 ./.venv/Scripts/python.exe scripts/hrun.py --regen --allow-llm --profile <local.yml>'",
+      "problemMatcher": []
+    }
+  ]
+}

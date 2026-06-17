@@ -1,0 +1,32 @@
+---
+description: sajugen 검증 하네스 사용법(컨텍스트용). 강제는 scripts/hpreflight.py·hrun.py 코드.
+alwaysApply: false
+---
+
+# sajugen 검증 하네스
+
+repo 안에서 한 명령으로 검증을 돌리고 결과를 PII 없는 리포트(JSON+MD)로 남긴다. GPT 웹 붙여넣기 대체.
+
+## 진입점
+- `scripts/hrun.py` — preflight + pytest + PDF 읽기 전용 검증 + `handoff/reports/<stamp>/summary.{json,md}`.
+- `scripts/hpreflight.py` — git/calc/secrets 읽기 전용 점검(값 미출력, redacted).
+- `scripts/hverify_pdf.py` — 프로파일 1건 검증(재생성 안 함). PDF 없으면 `missing_pdf`.
+- `scripts/hsummary.py` — 리포트 작성(PII redaction 기본).
+
+## 안전(코드로 강제)
+- **하네스는 git 변경·커밋·push·deploy 안 함.**
+- **PDF 재생성/LLM 3중 잠금**: `--regen` + `--allow-llm` + env `SAJUGEN_HARNESS_ALLOW_REGEN=1` 전부일 때만. 하나라도 없으면 미실행.
+- 기본 no-regen: 프로파일 PDF가 있으면 검증, 없으면 재생성 말고 `missing_pdf` 보고.
+- 리포트·local 프로파일·임시파일은 .gitignore. `.env`/키 값 출력 금지.
+
+## 프로파일
+- 커밋: `harness/profiles/common.yml`, `*.example.yml`, `fixtures/*`(전부 가짜값).
+- 비커밋: `harness/profiles/local/*.yml`, `*.local.yml`(실데이터).
+- type=`personal`/`gunghap`. spec은 `builder.personal_identity_spec`·`gunghap._identity_spec`/`_singang_specs` 재사용.
+
+## 예
+```
+./.venv/Scripts/python.exe scripts/hpreflight.py --json
+./.venv/Scripts/python.exe scripts/hverify_pdf.py harness/profiles/local/gunghap_h153.yml --json
+./.venv/Scripts/python.exe scripts/hrun.py --profile harness/profiles/local/personal_h153.yml
+```

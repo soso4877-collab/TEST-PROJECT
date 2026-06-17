@@ -1,0 +1,11 @@
+# 다인 궁합 PDF 검증 프로파일 — 예시(커밋됨). 값은 전부 가짜다.
+# 실제 고객값은 절대 여기 넣지 말 것 → harness/profiles/local/gunghap_*.yml (gitignore).
+# hverify_pdf 는 people 로 결정론 일간(gunghap._identity_spec)·신강약(gunghap._singang_specs) spec 을 만든다.
+
+type: gunghap
+pdf: sajugen/render/out/FINAL_UPLOAD_gunghap_EXAMPLE.pdf
+ref_year: 2026
+people:
+  - {name: 갑동, birth: "1990-01-01 10:00", gender: 남}
+  - {name: 을순, birth: "1991-02-02 11:00", gender: 여}
+  - {name: 병호, birth: "1992-03-03 12:00", gender: 남}

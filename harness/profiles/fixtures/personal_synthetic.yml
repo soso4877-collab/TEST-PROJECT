@@ -1,0 +1,9 @@
+# 합성 픽스처(커밋됨) — 하네스 자체 테스트 전용. 실존 인물 아님.
+# pdf 경로는 테스트가 임시 렌더본으로 덮어쓰거나 missing_pdf 경로를 검증한다.
+type: personal
+pdf: sajugen/render/out/__nonexistent_synthetic__.pdf
+ref_year: 2026
+name: 합성갑
+gender: 남
+birth: "1990-05-20 14:30"
+horoscope: 2026-06-01
