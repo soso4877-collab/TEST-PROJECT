@@ -49,6 +49,26 @@ def test_hanja_clean_keeps_descriptive_parens():
     assert "함지(약함)" in pp.hanja_clean("무곡 함지(약함) 자리입니다.")
 
 
+def test_paren_residue_cleanup():
+    # H1.5.1: 괄호 안 중복/꼬리 쉼표 정리(한자 제거 부작용). 설명 괄호는 보존.
+    assert pp.hanja_clean("창고(술, 술)에") == "창고(술)에"
+    assert pp.hanja_clean("재고(진, 진)") == "재고(진)"
+    assert pp.hanja_clean("용신(화, )입니다") == "용신(화)입니다"
+    assert "묘(매우 밝음)" in pp.hanja_clean("천량 묘(매우 밝음) 자리")
+    assert "함지(약함)" in pp.hanja_clean("무곡 함지(약함) 자리")
+    assert "(목, 화)" in pp.hanja_clean("기운(목, 화) 분포")  # 일반 나열 괄호 보존
+
+
+def test_punctuation_normalization():
+    # H1.5: 구두점 깨짐 정규화 ('일주 기준,, 년주 기준,.' 류). 자연 구두점은 불변.
+    assert pp.hanja_clean("일주 기준,, 년주 기준,.") == "일주 기준, 년주 기준."
+    assert pp.hanja_clean("정리합니다, .") == "정리합니다."
+    assert pp.hanja_clean("끝입니다..") == "끝입니다."
+    assert (
+        pp.hanja_clean("좋아요. 그리고 좋습니다.") == "좋아요. 그리고 좋습니다."
+    )  # 자연 구두점 불변
+
+
 def test_markdown_artifacts_detects_and_clean():
     assert v.markdown_artifacts("정상 한국어 본문입니다. 문제 없음.") == []
     hits = v.markdown_artifacts("앞줄\n---\n**굵게** 줄\n# 제목 줄")

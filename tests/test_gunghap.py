@@ -24,6 +24,90 @@ def test_person_facts_known_chart():
     assert p["patterns"]["jaego"] is True
 
 
+def test_timing_slot_natural_fallback():
+    # H1.5.2-final: timing 폴백 슬롯이 고객용 자연문 — 내부 메모형 표현 0, 시기·역할·흐름 유지
+    people = [
+        {"name": "김태수", "favorable_years": []},
+        {"name": "김태성", "favorable_years": [2026, 2027]},
+        {"name": "장순조", "favorable_years": []},
+    ]
+    out = g._timing_slot(people)
+    for bad in ("호기 해", "용신 기준 참고", "뚜렷한 해 적음", "완전히 겹치는 해는 적음"):
+        assert bad not in out, f"내부 메모형 표현 잔존: {bad!r} in {out!r}"
+    for need in ("2026", "2027", "세 사람", "역할", "흐름"):
+        assert need in out, f"누락: {need!r} not in {out!r}"
+    # 공통 호기 해가 있는 경우에도 자연문 + 내부 표현 0
+    people2 = [
+        {"name": "김태수", "favorable_years": [2026]},
+        {"name": "김태성", "favorable_years": [2026, 2027]},
+        {"name": "장순조", "favorable_years": [2026]},
+    ]
+    out2 = g._timing_slot(people2)
+    for bad in ("호기 해", "용신 기준 참고", "뚜렷한 해 적음", "완전히 겹치는 해는 적음"):
+        assert bad not in out2
+    assert "2026" in out2 and "역할" in out2 and "흐름" in out2
+
+
+def test_name_honor_slots(monkeypatch):
+    # H1.5.3: 슬롯이 호칭 정책을 따른다 — 첫 소개 'FULL 씨', 본문 'given 씨', 쌍 'given와 given'.
+    from sajugen.content import client_tone_lint as ct
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    a = g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026)
+    b = g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026)
+    pslot = g._person_slot(a)
+    assert pslot.startswith("김태수 씨:")  # 첫 소개 = 성 포함 + 씨
+    pair = g._pair_slot(a, b)
+    assert "태수와 태성" in pair  # 쌍 제목 호칭
+    assert "김태수와 김태성" not in pair  # 전체이름 쌍 금지
+    # 슬롯들은 name_policy 위반 0(첫 소개 1회 제외)
+    assert ct.name_policy_lint(pair, ["김태수", "김태성"]) == []
+    timing = g._timing_slot([a, b])
+    assert "태수 씨는" in timing or "태수 씨" in timing
+
+
+def test_pdfwide_name_policy_clean_on_reused_slots():
+    # H1.5.3.1: _person_slot 이 overview·each·business 에 재사용돼도 PDF-wide 순화 후 위반 0.
+    from itertools import combinations
+
+    from sajugen.content import client_tone_lint as ct
+
+    people = [
+        g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026),
+        g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026),
+        g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026),
+    ]
+    names = [p["name"] for p in people]
+    persons = "\n".join(g._person_slot(p) for p in people)
+    pairs = "\n".join(g._pair_slot(people[i], people[j]) for i, j in combinations(range(3), 2))
+    timing = g._timing_slot(people)
+    # build_gunghap 의 슬롯 배치 그대로(persons 가 overview·each·business 3곳 재사용)
+    section_texts = [persons, persons, pairs, persons + "\n" + pairs, timing]
+    # 순화 전: persons 가 3회 → 'FULL 씨' 중복소개 발생(정책이 잡아야 함)
+    before = ct.name_policy_lint("\n".join(section_texts), names)
+    assert any(h["kind"] == "중복소개" for h in before), (
+        "재사용 슬롯은 순화 전 중복소개가 있어야 정상"
+    )
+    # PDF-wide 순화 후: 위반 0
+    after_texts = ct.normalize_names_pdfwide(section_texts, names)
+    assert ct.name_policy_lint("\n".join(after_texts), names) == []
+    # 호칭·쌍 정상 출현
+    joined = "\n".join(after_texts)
+    assert "태수 씨" in joined and "태성 씨" in joined and "순조 씨" in joined
+
+
+def test_identity_spec_from_person_facts():
+    # H1.5.3: 결정론 일간(임수)에서 expected 산출
+    from sajugen.content import client_tone_lint as ct
+
+    p = g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026)
+    assert g._GAN_KO[p["day_master"]] == "임"
+    assert ct.gan_to_term(g._GAN_KO[p["day_master"]]) == "임수"
+    gans, terms, specs = g._identity_spec([p])
+    assert gans == {"임"} and terms == {"임수"}
+    assert any(a == "태수 씨" for a, _ in [(al, t) for als, t in specs for al in als])
+
+
 def test_person_slot_is_hangeul():
     p = g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026)
     slot = g._person_slot(p)
@@ -47,7 +131,9 @@ def test_pair_facts_runs():
     pf = g.pair_facts(a, b)
     assert pf.day.ganzhi == "己未"  # 상대(장순조) 일주
     slot = g._pair_slot(a, b)
-    assert "김태수" in slot and "장순조" in slot
+    # H1.5.3: 쌍 슬롯은 호칭(태수/순조)을 쓰고 전체이름+조사는 쓰지 않는다.
+    assert "태수" in slot and "순조" in slot
+    assert "김태수" not in slot and "장순조" not in slot
     assert not _HANJA_GANZHI.search(slot.replace("己未", "")) or True  # 십성은 한국어 변환됨
 
 
@@ -114,3 +200,48 @@ def test_compose_falls_back_on_temporal_violation(monkeypatch):
     _fake_anthropic(monkeypatch, "2026년이 오기 전까지 준비하세요.")
     out = g._compose("timing", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026)
     assert "오기 전까지" not in out and out == "근거 슬롯"
+
+
+def test_singang_specs_from_person_facts():
+    # H1.5.3.2: 결정론 신강약 — 태수·태성=신약, 순조=신강
+    people = [
+        g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026),
+        g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026),
+        g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026),
+    ]
+    specs = g._singang_specs(people)
+    by = {s["full"]: s["singang"] for s in specs}
+    assert by == {"김태수": "신약", "김태성": "신약", "장순조": "신강"}
+    assert specs[0]["honor"] == "태수 씨"
+    # 룰경로 결정론 슬롯 자체는 group/role 오류 0
+    from itertools import combinations
+    from sajugen.content import client_tone_lint as ct
+
+    slots = "\n".join(g._person_slot(p) for p in people)
+    slots += "\n" + "\n".join(
+        g._pair_slot(people[i], people[j]) for i, j in combinations(range(3), 2)
+    )
+    slots += "\n" + g._timing_slot(people)
+    assert ct.singang_role_lint(slots, specs) == []
+
+
+def test_compose_falls_back_on_singang_group(monkeypatch):
+    # H1.5.3.2: LLM이 '세 사람 모두 신약'으로 일반화하면 singang_role_lint 가 잡아 폴백
+    _fake_anthropic(monkeypatch, "세 사람 모두 신약이라 안정 쪽에 무게가 실립니다.")
+    people = [
+        g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026),
+        g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026),
+        g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026),
+    ]
+    specs = g._singang_specs(people)
+    out = g._compose(
+        "each",
+        "근거 슬롯",
+        {"ganzhi": [], "ganzhi_ko": []},
+        "",
+        ["김태수", "김태성", "장순조"],
+        2026,
+        None,
+        specs,
+    )
+    assert "세 사람 모두 신약" not in out and out == "근거 슬롯"

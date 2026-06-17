@@ -103,7 +103,11 @@ def generate(
     pdf_path = render_pdf.render_pdf(
         report, saju, out_name, age=age, name=name, unknown_time=unknown_time, brand=bp
     )
-    v = render_verify.verify(pdf_path, ref_year=ref_year, names=[name] if name else None)
+    # 개인 일간 role 게이트(H1.5.3) — 결정론 일간만 정답. 이름 정책은 개인 미적용(단일 호명).
+    _id_spec = builder.personal_identity_spec(saju, name)
+    v = render_verify.verify(
+        pdf_path, ref_year=ref_year, names=[name] if name else None, identity=_id_spec
+    )
 
     reasons: list[str] = []
     if not v["gate_pass"]:

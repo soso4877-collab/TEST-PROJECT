@@ -12,6 +12,7 @@ from ..calc import myeongni as mod_my
 from ..calc import partner as calc_partner
 from ..input import partner as input_partner
 from . import (
+    client_tone_lint,
     consistency,
     factcheck,
     llm_polish,
@@ -52,6 +53,28 @@ _COMPOSE_SECTIONS = {
 # (개인 경로·궁합 경로 동일 동작 보장 — 경로별 드리프트 방지). 위 _legacy_* 는 미사용.
 _strip_artifacts = postprocess.strip_artifacts
 _hanja_clean = postprocess.hanja_clean
+
+
+def personal_identity_spec(saju, name: str | None) -> tuple:
+    """개인 일간 role 가드/게이트용 (expected_gans, expected_terms, subject_specs). H1.5.3.
+
+    expected = 결정론 일간(saju.myeongni.day_master) 하나뿐. 본문이 다른 천간을 '일간/중심 글자/
+    자기 자신'으로 서술하면 위반(예 '일간 계수' — 실제 임수).
+    """
+    gan = rules._GAN_KO.get(saju.myeongni.day_master, "")
+    term = client_tone_lint.gan_to_term(gan)
+    aliases = [
+        a
+        for a in (
+            name,
+            client_tone_lint.given_name(name) if name else "",
+            rules.call_name(name) if name else "",
+            client_tone_lint.honor(name) if name else "",
+        )
+        if a
+    ]
+    aliases += ["자기 자신", "나 자신", "본인", "자신"]
+    return {gan}, {term}, [(aliases, term)]
 
 
 # 3단 상품 토글 — 제외할 챕터. integrated=전부, myeongni=명리만, ziwei=자미만.
@@ -170,6 +193,7 @@ def build_report(
     drop = _PRODUCT_DROP.get(product, set())
     sections: list[Section] = []
     safe_total = fact_total = polished_n = fallback_n = 0
+    _id_spec = personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
 
     # 목차(toc): 보이는 챕터 제목을 나열(노동착시·호기심격차·책 권위, docs/13). 빌더가 생성.
     visible_titles = [t for s, t, _ in SECTION_SPECS if s not in drop and s not in ("cover", "toc")]
@@ -258,6 +282,10 @@ def build_report(
                 # 룰 패스스루(무키)는 변형하지 않는다(결정론·폴백 판정 보존).
                 cand = re.sub(r"\s*[—–]\s*", ", ", cand)
                 cand = re.sub(r"\s*·\s*", ", ", cand)
+                # 외래어 1차 자동 순화(H1.5.1): 폴백 전 기본 대체어로 치환해 LLM 산문 보존률↑.
+                # 순화 후에도 남은 외래어는 아래 loanword_lint 가 잡아 폴백(hard-ban 유지).
+                if sid in _COMPOSE_SECTIONS:
+                    cand = client_tone_lint.normalize_loanwords(cand)
             if cand and llm_changed:
                 csv = safe_lint.lint(cand)
                 cfv = factcheck.check(cand, saju, partner_gz)
@@ -269,6 +297,11 @@ def build_report(
                         + style_lint.lint(cand)
                         + quality_lint.lint(cand, names=[name] if name else None)
                         + temporal_lint.lint(cand, ref_year)
+                        + client_tone_lint.loanword_lint(cand)  # 외래어 hard-ban
+                        + client_tone_lint.raw_calc_lint(cand)  # 날것 계산표현
+                        + client_tone_lint.identity_role_lint(  # 일간 role 오서술(H1.5.3)
+                            cand, _id_spec[0], _id_spec[1], _id_spec[2]
+                        )
                     )
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
@@ -285,6 +318,7 @@ def build_report(
                         )
                         or ""
                     )
+                    retry = client_tone_lint.normalize_loanwords(retry)  # 재작성도 1차 순화
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
                     if retry and retry != rule_text:
                         rsv = (
@@ -292,6 +326,11 @@ def build_report(
                             + style_lint.lint(retry)
                             + quality_lint.lint(retry, names=[name] if name else None)
                             + temporal_lint.lint(retry, ref_year)
+                            + client_tone_lint.loanword_lint(retry)
+                            + client_tone_lint.raw_calc_lint(retry)
+                            + client_tone_lint.identity_role_lint(
+                                retry, _id_spec[0], _id_spec[1], _id_spec[2]
+                            )
                         )
                         rfv = factcheck.check(retry, saju, partner_gz)
                         if not rsv and not rfv:
