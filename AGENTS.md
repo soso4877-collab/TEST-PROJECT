@@ -8,7 +8,21 @@
 ## 역할 분리
 - **Cursor (사람+IDE)**: 탐색·편집·diff 검토. 변경 전 `.cursor/rules/*` 컨텍스트 확인.
 - **Claude Code**: 승인 범위 안에서 구현·검증. 매 작업 단위로 plan→승인→구현→`hrun` 검증→보고. 커밋/푸시/PDF 재생성/LLM 호출은 명시 승인 시에만.
-- **Codex (리뷰어)**: diff + `handoff/reports/<stamp>/summary.md`를 받아 게이트·회귀·안전(PII/secrets) 관점 리뷰. 리포트 파일로 공유(GPT 웹 붙여넣기 대체).
+- **Codex (리뷰어)**: 기본 = 리뷰어. 권한·금지·동반 의무는 아래 `## Codex 운영 계약` 참조.
+
+## Codex 운영 계약 (권한 경계 — 강제는 코드·게이트·git hook, 이 절은 경계 정의)
+1. 기본 역할 = 리뷰어. Codex는 diff와 `handoff/reports/<stamp>/summary.md`(+ `summary.json`)를 받아 게이트·회귀·안전(PII/secrets) 관점으로 읽고 판정만 한다.
+2. 구현(파일 수정) 권한 없음 — 코드를 고치려면 운영자의 사안별 명시 승인이 매번 필요(포괄 승인 불가).
+3. Codex 전용 상시 금지(Claude의 승인 범위 권한과는 별개이며, 구현 승인을 받은 뒤에도 금지): PDF 재생성, LLM(Anthropic API 포함) 호출, git commit, push, 배포(deploy).
+4. 데이터 경계 — 두 가지를 분리한다:
+   - (a) 접근(열람) 금지: `.env`·secret 값, 실고객 데이터, `harness/profiles/local/**` 파일을 직접 열지 않는다. 실데이터 관련 확인은 PII가 제거된 `summary.{json,md}`만 보고 판단한다.
+   - (b) 인용 금지: 리뷰·리포트에 PII(실명·생년월일·출생시간)를 인용·전재하지 않는다.
+5. (구현 승인 시) `calc/`·`input/` 변경 → 같은 작업 단위에 골든·회귀 테스트 동반(절대규칙 20, calc.md).
+6. (구현 승인 시) `content/` 변경 → 3단 가드(safe_lint/factcheck/trace) 완화·우회 금지(절대규칙 12, content.md).
+7. (구현 승인 시) `sajugen/render/**`(특히 `render/verify.py`) 변경 → 기존 `gate_pass` 구성 비악화(게이트 키 제거·완화·기준 하향 금지, render.md).
+8. (구현 승인 시) 주문/검수 경로(`order_flow.py`·`store/orders.py`·`admin.py`·`app.py`) 변경 → APPROVED 전 발송 차단 회귀(`tests/test_orders.py`) 통과 필수(절대규칙 16).
+9. 승인 근거 리포트: 최종 승인 근거는 "전체 tests 실행본 리포트"만 인정한다 = `scripts/hrun.py`를 `--no-tests` 없이(기본 실행) 돌려 만든 `summary.json`의 `pytest.returncode == 0`(passed 수 포함). `--no-tests`로 만든 리포트는 pytest 미실행이므로 최종 승인 근거로 사용 금지.
+10. 리포트 산출물: `scripts/hrun.py`(no-regen)·`hsummary` 실행 시 `handoff/reports/<stamp>/summary.{json,md}`가 생성되며, 이 파일이 리뷰의 필수 첨부 근거물(게이트 근거)이다. diff·`git status`·`git log`·`final_report.md` 등 다른 증거와 함께 종합 판정한다(이 리포트가 유일 근거는 아니다).
 
 ## 불변 제약 (요약 — 원문 `.claude/rules/00-immutable.md`)
 - 계산은 LLM 위임 금지. `sajugen/calc/`·`input/` 수정은 테스트+골든 회귀 동반.
