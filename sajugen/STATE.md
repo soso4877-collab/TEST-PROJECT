@@ -51,6 +51,17 @@
 >   신규 테스트 test_quality_lint·test_render_verify + test_postprocess/test_gunghap 확장. 전체 tests/ 193 PASS.
 >   룰경로 실측: 개인 PDF 이슈2(자미잔재) 0·이슈3(중복괄호) 0·orphan 0. 이슈1·4·5·6은 LLM 산문 발생분
 >   → 단위/모의 검증 완료, LLM 실측 0건 확인은 운영자 승인 후 재생성 대기. 커밋 안 함.)
+> [2026-06-19 Phase 1 완료 — Claude Code x Codex 협업 운영 계약 (구현 커밋 504b646, 문서만·calc/ 무수정)]
+>   변경: (1) AGENTS.md에 'Codex 운영 계약'(권한 경계) 추가 — 기본 역할=리뷰어·구현권 없음(운영자 사안별
+>   승인 필요), Codex 상시 금지(PDF 재생성·LLM 호출·commit·push·deploy), 데이터 접근/인용 경계(.env·실고객
+>   데이터·profiles/local 비열람, PII 비인용), 승인 근거 리포트 규정(--no-tests 아닌 hrun 실행본 summary.json
+>   pytest.returncode==0). (2) handoff/templates/codex_review.md에 표준 리뷰 체크리스트 추가(권한·재생성·LLM·
+>   commit·push·안전·calc/content/render/order 영역별 근거 항목).
+>   검증: 전체 pytest 244 passed (358.56s, returncode 0) — 실행본 근거 handoff/reports/h153-baseline/summary.json
+>   (--no-tests 아님). 독립 재검증(2026-06-19): 전체 pytest 244 passed (400.89s, exit code 0). Codex 최종 DIFF_VERDICT = APPROVE.
+>   안전 확인: PDF 재생성 없음, 애플리케이션 실행 경로 LLM 호출 없음(단 개발 도구인 Claude Code·Codex 사용은
+>   이 항목에서 제외), push 없음, deploy 없음.
+>   다음 단계: Phase 2A — Claude Plan → Codex Plan Review 자동화 v1.
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
