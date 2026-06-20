@@ -1,0 +1,5 @@
+# handoff/current 런타임 산출물 격리 — 실행 폴더·LATEST.txt·로그·manifest 비커밋.
+# 이 디렉터리에서 추적하는 것은 자기 자신(.gitignore)과 README.md 뿐이다.
+*
+!.gitignore
+!README.md

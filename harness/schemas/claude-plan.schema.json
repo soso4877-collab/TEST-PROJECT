@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sajugen.local/schemas/claude-plan.schema.json",
+  "title": "Claude Plan (Phase 2A)",
+  "description": "Claude가 비대화형 Plan Mode에서 산출하는 구조화 계획. 구현 산출물이 아니라 계획만 담는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "stage",
+    "task_id",
+    "base_commit",
+    "task_sha256",
+    "summary",
+    "risk_level",
+    "allowed_files",
+    "forbidden_files",
+    "file_changes",
+    "risks",
+    "acceptance_criteria",
+    "required_validations",
+    "rollback",
+    "requires_human_approval",
+    "no_implementation_performed"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifact_type": {
+      "const": "claude_plan"
+    },
+    "stage": {
+      "const": "plan"
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "base_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "task_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "risk_level": {
+      "enum": ["low", "medium", "high"]
+    },
+    "allowed_files": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "forbidden_files": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "file_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "change"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "change": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "required_validations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "rollback": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requires_human_approval": {
+      "const": true
+    },
+    "no_implementation_performed": {
+      "const": true
+    }
+  }
+}
