@@ -114,6 +114,21 @@ def test_ps_forbids_bare_mode():
     assert "--bare" not in _ps_text(), "--bare는 어떤 형태로도 금지"
 
 
+def test_ps_passes_json_schema_safely():
+    # --json-schema는 파일 경로가 아니라 JSON 문자열 인수. PS 5.1 native 인자 손상(개행/따옴표)을
+    # 피하려고 (1) compact JSON 직렬화 + (2) Windows 인자 인용 + ProcessStartInfo로 전달해야 한다.
+    t = _ps_text()
+    assert "--json-schema" in t
+    assert "-Compress" in t, "schema를 compact JSON으로 직렬화해야 함"
+    assert "ConvertTo-WinArg" in t, "Windows 인자 인용 함수 필요"
+    assert "ProcessStartInfo" in t, "call 연산자 대신 ProcessStartInfo로 인자 직접 구성"
+    assert "ArgumentList" not in t, ".NET Framework/5.1 부재 — ArgumentList 사용 금지"
+    # 파일 경로가 아니라 JSON 문자열 변수를 인자로 넘긴다(claudeArgs 안에서)
+    assert '"--json-schema", $claudeSchemaJson' in t
+    # --json-schema 인자 바로 뒤에 .schema.json 파일 경로 리터럴을 넘기지 않는다
+    assert not re.search(r'--json-schema"?\s*,\s*"[^"]*\.schema\.json"', t)
+
+
 def test_ps_reads_only_policy_six_files():
     t = _ps_text()
     for pf in (

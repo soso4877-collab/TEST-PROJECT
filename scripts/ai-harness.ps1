@@ -82,8 +82,36 @@ function Stop-Fail([int]$Code, [string]$Message) {
   exit $Code
 }
 
-# 외부 CLI 호출(PS 5.1/7 공통): 긴 stdin은 무BOM 임시파일에서 파이프, stdout 캡처·stderr 파일,
-# 종료코드 반환. ProcessStartInfo.ArgumentList(.NET Core 전용)를 쓰지 않고 call 연산자 + 배열 splat 사용.
+# Windows native 인자 1개를 CommandLineToArgvW 규칙으로 안전 인용한다(JSON의 따옴표/특수문자 보존).
+# 근거: MSDN "Everyone quotes command line arguments the wrong way" 알고리즘.
+function ConvertTo-WinArg {
+  param([string]$Arg)
+  if ($Arg.Length -gt 0 -and ($Arg -notmatch '[ \t\n\v"]')) { return $Arg }
+  $sb = New-Object System.Text.StringBuilder
+  [void]$sb.Append('"')
+  $i = 0
+  while ($i -lt $Arg.Length) {
+    $bs = 0
+    while ($i -lt $Arg.Length -and $Arg[$i] -eq '\') { $i++; $bs++ }
+    if ($i -eq $Arg.Length) {
+      [void]$sb.Append('\' * ($bs * 2))
+    } elseif ($Arg[$i] -eq '"') {
+      [void]$sb.Append('\' * ($bs * 2 + 1))
+      [void]$sb.Append('"')
+      $i++
+    } else {
+      [void]$sb.Append('\' * $bs)
+      [void]$sb.Append($Arg[$i])
+      $i++
+    }
+  }
+  [void]$sb.Append('"')
+  return $sb.ToString()
+}
+
+# 외부 CLI 호출(PS 5.1/7 공통): ProcessStartInfo + 직접 구성한 Arguments 문자열(컬렉션 기반 인자 API 미사용 —
+# .NET Framework/5.1에는 없음). call 연산자가 멀티라인/따옴표 JSON 인자를 깨뜨리는 PS 5.1 문제를 회피한다.
+# stdin=무BOM UTF-8 바이트 직접 기록, stdout/stderr 비동기 캡처(버퍼 데드락 회피), 종료코드 반환.
 function Invoke-Cli {
   param(
     [string]$Exe,
@@ -92,26 +120,45 @@ function Invoke-Cli {
     [string]$OutLog,
     [string]$ErrLog
   )
-  $tmpIn = [System.IO.Path]::GetTempFileName()
-  Write-TextNoBom $tmpIn $StdinText
-  $prevEnc = $OutputEncoding
-  $OutputEncoding = (Get-Utf8NoBom)
-  $out = $null
-  $code = 0
-  # native(claude/codex)가 stderr로 진단을 내도 EAP=Stop로 승격되어 중단되지 않게 호출 구간만 Continue.
-  # CLI stderr는 디버깅에 유용하므로 파일($ErrLog)로 남긴다(git status와 달리 보존).
+  $argString = (($CliArgs | ForEach-Object { ConvertTo-WinArg $_ }) -join ' ')
+  $psi = New-Object System.Diagnostics.ProcessStartInfo
+  $psi.FileName = $Exe
+  $psi.Arguments = $argString
+  $psi.UseShellExecute = $false
+  $psi.RedirectStandardInput = $true
+  $psi.RedirectStandardOutput = $true
+  $psi.RedirectStandardError = $true
+  $psi.StandardOutputEncoding = (Get-Utf8NoBom)
+  $psi.StandardErrorEncoding = (Get-Utf8NoBom)
+  $psi.WorkingDirectory = $RepoRoot
+  $proc = New-Object System.Diagnostics.Process
+  $proc.StartInfo = $psi
+  # native stderr가 EAP=Stop로 승격되지 않도록 호출 구간만 Continue(.NET 직접 호출이라 사실상 무관하나 방어).
   $oldEap = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
+  $out = ""
+  $err = ""
+  $code = 0
   try {
-    $out = Get-Content -LiteralPath $tmpIn -Raw -Encoding UTF8 | & $Exe @CliArgs 2> $ErrLog
-    $code = $LASTEXITCODE
+    [void]$proc.Start()
+    # 비동기 읽기를 먼저 시작(stdout/stderr 버퍼가 차서 막히는 데드락 방지)
+    $outTask = $proc.StandardOutput.ReadToEndAsync()
+    $errTask = $proc.StandardError.ReadToEndAsync()
+    # stdin은 무BOM UTF-8 바이트로 직접 기록 후 닫는다
+    $inBytes = (Get-Utf8NoBom).GetBytes($StdinText)
+    $proc.StandardInput.BaseStream.Write($inBytes, 0, $inBytes.Length)
+    $proc.StandardInput.BaseStream.Flush()
+    $proc.StandardInput.Close()
+    $proc.WaitForExit()
+    $out = $outTask.Result
+    $err = $errTask.Result
+    $code = $proc.ExitCode
   } finally {
     $ErrorActionPreference = $oldEap
-    $OutputEncoding = $prevEnc
-    Remove-Item -LiteralPath $tmpIn -Force -ErrorAction SilentlyContinue
+    $proc.Dispose()
   }
-  # Out-String 줄바꿈 래핑을 피하려고 -join 사용(JSON 손상 방지)
-  Write-TextNoBom $OutLog ($out -join "`n")
+  Write-TextNoBom $OutLog $out
+  Write-TextNoBom $ErrLog $err
   return $code
 }
 
@@ -284,11 +331,15 @@ if (Test-HighConfidenceSecret $rawTask) {
 $checkedTask = Get-CheckedTask $rawTask
 $taskSha = Get-Sha256OfText $checkedTask
 
-# schema 2종 유효성(파싱 확인) — DryRun에서도 점검
-$claudeSchemaJson = Read-TextNoBom (Abs $ClaudePlanSchema)
-$codexSchemaText  = Read-TextNoBom (Abs $CodexReviewSchema)
-try { [void]($claudeSchemaJson | ConvertFrom-Json) } catch { Stop-Fail 10 "claude-plan.schema.json 파싱 실패" }
+# schema 2종 유효성(파싱 확인) — DryRun에서도 점검.
+# --json-schema는 파일 경로가 아니라 JSON 문자열 인수다(claude -p --help). PS 5.1 native 인자에서
+# 개행/따옴표 손상을 줄이려고 compact(minified) JSON으로 직렬화해 전달한다(파일 경로 전환 아님).
+$claudeSchemaRaw = Read-TextNoBom (Abs $ClaudePlanSchema)
+$codexSchemaText = Read-TextNoBom (Abs $CodexReviewSchema)
+$claudeSchemaObj = $null
+try { $claudeSchemaObj = $claudeSchemaRaw | ConvertFrom-Json } catch { Stop-Fail 10 "claude-plan.schema.json 파싱 실패" }
 try { [void]($codexSchemaText | ConvertFrom-Json) } catch { Stop-Fail 10 "codex-plan-review.schema.json 파싱 실패" }
+$claudeSchemaJson = $claudeSchemaObj | ConvertTo-Json -Depth 30 -Compress
 
 # ======================================================================
 # DryRun 분기 — 실호출·런타임 산출물 없음
