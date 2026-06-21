@@ -245,7 +245,9 @@ function Assert-CodexReviewShape {
   }
 }
 
-# Claude plan도 schema 수준 최소 검증(구조 위반을 CLI에만 맡기지 않음). 위반 시 종료코드 12.
+# Claude plan을 schema 수준으로 검증한다. 생성용 schema는 structured_output 생성을 위해 단순화했으므로
+# 제거한 엄격 제약(hex·const·비어있지 않은 string·배열 요소 타입·file_changes item)을 전부 여기서 강제한다.
+# 위반 시 throw -> 호출부 try/catch가 Stop-Fail 12로 매핑(self-test 가능하도록 Stop-Fail 직접 호출하지 않음).
 function Assert-ClaudePlanShape {
   param([object]$Plan, [string]$RawText)
   $required = @(
@@ -253,20 +255,53 @@ function Assert-ClaudePlanShape {
     "risk_level", "allowed_files", "forbidden_files", "file_changes", "risks", "acceptance_criteria",
     "required_validations", "rollback", "requires_human_approval", "no_implementation_performed"
   )
+  # 필수 필드 전체 존재(빈 배열이 null로 와도 property 존재로 판정)
   foreach ($f in $required) {
-    if ($null -eq (Get-JsonProp $Plan $f)) { Stop-Fail 12 "Claude plan 필수 필드 누락: $f" }
+    if ($null -eq $Plan.PSObject.Properties[$f]) { throw "필수 필드 누락: $f" }
   }
+  # 허용 외 추가 필드 금지
   foreach ($p in $Plan.PSObject.Properties.Name) {
-    if ($required -notcontains $p) { Stop-Fail 12 "Claude plan 허용 외 추가 필드: $p" }
+    if ($required -notcontains $p) { throw "허용 외 추가 필드: $p" }
   }
-  if ((Get-JsonProp $Plan "artifact_type") -ne "claude_plan") { Stop-Fail 12 "artifact_type != claude_plan" }
-  if ((Get-JsonProp $Plan "stage") -ne "plan") { Stop-Fail 12 "stage != plan" }
-  if ((Get-JsonProp $Plan "requires_human_approval") -ne $true) { Stop-Fail 12 "requires_human_approval != true" }
-  if ((Get-JsonProp $Plan "no_implementation_performed") -ne $true) { Stop-Fail 12 "no_implementation_performed != true" }
-  $rl = Get-JsonProp $Plan "risk_level"
-  if (@("low", "medium", "high") -notcontains $rl) { Stop-Fail 12 "risk_level enum 위반: $rl" }
-  foreach ($af in @("allowed_files", "forbidden_files", "file_changes", "risks", "acceptance_criteria", "required_validations")) {
-    if (-not (Test-JsonArrayField $RawText $af)) { Stop-Fail 12 "Claude plan 필드가 배열이 아님: $af" }
+  # const 대체
+  if ((Get-JsonProp $Plan "artifact_type") -ne "claude_plan") { throw "artifact_type != claude_plan" }
+  if ((Get-JsonProp $Plan "stage") -ne "plan") { throw "stage != plan" }
+  if ((Get-JsonProp $Plan "requires_human_approval") -ne $true) { throw "requires_human_approval != true" }
+  if ((Get-JsonProp $Plan "no_implementation_performed") -ne $true) { throw "no_implementation_performed != true" }
+  # risk_level enum
+  if (@("low", "medium", "high") -notcontains (Get-JsonProp $Plan "risk_level")) { throw "risk_level enum 위반" }
+  # 비어 있지 않은 string (minLength 대체)
+  foreach ($sf in @("schema_version", "task_id", "summary", "rollback")) {
+    $v = Get-JsonProp $Plan $sf
+    if (-not ($v -is [string]) -or [string]::IsNullOrWhiteSpace($v)) { throw "$sf 가 비어있지 않은 문자열이 아님" }
+  }
+  # base_commit / task_sha256 hex (pattern 대체)
+  $bc = Get-JsonProp $Plan "base_commit"
+  if (-not ($bc -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($bc, '^[0-9a-f]{7,40}$')) { throw "base_commit 형식 위반(7~40 hex)" }
+  $ts = Get-JsonProp $Plan "task_sha256"
+  if (-not ($ts -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($ts, '^[0-9a-f]{64}$')) { throw "task_sha256 형식 위반(64 hex)" }
+  # string 배열들: raw JSON 기준 '진짜 배열'인지 먼저 확인(스칼라 문자열이 @()로 감싸져 통과하는 것 차단) 후 각 요소 string.
+  foreach ($af in @("allowed_files", "forbidden_files", "risks", "acceptance_criteria", "required_validations")) {
+    if (-not (Test-JsonArrayField $RawText $af)) { throw "$af 필드가 배열이 아님" }
+    $val = (Get-JsonProp $Plan $af)
+    foreach ($el in @($val)) {
+      if ($null -eq $el) { continue }
+      if (-not ($el -is [string])) { throw "$af 요소가 문자열이 아님" }
+    }
+  }
+  # file_changes: raw JSON 기준 배열인지 먼저 확인한 뒤 각 item 검증(객체 하나만 와도 배열 아님으로 거부).
+  if (-not (Test-JsonArrayField $RawText "file_changes")) { throw "file_changes 필드가 배열이 아님" }
+  $fcVal = (Get-JsonProp $Plan "file_changes")
+  foreach ($item in @($fcVal)) {
+    if ($null -eq $item) { continue }
+    if (-not ($item -is [System.Management.Automation.PSCustomObject])) { throw "file_changes item이 객체가 아님" }
+    foreach ($n in $item.PSObject.Properties.Name) {
+      if (@("path", "change") -notcontains $n) { throw "file_changes item 허용 외 필드: $n" }
+    }
+    $pp = Get-JsonProp $item "path"
+    $cc = Get-JsonProp $item "change"
+    if (-not ($pp -is [string]) -or [string]::IsNullOrWhiteSpace($pp)) { throw "file_changes.path 비어있지 않은 문자열 아님" }
+    if (-not ($cc -is [string]) -or [string]::IsNullOrWhiteSpace($cc)) { throw "file_changes.change 비어있지 않은 문자열 아님" }
   }
 }
 
@@ -347,11 +382,43 @@ if ($SelfTest) {
     $errBlocked = $false
     try { [void](Resolve-ClaudePlanJson $env4) } catch { $errBlocked = $true }
 
-    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked) {
-      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok"
+    # (f) Assert-ClaudePlanShape: raw JSON 기준 배열 검증 회복. RawText로 실제 JSON을 넘긴다(clean JSON string).
+    $zeros = ("0" * 64)
+    $validRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
+    $validObj = $validRaw | ConvertFrom-Json
+    $validOk = $true
+    try { Assert-ClaudePlanShape $validObj $validRaw } catch { $validOk = $false }
+
+    # base_commit가 hex 아님 -> 거부
+    $badRaw = $validRaw.Replace('"base_commit":"0000000"', '"base_commit":"NOTHEX"')
+    $badObj = $badRaw | ConvertFrom-Json
+    $badRejected = $false
+    try { Assert-ClaudePlanShape $badObj $badRaw } catch { $badRejected = $true }
+
+    # allowed_files가 배열이 아니라 스칼라 문자열 -> 거부(이번 BLOCK의 핵심 회귀)
+    $scalarRaw = $validRaw.Replace('"allowed_files":["a"]', '"allowed_files":"a"')
+    $scalarObj = $scalarRaw | ConvertFrom-Json
+    $scalarRejected = $false
+    try { Assert-ClaudePlanShape $scalarObj $scalarRaw } catch { $scalarRejected = $true }
+
+    # file_changes가 배열이 아니라 객체 하나 -> 거부
+    $fcObjRaw = $validRaw.Replace('"file_changes":[{"path":"a","change":"edit"}]', '"file_changes":{"path":"a","change":"edit"}')
+    $fcObjObj = $fcObjRaw | ConvertFrom-Json
+    $fcObjRejected = $false
+    try { Assert-ClaudePlanShape $fcObjObj $fcObjRaw } catch { $fcObjRejected = $true }
+
+    # 실제 경로 라운드트립(structured_output -> ConvertTo-Json -> 파일 -> ConvertFrom-Json)에서
+    # 단일원소/빈 배열이 '배열'로 보존되어 Test-JsonArrayField를 통과하는지 실측(통과해야 정상 plan을 안 깬다).
+    $rtJson = ($validRaw | ConvertFrom-Json) | ConvertTo-Json -Depth 30
+    $rtObj = $rtJson | ConvertFrom-Json
+    $roundtripOk = $true
+    try { Assert-ClaudePlanShape $rtObj $rtJson } catch { $roundtripOk = $false }
+
+    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk) {
+      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok"
       $selftestCode = 0
     } else {
-      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose_blocked=" + $proseBlocked + " so=" + $soOk + " err_blocked=" + $errBlocked)
+      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk)
     }
   } catch {
     Write-PlainLine ("SELFTEST=FAIL exception: " + $_.Exception.Message)
@@ -551,7 +618,7 @@ $planSha = Get-Sha256OfText (Read-TextNoBom $claudePlanPath)
 $planRaw = Read-TextNoBom $claudePlanPath
 $planObj = $null
 try { $planObj = $planRaw | ConvertFrom-Json } catch { Stop-Fail 12 "claude-plan.json 파싱 실패" }
-Assert-ClaudePlanShape $planObj $planRaw
+try { Assert-ClaudePlanShape $planObj $planRaw } catch { Stop-Fail 12 ("Claude plan 검증 실패: " + $_.Exception.Message) }
 $planBase = Get-JsonProp $planObj "base_commit"
 $planTaskSha = Get-JsonProp $planObj "task_sha256"
 if ($planBase -ne $baseCommit) { Stop-Fail 14 "Claude plan base_commit 불일치(Codex 호출 전 차단)" }

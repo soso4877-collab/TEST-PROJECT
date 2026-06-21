@@ -43,26 +43,58 @@ def test_allowed_files_exist():
         assert (ROOT / rel).is_file(), f"누락: {rel}"
 
 
-def test_claude_plan_schema():
-    s = json.loads(_read("harness/schemas/claude-plan.schema.json"))
-    assert "2020-12" in s["$schema"]
-    assert s["additionalProperties"] is False
+def test_claude_plan_schema_simplified():
+    # 생성용 최소 schema: structured_output 생성을 위해 검증성 키워드 제거(복잡 schema는 CLI가 structured_output을 드롭).
+    raw = _read("harness/schemas/claude-plan.schema.json")
+    s = json.loads(raw)
     assert s["type"] == "object"
+    assert s["additionalProperties"] is False
+    # 제거 확인: const/pattern/minLength/$schema/$id/title/description 없음
+    assert "const" not in raw
+    assert "pattern" not in raw
+    assert "minLength" not in raw
+    for meta in ("$schema", "$id", "title", "description"):
+        assert meta not in s, f"제거 대상 메타 키 잔존: {meta}"
+    # 유지 확인: 필수 필드/properties
     for k in (
+        "schema_version",
+        "artifact_type",
+        "stage",
         "base_commit",
         "task_sha256",
         "requires_human_approval",
         "no_implementation_performed",
         "allowed_files",
         "forbidden_files",
+        "file_changes",
     ):
         assert k in s["properties"], f"claude schema 필드 누락: {k}"
         assert k in s["required"], f"claude schema required 누락: {k}"
-    assert s["properties"]["artifact_type"]["const"] == "claude_plan"
-    assert s["properties"]["stage"]["const"] == "plan"
-    assert s["properties"]["requires_human_approval"]["const"] is True
-    assert s["properties"]["no_implementation_performed"]["const"] is True
-    assert "DIFF_VERDICT" not in _read("harness/schemas/claude-plan.schema.json")
+    # risk_level enum은 유지 가능
+    assert s["properties"]["risk_level"]["enum"] == ["low", "medium", "high"]
+    assert "DIFF_VERDICT" not in raw
+
+
+def test_ps_assert_claudeplan_enforces_removed_constraints():
+    # schema에서 제거한 엄격 제약을 PS Assert-ClaudePlanShape가 강제하는지 정적 고정.
+    t = _ps_text()
+    assert "Assert-ClaudePlanShape" in t
+    # base_commit/task_sha256 hex(pattern 대체)
+    assert "[0-9a-f]{7,40}" in t
+    assert "[0-9a-f]{64}" in t
+    # const 대체
+    assert "claude_plan" in t
+    assert "no_implementation_performed" in t
+    assert "requires_human_approval" in t
+    # 추가필드 금지 + file_changes item(path/change) 검증
+    assert "허용 외 추가 필드" in t
+    assert "file_changes" in t
+    assert "path" in t and "change" in t
+    # 비어있지 않은 string 검증(minLength 대체)
+    assert "IsNullOrWhiteSpace" in t
+    # 배열 필드는 raw JSON 기준으로 '진짜 배열'인지 확인(스칼라 문자열 @() 감싸기 통과 방지)
+    assert "Test-JsonArrayField" in t
+    assert "필드가 배열이 아님" in t
 
 
 def test_codex_review_schema():
@@ -227,6 +259,12 @@ def test_invoke_cli_stdin_roundtrip_selftest():
     assert "envelope_prose_blocked=ok" in r.stdout
     assert "structured_output=ok" in r.stdout
     assert "is_error_blocked=ok" in r.stdout
+    assert "planshape_valid=ok" in r.stdout
+    assert "planshape_bad_rejected=ok" in r.stdout
+    # 배열 필드의 raw JSON 기준 검증 회복(스칼라/객체 거부) + 라운드트립 보존
+    assert "planshape_scalar_array_rejected=ok" in r.stdout
+    assert "planshape_file_changes_object_rejected=ok" in r.stdout
+    assert "planshape_roundtrip=ok" in r.stdout
 
 
 def test_ps_claude_response_failclosed():
