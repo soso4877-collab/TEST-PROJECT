@@ -112,6 +112,9 @@ function ConvertTo-WinArg {
 # 외부 CLI 호출(PS 5.1/7 공통): ProcessStartInfo + 직접 구성한 Arguments 문자열(컬렉션 기반 인자 API 미사용 —
 # .NET Framework/5.1에는 없음). call 연산자가 멀티라인/따옴표 JSON 인자를 깨뜨리는 PS 5.1 문제를 회피한다.
 # stdin=무BOM UTF-8 바이트 직접 기록, stdout/stderr 비동기 캡처(버퍼 데드락 회피), 종료코드 반환.
+# 중요: managed .NET 처리(Start/GetBytes/Write/ReadToEndAsync/WaitForExit)는 EAP=Continue로 감싸지 않는다.
+# ProcessStartInfo 직접 호출이라 native stderr 승격 문제가 없으므로, 예외는 정상적으로 터지게 두고
+# 호출부(try/catch)가 stage별 Stop-Fail(11/13)로 매핑한다. EAP=Continue로 가리면 예외가 묻혀 exit 1로 샌다.
 function Invoke-Cli {
   param(
     [string]$Exe,
@@ -120,6 +123,8 @@ function Invoke-Cli {
     [string]$OutLog,
     [string]$ErrLog
   )
+  # stdin이 null이면 잘못된 계획 검토가 되므로 조용히 빈 문자열로 바꾸지 말고 fail-closed(호출부가 매핑).
+  if ($null -eq $StdinText) { throw "Invoke-Cli: StdinText is null (fail-closed)" }
   $argString = (($CliArgs | ForEach-Object { ConvertTo-WinArg $_ }) -join ' ')
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $Exe
@@ -133,13 +138,11 @@ function Invoke-Cli {
   $psi.WorkingDirectory = $RepoRoot
   $proc = New-Object System.Diagnostics.Process
   $proc.StartInfo = $psi
-  # native stderr가 EAP=Stop로 승격되지 않도록 호출 구간만 Continue(.NET 직접 호출이라 사실상 무관하나 방어).
-  $oldEap = $ErrorActionPreference
-  $ErrorActionPreference = "Continue"
   $out = ""
   $err = ""
   $code = 0
   try {
+    # managed .NET 호출은 예외가 정상적으로 터지게 둔다(EAP 변경 없음 = 스크립트 기본 Stop 유지).
     [void]$proc.Start()
     # 비동기 읽기를 먼저 시작(stdout/stderr 버퍼가 차서 막히는 데드락 방지)
     $outTask = $proc.StandardOutput.ReadToEndAsync()
@@ -154,7 +157,6 @@ function Invoke-Cli {
     $err = $errTask.Result
     $code = $proc.ExitCode
   } finally {
-    $ErrorActionPreference = $oldEap
     $proc.Dispose()
   }
   Write-TextNoBom $OutLog $out
@@ -422,7 +424,13 @@ $claudeArgs = @(
   "--no-chrome",
   "--no-session-persistence"
 )
-$claudeExit = Invoke-Cli -Exe "claude" -CliArgs $claudeArgs -StdinText $claudeStdin -OutLog $claudeOut -ErrLog $claudeErr
+$claudeExit = 0
+try {
+  $claudeExit = Invoke-Cli -Exe "claude" -CliArgs $claudeArgs -StdinText $claudeStdin -OutLog $claudeOut -ErrLog $claudeErr
+} catch {
+  # Invoke-Cli 내부 예외(프로세스 시작·stdin·읽기 실패 등)를 하네스 종료코드로 매핑(exit 1 누출 방지).
+  Stop-Fail 11 ("Claude 호출 예외: " + $_.Exception.Message)
+}
 if ($claudeExit -ne 0) { Stop-Fail 11 "Claude 실행 실패(exit=$claudeExit)" }
 
 # 전체 envelope 저장
@@ -480,7 +488,12 @@ $codexArgs = @(
   "-o", $codexReviewPath,
   "-"
 )
-$codexExit = Invoke-Cli -Exe "codex" -CliArgs $codexArgs -StdinText $reviewPacket -OutLog $codexOut -ErrLog $codexErr
+$codexExit = 0
+try {
+  $codexExit = Invoke-Cli -Exe "codex" -CliArgs $codexArgs -StdinText $reviewPacket -OutLog $codexOut -ErrLog $codexErr
+} catch {
+  Stop-Fail 13 ("Codex 호출 예외: " + $_.Exception.Message)
+}
 if ($codexExit -ne 0) { Stop-Fail 13 "Codex 실행 실패(exit=$codexExit)" }
 
 # -o 저장본을 PS가 직접 파싱·검증(CLI 검증에 의존하지 않음)

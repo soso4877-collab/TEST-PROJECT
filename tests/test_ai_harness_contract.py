@@ -173,6 +173,23 @@ def test_ps_no_forbidden_call_patterns():
         assert not re.search(pat, t), f"금지 호출 패턴 발견: {pat}"
 
 
+def test_ps_invoke_cli_exceptions_map_to_stage_exit_codes():
+    # Invoke-Cli 예외(프로세스 시작·stdin·읽기 실패)가 exit 1로 새지 않고 stage별 Stop-Fail로 매핑돼야 함.
+    t = _ps_text()
+    # Claude/Codex 호출부가 try/catch로 감싸 각각 11/13으로 매핑
+    assert re.search(r"try\s*\{\s*\$claudeExit\s*=\s*Invoke-Cli", t), "Claude 호출 try/catch 필요"
+    assert re.search(r"catch\s*\{[^}]*Stop-Fail\s+11", t), "Claude 예외 -> Stop-Fail 11"
+    assert re.search(r"try\s*\{\s*\$codexExit\s*=\s*Invoke-Cli", t), "Codex 호출 try/catch 필요"
+    assert re.search(r"catch\s*\{[^}]*Stop-Fail\s+13", t), "Codex 예외 -> Stop-Fail 13"
+    # StdinText null이면 fail-closed(조용히 빈 문자열로 바꾸지 않음)
+    assert re.search(r"\$null\s*-eq\s*\$StdinText", t), "StdinText null fail-closed 필요"
+    # Invoke-Cli 내부 managed .NET 처리를 EAP=Continue로 감싸지 않는다(예외가 정상 전파돼야 함).
+    # = Invoke-Cli 본문에 ErrorActionPreference 재설정이 없어야 한다(EAP 처리는 Invoke-GitRead에만 존재).
+    m = re.search(r"function Invoke-Cli\s*\{.*?\n\}", t, re.DOTALL)
+    assert m, "Invoke-Cli 함수 본문을 찾지 못함"
+    assert "ErrorActionPreference" not in m.group(0), "Invoke-Cli는 EAP를 변경하지 않아야 함"
+
+
 def test_ps_validates_artifact_shapes():
     t = _ps_text()
     # Codex/Claude 산출물을 schema 수준으로 직접 검증하는 함수가 존재해야 함(해시만 맞으면 통과 방지)
