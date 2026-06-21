@@ -189,6 +189,37 @@ function Test-JsonArrayField {
   return [System.Text.RegularExpressions.Regex]::IsMatch($RawText, $pat)
 }
 
+# Claude envelope에서 계획 JSON '텍스트'를 안전 추출한다. structured_output 객체 우선, 없으면 result가
+# '단일 JSON 객체 문자열'일 때만 사용. prose/markdown/설명 혼입은 추출하지 않고 throw(BLOCK) — 호출부가 Stop-Fail 12.
+# 단일원소 배열 unwrap을 피하려고 result-string 경로는 원문 텍스트를 그대로 반환한다.
+function Resolve-ClaudePlanJson {
+  param([object]$Envelope)
+  if ($null -eq $Envelope) { throw "envelope null" }
+  $isErr = Get-JsonProp $Envelope "is_error"
+  if ($isErr -eq $true) { throw "is_error=true (Claude 성공 응답 아님)" }
+  $structured = Get-JsonProp $Envelope "structured_output"
+  if ($null -ne $structured -and ($structured -is [System.Management.Automation.PSCustomObject])) {
+    return ($structured | ConvertTo-Json -Depth 30)
+  }
+  $result = Get-JsonProp $Envelope "result"
+  if ($null -eq $result) { throw "structured_output/result 없음" }
+  if ($result -is [System.Management.Automation.PSCustomObject]) {
+    return ($result | ConvertTo-Json -Depth 30)
+  }
+  if ($result -is [string]) {
+    $rs = $result.Trim()
+    # 순수 단일 JSON 객체만 허용: 반드시 '{'로 시작·'}'로 끝나야 함(prose/마크다운펜스/앞뒤텍스트 차단).
+    if (-not ($rs.StartsWith("{") -and $rs.EndsWith("}"))) {
+      throw "result가 단일 JSON 객체가 아님(prose/markdown 혼입) — BLOCK"
+    }
+    $probe = $null
+    try { $probe = $rs | ConvertFrom-Json } catch { throw "result JSON 파싱 실패 — BLOCK" }
+    if (-not ($probe -is [System.Management.Automation.PSCustomObject])) { throw "result가 JSON 객체 아님 — BLOCK" }
+    return $rs
+  }
+  throw "result 형식 불명 — BLOCK"
+}
+
 # Codex 결과를 schema 수준으로 직접 검증(CLI 검증에 의존하지 않음). 위반 시 종료코드 14.
 function Assert-CodexReviewShape {
   param([object]$Review, [string]$RawText)
@@ -289,14 +320,38 @@ if ($SelfTest) {
   $tmpOut = [System.IO.Path]::GetTempFileName()
   $tmpErr = [System.IO.Path]::GetTempFileName()
   try {
+    # (a) stdin write 경로(dummy reader sort)
     $marker = "SELFTEST_ROUNDTRIP_OK"
     $rc = Invoke-Cli -Exe "sort" -CliArgs @() -StdinText $marker -OutLog $tmpOut -ErrLog $tmpErr
-    $captured = Read-TextNoBom $tmpOut
-    if ($captured -match $marker) {
-      Write-PlainLine ("SELFTEST=PASS stdin_roundtrip=ok rc=" + $rc)
+    $stdinOk = ((Read-TextNoBom $tmpOut) -match $marker)
+
+    # 샘플 envelope은 inline JSON string+ConvertFrom-Json(PS5.1/StrictMode escaping 영향) 대신
+    # [pscustomobject]로 직접 구성한다. (실 envelope 처리는 메인 흐름의 ConvertFrom-Json 경로로 동작)
+    # (b) result가 순수 단일 JSON 객체 문자열 -> 통과
+    $env1 = [pscustomobject]@{ is_error = $false; result = '{"a":1}' }
+    $j1 = Resolve-ClaudePlanJson $env1
+    $pureOk = ($j1 -match '"a"')
+
+    # (c) result에 prose+JSON 혼입 -> 추출하지 않고 BLOCK
+    $env2 = [pscustomobject]@{ is_error = $false; result = 'Here is the plan: {"a":1} thanks' }
+    $proseBlocked = $false
+    try { [void](Resolve-ClaudePlanJson $env2) } catch { $proseBlocked = $true }
+
+    # (d) structured_output 객체 -> 통과
+    $env3 = [pscustomobject]@{ is_error = $false; structured_output = [pscustomobject]@{ b = 2 } }
+    $j3 = Resolve-ClaudePlanJson $env3
+    $soOk = ($j3 -match '"b"')
+
+    # (e) is_error=true -> BLOCK
+    $env4 = [pscustomobject]@{ is_error = $true; result = '{"a":1}' }
+    $errBlocked = $false
+    try { [void](Resolve-ClaudePlanJson $env4) } catch { $errBlocked = $true }
+
+    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked) {
+      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok"
       $selftestCode = 0
     } else {
-      Write-PlainLine ("SELFTEST=FAIL stdin_roundtrip_missing rc=" + $rc)
+      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose_blocked=" + $proseBlocked + " so=" + $soOk + " err_blocked=" + $errBlocked)
     }
   } catch {
     Write-PlainLine ("SELFTEST=FAIL exception: " + $_.Exception.Message)
@@ -469,24 +524,25 @@ try {
 }
 if ($claudeExit -ne 0) { Stop-Fail 11 "Claude 실행 실패(exit=$claudeExit)" }
 
-# 전체 envelope 저장
-$claudeRespText = Read-TextNoBom $claudeOut
-Write-TextNoBom $claudeRespPath $claudeRespText
+# Claude 응답: 읽기/저장/파싱을 전부 fail-closed로 처리(어떤 PowerShell 예외도 exit 1로 새지 않고 Stop-Fail 12).
+if (-not (Test-Path -LiteralPath $claudeOut -PathType Leaf)) { Stop-Fail 12 "claude-stdout.log 없음" }
+$claudeOutLen = (Get-Item -LiteralPath $claudeOut).Length
+if ($claudeOutLen -le 0) { Stop-Fail 12 "claude-stdout.log 비어 있음(Claude 무출력)" }
 
-# envelope 파싱 -> structured_output 추출
+# pre-declare 후 try/catch로 읽는다(StrictMode 즉석 변수 미정의 크래시 방지).
+$claudeRespText = $null
+try { $claudeRespText = Read-TextNoBom $claudeOut } catch { Stop-Fail 12 ("Claude 응답 읽기 실패: " + $_.Exception.Message) }
+if ([string]::IsNullOrEmpty($claudeRespText)) { Stop-Fail 12 "Claude 응답 텍스트 비어 있음" }
+try { Write-TextNoBom $claudeRespPath $claudeRespText } catch { Stop-Fail 12 ("claude-response.json 저장 실패: " + $_.Exception.Message) }
+
 $envelope = $null
-try { $envelope = $claudeRespText | ConvertFrom-Json } catch { Stop-Fail 12 "Claude envelope JSON 파싱 실패" }
-$structured = Get-JsonProp $envelope "structured_output"
-if ($null -eq $structured) {
-  # 일부 출력 형태는 result 안에 둘 수 있음 — 보조 경로
-  $structured = Get-JsonProp $envelope "result"
-}
-if ($null -eq $structured) { Stop-Fail 12 "structured_output 누락" }
-$isErrorProp = Get-JsonProp $envelope "is_error"
-if ($isErrorProp -eq $true) { Stop-Fail 12 "Claude 성공 응답 아님(is_error=true)" }
+try { $envelope = $claudeRespText | ConvertFrom-Json } catch { Stop-Fail 12 ("Claude envelope JSON 파싱 실패: " + $_.Exception.Message) }
+if ($null -eq $envelope) { Stop-Fail 12 "Claude envelope 비어 있음" }
 
-$structuredJson = $structured | ConvertTo-Json -Depth 12
-Write-TextNoBom $claudePlanPath $structuredJson
+# structured_output 우선, 없으면 result가 '단일 JSON 객체'일 때만 사용(prose/markdown 혼입은 BLOCK). 임의 substring 추출 금지.
+$planJson = $null
+try { $planJson = Resolve-ClaudePlanJson $envelope } catch { Stop-Fail 12 ("Claude 응답 처리 BLOCK: " + $_.Exception.Message) }
+try { Write-TextNoBom $claudePlanPath $planJson } catch { Stop-Fail 12 ("claude-plan.json 저장 실패: " + $_.Exception.Message) }
 $planSha = Get-Sha256OfText (Read-TextNoBom $claudePlanPath)
 
 # ======================================================================

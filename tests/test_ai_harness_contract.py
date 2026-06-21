@@ -222,6 +222,29 @@ def test_invoke_cli_stdin_roundtrip_selftest():
     )
     assert r.returncode == 0, f"SelfTest 실패: out={r.stdout} err={r.stderr}"
     assert "SELFTEST=PASS" in r.stdout, f"stdin roundtrip 미확인: {r.stdout}"
+    # 응답 처리 케이스도 self-test에서 통과해야 함(순수 JSON / prose BLOCK / structured_output / is_error)
+    assert "envelope_pure=ok" in r.stdout
+    assert "envelope_prose_blocked=ok" in r.stdout
+    assert "structured_output=ok" in r.stdout
+    assert "is_error_blocked=ok" in r.stdout
+
+
+def test_ps_claude_response_failclosed():
+    # Claude 응답 읽기/저장/파싱이 전부 fail-closed(Stop-Fail 12)이고 prose+JSON 혼입을 BLOCK해야 함.
+    t = _ps_text()
+    # 응답 추출 로직이 self-test 가능한 함수로 분리됨
+    assert "Resolve-ClaudePlanJson" in t
+    # 단일 JSON 객체만 허용(prose/markdown/펜스 차단)
+    assert "StartsWith" in t and "EndsWith" in t
+    # 응답 텍스트는 pre-declare 후 try/catch로 읽는다(StrictMode 미정의 크래시 방지)
+    assert "$claudeRespText = $null" in t
+    # 파일 존재/크기 검사
+    assert "claude-stdout.log 없음" in t
+    assert "-le 0" in t
+    # 읽기/저장/파싱 예외가 Stop-Fail 12로 매핑(exit 1 누출 방지)
+    assert "Claude 응답 읽기 실패" in t
+    assert "claude-response.json 저장 실패" in t
+    assert "Claude 응답 처리 BLOCK" in t
 
 
 def test_ps_validates_artifact_shapes():
