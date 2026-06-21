@@ -11,7 +11,8 @@
 param(
   [ValidateSet("Plan")][string]$Stage = "Plan",
   [string]$Task = "handoff/current/task.md",
-  [switch]$DryRun
+  [switch]$DryRun,
+  [switch]$SelfTest
 )
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
@@ -125,6 +126,15 @@ function Invoke-Cli {
   )
   # stdin이 null이면 잘못된 계획 검토가 되므로 조용히 빈 문자열로 바꾸지 말고 fail-closed(호출부가 매핑).
   if ($null -eq $StdinText) { throw "Invoke-Cli: StdinText is null (fail-closed)" }
+  # stdin byte 배열을 '프로세스 시작 전에' 미리 생성·타입고정·검증한다.
+  # (try 안에서 즉석 생성→바로 사용하는 취약 구조가 StrictMode에서 즉석 변수 미정의를 유발했던 것을 회피.)
+  $stdinBytes = $null
+  try {
+    [byte[]]$stdinBytes = (Get-Utf8NoBom).GetBytes($StdinText)
+  } catch {
+    throw ("Invoke-Cli: stdin UTF-8 인코딩 실패: " + $_.Exception.Message)
+  }
+  if ($null -eq $stdinBytes) { throw "Invoke-Cli: stdin byte 배열 생성 실패 (fail-closed)" }
   $argString = (($CliArgs | ForEach-Object { ConvertTo-WinArg $_ }) -join ' ')
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $Exe
@@ -147,9 +157,8 @@ function Invoke-Cli {
     # 비동기 읽기를 먼저 시작(stdout/stderr 버퍼가 차서 막히는 데드락 방지)
     $outTask = $proc.StandardOutput.ReadToEndAsync()
     $errTask = $proc.StandardError.ReadToEndAsync()
-    # stdin은 무BOM UTF-8 바이트로 직접 기록 후 닫는다
-    $inBytes = (Get-Utf8NoBom).GetBytes($StdinText)
-    $proc.StandardInput.BaseStream.Write($inBytes, 0, $inBytes.Length)
+    # 미리 만든 $stdinBytes만 사용한다(try 안에서 새로 GetBytes 하지 않는다)
+    $proc.StandardInput.BaseStream.Write($stdinBytes, 0, $stdinBytes.Length)
     $proc.StandardInput.BaseStream.Flush()
     $proc.StandardInput.Close()
     $proc.WaitForExit()
@@ -269,6 +278,33 @@ function Invoke-GitRead {
     $ErrorActionPreference = $oldEap
   }
   return [pscustomobject]@{ Code = $code; Out = ($out -join "`n") }
+}
+
+# ======================================================================
+# SelfTest — 실 Claude/Codex 없이 Invoke-Cli의 stdin write 경로를 dummy reader(sort)로 검증(PS 5.1/7).
+# preflight·실행 폴더·git 이전에 동작하며 검증 후 즉시 종료한다. 실 LLM/CLI 호출 아님.
+# ======================================================================
+if ($SelfTest) {
+  $selftestCode = 1
+  $tmpOut = [System.IO.Path]::GetTempFileName()
+  $tmpErr = [System.IO.Path]::GetTempFileName()
+  try {
+    $marker = "SELFTEST_ROUNDTRIP_OK"
+    $rc = Invoke-Cli -Exe "sort" -CliArgs @() -StdinText $marker -OutLog $tmpOut -ErrLog $tmpErr
+    $captured = Read-TextNoBom $tmpOut
+    if ($captured -match $marker) {
+      Write-PlainLine ("SELFTEST=PASS stdin_roundtrip=ok rc=" + $rc)
+      $selftestCode = 0
+    } else {
+      Write-PlainLine ("SELFTEST=FAIL stdin_roundtrip_missing rc=" + $rc)
+    }
+  } catch {
+    Write-PlainLine ("SELFTEST=FAIL exception: " + $_.Exception.Message)
+  } finally {
+    Remove-Item -LiteralPath $tmpOut -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $tmpErr -Force -ErrorAction SilentlyContinue
+  }
+  exit $selftestCode
 }
 
 # ======================================================================

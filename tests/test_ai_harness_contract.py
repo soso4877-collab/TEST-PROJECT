@@ -190,6 +190,40 @@ def test_ps_invoke_cli_exceptions_map_to_stage_exit_codes():
     assert "ErrorActionPreference" not in m.group(0), "Invoke-Cli는 EAP를 변경하지 않아야 함"
 
 
+def test_ps_stdin_bytes_precomputed():
+    # stdin byte 배열은 프로세스 시작 전에 미리 만들고 타입 고정(try 안 즉석 생성→사용하는 취약 구조 회피).
+    t = _ps_text()
+    assert "[byte[]]$stdinBytes" in t, "stdin byte 사전 생성/타입고정 필요"
+    assert "$stdinBytes" in t
+    # 회귀 방지: try 안에서 $inBytes를 즉석 생성해 바로 쓰던 취약 패턴 제거
+    assert "$inBytes" not in t, "$inBytes 즉석 생성 패턴 잔존(회귀)"
+
+
+def test_invoke_cli_stdin_roundtrip_selftest():
+    # 실 Claude/Codex 없이 dummy reader(sort)로 Invoke-Cli stdin write가 PS 5.1/7에서 성공하는지 검증.
+    ps = shutil.which("powershell") or shutil.which("pwsh")
+    if not ps:
+        return  # PowerShell 없으면 skip(best-effort)
+    r = subprocess.run(
+        [
+            ps,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "ai-harness.ps1"),
+            "-Stage",
+            "Plan",
+            "-SelfTest",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, f"SelfTest 실패: out={r.stdout} err={r.stderr}"
+    assert "SELFTEST=PASS" in r.stdout, f"stdin roundtrip 미확인: {r.stdout}"
+
+
 def test_ps_validates_artifact_shapes():
     t = _ps_text()
     # Codex/Claude 산출물을 schema 수준으로 직접 검증하는 함수가 존재해야 함(해시만 맞으면 통과 방지)
