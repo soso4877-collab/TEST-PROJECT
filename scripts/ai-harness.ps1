@@ -220,7 +220,8 @@ function Resolve-ClaudePlanJson {
   throw "result 형식 불명 — BLOCK"
 }
 
-# Codex 결과를 schema 수준으로 직접 검증(CLI 검증에 의존하지 않음). 위반 시 종료코드 14.
+# Codex 결과를 schema 수준으로 검증한다. 생성용 schema는 Codex --output-schema 호환을 위해 단순화했으므로
+# 제거한 엄격 제약(hex·const·배열성·요소 타입)을 전부 여기서 강제한다. 위반 시 throw -> 호출부 Stop-Fail 14.
 function Assert-CodexReviewShape {
   param([object]$Review, [string]$RawText)
   $required = @(
@@ -228,20 +229,44 @@ function Assert-CodexReviewShape {
     "reviewed_task_sha256", "reviewed_plan_sha256", "verdict", "blockers", "warnings", "evidence",
     "allowed_files", "forbidden_files", "required_validations", "no_modification_performed"
   )
+  # 필수 필드 전체 존재(빈 배열이 null로 와도 property 존재로 판정)
   foreach ($f in $required) {
-    if ($null -eq (Get-JsonProp $Review $f)) { Stop-Fail 14 "Codex 결과 필수 필드 누락: $f" }
+    if ($null -eq $Review.PSObject.Properties[$f]) { throw "필수 필드 누락: $f" }
   }
+  # 허용 외 추가 필드 금지
   foreach ($p in $Review.PSObject.Properties.Name) {
-    if ($required -notcontains $p) { Stop-Fail 14 "Codex 결과 허용 외 추가 필드: $p" }
+    if ($required -notcontains $p) { throw "허용 외 추가 필드: $p" }
   }
-  if ((Get-JsonProp $Review "artifact_type") -ne "codex_review") { Stop-Fail 14 "artifact_type != codex_review" }
-  if ((Get-JsonProp $Review "review_stage") -ne "plan") { Stop-Fail 14 "review_stage != plan" }
-  if ((Get-JsonProp $Review "review_target") -ne "claude-plan.json") { Stop-Fail 14 "review_target != claude-plan.json" }
-  if ((Get-JsonProp $Review "no_modification_performed") -ne $true) { Stop-Fail 14 "no_modification_performed != true" }
-  $v = Get-JsonProp $Review "verdict"
-  if (@("APPROVE", "BLOCK") -notcontains $v) { Stop-Fail 14 "verdict enum 위반: $v" }
+  # const 대체(type+value를 함께 검증 — 방어적)
+  $artifact = Get-JsonProp $Review "artifact_type"
+  if (-not ($artifact -is [string]) -or $artifact -ne "codex_review") { throw "artifact_type != codex_review" }
+  $rstage = Get-JsonProp $Review "review_stage"
+  if (-not ($rstage -is [string]) -or $rstage -ne "plan") { throw "review_stage != plan" }
+  $rtarget = Get-JsonProp $Review "review_target"
+  if (-not ($rtarget -is [string]) -or $rtarget -ne "claude-plan.json") { throw "review_target != claude-plan.json" }
+  # bool 타입 강제(PS 비교 변환으로 "true"/1 이 통과하는 것 차단)
+  $nomod = Get-JsonProp $Review "no_modification_performed"
+  if (-not ($nomod -is [bool]) -or $nomod -ne $true) { throw "no_modification_performed != boolean true" }
+  # verdict enum
+  if (@("APPROVE", "BLOCK") -notcontains (Get-JsonProp $Review "verdict")) { throw "verdict enum 위반" }
+  # schema_version 비어있지 않은 string
+  $sv = Get-JsonProp $Review "schema_version"
+  if (-not ($sv -is [string]) -or [string]::IsNullOrWhiteSpace($sv)) { throw "schema_version 비어있지 않은 문자열 아님" }
+  # hex (pattern 대체)
+  $cb = Get-JsonProp $Review "checked_base_commit"
+  if (-not ($cb -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($cb, '^[0-9a-f]{7,40}$')) { throw "checked_base_commit 형식 위반(7~40 hex)" }
+  foreach ($hf in @("reviewed_task_sha256", "reviewed_plan_sha256")) {
+    $hv = Get-JsonProp $Review $hf
+    if (-not ($hv -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($hv, '^[0-9a-f]{64}$')) { throw "$hf 형식 위반(64 hex)" }
+  }
+  # 배열들: raw JSON 기준 '진짜 배열' 확인(스칼라 @() 감싸기 차단) 후 각 요소 string
   foreach ($af in @("blockers", "warnings", "evidence", "allowed_files", "forbidden_files", "required_validations")) {
-    if (-not (Test-JsonArrayField $RawText $af)) { Stop-Fail 14 "Codex 결과 필드가 배열이 아님: $af" }
+    if (-not (Test-JsonArrayField $RawText $af)) { throw "$af 필드가 배열이 아님" }
+    $val = (Get-JsonProp $Review $af)
+    foreach ($el in @($val)) {
+      if ($null -eq $el) { continue }
+      if (-not ($el -is [string])) { throw "$af 요소가 문자열이 아님" }
+    }
   }
 }
 
@@ -264,10 +289,16 @@ function Assert-ClaudePlanShape {
     if ($required -notcontains $p) { throw "허용 외 추가 필드: $p" }
   }
   # const 대체
-  if ((Get-JsonProp $Plan "artifact_type") -ne "claude_plan") { throw "artifact_type != claude_plan" }
-  if ((Get-JsonProp $Plan "stage") -ne "plan") { throw "stage != plan" }
-  if ((Get-JsonProp $Plan "requires_human_approval") -ne $true) { throw "requires_human_approval != true" }
-  if ((Get-JsonProp $Plan "no_implementation_performed") -ne $true) { throw "no_implementation_performed != true" }
+  # 변수 미사용으로 인라인 호출(StrictMode 즉석 변수 미정의 회피). $stage 등은 param과 충돌하므로 변수 자체를 두지 않음.
+  $planArtifact = Get-JsonProp $Plan "artifact_type"
+  if (-not ($planArtifact -is [string]) -or $planArtifact -ne "claude_plan") { throw "artifact_type != claude_plan" }
+  $planStage = Get-JsonProp $Plan "stage"
+  if (-not ($planStage -is [string]) -or $planStage -ne "plan") { throw "stage != plan" }
+  # bool 타입 강제(PS 비교 변환으로 "true"/1 이 통과하는 것 차단)
+  $rha = Get-JsonProp $Plan "requires_human_approval"
+  if (-not ($rha -is [bool]) -or $rha -ne $true) { throw "requires_human_approval != boolean true" }
+  $nip = Get-JsonProp $Plan "no_implementation_performed"
+  if (-not ($nip -is [bool]) -or $nip -ne $true) { throw "no_implementation_performed != boolean true" }
   # risk_level enum
   if (@("low", "medium", "high") -notcontains (Get-JsonProp $Plan "risk_level")) { throw "risk_level enum 위반" }
   # 비어 있지 않은 string (minLength 대체)
@@ -414,11 +445,68 @@ if ($SelfTest) {
     $roundtripOk = $true
     try { Assert-ClaudePlanShape $rtObj $rtJson } catch { $roundtripOk = $false }
 
-    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk) {
-      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok"
+    # bool 타입 강제: requires_human_approval가 string "true" -> 거부
+    $rhaStrRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":"true","no_implementation_performed":true}'
+    $rhaStrRejected = $false
+    try { Assert-ClaudePlanShape ($rhaStrRaw | ConvertFrom-Json) $rhaStrRaw } catch { $rhaStrRejected = $true }
+
+    # no_implementation_performed가 number 1 -> 거부
+    $nipNumRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":1}'
+    $nipNumRejected = $false
+    try { Assert-ClaudePlanShape ($nipNumRaw | ConvertFrom-Json) $nipNumRaw } catch { $nipNumRejected = $true }
+
+    # artifact_type 가 boolean true -> 거부(string const 타입+값 강제)
+    $artBoolRaw = '{"schema_version":"1.0","artifact_type":true,"stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
+    $artBoolRejected = $false
+    try { Assert-ClaudePlanShape ($artBoolRaw | ConvertFrom-Json) $artBoolRaw } catch { $artBoolRejected = $true }
+
+    # stage 가 boolean true -> 거부
+    $stageBoolRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":true,"task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
+    $stageBoolRejected = $false
+    try { Assert-ClaudePlanShape ($stageBoolRaw | ConvertFrom-Json) $stageBoolRaw } catch { $stageBoolRejected = $true }
+
+    # (g) Assert-CodexReviewShape: 각 케이스를 독립 raw JSON fixture로 명시 작성(Replace 파생 금지)
+    $cz = ("0" * 64)
+    # 정상 review -> 통과
+    $cxValidRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
+    $codexValidOk = $true
+    try { Assert-CodexReviewShape ($cxValidRaw | ConvertFrom-Json) $cxValidRaw } catch { $codexValidOk = $false }
+
+    # artifact_type 가 "wrong" -> 거부
+    $cxBadArtRaw = '{"schema_version":"1.0","artifact_type":"wrong","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
+    $cxBadArtRejected = $false
+    try { Assert-CodexReviewShape ($cxBadArtRaw | ConvertFrom-Json) $cxBadArtRaw } catch { $cxBadArtRejected = $true }
+
+    # reviewed_plan_sha256 형식 불량 -> 거부
+    $cxBadHashRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"NOTHEX","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
+    $cxBadHashRejected = $false
+    try { Assert-CodexReviewShape ($cxBadHashRaw | ConvertFrom-Json) $cxBadHashRaw } catch { $cxBadHashRejected = $true }
+
+    # blockers 가 배열이 아니라 스칼라 문자열 -> 거부
+    $cxBlkScalarRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":"x","warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
+    $cxBlkScalarRejected = $false
+    try { Assert-CodexReviewShape ($cxBlkScalarRaw | ConvertFrom-Json) $cxBlkScalarRaw } catch { $cxBlkScalarRejected = $true }
+
+    # no_modification_performed 가 false -> 거부
+    $cxNomodRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":false}'
+    $cxNomodRejected = $false
+    try { Assert-CodexReviewShape ($cxNomodRaw | ConvertFrom-Json) $cxNomodRaw } catch { $cxNomodRejected = $true }
+
+    # no_modification_performed 가 string "true" -> 거부(bool 타입 강제)
+    $cxNomodStrRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":"true"}'
+    $cxNomodStrRejected = $false
+    try { Assert-CodexReviewShape ($cxNomodStrRaw | ConvertFrom-Json) $cxNomodStrRaw } catch { $cxNomodStrRejected = $true }
+
+    # no_modification_performed 가 number 1 -> 거부(bool 타입 강제)
+    $cxNomodNumRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":1}'
+    $cxNomodNumRejected = $false
+    try { Assert-CodexReviewShape ($cxNomodNumRaw | ConvertFrom-Json) $cxNomodNumRaw } catch { $cxNomodNumRejected = $true }
+
+    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk -and $rhaStrRejected -and $nipNumRejected -and $artBoolRejected -and $stageBoolRejected -and $codexValidOk -and $cxBadArtRejected -and $cxBadHashRejected -and $cxBlkScalarRejected -and $cxNomodRejected -and $cxNomodStrRejected -and $cxNomodNumRejected) {
+      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok planshape_rha_string_rejected=ok planshape_nip_number_rejected=ok planshape_artifact_bool_rejected=ok planshape_stage_bool_rejected=ok codexshape_valid=ok codexshape_bad_artifact_rejected=ok codexshape_bad_hash_rejected=ok codexshape_blockers_scalar_rejected=ok codexshape_nomod_false_rejected=ok codexshape_nomod_string_rejected=ok codexshape_nomod_number_rejected=ok"
       $selftestCode = 0
     } else {
-      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk)
+      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk + " rhastr=" + $rhaStrRejected + " nipnum=" + $nipNumRejected + " artbool=" + $artBoolRejected + " stagebool=" + $stageBoolRejected + " cxvalid=" + $codexValidOk + " cxart=" + $cxBadArtRejected + " cxhash=" + $cxBadHashRejected + " cxblk=" + $cxBlkScalarRejected + " cxnomod=" + $cxNomodRejected + " cxnomodstr=" + $cxNomodStrRejected + " cxnomodnum=" + $cxNomodNumRejected)
     }
   } catch {
     Write-PlainLine ("SELFTEST=FAIL exception: " + $_.Exception.Message)
@@ -662,8 +750,8 @@ if (-not (Test-Path -LiteralPath $codexReviewPath -PathType Leaf)) {
 $codexRaw = Read-TextNoBom $codexReviewPath
 $review = $null
 try { $review = $codexRaw | ConvertFrom-Json } catch { Stop-Fail 14 "codex-plan-review.json 파싱 실패" }
-# schema 수준 검증(필수 필드·const·enum·배열·추가필드 차단). 해시만 맞으면 통과하는 우회 방지.
-Assert-CodexReviewShape $review $codexRaw
+# schema 수준 검증(필수 필드·const·enum·hex·배열·추가필드 차단). 해시만 맞으면 통과하는 우회 방지.
+try { Assert-CodexReviewShape $review $codexRaw } catch { Stop-Fail 14 ("Codex 결과 검증 실패: " + $_.Exception.Message) }
 
 $verdict = Get-JsonProp $review "verdict"
 $revPlanSha = Get-JsonProp $review "reviewed_plan_sha256"

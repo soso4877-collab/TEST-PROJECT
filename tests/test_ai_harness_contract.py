@@ -97,25 +97,34 @@ def test_ps_assert_claudeplan_enforces_removed_constraints():
     assert "필드가 배열이 아님" in t
 
 
-def test_codex_review_schema():
+def test_codex_review_schema_simplified():
+    # 생성용 최소 schema: Codex --output-schema(OpenAI response_format) 호환 위해 검증성 키워드 제거.
     raw = _read("harness/schemas/codex-plan-review.schema.json")
     s = json.loads(raw)
-    assert "2020-12" in s["$schema"]
+    assert s["type"] == "object"
     assert s["additionalProperties"] is False
+    # 제거 확인: const/pattern/minLength/$schema/$id/title/description 없음 (type 없는 const-only 필드 제거)
+    assert "const" not in raw
+    assert "pattern" not in raw
+    assert "minLength" not in raw
+    for meta in ("$schema", "$id", "title", "description"):
+        assert meta not in s, f"제거 대상 메타 키 잔존: {meta}"
+    # 모든 property에 type 키가 있어야 함(Codex가 type 없는 schema를 거부)
+    for name, spec in s["properties"].items():
+        assert "type" in spec, f"property {name} 에 type 키 없음"
+    # 유지 확인: 필수 필드 + verdict enum
     for k in (
         "verdict",
         "reviewed_plan_sha256",
         "reviewed_task_sha256",
         "checked_base_commit",
         "no_modification_performed",
+        "blockers",
+        "allowed_files",
     ):
         assert k in s["properties"], f"codex schema 필드 누락: {k}"
         assert k in s["required"], f"codex schema required 누락: {k}"
     assert s["properties"]["verdict"]["enum"] == ["APPROVE", "BLOCK"]
-    assert s["properties"]["artifact_type"]["const"] == "codex_review"
-    assert s["properties"]["review_stage"]["const"] == "plan"
-    assert s["properties"]["no_modification_performed"]["const"] is True
-    # DIFF_VERDICT 키/문자열은 정의 자체를 두지 않음
     assert "DIFF_VERDICT" not in raw
 
 
@@ -265,6 +274,20 @@ def test_invoke_cli_stdin_roundtrip_selftest():
     assert "planshape_scalar_array_rejected=ok" in r.stdout
     assert "planshape_file_changes_object_rejected=ok" in r.stdout
     assert "planshape_roundtrip=ok" in r.stdout
+    # Codex review shape 유효/거부 케이스
+    assert "codexshape_valid=ok" in r.stdout
+    assert "codexshape_bad_artifact_rejected=ok" in r.stdout
+    assert "codexshape_bad_hash_rejected=ok" in r.stdout
+    assert "codexshape_blockers_scalar_rejected=ok" in r.stdout
+    assert "codexshape_nomod_false_rejected=ok" in r.stdout
+    # bool 타입 강제: string "true"/number 1 이 boolean true로 통과하지 않아야 함
+    assert "planshape_rha_string_rejected=ok" in r.stdout
+    assert "planshape_nip_number_rejected=ok" in r.stdout
+    assert "codexshape_nomod_string_rejected=ok" in r.stdout
+    assert "codexshape_nomod_number_rejected=ok" in r.stdout
+    # string const(artifact_type/stage)도 boolean true가 통과하지 않아야 함
+    assert "planshape_artifact_bool_rejected=ok" in r.stdout
+    assert "planshape_stage_bool_rejected=ok" in r.stdout
 
 
 def test_ps_claude_response_failclosed():
@@ -294,6 +317,22 @@ def test_ps_validates_artifact_shapes():
     assert "no_modification_performed" in t
     assert "no_implementation_performed" in t
     assert "허용 외 추가 필드" in t
+
+
+def test_ps_assert_codexreview_enforces_removed_constraints():
+    # codex schema에서 제거한 엄격 제약을 PS Assert-CodexReviewShape가 강제하는지 정적 고정.
+    t = _ps_text()
+    assert "Assert-CodexReviewShape" in t
+    # const 대체
+    assert "codex_review" in t
+    assert "claude-plan.json" in t
+    assert "review_stage" in t
+    # hash/base_commit hex (pattern 대체)
+    assert "checked_base_commit" in t
+    assert "reviewed_plan_sha256" in t and "reviewed_task_sha256" in t
+    # 배열은 raw JSON 기준 검증
+    assert "Test-JsonArrayField" in t
+    assert "verdict" in t
 
 
 def test_ps_task_artifact_not_overclaim_pii():
