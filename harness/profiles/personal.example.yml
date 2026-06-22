@@ -1,0 +1,11 @@
+# 개인 PDF 검증 프로파일 — 예시(커밋됨). 값은 전부 가짜다.
+# 실제 고객값(이름·생년월일·출생시간)은 절대 여기 넣지 말 것 → harness/profiles/local/personal_*.yml (gitignore).
+# hverify_pdf 는 birth/name 으로 결정론 일간 spec(builder.personal_identity_spec)을 만들어 verify 에 넘긴다.
+
+type: personal
+pdf: sajugen/render/out/FINAL_UPLOAD_personal_EXAMPLE.pdf   # 검증 대상 PDF 경로(없으면 missing_pdf)
+ref_year: 2026
+name: 홍길동               # 예시 호칭
+gender: 남                # 남|여 (대운 방향)
+birth: "1990-05-20 14:30" # 예시 생년월일시(YYYY-MM-DD HH:MM)
+horoscope: 2026-06-01     # 세운 기준일

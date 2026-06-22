@@ -1,0 +1,8 @@
+# 합성 픽스처(커밋됨) — 하네스 자체 테스트 전용. 실존 인물 아님.
+type: gunghap
+pdf: sajugen/render/out/__nonexistent_synthetic_gunghap__.pdf
+ref_year: 2026
+people:
+  - {name: 합성갑, birth: "1990-01-01 10:00", gender: 남}
+  - {name: 합성을, birth: "1991-02-02 11:00", gender: 여}
+  - {name: 합성병, birth: "1992-03-03 12:00", gender: 남}

@@ -55,6 +55,7 @@ class GuardReport(BaseModel):
     grounding_ok: bool
     polished_sections: int
     fallback_sections: int  # 가드 실패로 룰 원문 사용한 섹션 수
+    daewoon_consistent: bool = True  # 교차챕터 '현재 대운' 단일 일치(2026-06-14)
     clean: bool  # 전체 통과 여부
 
 

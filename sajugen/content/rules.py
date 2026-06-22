@@ -238,7 +238,7 @@ _PALACE_ROLE_ALL = {
     "부처궁": "가까운 관계와 동반의 결",
     "자녀궁": "자녀·후배·창작물과의 인연",
     "재백궁": "재물을 다루는 방식",
-    "질액궁": "건강과 컨디션을 살피는 자리",
+    "질액궁": "건강과 몸 상태를 살피는 자리",
     "천이궁": "바깥 활동과 이동·대인",
     "교우궁": "교우·협력 관계의 결",
     "관록궁": "일과 성취의 결",
@@ -283,7 +283,7 @@ _SHINSAL_META = {
     "과숙살": {"mean": "관계에서 거리·여백의 결을 살피는 참고", "group": "관계", "weight": 5},
     "양인": {"mean": "강한 추진력 — 과하지 않게 쓰는 관점", "group": "에너지", "weight": 6},
     "괴강": {"mean": "강단·결단의 기운 — 균형의 관점", "group": "에너지", "weight": 6},
-    "백호": {"mean": "에너지가 큰 결 — 신중함과 함께 쓰는 관점", "group": "에너지", "weight": 6},
+    "백호": {"mean": "기운이 큰 결 — 신중함과 함께 쓰는 관점", "group": "에너지", "weight": 6},
 }
 # 하위호환: 기존 _SHINSAL_MEAN.get(s, ...) 호출부 유지용 파생 dict.
 _SHINSAL_MEAN = {k: v["mean"] for k, v in _SHINSAL_META.items()}
@@ -550,8 +550,10 @@ def _stars_full(p) -> str:
     """주성(밝기·사화) + 보좌성. 객체에 실재하는 별만 — factcheck 정합."""
     if p is None:
         return "정보 없음"
-    maj = ", ".join(_star_one(s) for s in p.major_stars) or "주성 없음(공궁)"
-    out = f"주성은 {maj}"
+    if not p.major_stars:
+        out = "주성이 없는 공궁"  # 공궁 자연 표현(기존 '주성은 주성 없음(공궁)' 중복 제거)
+    else:
+        out = f"주성은 {', '.join(_star_one(s) for s in p.major_stars)}"
     minr = ", ".join(s.name for s in p.minor_stars)
     if minr:
         out += f", 보좌성은 {minr}"
@@ -561,7 +563,11 @@ def _stars_full(p) -> str:
 def _palace_brief(p, role: str) -> str:
     if p is None:
         return ""
-    tag = "(명궁)" if p.is_soul else ("(신궁)" if p.is_body else "")
+    tag = (
+        "(명궁)"
+        if (p.is_soul and p.name != "명궁")
+        else ("(신궁)" if (p.is_body and p.name != "신궁") else "")
+    )
     return f"· {p.name}{tag}(지지 {p.branch}) — {role}: {_stars_full(p)}."
 
 
@@ -569,7 +575,11 @@ def _palace_para(p, role: str) -> str:
     """한 궁을 상담 화법으로 — 같은 꼬리말이 궁마다 반복되지 않게 _pick."""
     if p is None:
         return f"{_J(role, '을를')} 보는 자리는 이 명반 구성에서는 정보가 제한적입니다."
-    tag = "(명궁)" if p.is_soul else ("(신궁)" if p.is_body else "")
+    tag = (
+        "(명궁)"
+        if (p.is_soul and p.name != "명궁")
+        else ("(신궁)" if (p.is_body and p.name != "신궁") else "")
+    )
     pb = f"{p.name}{tag}(지지 {p.branch})"
     head = _pick(
         "pp" + p.name + role,
@@ -646,7 +656,7 @@ def _singang_phrase(singang: str, *, kind: str = "general") -> str:
             "중화": "버는 결과 쓰는 결의 균형을 정기적으로 맞춰 가는 결",
         },
         "health": {
-            "신강": "에너지를 많이 쓰는 결이라 휴식과 완급 조절을 의식적으로 두는 것",
+            "신강": "기운을 많이 쓰는 결이라 휴식과 완급 조절을 의식적으로 두는 것",
             "신약": "무리한 소모보다 회복과 보강의 리듬을 챙기는 것",
             "중화": "활동과 휴식의 균형을 그때그때 살피는 것",
         },
@@ -758,26 +768,22 @@ def build_all(
     )
 
     T["ohaeng"] = (
-        f"여덟 글자를 오행으로 세어 보면, "
-        + " · ".join(f"{_ELEM_KO.get(k, k)} {v}" for k, v in m.elements.items())
-        + " 입니다. "
-        + " ".join(
-            f"{_J(_ELEM_KO.get(k, k), '은는')} {_ELEM_MEAN.get(k, '')}의 결로 {v}만큼 잡힙니다."
-            for k, v in m.elements.items()
-        )
-        + f" {mx_ko} 기운이 또렷하다는 것은 그 방향의 활동에 힘이 쉽게 "
-        f"실린다는 뜻으로 읽을 수 있고, 반대로 {mn_ko} 기운은 옅어서 관련 "
-        f"상황에서는 한 번 더 챙기고 준비하면 도움이 됩니다. 오행은 좋고 나쁨이 "
-        f"아니라 균형의 방향을 보는 자리이니, 강한 기운은 살리고 옅은 기운은 "
-        f"생활에서 채워 가는 관점으로 활용해 보세요."
+        f"사주 안의 다섯 기운을 보면, {mx_ko} 기운({mx_mn})이 또렷하게 자리하고, "
+        f"{mn_ko} 기운({mn_mn})은 옅은 편입니다. "
+        f"{mx_ko} 기운이 또렷하다는 것은 그 방향의 활동에 힘이 쉽게 "
+        f"실린다는 뜻으로 읽을 수 있고, 반대로 {mn_ko} 기운이 옅은 자리에서는 "
+        f"한 번 더 챙기고 준비하면 도움이 됩니다. 다섯 기운은 좋고 나쁨이 "
+        f"아니라 균형의 방향을 보는 자리이니, 또렷한 기운은 살리고 옅은 기운은 "
+        f"생활에서 채워 가는 관점으로 보시면 좋습니다."
     )
 
     _animal = _gz_animal(m.day.ganzhi)
+    # 일주 간지 자기소개("○○님은 ◇◇일주")는 원국(wonguk) 장이 소유 — 여기(기질 장)서는 재소개하지
+    # 않고 일간부터 바로 풀어, 챕터 간 반복을 근원에서 차단(2026-06-14 운영자 베타 지적). 동물 비유는 유지.
     T["ilgan"] = (
-        f"일간 {_J(f'{dm_ko}', '은는')} {nm_call} 자신을 상징하는 글자입니다. {nm_call}의 "
-        f"일주는 {_gz_ko(m.day.ganzhi)}"
-        + (f" — 일주로 보면 {_animal}의 기운을 갖고 태어나셨습니다" if _animal else "")
-        + f". 그 속에는 지장간 "
+        f"일간 {_J(f'{dm_ko}', '은는')} {nm_call} 자신을 상징하는 글자입니다. "
+        + (f"{_animal}의 기운을 타고난 결이에요. " if _animal else "")
+        + f"일지 속에는 지장간 "
         f"{_J(_hidegan_ko(m.day.hide_gan), '이가')} 들어 있으며, 십이운성으로는 "
         f"{_dishi_phrase(m.day.dishi)}의 결입니다. 일주의 "
         f"지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} {day_zhi_mn}의 결로, "
@@ -813,7 +819,7 @@ def build_all(
         f"속이 같은 방향이면 일관된 힘으로, 다르면 상황에 따라 다른 모습으로 "
         f"쓰이는 결로 읽습니다. 지장간 {_J(_hidegan_ko(m.day.hide_gan), '은는')} "
         f"평소엔 잘 안 보이다가 특정 상황에서 드러나는 숨은 자원으로 봅니다.\n"
-        f"신강약은 '{m.singang}'입니다. "
+        f"타고난 힘의 강약은 '{m.singang}'으로 봅니다. "
         f"{_singang_phrase(m.singang)}이 도움이 되고, {gk}의 틀에서는 "
         f"그 격의 결을 살리는 쪽이 강점으로 이어지기 쉽습니다.\n"
         f"보완할 점은 {mn_ko} 기운({mn_mn})이 옅다는 자리입니다. 관련 상황에선 "
@@ -829,9 +835,8 @@ def build_all(
         if _sal_top3
         else "두드러진 전통 신살은 적은 편"
     )
-    _sg_q = f"'{m.singang}'"
     T["character"] = (
-        f"이번에는 성격·기질을 일간·십성·신강약·신살로 한데 모아 보겠습니다"
+        f"이번에는 성격·기질을 일간·십성·힘의 강약·신살로 한데 모아 보겠습니다"
         f"(앞의 '일간과 성향'이 중심 글자라면, 여기서는 전체 윤곽을 종합합니다).\n"
         f"중심은 일간 {dm_ko} — {dm_elem_mn}의 바탕입니다. 바깥에서 "
         f"보이는 결(천간 십성)은 연 {_ss(m.year.shishen_gan)}·월 {mon_sg}·시 "
@@ -839,7 +844,7 @@ def build_all(
         f"십성)은 {_ss_list(m.day.shishen_zhi)}입니다. 즉 사회에서 드러나는 "
         f"모습과 혼자 있을 때의 모습이 어느 정도 다르게 보일 수 있다는 "
         f"뜻입니다.\n"
-        f"힘의 결은 신강약 {_ro(_sg_q)}, "
+        f"힘의 결을 보면, "
         + (
             "스스로 끌고 가는 추진의 색이 강해 속도와 완급을 조절하는 것이 과제"
             if m.singang == "신강"
@@ -857,7 +862,7 @@ def build_all(
     T["geukguk"] = (
         f"격국(格局)은 태어난 달의 기운(월령)을 중심으로 사주의 큰 틀을 보는 "
         f"분류입니다. {nm_call}의 사주는 {gk}으로 봅니다 — {m.geukguk_note} "
-        f"일간의 힘(신강약)은 '{m.singang}'이고, "
+        f"일간의 힘은 '{m.singang}'으로 보고, "
         f"억부(抑扶) 방식으로 본 참고 용신은 {m.yongshin_eokbu}"
         f"({m.yongshin_axis}) 방향입니다. 다만 용신은 억부·조후·통관·병약·"
         f"종격 등 방식에 따라 달라질 수 있어, 이 결과지는 억부 한 가지 방식의 "
@@ -922,7 +927,7 @@ def build_all(
     love_p = _palace(z, "부처궁")
     if is_minor:
         T["love"] = (
-            f"이 결과지의 대상은 아직 미성년으로 추정되어(약 {age}세), 연애·"
+            f"이 결과지의 대상은 아직 미성년인 시기라, 연애·"
             f"배우자 중심 풀이 대신 가족·친구처럼 가까운 관계의 결을 중심으로 "
             f"보겠습니다. {_palace_para(love_p, '가까운 관계')} 관계는 서로의 "
             f"주고받음으로 달라지는 영역이라 특정 결과를 미리 단정하지 않으며, "
@@ -937,14 +942,14 @@ def build_all(
             f"{_palace_para(love_p, '가까운 관계')}\n"
             f"정리하면, 일주의 지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} "
             f"{_J(nm_call, '이가')} 관계에서 편하게 여기는 거리와 방식의 결을 보여 주고, "
-            f"신강약 '{m.singang}'{_josa(m.singang, '은는')} {_singang_phrase(m.singang, kind='rel')}"
+            f"힘의 강약 '{m.singang}'{_josa(m.singang, '은는')} {_singang_phrase(m.singang, kind='rel')}"
             f"입니다. {gk}의 틀에서 보면, 가까운 사이일수록 {day_sgm}의 "
             f"방식이 자연스럽게 드러나기 쉽습니다.\n"
             f"관계에서 짚어 보면 좋은 결이 있습니다. {day_sgm}의 방식이 "
             f"상대에게 어떻게 가닿고 있는지 한 번 떠올려 보시고, 일주 지지 십성"
             f"({_ss_list(m.day.shishen_zhi)}){_josa(_ss_list(m.day.shishen_zhi), '이가')} "
             f"편하게 여기는 거리와 상대의 기대가 어긋나는 지점은 일찍 말로 "
-            f"풀어 두는 것이 좋습니다. 신강약 '{m.singang}'에 맞춰 "
+            f"풀어 두는 것이 좋습니다. 힘의 강약 '{m.singang}'에 맞춰 "
             + (
                 "주도와 양보의 비중을 한 번 더 살펴보면"
                 if m.singang != "중화"
@@ -972,7 +977,7 @@ def build_all(
             else ""
         )
         + f"\n적성은 {_J(mon_sgm, '이가')} 살아나는 일과 역할에서 먼저 찾는 것이 "
-        f"좋습니다. 신강약 '{m.singang}'에 맞춰 "
+        f"좋습니다. 힘의 강약 '{m.singang}'에 맞춰 "
         f"{_J(_singang_phrase(m.singang, kind='work'), '을를')} 염두에 두고, "
         f"대운이 바뀌는 전환기에는 환경 변화를 미리 준비해 두면 흐름을 타기 "
         f"수월해집니다. 적성은 하나의 정답이 아니라 강점이 잘 쓰이는 환경을 "
@@ -985,7 +990,7 @@ def build_all(
         f"봅니다(기둥 세부는 앞 '일과 직업'의 시주 풀이를 같이 참고하세요).\n"
         f"{_palace_para(wealth_p, '재물을 다루는 방식')}\n"
         f"재물은 버는 힘(재성)과 만들어 내는 힘(식상 — 일간이 생하는 결, "
-        f"{mon_sgm} 등)의 균형으로 봅니다. 신강약 '{m.singang}'에 따라 "
+        f"{mon_sgm} 등)의 균형으로 봅니다. 힘의 강약 '{m.singang}'에 따라 "
         f"{m.yongshin_axis} 방향이 재정 운용의 결을 "
         f"읽는 참고가 되고, 별의 밝기와 사화는 모으기·굴리기·지키기 가운데 "
         f"어느 쪽이 더 자연스러운지의 색을 보여 줍니다.\n"
@@ -1004,36 +1009,59 @@ def build_all(
         f"이 장은 병을 진단하는 자리가 아니라, 몸과 마음의 결을 살피는 "
         f"자리입니다. 몸이 보내는 신호가 이어진다면 병원 진료로 먼저 "
         f"확인해 보세요.\n"
-        f"자미두수에서 컨디션을 보는 자리는 질액궁입니다. "
-        f"{_palace_para(health_p, '컨디션과 생활 관리') if health_p else '이 상품 구성에서는 이 자리를 생략합니다.'}\n"
-        f"오행으로 보면, {mx_ko} 기운({mx_mn})이 또렷하고 {mn_ko} 기운"
+        f"자미두수에서 몸 상태를 보는 자리는 질액궁입니다. "
+        f"{_palace_para(health_p, '몸 상태와 생활 관리') if health_p else '이 상품 구성에서는 이 자리를 생략합니다.'}\n"
+        f"다섯 기운으로 보면, {mx_ko} 기운({mx_mn})이 또렷하고 {mn_ko} 기운"
         f"({mn_mn})이 옅은 구성입니다. 강한 쪽으로 치우쳐 무리하기 쉬운 결을 "
         f"옅은 쪽을 생활 습관으로 채우며 함께 보는 참고로 활용해 보세요(좋고 "
-        f"나쁨의 단정이 아닙니다). 신강약 '{m.singang}'{_rojosa(m.singang)}는 "
+        f"나쁨의 단정이 아닙니다). 힘의 강약 '{m.singang}'{_rojosa(m.singang)}는 "
         f"{_singang_phrase(m.singang, kind='health')}이 생활 관리에 도움이 "
         f"되는 관점입니다.\n"
         + (
-            f"참고 신살({', '.join(health_sal)})은 에너지가 큰 결로 보이니, "
+            f"참고 신살({', '.join(health_sal)})은 기운이 큰 결로 보이니, "
             f"무리한 부담을 피하고 휴식·점검의 관점으로 활용해 보세요.\n"
             if health_sal
             else ""
         )
         + f"생활에서는 강한 기운으로 치우쳐 무리하지 않게 휴식의 리듬을 두고, "
         f"옅은 기운은 수면·식사·운동 같은 생활 습관으로 채워 가는 것이 "
-        f"좋습니다. 컨디션 변화는 기록해 두었다가, 몸의 신호가 이어지면 "
+        f"좋습니다. 몸 상태 변화는 기록해 두었다가, 몸의 신호가 이어지면 "
         f"병원에서 확인해 보세요."
     )
 
+    # 현재 대운 단일 사실(실사고 2026-06-14): 기준 연도의 현재 대운 하나를 명시 주입해
+    # 모든 챕터가 같은 대운을 '현재'로 다루게 한다(정미/병오 혼서 모순 근원 차단).
+    from ..calc.myeongni import current_daewoon as _current_daewoon
+
+    cur_dw = _current_daewoon(m, ref_year)
+    cur_ko = _gz_ko(cur_dw.ganzhi) if cur_dw else ""
+
+    def _dw_tag(d) -> str:
+        if cur_dw is None:
+            return ""
+        if d.start_year == cur_dw.start_year:
+            return "(지금 이 시기)"
+        return "(지난 시기)" if d.start_year < cur_dw.start_year else "(앞으로 올 시기)"
+
     dw_lines = "\n".join(
-        f"· {d.start_age}~{d.end_age}세 {_gz_ko(d.ganzhi)} — "
+        f"· {d.start_age}~{d.end_age}세 {_gz_ko(d.ganzhi)}{_dw_tag(d)} — "
         f"{_gz_elem(d.ganzhi)} 기운"
         f"({_ELEM_MEAN.get(_GAN_ELEM.get(d.ganzhi[0], ''), '')})이 강조되는 "
         f"시기로 봅니다."
         for d in m.daewoon
     )
+    cur_line = (
+        f"기준 {ref_year}년 현재, {nm_call}의 대운은 {cur_dw.start_age}~"
+        f"{cur_dw.end_age}세 {cur_ko} 대운 하나입니다. 지금은 이 {cur_ko} 대운을 "
+        f"지나는 시기이며, 그 앞의 대운은 지난 시기, 그 뒤의 대운은 아직 오지 않은 "
+        f"시기이므로 '지금·현재·초입'으로 부르지 않습니다.\n"
+        if cur_dw
+        else ""
+    )
     T["daewoon"] = (
         f"대운은 약 10년 단위로 흐르는 큰 시기의 결입니다. {nm_call}의 대운은 "
         f"{daewoon_dir}이고 대운수는 {m.daewoon_count}입니다.\n"
+        f"{cur_line}"
         f"{dw_lines}\n"
         f"각 대운의 간지는 그 시기에 강조되는 기운의 방향을 가리키는 "
         f"참고입니다. 대운이 바뀌는 전환기에는 환경과 역할의 변화를 미리 "
@@ -1048,7 +1076,7 @@ def build_all(
         if (yr or dc)
         else "자미두수 유년·대한(상담에서 시점을 정해 함께 살피는 구간)"
     )
-    age_str = f" 현재 약 {age}세 전후로 보면," if age is not None else ""
+    age_str = ""  # 나이 가정어('약 N세 전후') 제거 — 시기는 아래 ref_year 세운 연도로 또렷이 앵커
     # 기준 연도 닻(2026-06-12 버그 수정): '올해'는 ref_year 와 정확히 일치하는
     # 세운만. 과거 해 폴백 금지(LLM "지금은 2025년" 오서술 원인). 세운 나열도
     # 기준 해 이후만 — 현재 대운 구간의 지난 해는 풀이 대상 아님.
@@ -1160,11 +1188,9 @@ def build_all(
         if p.name not in _KEY_PALACES and p.name not in seen:
             all_lines.append(_palace_brief(p, _PALACE_ROLE_ALL.get(p.name, "삶의 한 영역")))
     T["ziwei_palaces"] = (
-        "자미두수 12궁은 삶의 영역별 구조를 봅니다. 먼저 핵심 궁을 자세히, "
-        "이어 나머지 궁을 한 줄로 모두 짚어 드리겠습니다.\n"
-        "[핵심 궁]\n"
+        "자미두수 12궁은 삶의 영역별 구조를 봅니다. 먼저 핵심 궁을 자세히 봅니다.\n"
         + "\n".join(key_para)
-        + "\n[그 밖의 궁]\n"
+        + "\n이제 나머지 궁을 한 줄씩 짚어 봅니다.\n"
         + "\n".join(all_lines)
         + "\n각 궁의 주성·보좌성과 별의 밝기·사화를 함께 보면, 영역별로 힘이 "
         "실리는 곳과 한 번 더 챙길 곳의 결이 보입니다. 어느 궁도 길흉의 "
@@ -1204,12 +1230,12 @@ def build_all(
 
     T["caution"] = (
         f"반복되기 쉬운 선택의 결을 일간 {_J(f'{dm_ko}', '과와')} 십성 구조로 함께 "
-        f"점검해 보세요. 강한 축은 잘 쓰이면 강점이지만 과하면 같은 패턴을 "
+        f"점검해 보세요. 강한 축은 잘 쓰이면 강점이지만 과하면 같은 흐름을 "
         f"되풀이하게 만들 수 있고, 약한 축은 중요한 결정에서 놓치기 쉬운 "
         f"지점이 됩니다. 예컨대 {mon_sg}의 결이 두드러질 때는 그 방향으로만 "
         f"기울지 않는지 한 번 더 살피는 습관이 도움이 됩니다. 결정 전에 확인 "
         f"질문을 하나 두는 것은 겁을 주려는 것이 아니라 점검의 관점이며, "
-        f"패턴을 알아 두면 같은 자리에서 덜 머뭅니다."
+        f"되풀이되는 흐름을 알아 두면 같은 자리에서 덜 머뭅니다."
     )
 
     T["questions"] = (

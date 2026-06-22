@@ -70,14 +70,16 @@
   .toc-no{color:var(--injoo);font-size:.92em;letter-spacing:.28em;min-width:5.2em;
     text-align:justify;text-align-last:justify}
   .toc-dash{flex:0 0 16mm;border-bottom:1px solid #8d8268;height:0}
-  .toc-name{font-size:1.06em;color:var(--ink);letter-spacing:.04em}
+  .toc-name{font-size:1.06em;color:var(--ink);letter-spacing:.04em;
+    word-break:keep-all;overflow-wrap:normal;line-break:strict}
 
   /* 챕터 = 한 장(章). 새 페이지에서 시작, 제N장 라벨 + 제목(=h2 아웃라인 소스) + 가는 룰. */
   section.chapter{page-break-before:always;page-break-inside:auto}
   .cnum{font-family:'Saju',sans-serif;color:var(--gold-ink);font-size:10.5pt;
     letter-spacing:.32em;text-align:center;margin:14mm 0 0}
   h2.ctitle{font-family:'SajuHead','SajuBody',serif;font-size:26pt;font-weight:700;
-    letter-spacing:.02em;line-height:var(--lh-tight);
+    letter-spacing:.02em;line-height:var(--lh-tight);word-break:keep-all;
+    overflow-wrap:normal;line-break:strict;
     text-align:center;color:var(--ink);margin:5mm 0 0}
   /* 어미(魚尾) 모티프 — 전통 판식의 장 시작 장식(절제 차용, 인주색) */
   .crule{width:76px;margin:7mm auto var(--s7);display:block}

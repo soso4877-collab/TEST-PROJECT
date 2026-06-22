@@ -5,7 +5,63 @@
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
-> 최종 갱신: 2026-06-13  (Phase 9 익명 계산특이점 데이터셋 완료 — insight.py 화이트리스트 추출·delete 연계·PII 부재 검증, pytest 159 PASS)
+> 최종 갱신: 2026-06-14  (베타 재정비 Phase A+B 완료. A=브랜드 서담선생 기본+자유입력 / 가정어 제거(세운
+>   연도 앵커)+style_lint 가드. B=챕터 간 일주 자기소개 반복 해소: 프롬프트(소유권)+rules ilgan 골격 근원수정
+>   +결정론 백스톱 content/repetition.py(소유 챕터 wonguk 외 짧은 자기소개 줄 제거). 베타 v5 실측 일주
+>   자기소개 2·3회→1회, 가정어 0. C(저장·재사용, 보존정책 선행)·D(promptfoo) 보류.
+>   [신규] sajugen/gunghap.py — 다인(2인+) 사업 궁합 리포트: 결정론 개인 사실(격국·용신 재사용 + 식신생재·
+>   재고 신규 탐지) + 쌍별 partner_pillars 관계 + 세운 호기 겹침 → 궁합 전용 compose(3인 허용토큰 factcheck·
+>   가정어 가드·반복 백스톱·서담선생) → tagged PDF. 한글 간지 전용(천간지지 한자→한글 변환). CLI
+>   `python -m sajugen.gunghap gen --person '이름,YYYY-MM-DD,HH:MM' ...`. 실주문(김태수·김태성·장순조)
+>   gunghap_3in_v3.pdf 13p, 식신생재·재고·포지션·시기 반영. test_gunghap 5건. pytest 167 PASS.
+>   재정비 플랜: ~/.claude/plans/subprocess-run-recursive-rivest.md)
+> [2026-06-14 PDF 결함 2종 수정 — 플랜 ~/.claude/plans/claude-code-plan-cuddly-petal.md 1·2단계만]
+>   실사로 확증한 결함: (1) 개인 PDF 대운 모순(정미 26~35 '현재' vs 병오 '대운 초입' 혼서 — 병오는 그의
+>   36~45 대운이자 2026 세운이라 factcheck 토큰검사로 못 막음. 근본=골격이 '현재 대운'을 단일 사실로
+>   안 박아 챕터마다 '현재'를 제각기 추론), (2) 궁합 PDF 마크다운/한자 누출(---·**·용신 火 — gunghap
+>   경로가 개인 경로의 정제·그라운딩·마스킹을 안 거침).
+>   1단계(궁합 경로 통일): content/postprocess.py 신설(strip_artifacts+hanja_clean 단일 소스, builder도
+>   이 별칭 사용·legacy 54줄 제거). gunghap _finalize(마크다운 제거+간지 한자→한글+비간지 한자 제거)를
+>   LLM출력·폴백 양쪽에 적용, trace.check 그라운딩(섹션 source_keys), masking.mask_concern(situation PII,
+>   절대규칙17), is_male 하드코딩 제거→person별 성별(CLI 4번째 필드). render/verify.py 마크다운 게이트
+>   (markdown_clean→gate_pass). [버그 자수정] postprocess _CJK_RX 리터럴 豈가 U+8C48로 입력돼 한글
+>   삭제→\u 이스케이프(U+F900)로 고정. 실측: 궁합 재생성 마크다운 0·비간지 한자 0·gate_pass.
+>   2단계(대운 일관성): calc/myeongni.current_daewoon(ref_year의 단일 현재 대운=start_year<=ref_year 마지막)
+>   + rules 대운 섹션에 '현재 대운=정미 하나' 단일 사실 주입·각 대운 (지난/지금/앞으로) 태그 + content/
+>   consistency.py(현재로 서술된 간지 추출, 기대값 불일치·2종이상=위반) → builder가 잘못 서술 챕터를 골격
+>   폴백 + GuardReport.daewoon_consistent. verify.py 자기완결 게이트(현재 대운 간지 2종↑=빌드실패).
+>   llm_sections compose 프롬프트에 '현재 대운은 명시된 하나뿐' 규칙. 실측: 개인 룰경로 현재대운 단일{정미}.
+>   신규 테스트 test_postprocess·test_consistency(렌더 PDF 게이트 하드페일·빌더 revert 분기 포함)
+>   + test_gunghap/test_p2 확장. 전체 tests/ 182 PASS.
+>   주의: 승인 문구는 '재작성→실패 시 빌드 실패'였으나 구현은 (a) 빌더 self-heal(잘못 서술 챕터 골격
+>   폴백, 결정론 정답) + (b) 렌더 후 verify 게이트 하드페일(현재대운 2종↑=gate_pass False)의 2중 구조.
+>   일상 케이스는 조용히 자가교정되고, 자가교정이 놓친 경우에만 게이트가 빌드를 실패시킨다.
+>   알려진 한계(후속): consistency._CUR_AFTER 가 '다음 병오 대운 초입을 준비' 같은 미래 서술도 현재로
+>   과탐할 수 있고, 지금/초입 없는 현재 단정('병오 대운은 …')은 놓칠 수 있음 — 문서화된 결함엔 충분.
+>   미실행(범위 제외): report_type enum·단품·토정/택일/작명 엔진·order_flow 연결(플랜 3·4단계 참고용))
+> [2026-06-15 H1-mini PDF 품질 이슈 6종 검출·수정 — 플랜 claude-code-plan-cuddly-petal.md, calc/ 무수정]
+>   육안검수 6이슈(테스트·게이트 미포착분)를 후처리·lint·rules copy·layout로 해결. 신규:
+>   content/quality_lint.py(신강↔신약 모순·재무→재수 오타·이름앵커), content/temporal_lint.py(ref_year
+>   이하 연도를 '오기 전'으로 쓴 시제오류). 수정: postprocess.hanja_clean에 중복괄호 축약
+>   ([가-힣]{1,4}(\1)→\1; '술(술)'·'명궁(명궁)' 해결, '묘(매우 밝음)' 보존); rules 자미 골격 자연화
+>   ([핵심 궁]/[그 밖의 궁] 라벨 제거, _palace_para/_palace_brief tag 중복 억제, _stars_full 빈 주성→
+>   '주성이 없는 공궁'); builder·gunghap 가드에 quality+temporal lint 연결(위반 시 폴백); render/pdf
+>   _split_paragraphs 짧은 마지막 단락(≤14자) 직전 단락 병합(orphan 방지); render/verify에
+>   orphan_pages/no_orphan + quality_clean/temporal_clean 필드 + gate_pass 편입(verify(ref_year,names)).
+>   신규 테스트 test_quality_lint·test_render_verify + test_postprocess/test_gunghap 확장. 전체 tests/ 193 PASS.
+>   룰경로 실측: 개인 PDF 이슈2(자미잔재) 0·이슈3(중복괄호) 0·orphan 0. 이슈1·4·5·6은 LLM 산문 발생분
+>   → 단위/모의 검증 완료, LLM 실측 0건 확인은 운영자 승인 후 재생성 대기. 커밋 안 함.)
+> [2026-06-19 Phase 1 완료 — Claude Code x Codex 협업 운영 계약 (구현 커밋 504b646, 문서만·calc/ 무수정)]
+>   변경: (1) AGENTS.md에 'Codex 운영 계약'(권한 경계) 추가 — 기본 역할=리뷰어·구현권 없음(운영자 사안별
+>   승인 필요), Codex 상시 금지(PDF 재생성·LLM 호출·commit·push·deploy), 데이터 접근/인용 경계(.env·실고객
+>   데이터·profiles/local 비열람, PII 비인용), 승인 근거 리포트 규정(--no-tests 아닌 hrun 실행본 summary.json
+>   pytest.returncode==0). (2) handoff/templates/codex_review.md에 표준 리뷰 체크리스트 추가(권한·재생성·LLM·
+>   commit·push·안전·calc/content/render/order 영역별 근거 항목).
+>   검증: 전체 pytest 244 passed (358.56s, returncode 0) — 실행본 근거 handoff/reports/h153-baseline/summary.json
+>   (--no-tests 아님). 독립 재검증(2026-06-19): 전체 pytest 244 passed (400.89s, exit code 0). Codex 최종 DIFF_VERDICT = APPROVE.
+>   안전 확인: PDF 재생성 없음, 애플리케이션 실행 경로 LLM 호출 없음(단 개발 도구인 Claude Code·Codex 사용은
+>   이 항목에서 제외), push 없음, deploy 없음.
+>   다음 단계: Phase 2A — Claude Plan → Codex Plan Review 자동화 v1.
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).

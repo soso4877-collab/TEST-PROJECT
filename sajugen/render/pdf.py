@@ -79,11 +79,22 @@ def render_html(
     )
 
 
+_ORPHAN_TAIL_MAX = 14  # 이하 길이의 '마지막 단락'은 직전 단락에 합쳐 단독 페이지화 방지
+
+
 def _split_paragraphs(text: str) -> list[str]:
-    """빈 줄(연속 개행) 기준 문단 분할 — 문단 내부 단일 개행은 보존(pre-line)."""
+    """빈 줄(연속 개행) 기준 문단 분할 — 문단 내부 단일 개행은 보존(pre-line).
+
+    짧은 마지막 단락(예: '있습니다.')이 통째로 다음 페이지에 단독으로 떨어지는 orphan
+    (블록 단위라 widows/orphans CSS로는 못 막음)을 막기 위해 직전 단락에 합친다.
+    """
     if not text:
         return []
-    return [p.strip("\n") for p in re.split(r"\n\s*\n+", text) if p.strip()]
+    paras = [p.strip("\n") for p in re.split(r"\n\s*\n+", text) if p.strip()]
+    if len(paras) >= 2 and len(paras[-1].strip()) <= _ORPHAN_TAIL_MAX:
+        paras[-2] = paras[-2].rstrip() + " " + paras[-1].strip()
+        paras.pop()
+    return paras
 
 
 def render_pdf(

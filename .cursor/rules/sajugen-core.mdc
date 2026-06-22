@@ -1,0 +1,14 @@
+---
+description: sajugen 핵심 불변 규칙(컨텍스트용, 강제력 없음 — 강제는 코드/테스트/게이트)
+alwaysApply: true
+---
+
+# sajugen core rules (요약)
+
+원문 출처: `CLAUDE.md`, `.claude/rules/00-immutable.md`, `sajugen/STATE.md`. 충돌 시 원문 우선.
+
+- **계산 불변**: `sajugen/calc/`·`input/`은 정확도가 상품 생명. LLM 위임 금지. 수정 시 테스트+골든 회귀 동반. 하네스/품질 작업은 calc/ diff = 0 유지.
+- **가드 우회 금지**: safe_lint·factcheck·trace + client_tone_lint(loanword·raw_calc·name_policy·identity_role·singang_role). 판정 로직은 `sajugen/render/verify.py`·`sajugen/content/client_tone_lint.py`가 소유 — 다른 곳에 정규식/금지어 복붙(=drift) 금지.
+- **발송/승인**: APPROVED 전 발송 금지. PDF 재생성·LLM 호출·커밋·push는 명시 승인 시에만. 예측 정확도 주장·본문 AI 고지 금지.
+- **PII/secrets**: 실명·생년월일·출생시간·`.env`·API key·생성 PDF는 커밋 금지. 실데이터는 `harness/profiles/local/`(gitignore).
+- **언어**: 주석·커밋·문서 한국어. 터미널 출력 평문(이모지/특수기호 지양).
