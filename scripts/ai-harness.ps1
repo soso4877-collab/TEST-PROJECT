@@ -477,6 +477,11 @@ if ($SelfTest) {
     $cxBadArtRejected = $false
     try { Assert-CodexReviewShape ($cxBadArtRaw | ConvertFrom-Json) $cxBadArtRaw } catch { $cxBadArtRejected = $true }
 
+    # artifact_type 가 "codex_plan_review"(실제 codex가 냈던 비-canonical 값) -> 거부(회귀)
+    $cxCanonRaw = '{"schema_version":"1.0","artifact_type":"codex_plan_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
+    $cxCanonRejected = $false
+    try { Assert-CodexReviewShape ($cxCanonRaw | ConvertFrom-Json) $cxCanonRaw } catch { $cxCanonRejected = $true }
+
     # reviewed_plan_sha256 형식 불량 -> 거부
     $cxBadHashRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"NOTHEX","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
     $cxBadHashRejected = $false
@@ -502,11 +507,11 @@ if ($SelfTest) {
     $cxNomodNumRejected = $false
     try { Assert-CodexReviewShape ($cxNomodNumRaw | ConvertFrom-Json) $cxNomodNumRaw } catch { $cxNomodNumRejected = $true }
 
-    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk -and $rhaStrRejected -and $nipNumRejected -and $artBoolRejected -and $stageBoolRejected -and $codexValidOk -and $cxBadArtRejected -and $cxBadHashRejected -and $cxBlkScalarRejected -and $cxNomodRejected -and $cxNomodStrRejected -and $cxNomodNumRejected) {
-      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok planshape_rha_string_rejected=ok planshape_nip_number_rejected=ok planshape_artifact_bool_rejected=ok planshape_stage_bool_rejected=ok codexshape_valid=ok codexshape_bad_artifact_rejected=ok codexshape_bad_hash_rejected=ok codexshape_blockers_scalar_rejected=ok codexshape_nomod_false_rejected=ok codexshape_nomod_string_rejected=ok codexshape_nomod_number_rejected=ok"
+    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk -and $rhaStrRejected -and $nipNumRejected -and $artBoolRejected -and $stageBoolRejected -and $codexValidOk -and $cxBadArtRejected -and $cxCanonRejected -and $cxBadHashRejected -and $cxBlkScalarRejected -and $cxNomodRejected -and $cxNomodStrRejected -and $cxNomodNumRejected) {
+      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok planshape_rha_string_rejected=ok planshape_nip_number_rejected=ok planshape_artifact_bool_rejected=ok planshape_stage_bool_rejected=ok codexshape_valid=ok codexshape_bad_artifact_rejected=ok codexshape_canonical_artifact_rejected=ok codexshape_bad_hash_rejected=ok codexshape_blockers_scalar_rejected=ok codexshape_nomod_false_rejected=ok codexshape_nomod_string_rejected=ok codexshape_nomod_number_rejected=ok"
       $selftestCode = 0
     } else {
-      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk + " rhastr=" + $rhaStrRejected + " nipnum=" + $nipNumRejected + " artbool=" + $artBoolRejected + " stagebool=" + $stageBoolRejected + " cxvalid=" + $codexValidOk + " cxart=" + $cxBadArtRejected + " cxhash=" + $cxBadHashRejected + " cxblk=" + $cxBlkScalarRejected + " cxnomod=" + $cxNomodRejected + " cxnomodstr=" + $cxNomodStrRejected + " cxnomodnum=" + $cxNomodNumRejected)
+      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk + " rhastr=" + $rhaStrRejected + " nipnum=" + $nipNumRejected + " artbool=" + $artBoolRejected + " stagebool=" + $stageBoolRejected + " cxvalid=" + $codexValidOk + " cxart=" + $cxBadArtRejected + " cxcanon=" + $cxCanonRejected + " cxhash=" + $cxBadHashRejected + " cxblk=" + $cxBlkScalarRejected + " cxnomod=" + $cxNomodRejected + " cxnomodstr=" + $cxNomodStrRejected + " cxnomodnum=" + $cxNomodNumRejected)
     }
   } catch {
     Write-PlainLine ("SELFTEST=FAIL exception: " + $_.Exception.Message)

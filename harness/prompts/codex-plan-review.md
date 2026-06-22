@@ -12,6 +12,7 @@
 
 ## 판정 (PLAN_VERDICT)
 - 출력은 제공된 JSON Schema(`codex-plan-review.schema.json`)에 정확히 맞는 단일 JSON만.
+- **고정 필드값(반드시 이 값 그대로)**: `artifact_type="codex_review"`, `review_stage="plan"`, `review_target="claude-plan.json"`, `no_modification_performed=true`(boolean).
 - `verdict`는 `APPROVE` 또는 `BLOCK` 둘 중 하나.
 - 확신이 없으면 `BLOCK`(fail-closed).
 

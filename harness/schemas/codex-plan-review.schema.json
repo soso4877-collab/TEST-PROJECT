@@ -20,9 +20,9 @@
   ],
   "properties": {
     "schema_version": { "type": "string" },
-    "artifact_type": { "type": "string" },
-    "review_stage": { "type": "string" },
-    "review_target": { "type": "string" },
+    "artifact_type": { "type": "string", "enum": ["codex_review"] },
+    "review_stage": { "type": "string", "enum": ["plan"] },
+    "review_target": { "type": "string", "enum": ["claude-plan.json"] },
     "checked_base_commit": { "type": "string" },
     "reviewed_task_sha256": { "type": "string" },
     "reviewed_plan_sha256": { "type": "string" },

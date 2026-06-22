@@ -125,6 +125,10 @@ def test_codex_review_schema_simplified():
         assert k in s["properties"], f"codex schema 필드 누락: {k}"
         assert k in s["required"], f"codex schema required 누락: {k}"
     assert s["properties"]["verdict"]["enum"] == ["APPROVE", "BLOCK"]
+    # canonical 값을 singleton enum으로 강제(실제 codex가 codex_plan_review 등 비-canonical 값을 내는 것 차단)
+    assert s["properties"]["artifact_type"]["enum"] == ["codex_review"]
+    assert s["properties"]["review_stage"]["enum"] == ["plan"]
+    assert s["properties"]["review_target"]["enum"] == ["claude-plan.json"]
     assert "DIFF_VERDICT" not in raw
 
 
@@ -288,6 +292,8 @@ def test_invoke_cli_stdin_roundtrip_selftest():
     # string const(artifact_type/stage)도 boolean true가 통과하지 않아야 함
     assert "planshape_artifact_bool_rejected=ok" in r.stdout
     assert "planshape_stage_bool_rejected=ok" in r.stdout
+    # 실제 codex가 냈던 비-canonical artifact_type("codex_plan_review")도 거부
+    assert "codexshape_canonical_artifact_rejected=ok" in r.stdout
 
 
 def test_ps_claude_response_failclosed():
