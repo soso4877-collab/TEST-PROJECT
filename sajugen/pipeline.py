@@ -106,7 +106,12 @@ def generate(
     # 개인 일간 role 게이트(H1.5.3) — 결정론 일간만 정답. 이름 정책은 개인 미적용(단일 호명).
     _id_spec = builder.personal_identity_spec(saju, name)
     v = render_verify.verify(
-        pdf_path, ref_year=ref_year, names=[name] if name else None, identity=_id_spec
+        pdf_path,
+        ref_year=ref_year,
+        names=[name] if name else None,
+        identity=_id_spec,
+        product=product,
+        concern=concern,
     )
 
     reasons: list[str] = []

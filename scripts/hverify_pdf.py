@@ -120,6 +120,10 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         name_full=specs["name_full"],
         identity=specs["identity"],
         singang=specs["singang"],
+        product=profile.get("product"),
+        premium=bool(profile.get("premium", False)),
+        concern=profile.get("concern"),
+        expected_context_terms=profile.get("expected_context_terms"),
     )
     out["status"] = "verified"
     out["meta"] = _file_meta(pdf_abs)
@@ -136,6 +140,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "name_policy_clean",
         "identity_role_clean",
         "singang_role_clean",
+        "delivery_quality_clean",
         "daewoon_current",
     ):
         out[k] = v.get(k)
@@ -148,11 +153,15 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "singang_role_hits",
         "orphan_pages",
         "low_density_pages",
+        "delivery_missing_axes",
+        "delivery_repetition_hits",
+        "delivery_guarantee_hits",
         "name_policy_allowed_hits",
     ):
         val = v.get(k) or []
         out[k + "_count"] = len(val)
         out[k] = val[:20]
+    out["delivery_quality"] = v.get("delivery_quality")
     # 보조: 외래어 원시 substring(목록은 client_tone_lint.LOANWORDS 재사용 — 정규식 복붙 아님)
     import fitz
 
