@@ -72,6 +72,9 @@ def test_claude_plan_schema_simplified():
         assert k in s["required"], f"claude schema required 누락: {k}"
     # risk_level enum은 유지 가능
     assert s["properties"]["risk_level"]["enum"] == ["low", "medium", "high"]
+    # canonical 값을 singleton enum으로 강제(claude-plan/Plan 변형 차단)
+    assert s["properties"]["artifact_type"]["enum"] == ["claude_plan"]
+    assert s["properties"]["stage"]["enum"] == ["plan"]
     assert "DIFF_VERDICT" not in raw
 
 
