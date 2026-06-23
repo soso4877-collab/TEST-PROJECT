@@ -12,7 +12,8 @@
 
 param(
   [ValidateSet("Plan")][string]$Stage = "Plan",
-  [string]$Task = "handoff/current/task.md",
+  [string]$Task = "",
+  [string]$Project = "harness/project.yml",
   [switch]$DryRun,
   [switch]$SelfTest
 )
@@ -37,14 +38,23 @@ $ClaudePlanSchema = "harness/schemas/claude-plan.schema.json"
 $CodexReviewSchema = "harness/schemas/codex-plan-review.schema.json"
 $ClaudePromptFile = "harness/prompts/claude-plan.md"
 $CodexPromptFile  = "harness/prompts/codex-plan-review.md"
+$RuntimeDir = "handoff/current"
+$ProjectId = "sajugen"
 
-# Allowed/forbidden files (passed in the plan packet - informational)
-$AllowedFiles = @(
+$HighConfidenceSecretPatterns = @(
+  'sk-ant-[A-Za-z0-9_\-]{8,}',
+  '(?i)ANTHROPIC_API_KEY\s*[=:]\s*[A-Za-z0-9_\-]{8,}',
+  '(?i)(api[_-]?key|secret|token)\s*[=:]\s*[''"]?[A-Za-z0-9_\-]{16,}'
+)
+
+# Harness source files (contract-test inventory only; task scope is parsed from task.md).
+$HarnessFiles = @(
   "scripts/ai-harness.ps1",
   "harness/schemas/claude-plan.schema.json",
   "harness/schemas/codex-plan-review.schema.json",
   "harness/prompts/claude-plan.md",
   "harness/prompts/codex-plan-review.md",
+  "harness/project.yml",
   "handoff/templates/ai_task.md",
   "handoff/current/.gitignore",
   "handoff/current/README.md",
@@ -189,6 +199,68 @@ function Test-JsonArrayField {
   param([string]$RawText, [string]$Field)
   $pat = '"' + $Field + '"\s*:\s*\['
   return [System.Text.RegularExpressions.Regex]::IsMatch($RawText, $pat)
+}
+
+function Convert-ManifestScalar {
+  param([string]$Value)
+  $v = $Value.Trim()
+  if (($v.StartsWith("'") -and $v.EndsWith("'")) -or ($v.StartsWith('"') -and $v.EndsWith('"'))) {
+    $v = $v.Substring(1, $v.Length - 2)
+  }
+  return $v.Replace("''", "'")
+}
+
+# Tiny manifest parser for harness/project.yml. It intentionally supports only top-level scalars and lists:
+# key: value
+# key:
+#   - value
+# This keeps project portability without adding a YAML dependency to PS 5.1.
+function Read-HarnessProjectManifest {
+  param([string]$Path)
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "project manifest missing: $Path" }
+  $map = @{}
+  $currentList = $null
+  foreach ($rawLine in (Read-TextNoBom $Path -split "`r?`n")) {
+    $line = $rawLine.TrimEnd()
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    if ($line.TrimStart().StartsWith("#")) { continue }
+    if ($line -match '^([A-Za-z0-9_]+):\s*(.*)$') {
+      $key = $Matches[1]
+      $value = $Matches[2]
+      if ([string]::IsNullOrWhiteSpace($value)) {
+        $map[$key] = New-Object System.Collections.ArrayList
+        $currentList = $key
+      } else {
+        $map[$key] = Convert-ManifestScalar $value
+        $currentList = $null
+      }
+      continue
+    }
+    if ($line -match '^\s+-\s+(.+?)\s*$') {
+      if ($null -eq $currentList) { throw "manifest list item without a list key: $line" }
+      [void]$map[$currentList].Add((Convert-ManifestScalar $Matches[1]))
+      continue
+    }
+    throw "unsupported manifest line: $line"
+  }
+  return $map
+}
+
+function Get-ManifestString {
+  param([hashtable]$Manifest, [string]$Key, [string]$Default)
+  if ($Manifest.ContainsKey($Key) -and $Manifest[$Key] -is [string] -and -not [string]::IsNullOrWhiteSpace($Manifest[$Key])) {
+    return [string]$Manifest[$Key]
+  }
+  return $Default
+}
+
+function Get-ManifestList {
+  param([hashtable]$Manifest, [string]$Key, [string[]]$Default)
+  if ($Manifest.ContainsKey($Key) -and ($Manifest[$Key] -is [System.Collections.IEnumerable]) -and -not ($Manifest[$Key] -is [string])) {
+    $items = @($Manifest[$Key])
+    if ($items.Count -gt 0) { return $items }
+  }
+  return $Default
 }
 
 # Safely extract the plan JSON 'text' from the Claude envelope. Prefer the structured_output object; otherwise use
@@ -342,13 +414,8 @@ function Assert-ClaudePlanShape {
 function Abs([string]$Rel) { return (Join-Path $RepoRoot $Rel) }
 
 # High-confidence secret check on the checked task text (fail-closed if present). Values are not printed.
-function Test-HighConfidenceSecret([string]$Text) {
-  $patterns = @(
-    'sk-ant-[A-Za-z0-9_\-]{8,}',
-    '(?i)ANTHROPIC_API_KEY\s*[=:]\s*[A-Za-z0-9_\-]{8,}',
-    '(?i)(api[_-]?key|secret|token)\s*[=:]\s*[''"]?[A-Za-z0-9_\-]{16,}'
-  )
-  foreach ($p in $patterns) {
+function Test-HighConfidenceSecret([string]$Text, [string[]]$Patterns) {
+  foreach ($p in $Patterns) {
     if ([System.Text.RegularExpressions.Regex]::IsMatch($Text, $p)) { return $true }
   }
   return $false
@@ -358,6 +425,60 @@ function Test-HighConfidenceSecret([string]$Text) {
 # general PII like birth date/birth time/birthplace is not auto-removed (the operator must not put PII in the task).
 # The artifact is named 'checked' (passed secret check) and does not guarantee PII removal. Future PII-masking extension point.
 function Get-CheckedTask([string]$Text) { return $Text }
+
+function Get-TaskListSection {
+  param([string]$Text, [string]$Heading)
+  $items = New-Object System.Collections.Generic.List[string]
+  if ([string]::IsNullOrWhiteSpace($Text)) { return @() }
+  $inSection = $false
+  foreach ($line in ($Text -split "`r?`n")) {
+    $trim = $line.Trim()
+    if ($trim -match '^##\s+(.+?)\s*$') {
+      $inSection = (($Matches[1]).Trim() -eq $Heading)
+      continue
+    }
+    if ($inSection -and $trim -match '^-\s+(.+?)\s*$') {
+      $item = ($Matches[1]).Trim()
+      if ($item -and -not $item.StartsWith("<")) { [void]$items.Add($item) }
+    }
+  }
+  return @($items.ToArray())
+}
+
+function Assert-TaskScope {
+  param([string[]]$Allowed, [string[]]$Forbidden)
+  if ($null -eq $Allowed -or $Allowed.Count -le 0) { throw "ALLOWED_FILES section missing or empty" }
+  if ($null -eq $Forbidden -or $Forbidden.Count -le 0) { throw "FORBIDDEN_FILES section missing or empty" }
+  foreach ($p in @($Allowed + $Forbidden)) {
+    if ([string]::IsNullOrWhiteSpace($p)) { throw "task scope contains an empty path" }
+    if ($p -match '^[A-Za-z]:\\|^\\\\|^\.\.|/\.\.') { throw "task scope path must be repo-relative: $p" }
+  }
+}
+
+function Test-PathAllowedByTask {
+  param([string]$Path, [string[]]$Allowed)
+  foreach ($pat in @($Allowed)) {
+    if ($Path -eq $pat) { return $true }
+    if ($pat.EndsWith("/**")) {
+      $prefix = $pat.Substring(0, $pat.Length - 3)
+      if ($Path.StartsWith($prefix + "/")) { return $true }
+    }
+  }
+  return $false
+}
+
+function Assert-PlanScopeWithinTask {
+  param([object]$Plan, [string[]]$Allowed)
+  foreach ($p in @((Get-JsonProp $Plan "allowed_files"))) {
+    if ($null -eq $p) { continue }
+    if (-not (Test-PathAllowedByTask $p $Allowed)) { throw "plan allowed_files exceeds task scope: $p" }
+  }
+  foreach ($fc in @((Get-JsonProp $Plan "file_changes"))) {
+    if ($null -eq $fc) { continue }
+    $path = Get-JsonProp $fc "path"
+    if (-not (Test-PathAllowedByTask $path $Allowed)) { throw "plan file_changes exceeds task scope: $path" }
+  }
+}
 
 # git helper (read-only only, PS 5.1/7 common). call operator + array splat, -C to set the work tree.
 # Important: git warnings on stderr (e.g. .pytest_cache permission) are native errors. With $ErrorActionPreference="Stop"
@@ -509,11 +630,24 @@ if ($SelfTest) {
     $cxNomodNumRejected = $false
     try { Assert-CodexReviewShape ($cxNomodNumRaw | ConvertFrom-Json) $cxNomodNumRaw } catch { $cxNomodNumRejected = $true }
 
-    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk -and $rhaStrRejected -and $nipNumRejected -and $artBoolRejected -and $stageBoolRejected -and $codexValidOk -and $cxBadArtRejected -and $cxCanonRejected -and $cxBadHashRejected -and $cxBlkScalarRejected -and $cxNomodRejected -and $cxNomodStrRejected -and $cxNomodNumRejected) {
-      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok planshape_rha_string_rejected=ok planshape_nip_number_rejected=ok planshape_artifact_bool_rejected=ok planshape_stage_bool_rejected=ok codexshape_valid=ok codexshape_bad_artifact_rejected=ok codexshape_canonical_artifact_rejected=ok codexshape_bad_hash_rejected=ok codexshape_blockers_scalar_rejected=ok codexshape_nomod_false_rejected=ok codexshape_nomod_string_rejected=ok codexshape_nomod_number_rejected=ok"
+    $scopeText = "## ALLOWED_FILES`n- a.txt`n- dir/**`n`n## FORBIDDEN_FILES`n- blocked/**`n"
+    $scopeAllowed = @(Get-TaskListSection $scopeText "ALLOWED_FILES")
+    $scopeForbidden = @(Get-TaskListSection $scopeText "FORBIDDEN_FILES")
+    $scopeOk = $true
+    try { Assert-TaskScope $scopeAllowed $scopeForbidden } catch { $scopeOk = $false }
+    $scopePathOk = ((Test-PathAllowedByTask "a.txt" $scopeAllowed) -and (Test-PathAllowedByTask "dir/x.py" $scopeAllowed) -and (-not (Test-PathAllowedByTask "other.py" $scopeAllowed)))
+    $scopePlanRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a.txt"],"forbidden_files":["blocked/**"],"file_changes":[{"path":"dir/x.py","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
+    $scopePlanOk = $true
+    try { Assert-PlanScopeWithinTask ($scopePlanRaw | ConvertFrom-Json) $scopeAllowed } catch { $scopePlanOk = $false }
+    $scopePlanBadRaw = $scopePlanRaw.Replace('"path":"dir/x.py"', '"path":"other.py"')
+    $scopePlanBadRejected = $false
+    try { Assert-PlanScopeWithinTask ($scopePlanBadRaw | ConvertFrom-Json) $scopeAllowed } catch { $scopePlanBadRejected = $true }
+
+    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk -and $rhaStrRejected -and $nipNumRejected -and $artBoolRejected -and $stageBoolRejected -and $codexValidOk -and $cxBadArtRejected -and $cxCanonRejected -and $cxBadHashRejected -and $cxBlkScalarRejected -and $cxNomodRejected -and $cxNomodStrRejected -and $cxNomodNumRejected -and $scopeOk -and $scopePathOk -and $scopePlanOk -and $scopePlanBadRejected) {
+      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok planshape_rha_string_rejected=ok planshape_nip_number_rejected=ok planshape_artifact_bool_rejected=ok planshape_stage_bool_rejected=ok codexshape_valid=ok codexshape_bad_artifact_rejected=ok codexshape_canonical_artifact_rejected=ok codexshape_bad_hash_rejected=ok codexshape_blockers_scalar_rejected=ok codexshape_nomod_false_rejected=ok codexshape_nomod_string_rejected=ok codexshape_nomod_number_rejected=ok taskscope_valid=ok taskscope_glob=ok taskscope_plan_valid=ok taskscope_plan_bad_rejected=ok"
       $selftestCode = 0
     } else {
-      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk + " rhastr=" + $rhaStrRejected + " nipnum=" + $nipNumRejected + " artbool=" + $artBoolRejected + " stagebool=" + $stageBoolRejected + " cxvalid=" + $codexValidOk + " cxart=" + $cxBadArtRejected + " cxcanon=" + $cxCanonRejected + " cxhash=" + $cxBadHashRejected + " cxblk=" + $cxBlkScalarRejected + " cxnomod=" + $cxNomodRejected + " cxnomodstr=" + $cxNomodStrRejected + " cxnomodnum=" + $cxNomodNumRejected)
+      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk + " rhastr=" + $rhaStrRejected + " nipnum=" + $nipNumRejected + " artbool=" + $artBoolRejected + " stagebool=" + $stageBoolRejected + " cxvalid=" + $codexValidOk + " cxart=" + $cxBadArtRejected + " cxcanon=" + $cxCanonRejected + " cxhash=" + $cxBadHashRejected + " cxblk=" + $cxBlkScalarRejected + " cxnomod=" + $cxNomodRejected + " cxnomodstr=" + $cxNomodStrRejected + " cxnomodnum=" + $cxNomodNumRejected + " scope=" + $scopeOk + " scopepath=" + $scopePathOk + " scopeplan=" + $scopePlanOk + " scopebad=" + $scopePlanBadRejected)
     }
   } catch {
     Write-PlainLine ("SELFTEST=FAIL exception: " + $_.Exception.Message)
@@ -525,9 +659,23 @@ if ($SelfTest) {
 }
 
 # ======================================================================
-# 0) command preview strings (DryRun output + human readable)
+# 0) load project manifest, then command preview strings (DryRun output + human readable)
 #    actual calls use the arg array, but the preview shows the canonical form.
 # ======================================================================
+$projectAbs = if ([System.IO.Path]::IsPathRooted($Project)) { $Project } else { Abs $Project }
+$projectManifest = $null
+try { $projectManifest = Read-HarnessProjectManifest $projectAbs } catch { Stop-Fail 10 ("Project manifest invalid: " + $_.Exception.Message) }
+
+$ProjectId = Get-ManifestString $projectManifest "project_id" $ProjectId
+if ([string]::IsNullOrWhiteSpace($Task)) { $Task = Get-ManifestString $projectManifest "task_file" "handoff/current/task.md" }
+$RuntimeDir = Get-ManifestString $projectManifest "runtime_dir" $RuntimeDir
+$ClaudePlanSchema = Get-ManifestString $projectManifest "claude_plan_schema" $ClaudePlanSchema
+$CodexReviewSchema = Get-ManifestString $projectManifest "codex_review_schema" $CodexReviewSchema
+$ClaudePromptFile = Get-ManifestString $projectManifest "claude_prompt_file" $ClaudePromptFile
+$CodexPromptFile = Get-ManifestString $projectManifest "codex_prompt_file" $CodexPromptFile
+$PolicyFiles = @(Get-ManifestList $projectManifest "policy_files" $PolicyFiles)
+$HighConfidenceSecretPatterns = @(Get-ManifestList $projectManifest "high_confidence_secret_patterns" $HighConfidenceSecretPatterns)
+
 $ClaudeCmdPreview = 'claude -p --safe-mode --permission-mode plan --output-format json --json-schema <schema-json> --tools "Read,Glob,Grep" --disallowedTools "mcp__*" --no-chrome --no-session-persistence  (stdin: prompt+policy+task)'
 $CodexCmdPreview  = 'codex exec --ephemeral --sandbox read-only --output-schema ' + $CodexReviewSchema + ' -o <run>/codex-plan-review.json -   (stdin: review packet)'
 
@@ -580,11 +728,14 @@ if ($null -ne $codexCmd) {
 
 # read task + secret check + checked + hash (in memory; file write after folder creation)
 $rawTask = Read-TextNoBom $taskAbs
-if (Test-HighConfidenceSecret $rawTask) {
+if (Test-HighConfidenceSecret $rawTask $HighConfidenceSecretPatterns) {
   Stop-Fail 10 "high-confidence secret pattern found - remove from task and re-run (value not printed)."
 }
 $checkedTask = Get-CheckedTask $rawTask
 $taskSha = Get-Sha256OfText $checkedTask
+$taskAllowedFiles = @(Get-TaskListSection $checkedTask "ALLOWED_FILES")
+$taskForbiddenFiles = @(Get-TaskListSection $checkedTask "FORBIDDEN_FILES")
+try { Assert-TaskScope $taskAllowedFiles $taskForbiddenFiles } catch { Stop-Fail 10 ("Task scope invalid: " + $_.Exception.Message) }
 
 # schema validity for both (parse check) - also checked in DryRun.
 # --json-schema is a JSON string argument, not a file path (claude -p --help). To reduce newline/quote
@@ -601,6 +752,7 @@ $claudeSchemaJson = $claudeSchemaObj | ConvertTo-Json -Depth 30 -Compress
 # ======================================================================
 if ($DryRun) {
   Write-PlainLine "DRYRUN=1"
+  Write-PlainLine ("project_id=" + $ProjectId + " manifest=" + $Project)
   Write-PlainLine ("stage=" + $Stage + " branch=" + $branch + " base_commit=" + $baseCommit)
   Write-PlainLine ("task=" + $Task + " task_sha256=" + $taskSha)
   Write-PlainLine ("policy_files=" + ($PolicyFiles -join ","))
@@ -620,7 +772,7 @@ if ($DryRun) {
 $runStampUtc = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
 $suffix = ([Guid]::NewGuid().ToString("N")).Substring(0, 8)
 $runId = $runStampUtc + "-" + $suffix
-$currentDir = Abs "handoff/current"
+$currentDir = Abs $RuntimeDir
 $runDir = Join-Path $currentDir $runId
 [void](New-Item -ItemType Directory -Path $runDir -Force)
 
@@ -631,7 +783,8 @@ Write-TextNoBom $checkedPath $checkedTask
 
 # LATEST.txt - record relative path
 $latestPath = Join-Path $currentDir "LATEST.txt"
-Write-TextNoBom $latestPath ("handoff/current/" + $runId)
+$runtimeRelForLatest = $RuntimeDir.Replace("\", "/").TrimEnd("/")
+Write-TextNoBom $latestPath ($runtimeRelForLatest + "/" + $runId)
 
 # ======================================================================
 # 3) assemble policy packet (6 files only)
@@ -664,7 +817,8 @@ $claudeStdin = (Read-TextNoBom (Abs $ClaudePromptFile)) + "`n`n" +
   "===== CONTEXT =====`n" +
   "base_commit=" + $baseCommit + "`n" +
   "task_sha256=" + $taskSha + "`n" +
-  "allowed_files=" + ($AllowedFiles -join ",") + "`n"
+  "allowed_files=" + ($taskAllowedFiles -join ",") + "`n" +
+  "forbidden_files=" + ($taskForbiddenFiles -join ",") + "`n"
 
 $claudeArgs = @(
   "-p",
@@ -714,6 +868,7 @@ $planRaw = Read-TextNoBom $claudePlanPath
 $planObj = $null
 try { $planObj = $planRaw | ConvertFrom-Json } catch { Stop-Fail 12 "claude-plan.json parse failed" }
 try { Assert-ClaudePlanShape $planObj $planRaw } catch { Stop-Fail 12 ("Claude plan validation failed: " + $_.Exception.Message) }
+try { Assert-PlanScopeWithinTask $planObj $taskAllowedFiles } catch { Stop-Fail 12 ("Claude plan scope validation failed: " + $_.Exception.Message) }
 $planBase = Get-JsonProp $planObj "base_commit"
 $planTaskSha = Get-JsonProp $planObj "task_sha256"
 if ($planBase -ne $baseCommit) { Stop-Fail 14 "Claude plan base_commit mismatch (blocked before Codex call)" }
@@ -729,7 +884,8 @@ $reviewPacket = (Read-TextNoBom (Abs $CodexPromptFile)) + "`n`n" +
   "task_sha256=" + $taskSha + "`n" +
   "claude_plan_sha256=" + $planSha + "`n" +
   "policy_sha256=" + $policySha + "`n" +
-  "allowed_files=" + ($AllowedFiles -join ",") + "`n`n" +
+  "allowed_files=" + ($taskAllowedFiles -join ",") + "`n" +
+  "forbidden_files=" + ($taskForbiddenFiles -join ",") + "`n`n" +
   "===== CHECKED TASK (secret-checked; PII not auto-removed) =====`n" + $checkedTask + "`n`n" +
   "===== CLAUDE PLAN (claude-plan.json) =====`n" + (Read-TextNoBom $claudePlanPath) + "`n`n" +
   "===== POLICY PACKET =====`n" + $policyPacket + "`n"
@@ -793,6 +949,7 @@ $manifest = [ordered]@{
   run_id = $runId
   schema_version = "1.0"
   stage = "plan"
+  project_id = $ProjectId
   branch = $branch
   base_commit = $baseCommit
   task_sha256 = $taskSha

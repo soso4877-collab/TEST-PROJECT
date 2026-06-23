@@ -13,10 +13,12 @@ import fitz
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sajugen import pipeline  # noqa: E402
 from sajugen.calc import kasi  # noqa: E402
 from sajugen.input import normalize as norm  # noqa: E402
+from playwright_guard import require_playwright_subprocess  # noqa: E402
 
 
 def _assert_gate(r):
@@ -29,6 +31,7 @@ def _assert_gate(r):
 
 def test_e2e_solar_weekday():
     # 평일: 평범한 양력 생년월일시 → 풀사이클 게이트 통과
+    require_playwright_subprocess()
     r = pipeline.generate(
         1988,
         3,
@@ -50,6 +53,7 @@ def _real_cache():
 
 def test_e2e_lunar_leap():
     # 윤달: 2012 윤3월1일 → 양력 2012-04-21 (KASI 한국기준, 한·중 상이일). 캐시 없으면 skip.
+    require_playwright_subprocess()
     c = _real_cache()
     if c is None:
         pytest.skip("실 KASI 캐시 미구축")
@@ -73,6 +77,7 @@ def test_e2e_lunar_leap():
 
 def test_e2e_unknown_time():
     # 시진불명: unknown_time=True → 게이트 통과 + 시주 추정 고지(절대규칙 8) 본문 반영
+    require_playwright_subprocess()
     r = pipeline.generate(
         1995,
         7,

@@ -27,6 +27,7 @@ _PDF_GATE = [
     "name_policy_clean",
     "identity_role_clean",
     "singang_role_clean",
+    "delivery_quality_clean",
 ]
 _PDF_COUNT = [
     "loanword_hits_count",
@@ -36,6 +37,9 @@ _PDF_COUNT = [
     "identity_role_hits_count",
     "singang_role_hits_count",
     "orphan_pages_count",
+    "delivery_missing_axes_count",
+    "delivery_repetition_hits_count",
+    "delivery_guarantee_hits_count",
     "loanword_substring_count",
 ]
 

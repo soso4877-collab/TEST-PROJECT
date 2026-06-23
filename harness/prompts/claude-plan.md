@@ -13,6 +13,8 @@
 
 ## 출력 (필수 — 엄격)
 - 최종 응답은 **JSON 객체 하나만** 출력한다. 제공된 JSON Schema(`claude-plan.schema.json`)에 정확히 맞아야 한다.
+- **고정 필드값(반드시 이 값 그대로)**: `artifact_type="claude_plan"`, `stage="plan"`,
+  `requires_human_approval=true`(boolean), `no_implementation_performed=true`(boolean).
 - 설명문·확인문(예: "다음은 계획입니다")·마크다운 코드펜스(```)·도구 상태/진행 언급을 절대 넣지 않는다.
 - JSON 객체 앞뒤에 어떤 텍스트도 두지 않는다 — 첫 글자는 `{`, 마지막 글자는 `}`. schema 필드 외 텍스트 금지.
 - (하네스는 prose가 섞이면 추출하지 않고 BLOCK 처리한다 — 순수 JSON 객체만 통과한다. 프롬프트가 아니라 파서가 강제한다.)

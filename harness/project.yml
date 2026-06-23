@@ -1,0 +1,35 @@
+# Project-specific settings for scripts/ai-harness.ps1.
+# Keep this file free of PII/secrets; use repo-relative paths only.
+
+project_id: sajugen
+task_file: handoff/current/task.md
+runtime_dir: handoff/current
+
+claude_plan_schema: harness/schemas/claude-plan.schema.json
+codex_review_schema: harness/schemas/codex-plan-review.schema.json
+claude_prompt_file: harness/prompts/claude-plan.md
+codex_prompt_file: harness/prompts/codex-plan-review.md
+
+policy_files:
+  - AGENTS.md
+  - CLAUDE.md
+  - .claude/rules/00-immutable.md
+  - .claude/rules/calc.md
+  - .claude/rules/content.md
+  - .claude/rules/render.md
+
+high_confidence_secret_patterns:
+  - 'sk-ant-[A-Za-z0-9_\-]{8,}'
+  - '(?i)ANTHROPIC_API_KEY\s*[=:]\s*[A-Za-z0-9_\-]{8,}'
+  - '(?i)(api[_-]?key|secret|token)\s*[=:]\s*[''"]?[A-Za-z0-9_\-]{16,}'
+
+default_forbidden:
+  - .env
+  - data/**
+  - handoff/reports/**
+  - harness/profiles/local/**
+  - sajugen/render/out/**
+
+verify_commands:
+  - ./.venv/Scripts/python.exe -m pytest tests/ -q
+  - ./.venv/Scripts/python.exe scripts/hrun.py --profile harness/profiles/local/personal_h153.yml --profile harness/profiles/local/gunghap_h153.yml

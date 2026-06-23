@@ -57,6 +57,8 @@ def test_classify_golden():
     cases = [
         ("올해 이직 고민이에요", _C.JOB),
         ("남자친구랑 재회하고 싶어요", _C.LOVE),
+        ("전남친과 다시 만날 수 있을까요", _C.LOVE),
+        ("소개팅은 언제가 좋을까요", _C.LOVE),
         ("주식 투자 시기 괜찮을까요", _C.WEALTH),  # 투자/주식이 시기보다 우선
         ("요즘 건강이 걱정돼요", _C.HEALTH),
         ("부모님과 갈등이 있어요", _C.RELATION),
@@ -72,6 +74,7 @@ def test_classify_golden():
 def test_classify_priority_love_over_timing():
     # '언제 결혼'은 연애(앞) 우선
     assert classify("언제 결혼할 수 있을까요") == _C.LOVE
+    assert classify("재회 시기 언제가 좋을까요") == _C.LOVE
 
 
 def test_rule_backend_classify_matches_router(monkeypatch):
@@ -147,6 +150,29 @@ def test_concern_flows_to_category_and_consult_section(monkeypatch):
     assert "직업" in consult.final_text and consult.final_text.strip()
     # 라우팅 섹션도 가드 clean(비단정·간지 없음)
     assert rep.guard.clean is True
+
+
+def test_love_concern_answers_near_term_first(monkeypatch):
+    _no_key(monkeypatch)
+    rep = builder.build_report(
+        _saju(),
+        use_llm=False,
+        ref_year=2026,
+        concern="전남친과 재회 시기 언제가 좋을까요",
+    )
+    assert rep.concern_category == "연애", rep.concern_category
+    consult = rep.section("consult").final_text
+    assert consult.startswith("먼저 핵심부터 말하면"), consult
+    assert "앞으로 1년 안" in consult
+    assert "판단 지점" in consult
+    assert "상대가 실제로 대화를 이어 오는지" in consult
+    assert "재회합니다" not in consult and "결혼합니다" not in consult
+    assert rep.guard.clean is True
+
+
+def test_compose_prompt_has_no_ttorot_repetition():
+    text = Path("sajugen/content/llm_sections.py").read_text(encoding="utf-8")
+    assert text.count("또렷") == 0
 
 
 def test_no_concern_defaults_general_and_section_present():

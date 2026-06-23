@@ -308,7 +308,11 @@ def final_render_fn(report: UnifiedReport) -> str:
         unknown_time=bool(p.get("unknown_time")),
         brand=bp,
     )
-    v = render_verify.verify(pdf_path)
+    v = render_verify.verify(
+        pdf_path,
+        product=p.get("product"),
+        concern=p.get("concern") or None,
+    )
     if not v.get("gate_pass"):
         raise RuntimeError(
             f"최종 렌더 게이트 실패(text={v.get('text_chars')}, tagged={v.get('tagged')}, "

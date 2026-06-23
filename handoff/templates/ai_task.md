@@ -11,9 +11,18 @@
 - <path>
 - <path>
 
+## ALLOWED_FILES
+- handoff/current/README.md
+
 ## 금지 파일 (절대 변경 금지)
 - 기존 계산 코드(sajugen/calc/, sajugen/input/) — 별도 승인·골든 회귀 없이는 금지
 - <필요 시 추가>
+
+## FORBIDDEN_FILES
+- sajugen/calc/**
+- sajugen/input/**
+- .env
+- data/**
 
 ## 제약
 - <지켜야 할 규칙·경계>

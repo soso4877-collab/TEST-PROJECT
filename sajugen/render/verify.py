@@ -158,6 +158,10 @@ def verify(
     name_full: list[str] | None = None,
     identity: tuple | None = None,
     singang: list[dict] | None = None,
+    product: str | None = None,
+    premium: bool = False,
+    concern: str | None = None,
+    expected_context_terms: list[str] | None = None,
 ) -> dict:
     """렌더 PDF 게이트. name_full(전체 이름 리스트)·identity((expected_gans, expected_terms,
     subject_specs))·singang([{full,given,honor,singang}]) 가 주어지면 H1.5.3/3.2 이름 호칭·일간
@@ -253,6 +257,23 @@ def verify(
         r["singang_role_hits"] = srh[:30]
         r["singang_role_clean"] = not srh  # 게이트
 
+    from ..content import delivery_quality
+
+    dq = delivery_quality.analyze(
+        text,
+        pages=r["pages"],
+        low_density_pages=r["low_density_pages"],
+        product=product,
+        premium=premium,
+        concern=concern,
+        expected_context_terms=expected_context_terms,
+    )
+    r["delivery_quality"] = dq
+    r["delivery_quality_clean"] = dq["clean"]
+    r["delivery_missing_axes"] = dq["missing_axes"]
+    r["delivery_repetition_hits"] = dq["repetition_hits"][:20]
+    r["delivery_guarantee_hits"] = dq["guarantee_hits"][:20]
+
     # PDF/UA-1 검증 활성화(포터블 veraPDF). 결과는 '측정·보고'.
     va = _verapdf_ua1(pdf_path)
     r["verapdf"] = va
@@ -274,5 +295,6 @@ def verify(
         and r["name_policy_clean"]  # 전체 이름 반복(H1.5.3, name_full 전달 시)
         and r["identity_role_clean"]  # 일간 role 오서술(H1.5.3, identity 전달 시)
         and r["singang_role_clean"]  # 신강약 group/role(H1.5.3.2, singang 전달 시)
+        and r["delivery_quality_clean"]
     )
     return r

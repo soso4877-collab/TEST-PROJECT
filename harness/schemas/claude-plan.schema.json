@@ -22,8 +22,8 @@
   ],
   "properties": {
     "schema_version": { "type": "string" },
-    "artifact_type": { "type": "string" },
-    "stage": { "type": "string" },
+    "artifact_type": { "type": "string", "enum": ["claude_plan"] },
+    "stage": { "type": "string", "enum": ["plan"] },
     "task_id": { "type": "string" },
     "base_commit": { "type": "string" },
     "task_sha256": { "type": "string" },

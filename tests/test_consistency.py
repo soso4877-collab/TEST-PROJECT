@@ -11,8 +11,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sajugen.content import consistency as c  # noqa: E402
+from playwright_guard import require_playwright_subprocess  # noqa: E402
 
 
 def _sec(sid, text):
@@ -64,6 +66,7 @@ def test_offending_ids_targets_wrong_section():
 def test_verify_gate_fails_on_mixed_daewoon_pdf():
     # 핵심 요구 검증: 같은 PDF에 현재 대운이 2종으로 섞이면 렌더 후 게이트가 빌드 실패시킨다.
     # (PyMuPDF 추출이 간지를 '대운/초입'에서 분리해 정규식을 무력화하지 않는지도 함께 확인.)
+    require_playwright_subprocess()
     from sajugen import config as cfg
     from sajugen.render import pdf as render_pdf
     from sajugen.render import verify as v

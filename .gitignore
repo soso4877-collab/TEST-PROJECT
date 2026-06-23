@@ -38,6 +38,8 @@ __pycache__/
 dist/
 *.egg-info/
 .ruff_cache/
+pytest-basetemp/
+pytest-cache/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -66,6 +68,7 @@ _f4_png/
 # sajugen 검증 하네스 — PII/산출물 비커밋(안전장치).
 # (handoff/reports/·harness/reports/ 는 위 'reports/' 규칙으로 이미 무시됨; _h*.py/.txt/.json 도 '_[!_]*' 로 이미 무시)
 harness/profiles/local/
+harness/project.local.yml
 harness/profiles/*.local.yml
 .harness_tmp/
 *.harness.json

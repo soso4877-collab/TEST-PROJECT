@@ -23,6 +23,7 @@ ALLOWED = [
     "harness/schemas/codex-plan-review.schema.json",
     "harness/prompts/claude-plan.md",
     "harness/prompts/codex-plan-review.md",
+    "harness/project.yml",
     "handoff/templates/ai_task.md",
     "handoff/current/.gitignore",
     "handoff/current/README.md",
@@ -41,6 +42,33 @@ def _ps_text() -> str:
 def test_allowed_files_exist():
     for rel in ALLOWED:
         assert (ROOT / rel).is_file(), f"누락: {rel}"
+
+
+def test_project_manifest_declares_project_specific_policy():
+    raw = _read("harness/project.yml")
+    assert "project_id: sajugen" in raw
+    assert "task_file: handoff/current/task.md" in raw
+    assert "runtime_dir: handoff/current" in raw
+    for key in (
+        "policy_files:",
+        "claude_plan_schema:",
+        "codex_review_schema:",
+        "claude_prompt_file:",
+        "codex_prompt_file:",
+        "high_confidence_secret_patterns:",
+        "default_forbidden:",
+        "verify_commands:",
+    ):
+        assert key in raw
+    for pf in (
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".claude/rules/00-immutable.md",
+        ".claude/rules/calc.md",
+        ".claude/rules/content.md",
+        ".claude/rules/render.md",
+    ):
+        assert f"- {pf}" in raw
 
 
 def test_claude_plan_schema_simplified():
@@ -72,6 +100,9 @@ def test_claude_plan_schema_simplified():
         assert k in s["required"], f"claude schema required 누락: {k}"
     # risk_level enum은 유지 가능
     assert s["properties"]["risk_level"]["enum"] == ["low", "medium", "high"]
+    # canonical 값을 singleton enum으로 강제(claude-plan/Plan 변형 차단)
+    assert s["properties"]["artifact_type"]["enum"] == ["claude_plan"]
+    assert s["properties"]["stage"]["enum"] == ["plan"]
     assert "DIFF_VERDICT" not in raw
 
 
@@ -185,6 +216,12 @@ def test_ps_passes_json_schema_safely():
 
 def test_ps_reads_only_policy_six_files():
     t = _ps_text()
+    assert '[string]$Project = "harness/project.yml"' in t
+    assert "Read-HarnessProjectManifest" in t
+    assert "Get-ManifestList" in t
+    assert "policy_files" in t
+    assert "high_confidence_secret_patterns" in t
+    assert "runtime_dir" in t
     for pf in (
         "AGENTS.md",
         "CLAUDE.md",
@@ -194,9 +231,9 @@ def test_ps_reads_only_policy_six_files():
         ".claude/rules/render.md",
     ):
         assert pf in t, f"정책 파일 경로 누락: {pf}"
-    # 제외 5경로는 스크립트에 등장하지 않는다(열람 코드 부재)
-    for excluded in (".env", "data/", "profiles/local", "render/out", "handoff/reports"):
-        assert excluded not in t, f"제외 경로가 스크립트에 등장: {excluded}"
+    manifest = _read("harness/project.yml")
+    for excluded in (".env", "data/**", "harness/profiles/local/**", "sajugen/render/out/**", "handoff/reports/**"):
+        assert excluded in manifest, f"manifest default_forbidden 누락: {excluded}"
 
 
 def test_ps_git_stderr_does_not_terminate():
@@ -303,6 +340,11 @@ def test_invoke_cli_stdin_roundtrip_selftest():
     assert "planshape_stage_bool_rejected=ok" in r.stdout
     # 실제 codex가 냈던 비-canonical artifact_type("codex_plan_review")도 거부
     assert "codexshape_canonical_artifact_rejected=ok" in r.stdout
+    # task.md machine-readable scope is parsed and enforced before Codex review.
+    assert "taskscope_valid=ok" in r.stdout
+    assert "taskscope_glob=ok" in r.stdout
+    assert "taskscope_plan_valid=ok" in r.stdout
+    assert "taskscope_plan_bad_rejected=ok" in r.stdout
 
 
 def test_ps_claude_response_failclosed():
@@ -355,6 +397,26 @@ def test_ps_task_artifact_not_overclaim_pii():
     # PII 제거를 보장하지 않으므로 'sanitized' 이름을 쓰지 않는다(secret-checked만 보장)
     assert "task.checked.md" in t
     assert "task.sanitized.md" not in t
+
+
+def test_ai_task_template_has_machine_readable_scope():
+    t = _read("handoff/templates/ai_task.md")
+    assert "## ALLOWED_FILES" in t
+    assert "## FORBIDDEN_FILES" in t
+    assert "- handoff/current/README.md" in t
+    assert "- sajugen/calc/**" in t
+
+
+def test_ps_derives_allowed_files_from_task_scope():
+    t = _ps_text()
+    assert "Get-TaskListSection" in t
+    assert 'Get-TaskListSection $checkedTask "ALLOWED_FILES"' in t
+    assert 'Get-TaskListSection $checkedTask "FORBIDDEN_FILES"' in t
+    assert "Assert-TaskScope" in t
+    assert "Assert-PlanScopeWithinTask" in t
+    assert '"allowed_files=" + ($taskAllowedFiles -join ",")' in t
+    assert '"forbidden_files=" + ($taskForbiddenFiles -join ",")' in t
+    assert "$AllowedFiles = @(" not in t
 
 
 def test_gitignore_isolation():
