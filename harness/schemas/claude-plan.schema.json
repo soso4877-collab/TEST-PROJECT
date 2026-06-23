@@ -1,0 +1,51 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "stage",
+    "task_id",
+    "base_commit",
+    "task_sha256",
+    "summary",
+    "risk_level",
+    "allowed_files",
+    "forbidden_files",
+    "file_changes",
+    "risks",
+    "acceptance_criteria",
+    "required_validations",
+    "rollback",
+    "requires_human_approval",
+    "no_implementation_performed"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "artifact_type": { "type": "string" },
+    "stage": { "type": "string" },
+    "task_id": { "type": "string" },
+    "base_commit": { "type": "string" },
+    "task_sha256": { "type": "string" },
+    "summary": { "type": "string" },
+    "risk_level": { "type": "string", "enum": ["low", "medium", "high"] },
+    "allowed_files": { "type": "array", "items": { "type": "string" } },
+    "forbidden_files": { "type": "array", "items": { "type": "string" } },
+    "file_changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "change": { "type": "string" }
+        }
+      }
+    },
+    "risks": { "type": "array", "items": { "type": "string" } },
+    "acceptance_criteria": { "type": "array", "items": { "type": "string" } },
+    "required_validations": { "type": "array", "items": { "type": "string" } },
+    "rollback": { "type": "string" },
+    "requires_human_approval": { "type": "boolean" },
+    "no_implementation_performed": { "type": "boolean" }
+  }
+}

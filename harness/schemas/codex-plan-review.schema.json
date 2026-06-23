@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "review_stage",
+    "review_target",
+    "checked_base_commit",
+    "reviewed_task_sha256",
+    "reviewed_plan_sha256",
+    "verdict",
+    "blockers",
+    "warnings",
+    "evidence",
+    "allowed_files",
+    "forbidden_files",
+    "required_validations",
+    "no_modification_performed"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "artifact_type": { "type": "string", "enum": ["codex_review"] },
+    "review_stage": { "type": "string", "enum": ["plan"] },
+    "review_target": { "type": "string", "enum": ["claude-plan.json"] },
+    "checked_base_commit": { "type": "string" },
+    "reviewed_task_sha256": { "type": "string" },
+    "reviewed_plan_sha256": { "type": "string" },
+    "verdict": { "type": "string", "enum": ["APPROVE", "BLOCK"] },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "allowed_files": { "type": "array", "items": { "type": "string" } },
+    "forbidden_files": { "type": "array", "items": { "type": "string" } },
+    "required_validations": { "type": "array", "items": { "type": "string" } },
+    "no_modification_performed": { "type": "boolean" }
+  }
+}
