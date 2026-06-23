@@ -12,7 +12,8 @@
 
 param(
   [ValidateSet("Plan")][string]$Stage = "Plan",
-  [string]$Task = "handoff/current/task.md",
+  [string]$Task = "",
+  [string]$Project = "harness/project.yml",
   [switch]$DryRun,
   [switch]$SelfTest
 )
@@ -37,6 +38,14 @@ $ClaudePlanSchema = "harness/schemas/claude-plan.schema.json"
 $CodexReviewSchema = "harness/schemas/codex-plan-review.schema.json"
 $ClaudePromptFile = "harness/prompts/claude-plan.md"
 $CodexPromptFile  = "harness/prompts/codex-plan-review.md"
+$RuntimeDir = "handoff/current"
+$ProjectId = "sajugen"
+
+$HighConfidenceSecretPatterns = @(
+  'sk-ant-[A-Za-z0-9_\-]{8,}',
+  '(?i)ANTHROPIC_API_KEY\s*[=:]\s*[A-Za-z0-9_\-]{8,}',
+  '(?i)(api[_-]?key|secret|token)\s*[=:]\s*[''"]?[A-Za-z0-9_\-]{16,}'
+)
 
 # Harness source files (contract-test inventory only; task scope is parsed from task.md).
 $HarnessFiles = @(
@@ -45,6 +54,7 @@ $HarnessFiles = @(
   "harness/schemas/codex-plan-review.schema.json",
   "harness/prompts/claude-plan.md",
   "harness/prompts/codex-plan-review.md",
+  "harness/project.yml",
   "handoff/templates/ai_task.md",
   "handoff/current/.gitignore",
   "handoff/current/README.md",
@@ -189,6 +199,68 @@ function Test-JsonArrayField {
   param([string]$RawText, [string]$Field)
   $pat = '"' + $Field + '"\s*:\s*\['
   return [System.Text.RegularExpressions.Regex]::IsMatch($RawText, $pat)
+}
+
+function Convert-ManifestScalar {
+  param([string]$Value)
+  $v = $Value.Trim()
+  if (($v.StartsWith("'") -and $v.EndsWith("'")) -or ($v.StartsWith('"') -and $v.EndsWith('"'))) {
+    $v = $v.Substring(1, $v.Length - 2)
+  }
+  return $v.Replace("''", "'")
+}
+
+# Tiny manifest parser for harness/project.yml. It intentionally supports only top-level scalars and lists:
+# key: value
+# key:
+#   - value
+# This keeps project portability without adding a YAML dependency to PS 5.1.
+function Read-HarnessProjectManifest {
+  param([string]$Path)
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "project manifest missing: $Path" }
+  $map = @{}
+  $currentList = $null
+  foreach ($rawLine in (Read-TextNoBom $Path -split "`r?`n")) {
+    $line = $rawLine.TrimEnd()
+    if ([string]::IsNullOrWhiteSpace($line)) { continue }
+    if ($line.TrimStart().StartsWith("#")) { continue }
+    if ($line -match '^([A-Za-z0-9_]+):\s*(.*)$') {
+      $key = $Matches[1]
+      $value = $Matches[2]
+      if ([string]::IsNullOrWhiteSpace($value)) {
+        $map[$key] = New-Object System.Collections.ArrayList
+        $currentList = $key
+      } else {
+        $map[$key] = Convert-ManifestScalar $value
+        $currentList = $null
+      }
+      continue
+    }
+    if ($line -match '^\s+-\s+(.+?)\s*$') {
+      if ($null -eq $currentList) { throw "manifest list item without a list key: $line" }
+      [void]$map[$currentList].Add((Convert-ManifestScalar $Matches[1]))
+      continue
+    }
+    throw "unsupported manifest line: $line"
+  }
+  return $map
+}
+
+function Get-ManifestString {
+  param([hashtable]$Manifest, [string]$Key, [string]$Default)
+  if ($Manifest.ContainsKey($Key) -and $Manifest[$Key] -is [string] -and -not [string]::IsNullOrWhiteSpace($Manifest[$Key])) {
+    return [string]$Manifest[$Key]
+  }
+  return $Default
+}
+
+function Get-ManifestList {
+  param([hashtable]$Manifest, [string]$Key, [string[]]$Default)
+  if ($Manifest.ContainsKey($Key) -and ($Manifest[$Key] -is [System.Collections.IEnumerable]) -and -not ($Manifest[$Key] -is [string])) {
+    $items = @($Manifest[$Key])
+    if ($items.Count -gt 0) { return $items }
+  }
+  return $Default
 }
 
 # Safely extract the plan JSON 'text' from the Claude envelope. Prefer the structured_output object; otherwise use
@@ -342,13 +414,8 @@ function Assert-ClaudePlanShape {
 function Abs([string]$Rel) { return (Join-Path $RepoRoot $Rel) }
 
 # High-confidence secret check on the checked task text (fail-closed if present). Values are not printed.
-function Test-HighConfidenceSecret([string]$Text) {
-  $patterns = @(
-    'sk-ant-[A-Za-z0-9_\-]{8,}',
-    '(?i)ANTHROPIC_API_KEY\s*[=:]\s*[A-Za-z0-9_\-]{8,}',
-    '(?i)(api[_-]?key|secret|token)\s*[=:]\s*[''"]?[A-Za-z0-9_\-]{16,}'
-  )
-  foreach ($p in $patterns) {
+function Test-HighConfidenceSecret([string]$Text, [string[]]$Patterns) {
+  foreach ($p in $Patterns) {
     if ([System.Text.RegularExpressions.Regex]::IsMatch($Text, $p)) { return $true }
   }
   return $false
@@ -592,9 +659,23 @@ if ($SelfTest) {
 }
 
 # ======================================================================
-# 0) command preview strings (DryRun output + human readable)
+# 0) load project manifest, then command preview strings (DryRun output + human readable)
 #    actual calls use the arg array, but the preview shows the canonical form.
 # ======================================================================
+$projectAbs = if ([System.IO.Path]::IsPathRooted($Project)) { $Project } else { Abs $Project }
+$projectManifest = $null
+try { $projectManifest = Read-HarnessProjectManifest $projectAbs } catch { Stop-Fail 10 ("Project manifest invalid: " + $_.Exception.Message) }
+
+$ProjectId = Get-ManifestString $projectManifest "project_id" $ProjectId
+if ([string]::IsNullOrWhiteSpace($Task)) { $Task = Get-ManifestString $projectManifest "task_file" "handoff/current/task.md" }
+$RuntimeDir = Get-ManifestString $projectManifest "runtime_dir" $RuntimeDir
+$ClaudePlanSchema = Get-ManifestString $projectManifest "claude_plan_schema" $ClaudePlanSchema
+$CodexReviewSchema = Get-ManifestString $projectManifest "codex_review_schema" $CodexReviewSchema
+$ClaudePromptFile = Get-ManifestString $projectManifest "claude_prompt_file" $ClaudePromptFile
+$CodexPromptFile = Get-ManifestString $projectManifest "codex_prompt_file" $CodexPromptFile
+$PolicyFiles = @(Get-ManifestList $projectManifest "policy_files" $PolicyFiles)
+$HighConfidenceSecretPatterns = @(Get-ManifestList $projectManifest "high_confidence_secret_patterns" $HighConfidenceSecretPatterns)
+
 $ClaudeCmdPreview = 'claude -p --safe-mode --permission-mode plan --output-format json --json-schema <schema-json> --tools "Read,Glob,Grep" --disallowedTools "mcp__*" --no-chrome --no-session-persistence  (stdin: prompt+policy+task)'
 $CodexCmdPreview  = 'codex exec --ephemeral --sandbox read-only --output-schema ' + $CodexReviewSchema + ' -o <run>/codex-plan-review.json -   (stdin: review packet)'
 
@@ -647,7 +728,7 @@ if ($null -ne $codexCmd) {
 
 # read task + secret check + checked + hash (in memory; file write after folder creation)
 $rawTask = Read-TextNoBom $taskAbs
-if (Test-HighConfidenceSecret $rawTask) {
+if (Test-HighConfidenceSecret $rawTask $HighConfidenceSecretPatterns) {
   Stop-Fail 10 "high-confidence secret pattern found - remove from task and re-run (value not printed)."
 }
 $checkedTask = Get-CheckedTask $rawTask
@@ -671,6 +752,7 @@ $claudeSchemaJson = $claudeSchemaObj | ConvertTo-Json -Depth 30 -Compress
 # ======================================================================
 if ($DryRun) {
   Write-PlainLine "DRYRUN=1"
+  Write-PlainLine ("project_id=" + $ProjectId + " manifest=" + $Project)
   Write-PlainLine ("stage=" + $Stage + " branch=" + $branch + " base_commit=" + $baseCommit)
   Write-PlainLine ("task=" + $Task + " task_sha256=" + $taskSha)
   Write-PlainLine ("policy_files=" + ($PolicyFiles -join ","))
@@ -690,7 +772,7 @@ if ($DryRun) {
 $runStampUtc = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
 $suffix = ([Guid]::NewGuid().ToString("N")).Substring(0, 8)
 $runId = $runStampUtc + "-" + $suffix
-$currentDir = Abs "handoff/current"
+$currentDir = Abs $RuntimeDir
 $runDir = Join-Path $currentDir $runId
 [void](New-Item -ItemType Directory -Path $runDir -Force)
 
@@ -701,7 +783,8 @@ Write-TextNoBom $checkedPath $checkedTask
 
 # LATEST.txt - record relative path
 $latestPath = Join-Path $currentDir "LATEST.txt"
-Write-TextNoBom $latestPath ("handoff/current/" + $runId)
+$runtimeRelForLatest = $RuntimeDir.Replace("\", "/").TrimEnd("/")
+Write-TextNoBom $latestPath ($runtimeRelForLatest + "/" + $runId)
 
 # ======================================================================
 # 3) assemble policy packet (6 files only)
@@ -866,6 +949,7 @@ $manifest = [ordered]@{
   run_id = $runId
   schema_version = "1.0"
   stage = "plan"
+  project_id = $ProjectId
   branch = $branch
   base_commit = $baseCommit
   task_sha256 = $taskSha
