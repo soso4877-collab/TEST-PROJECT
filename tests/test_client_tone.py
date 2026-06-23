@@ -474,3 +474,21 @@ def test_personal_rules_body_natural(monkeypatch):
     assert ct.loanword_lint(body) == [], ct.loanword_lint(body)
     assert ct.raw_calc_headwords(body) == [], ct.raw_calc_headwords(body)
     assert "신강약" not in body and "오행 분포" not in body and "컨디션" not in body
+
+
+def test_love_consult_rule_text_tone_clean(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder
+
+    saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
+    rep = builder.build_report(
+        saju,
+        use_llm=False,
+        ref_year=2026,
+        name="김태수",
+        concern="전남친과 재회 시기 언제가 좋을까요",
+    )
+    text = rep.section("consult").final_text
+    assert ct.loanword_lint(text) == [], ct.loanword_lint(text)
+    assert ct.raw_calc_headwords(text) == [], ct.raw_calc_headwords(text)

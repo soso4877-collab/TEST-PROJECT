@@ -55,3 +55,21 @@ def test_ziwei_skeleton_has_no_template_residue(monkeypatch):
         assert bad not in ztext, f"자미 잔재 발견: {bad!r}"
     # 공궁(주성 없는 자리)은 자연스러운 표현으로
     assert "주성이 없는 공궁" in ztext
+
+
+def test_love_consult_rule_text_quality_and_temporal_clean(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder
+
+    saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
+    rep = builder.build_report(
+        saju,
+        use_llm=False,
+        ref_year=2026,
+        name="김태수",
+        concern="전남친과 재회 시기 언제가 좋을까요",
+    )
+    text = rep.section("consult").final_text
+    assert q.is_clean(text), q.lint(text)
+    assert tl.is_clean(text, 2026), tl.lint(text, 2026)
