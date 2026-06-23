@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fastapi.testclient import TestClient  # noqa: E402
 from typer.testing import CliRunner  # noqa: E402
@@ -12,9 +13,11 @@ from typer.testing import CliRunner  # noqa: E402
 from sajugen import pipeline  # noqa: E402
 from sajugen.app import app as fastapi_app  # noqa: E402
 from sajugen.cli import app as cli_app  # noqa: E402
+from playwright_guard import require_playwright_subprocess  # noqa: E402
 
 
 def test_pipeline_e2e_gate_pass():
+    require_playwright_subprocess()
     r = pipeline.generate(
         2000, 1, 1, 12, 0, is_male=True, horoscope_date="2026-06-01", out_name="e2e_pipeline.pdf"
     )
@@ -26,6 +29,7 @@ def test_pipeline_e2e_gate_pass():
 
 
 def test_cli_gen_runs_and_passes():
+    require_playwright_subprocess()
     res = CliRunner().invoke(
         cli_app,
         [
@@ -46,6 +50,7 @@ def test_cli_gen_runs_and_passes():
 
 
 def test_fastapi_form_and_generate():
+    require_playwright_subprocess()
     c = TestClient(fastapi_app)
     assert c.get("/").status_code == 200
     assert "사주풀이 PDF 생성" in c.get("/").text

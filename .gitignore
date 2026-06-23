@@ -38,6 +38,8 @@ __pycache__/
 dist/
 *.egg-info/
 .ruff_cache/
+pytest-basetemp/
+pytest-cache/
 
 # Jupyter
 .ipynb_checkpoints/

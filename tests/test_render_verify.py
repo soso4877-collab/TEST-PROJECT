@@ -5,9 +5,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sajugen.render import pdf as render_pdf  # noqa: E402
 from sajugen.render import verify as v  # noqa: E402
+from playwright_guard import require_playwright_subprocess  # noqa: E402
 
 
 def test_orphan_detector_flags_short_standalone_page():
@@ -64,6 +66,7 @@ def _render_sections(secs, out_name, input_civil="테스트"):
     from sajugen import config as cfg
     from types import SimpleNamespace
 
+    require_playwright_subprocess()
     report = SimpleNamespace(sections=secs)
     fake_saju = SimpleNamespace(input_civil=input_civil)
     bp = dict(cfg.brand("seodam"))

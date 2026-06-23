@@ -17,10 +17,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import hpreflight  # noqa: E402
 import hrun  # noqa: E402
 import hverify_pdf  # noqa: E402
+from playwright_guard import require_playwright_subprocess  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX_P = "harness/profiles/fixtures/personal_synthetic.yml"
@@ -87,6 +89,7 @@ def test_summary_written(monkeypatch):
 def test_hverify_calls_verify_on_rendered_pdf(tmp_path, monkeypatch):
     from types import SimpleNamespace
 
+    require_playwright_subprocess()
     from sajugen import config as cfg
     from sajugen.render import pdf as render_pdf
 
