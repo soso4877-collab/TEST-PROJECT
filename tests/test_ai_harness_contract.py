@@ -303,6 +303,11 @@ def test_invoke_cli_stdin_roundtrip_selftest():
     assert "planshape_stage_bool_rejected=ok" in r.stdout
     # 실제 codex가 냈던 비-canonical artifact_type("codex_plan_review")도 거부
     assert "codexshape_canonical_artifact_rejected=ok" in r.stdout
+    # task.md machine-readable scope is parsed and enforced before Codex review.
+    assert "taskscope_valid=ok" in r.stdout
+    assert "taskscope_glob=ok" in r.stdout
+    assert "taskscope_plan_valid=ok" in r.stdout
+    assert "taskscope_plan_bad_rejected=ok" in r.stdout
 
 
 def test_ps_claude_response_failclosed():
@@ -355,6 +360,26 @@ def test_ps_task_artifact_not_overclaim_pii():
     # PII 제거를 보장하지 않으므로 'sanitized' 이름을 쓰지 않는다(secret-checked만 보장)
     assert "task.checked.md" in t
     assert "task.sanitized.md" not in t
+
+
+def test_ai_task_template_has_machine_readable_scope():
+    t = _read("handoff/templates/ai_task.md")
+    assert "## ALLOWED_FILES" in t
+    assert "## FORBIDDEN_FILES" in t
+    assert "- handoff/current/README.md" in t
+    assert "- sajugen/calc/**" in t
+
+
+def test_ps_derives_allowed_files_from_task_scope():
+    t = _ps_text()
+    assert "Get-TaskListSection" in t
+    assert 'Get-TaskListSection $checkedTask "ALLOWED_FILES"' in t
+    assert 'Get-TaskListSection $checkedTask "FORBIDDEN_FILES"' in t
+    assert "Assert-TaskScope" in t
+    assert "Assert-PlanScopeWithinTask" in t
+    assert '"allowed_files=" + ($taskAllowedFiles -join ",")' in t
+    assert '"forbidden_files=" + ($taskForbiddenFiles -join ",")' in t
+    assert "$AllowedFiles = @(" not in t
 
 
 def test_gitignore_isolation():

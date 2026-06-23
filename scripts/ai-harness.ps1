@@ -38,8 +38,8 @@ $CodexReviewSchema = "harness/schemas/codex-plan-review.schema.json"
 $ClaudePromptFile = "harness/prompts/claude-plan.md"
 $CodexPromptFile  = "harness/prompts/codex-plan-review.md"
 
-# Allowed/forbidden files (passed in the plan packet - informational)
-$AllowedFiles = @(
+# Harness source files (contract-test inventory only; task scope is parsed from task.md).
+$HarnessFiles = @(
   "scripts/ai-harness.ps1",
   "harness/schemas/claude-plan.schema.json",
   "harness/schemas/codex-plan-review.schema.json",
@@ -359,6 +359,60 @@ function Test-HighConfidenceSecret([string]$Text) {
 # The artifact is named 'checked' (passed secret check) and does not guarantee PII removal. Future PII-masking extension point.
 function Get-CheckedTask([string]$Text) { return $Text }
 
+function Get-TaskListSection {
+  param([string]$Text, [string]$Heading)
+  $items = New-Object System.Collections.Generic.List[string]
+  if ([string]::IsNullOrWhiteSpace($Text)) { return @() }
+  $inSection = $false
+  foreach ($line in ($Text -split "`r?`n")) {
+    $trim = $line.Trim()
+    if ($trim -match '^##\s+(.+?)\s*$') {
+      $inSection = (($Matches[1]).Trim() -eq $Heading)
+      continue
+    }
+    if ($inSection -and $trim -match '^-\s+(.+?)\s*$') {
+      $item = ($Matches[1]).Trim()
+      if ($item -and -not $item.StartsWith("<")) { [void]$items.Add($item) }
+    }
+  }
+  return @($items.ToArray())
+}
+
+function Assert-TaskScope {
+  param([string[]]$Allowed, [string[]]$Forbidden)
+  if ($null -eq $Allowed -or $Allowed.Count -le 0) { throw "ALLOWED_FILES section missing or empty" }
+  if ($null -eq $Forbidden -or $Forbidden.Count -le 0) { throw "FORBIDDEN_FILES section missing or empty" }
+  foreach ($p in @($Allowed + $Forbidden)) {
+    if ([string]::IsNullOrWhiteSpace($p)) { throw "task scope contains an empty path" }
+    if ($p -match '^[A-Za-z]:\\|^\\\\|^\.\.|/\.\.') { throw "task scope path must be repo-relative: $p" }
+  }
+}
+
+function Test-PathAllowedByTask {
+  param([string]$Path, [string[]]$Allowed)
+  foreach ($pat in @($Allowed)) {
+    if ($Path -eq $pat) { return $true }
+    if ($pat.EndsWith("/**")) {
+      $prefix = $pat.Substring(0, $pat.Length - 3)
+      if ($Path.StartsWith($prefix + "/")) { return $true }
+    }
+  }
+  return $false
+}
+
+function Assert-PlanScopeWithinTask {
+  param([object]$Plan, [string[]]$Allowed)
+  foreach ($p in @((Get-JsonProp $Plan "allowed_files"))) {
+    if ($null -eq $p) { continue }
+    if (-not (Test-PathAllowedByTask $p $Allowed)) { throw "plan allowed_files exceeds task scope: $p" }
+  }
+  foreach ($fc in @((Get-JsonProp $Plan "file_changes"))) {
+    if ($null -eq $fc) { continue }
+    $path = Get-JsonProp $fc "path"
+    if (-not (Test-PathAllowedByTask $path $Allowed)) { throw "plan file_changes exceeds task scope: $path" }
+  }
+}
+
 # git helper (read-only only, PS 5.1/7 common). call operator + array splat, -C to set the work tree.
 # Important: git warnings on stderr (e.g. .pytest_cache permission) are native errors. With $ErrorActionPreference="Stop"
 # on PS 5.1 this stderr gets promoted to NativeCommandError and aborts the script. So lower EAP=Continue only around the native
@@ -509,11 +563,24 @@ if ($SelfTest) {
     $cxNomodNumRejected = $false
     try { Assert-CodexReviewShape ($cxNomodNumRaw | ConvertFrom-Json) $cxNomodNumRaw } catch { $cxNomodNumRejected = $true }
 
-    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk -and $rhaStrRejected -and $nipNumRejected -and $artBoolRejected -and $stageBoolRejected -and $codexValidOk -and $cxBadArtRejected -and $cxCanonRejected -and $cxBadHashRejected -and $cxBlkScalarRejected -and $cxNomodRejected -and $cxNomodStrRejected -and $cxNomodNumRejected) {
-      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok planshape_rha_string_rejected=ok planshape_nip_number_rejected=ok planshape_artifact_bool_rejected=ok planshape_stage_bool_rejected=ok codexshape_valid=ok codexshape_bad_artifact_rejected=ok codexshape_canonical_artifact_rejected=ok codexshape_bad_hash_rejected=ok codexshape_blockers_scalar_rejected=ok codexshape_nomod_false_rejected=ok codexshape_nomod_string_rejected=ok codexshape_nomod_number_rejected=ok"
+    $scopeText = "## ALLOWED_FILES`n- a.txt`n- dir/**`n`n## FORBIDDEN_FILES`n- blocked/**`n"
+    $scopeAllowed = @(Get-TaskListSection $scopeText "ALLOWED_FILES")
+    $scopeForbidden = @(Get-TaskListSection $scopeText "FORBIDDEN_FILES")
+    $scopeOk = $true
+    try { Assert-TaskScope $scopeAllowed $scopeForbidden } catch { $scopeOk = $false }
+    $scopePathOk = ((Test-PathAllowedByTask "a.txt" $scopeAllowed) -and (Test-PathAllowedByTask "dir/x.py" $scopeAllowed) -and (-not (Test-PathAllowedByTask "other.py" $scopeAllowed)))
+    $scopePlanRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a.txt"],"forbidden_files":["blocked/**"],"file_changes":[{"path":"dir/x.py","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
+    $scopePlanOk = $true
+    try { Assert-PlanScopeWithinTask ($scopePlanRaw | ConvertFrom-Json) $scopeAllowed } catch { $scopePlanOk = $false }
+    $scopePlanBadRaw = $scopePlanRaw.Replace('"path":"dir/x.py"', '"path":"other.py"')
+    $scopePlanBadRejected = $false
+    try { Assert-PlanScopeWithinTask ($scopePlanBadRaw | ConvertFrom-Json) $scopeAllowed } catch { $scopePlanBadRejected = $true }
+
+    if ($stdinOk -and $pureOk -and $proseBlocked -and $soOk -and $errBlocked -and $validOk -and $badRejected -and $scalarRejected -and $fcObjRejected -and $roundtripOk -and $rhaStrRejected -and $nipNumRejected -and $artBoolRejected -and $stageBoolRejected -and $codexValidOk -and $cxBadArtRejected -and $cxCanonRejected -and $cxBadHashRejected -and $cxBlkScalarRejected -and $cxNomodRejected -and $cxNomodStrRejected -and $cxNomodNumRejected -and $scopeOk -and $scopePathOk -and $scopePlanOk -and $scopePlanBadRejected) {
+      Write-PlainLine "SELFTEST=PASS stdin_roundtrip=ok envelope_pure=ok envelope_prose_blocked=ok structured_output=ok is_error_blocked=ok planshape_valid=ok planshape_bad_rejected=ok planshape_scalar_array_rejected=ok planshape_file_changes_object_rejected=ok planshape_roundtrip=ok planshape_rha_string_rejected=ok planshape_nip_number_rejected=ok planshape_artifact_bool_rejected=ok planshape_stage_bool_rejected=ok codexshape_valid=ok codexshape_bad_artifact_rejected=ok codexshape_canonical_artifact_rejected=ok codexshape_bad_hash_rejected=ok codexshape_blockers_scalar_rejected=ok codexshape_nomod_false_rejected=ok codexshape_nomod_string_rejected=ok codexshape_nomod_number_rejected=ok taskscope_valid=ok taskscope_glob=ok taskscope_plan_valid=ok taskscope_plan_bad_rejected=ok"
       $selftestCode = 0
     } else {
-      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk + " rhastr=" + $rhaStrRejected + " nipnum=" + $nipNumRejected + " artbool=" + $artBoolRejected + " stagebool=" + $stageBoolRejected + " cxvalid=" + $codexValidOk + " cxart=" + $cxBadArtRejected + " cxcanon=" + $cxCanonRejected + " cxhash=" + $cxBadHashRejected + " cxblk=" + $cxBlkScalarRejected + " cxnomod=" + $cxNomodRejected + " cxnomodstr=" + $cxNomodStrRejected + " cxnomodnum=" + $cxNomodNumRejected)
+      Write-PlainLine ("SELFTEST=FAIL stdin=" + $stdinOk + " pure=" + $pureOk + " prose=" + $proseBlocked + " so=" + $soOk + " err=" + $errBlocked + " valid=" + $validOk + " bad=" + $badRejected + " scalar=" + $scalarRejected + " fcobj=" + $fcObjRejected + " rt=" + $roundtripOk + " rhastr=" + $rhaStrRejected + " nipnum=" + $nipNumRejected + " artbool=" + $artBoolRejected + " stagebool=" + $stageBoolRejected + " cxvalid=" + $codexValidOk + " cxart=" + $cxBadArtRejected + " cxcanon=" + $cxCanonRejected + " cxhash=" + $cxBadHashRejected + " cxblk=" + $cxBlkScalarRejected + " cxnomod=" + $cxNomodRejected + " cxnomodstr=" + $cxNomodStrRejected + " cxnomodnum=" + $cxNomodNumRejected + " scope=" + $scopeOk + " scopepath=" + $scopePathOk + " scopeplan=" + $scopePlanOk + " scopebad=" + $scopePlanBadRejected)
     }
   } catch {
     Write-PlainLine ("SELFTEST=FAIL exception: " + $_.Exception.Message)
@@ -585,6 +652,9 @@ if (Test-HighConfidenceSecret $rawTask) {
 }
 $checkedTask = Get-CheckedTask $rawTask
 $taskSha = Get-Sha256OfText $checkedTask
+$taskAllowedFiles = @(Get-TaskListSection $checkedTask "ALLOWED_FILES")
+$taskForbiddenFiles = @(Get-TaskListSection $checkedTask "FORBIDDEN_FILES")
+try { Assert-TaskScope $taskAllowedFiles $taskForbiddenFiles } catch { Stop-Fail 10 ("Task scope invalid: " + $_.Exception.Message) }
 
 # schema validity for both (parse check) - also checked in DryRun.
 # --json-schema is a JSON string argument, not a file path (claude -p --help). To reduce newline/quote
@@ -664,7 +734,8 @@ $claudeStdin = (Read-TextNoBom (Abs $ClaudePromptFile)) + "`n`n" +
   "===== CONTEXT =====`n" +
   "base_commit=" + $baseCommit + "`n" +
   "task_sha256=" + $taskSha + "`n" +
-  "allowed_files=" + ($AllowedFiles -join ",") + "`n"
+  "allowed_files=" + ($taskAllowedFiles -join ",") + "`n" +
+  "forbidden_files=" + ($taskForbiddenFiles -join ",") + "`n"
 
 $claudeArgs = @(
   "-p",
@@ -714,6 +785,7 @@ $planRaw = Read-TextNoBom $claudePlanPath
 $planObj = $null
 try { $planObj = $planRaw | ConvertFrom-Json } catch { Stop-Fail 12 "claude-plan.json parse failed" }
 try { Assert-ClaudePlanShape $planObj $planRaw } catch { Stop-Fail 12 ("Claude plan validation failed: " + $_.Exception.Message) }
+try { Assert-PlanScopeWithinTask $planObj $taskAllowedFiles } catch { Stop-Fail 12 ("Claude plan scope validation failed: " + $_.Exception.Message) }
 $planBase = Get-JsonProp $planObj "base_commit"
 $planTaskSha = Get-JsonProp $planObj "task_sha256"
 if ($planBase -ne $baseCommit) { Stop-Fail 14 "Claude plan base_commit mismatch (blocked before Codex call)" }
@@ -729,7 +801,8 @@ $reviewPacket = (Read-TextNoBom (Abs $CodexPromptFile)) + "`n`n" +
   "task_sha256=" + $taskSha + "`n" +
   "claude_plan_sha256=" + $planSha + "`n" +
   "policy_sha256=" + $policySha + "`n" +
-  "allowed_files=" + ($AllowedFiles -join ",") + "`n`n" +
+  "allowed_files=" + ($taskAllowedFiles -join ",") + "`n" +
+  "forbidden_files=" + ($taskForbiddenFiles -join ",") + "`n`n" +
   "===== CHECKED TASK (secret-checked; PII not auto-removed) =====`n" + $checkedTask + "`n`n" +
   "===== CLAUDE PLAN (claude-plan.json) =====`n" + (Read-TextNoBom $claudePlanPath) + "`n`n" +
   "===== POLICY PACKET =====`n" + $policyPacket + "`n"
