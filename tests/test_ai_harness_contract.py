@@ -87,14 +87,14 @@ def test_ps_assert_claudeplan_enforces_removed_constraints():
     assert "no_implementation_performed" in t
     assert "requires_human_approval" in t
     # 추가필드 금지 + file_changes item(path/change) 검증
-    assert "허용 외 추가 필드" in t
+    assert "unexpected extra field" in t
     assert "file_changes" in t
     assert "path" in t and "change" in t
     # 비어있지 않은 string 검증(minLength 대체)
     assert "IsNullOrWhiteSpace" in t
     # 배열 필드는 raw JSON 기준으로 '진짜 배열'인지 확인(스칼라 문자열 @() 감싸기 통과 방지)
     assert "Test-JsonArrayField" in t
-    assert "필드가 배열이 아님" in t
+    assert "field is not an array" in t
 
 
 def test_codex_review_schema_simplified():
@@ -157,6 +157,15 @@ def test_ps_contains_required_flag_tokens():
 
 def test_ps_forbids_bare_mode():
     assert "--bare" not in _ps_text(), "--bare는 어떤 형태로도 금지"
+
+
+def test_ps_is_ascii_only():
+    # PS 5.1는 BOM 없는 스크립트를 시스템 ANSI 코드페이지(cp949 등)로 읽어 비ASCII 문자열을 손상시킨다
+    # (한글 선행바이트가 닫는 따옴표를 삼켜 파서가 깨짐). ai-harness.ps1을 ASCII-only로 유지해
+    # Windows PowerShell 5.1과 PowerShell 7에서 동일하게 파싱되도록 강제한다.
+    data = (ROOT / "scripts" / "ai-harness.ps1").read_bytes()
+    non_ascii = [i for i, b in enumerate(data) if b > 0x7F]
+    assert not non_ascii, f"ai-harness.ps1 비ASCII 바이트 오프셋(앞 10개): {non_ascii[:10]}"
 
 
 def test_ps_passes_json_schema_safely():
@@ -306,12 +315,12 @@ def test_ps_claude_response_failclosed():
     # 응답 텍스트는 pre-declare 후 try/catch로 읽는다(StrictMode 미정의 크래시 방지)
     assert "$claudeRespText = $null" in t
     # 파일 존재/크기 검사
-    assert "claude-stdout.log 없음" in t
+    assert "claude-stdout.log missing" in t
     assert "-le 0" in t
     # 읽기/저장/파싱 예외가 Stop-Fail 12로 매핑(exit 1 누출 방지)
-    assert "Claude 응답 읽기 실패" in t
-    assert "claude-response.json 저장 실패" in t
-    assert "Claude 응답 처리 BLOCK" in t
+    assert "Claude response read failed" in t
+    assert "claude-response.json write failed" in t
+    assert "Claude response processing BLOCK" in t
 
 
 def test_ps_validates_artifact_shapes():
@@ -322,7 +331,7 @@ def test_ps_validates_artifact_shapes():
     # const·불변 안전 필드 검증 + 추가필드 차단이 포함되어야 함
     assert "no_modification_performed" in t
     assert "no_implementation_performed" in t
-    assert "허용 외 추가 필드" in t
+    assert "unexpected extra field" in t
 
 
 def test_ps_assert_codexreview_enforces_removed_constraints():

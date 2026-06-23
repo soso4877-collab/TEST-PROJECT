@@ -1,11 +1,13 @@
 <#
-  ai-harness.ps1 — Phase 2A: Claude Plan -> Codex Plan Review 자동화 (PLAN 단계 전용)
+  ai-harness.ps1 - Phase 2A: Claude Plan -> Codex Plan Review automation (PLAN stage only)
 
-  경계: 이 하네스는 '계획만' 다룬다. 구현·git add/commit/push·deploy·hrun 실행·PDF 재생성·
-  sajugen 런타임 LLM 호출을 하지 않는다(호출부 자체가 없음). 수동 승인 모드 — 자동 구현 없음.
-  PLAN_VERDICT(구현 전)만 생성하며 DIFF_VERDICT(구현 후)는 만들지 않는다.
+  Boundary: this harness deals with 'plans only'. It does not implement, does not run
+  git add/commit/push, deploy, hrun, or regenerate PDFs, and does not call the sajugen
+  runtime LLM (no such call sites exist). Manual approval mode - no automatic implementation.
+  It produces only PLAN_VERDICT (pre-implementation); it does not produce DIFF_VERDICT (post-implementation).
 
-  PowerShell 5.1 / 7 공통. 모든 텍스트/JSON 입출력은 UTF-8 무BOM.
+  Windows PowerShell 5.1 / 7 compatible. All text/JSON IO is UTF-8 without BOM.
+  Note: keep this script strictly ASCII so PS 5.1 (which reads BOM-less scripts as the ANSI code page) parses it correctly.
 #>
 
 param(
@@ -17,11 +19,11 @@ param(
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = "Stop"
 
-# 리포지토리 루트 = 이 스크립트의 상위 디렉터리
+# Repository root = parent directory of this script
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot  = Split-Path -Parent $ScriptDir
 
-# safe-mode가 CLAUDE.md 자동 로드를 끄므로 명시 전달할 정책 파일 6종(이것만 읽는다).
+# safe-mode disables CLAUDE.md auto-load, so pass these 6 policy files explicitly (only these are read).
 $PolicyFiles = @(
   "AGENTS.md",
   "CLAUDE.md",
@@ -36,7 +38,7 @@ $CodexReviewSchema = "harness/schemas/codex-plan-review.schema.json"
 $ClaudePromptFile = "harness/prompts/claude-plan.md"
 $CodexPromptFile  = "harness/prompts/codex-plan-review.md"
 
-# 허용/금지 파일(계획 packet에 명시 전달 — 정보용)
+# Allowed/forbidden files (passed in the plan packet - informational)
 $AllowedFiles = @(
   "scripts/ai-harness.ps1",
   "harness/schemas/claude-plan.schema.json",
@@ -49,7 +51,7 @@ $AllowedFiles = @(
   "tests/test_ai_harness_contract.py"
 )
 
-# ---------- 공통 헬퍼 (무BOM IO, 해시, 외부 호출) ----------
+# ---------- common helpers (no-BOM IO, hash, external call) ----------
 function Get-Utf8NoBom { return New-Object System.Text.UTF8Encoding($false) }
 
 function Read-TextNoBom([string]$Path) {
@@ -74,7 +76,7 @@ function Get-Sha256OfText([string]$Text) {
 }
 
 function Write-PlainLine([string]$Text) {
-  # 평문 출력(이모지·장식 금지)
+  # plain output (no emoji/decoration)
   [Console]::Out.WriteLine($Text)
 }
 
@@ -83,8 +85,8 @@ function Stop-Fail([int]$Code, [string]$Message) {
   exit $Code
 }
 
-# Windows native 인자 1개를 CommandLineToArgvW 규칙으로 안전 인용한다(JSON의 따옴표/특수문자 보존).
-# 근거: MSDN "Everyone quotes command line arguments the wrong way" 알고리즘.
+# Quote one Windows native argument per the CommandLineToArgvW rules (preserve JSON quotes/special chars).
+# Basis: MSDN "Everyone quotes command line arguments the wrong way" algorithm.
 function ConvertTo-WinArg {
   param([string]$Arg)
   if ($Arg.Length -gt 0 -and ($Arg -notmatch '[ \t\n\v"]')) { return $Arg }
@@ -110,12 +112,12 @@ function ConvertTo-WinArg {
   return $sb.ToString()
 }
 
-# 외부 CLI 호출(PS 5.1/7 공통): ProcessStartInfo + 직접 구성한 Arguments 문자열(컬렉션 기반 인자 API 미사용 —
-# .NET Framework/5.1에는 없음). call 연산자가 멀티라인/따옴표 JSON 인자를 깨뜨리는 PS 5.1 문제를 회피한다.
-# stdin=무BOM UTF-8 바이트 직접 기록, stdout/stderr 비동기 캡처(버퍼 데드락 회피), 종료코드 반환.
-# 중요: managed .NET 처리(Start/GetBytes/Write/ReadToEndAsync/WaitForExit)는 EAP=Continue로 감싸지 않는다.
-# ProcessStartInfo 직접 호출이라 native stderr 승격 문제가 없으므로, 예외는 정상적으로 터지게 두고
-# 호출부(try/catch)가 stage별 Stop-Fail(11/13)로 매핑한다. EAP=Continue로 가리면 예외가 묻혀 exit 1로 샌다.
+# External CLI call (PS 5.1/7 common): ProcessStartInfo + a manually built Arguments string (no collection-based
+# arg API - absent in .NET Framework/5.1). Avoids the PS 5.1 issue where the call operator breaks multiline/quoted JSON args.
+# stdin = no-BOM UTF-8 bytes written directly; stdout/stderr captured async (avoid buffer deadlock); returns exit code.
+# Important: managed .NET work (Start/GetBytes/Write/ReadToEndAsync/WaitForExit) is NOT wrapped with EAP=Continue.
+# Since ProcessStartInfo is called directly there is no native-stderr promotion issue, so let exceptions throw normally and
+# the caller (try/catch) maps them to a per-stage Stop-Fail (11/13). Masking with EAP=Continue would bury exceptions and leak as exit 1.
 function Invoke-Cli {
   param(
     [string]$Exe,
@@ -124,17 +126,17 @@ function Invoke-Cli {
     [string]$OutLog,
     [string]$ErrLog
   )
-  # stdin이 null이면 잘못된 계획 검토가 되므로 조용히 빈 문자열로 바꾸지 말고 fail-closed(호출부가 매핑).
+  # If stdin is null it would mean reviewing the wrong plan, so do not silently substitute an empty string - fail-closed (caller maps).
   if ($null -eq $StdinText) { throw "Invoke-Cli: StdinText is null (fail-closed)" }
-  # stdin byte 배열을 '프로세스 시작 전에' 미리 생성·타입고정·검증한다.
-  # (try 안에서 즉석 생성→바로 사용하는 취약 구조가 StrictMode에서 즉석 변수 미정의를 유발했던 것을 회피.)
+  # Build/type-fix/validate the stdin byte array BEFORE starting the process.
+  # (Avoids the fragile pattern of creating it inline inside try then using immediately, which triggered StrictMode undefined-variable.)
   $stdinBytes = $null
   try {
     [byte[]]$stdinBytes = (Get-Utf8NoBom).GetBytes($StdinText)
   } catch {
-    throw ("Invoke-Cli: stdin UTF-8 인코딩 실패: " + $_.Exception.Message)
+    throw ("Invoke-Cli: stdin UTF-8 encoding failed: " + $_.Exception.Message)
   }
-  if ($null -eq $stdinBytes) { throw "Invoke-Cli: stdin byte 배열 생성 실패 (fail-closed)" }
+  if ($null -eq $stdinBytes) { throw "Invoke-Cli: stdin byte array build failed (fail-closed)" }
   $argString = (($CliArgs | ForEach-Object { ConvertTo-WinArg $_ }) -join ' ')
   $psi = New-Object System.Diagnostics.ProcessStartInfo
   $psi.FileName = $Exe
@@ -152,12 +154,12 @@ function Invoke-Cli {
   $err = ""
   $code = 0
   try {
-    # managed .NET 호출은 예외가 정상적으로 터지게 둔다(EAP 변경 없음 = 스크립트 기본 Stop 유지).
+    # let managed .NET calls throw normally (no EAP change = script default Stop preserved).
     [void]$proc.Start()
-    # 비동기 읽기를 먼저 시작(stdout/stderr 버퍼가 차서 막히는 데드락 방지)
+    # start async reads first (prevent deadlock when stdout/stderr buffers fill)
     $outTask = $proc.StandardOutput.ReadToEndAsync()
     $errTask = $proc.StandardError.ReadToEndAsync()
-    # 미리 만든 $stdinBytes만 사용한다(try 안에서 새로 GetBytes 하지 않는다)
+    # use only the pre-built $stdinBytes (do not call GetBytes again inside try)
     $proc.StandardInput.BaseStream.Write($stdinBytes, 0, $stdinBytes.Length)
     $proc.StandardInput.BaseStream.Flush()
     $proc.StandardInput.Close()
@@ -173,7 +175,7 @@ function Invoke-Cli {
   return $code
 }
 
-# StrictMode 안전한 JSON 속성 접근
+# StrictMode-safe JSON property access
 function Get-JsonProp {
   param([object]$Obj, [string]$Name)
   if ($null -eq $Obj) { return $null }
@@ -182,46 +184,46 @@ function Get-JsonProp {
   return $p.Value
 }
 
-# 배열 필드 확인은 raw JSON 구조로 한다(PS 5.1의 단일원소 배열 unwrap 회피).
+# Array-field check via raw JSON structure (avoid PS 5.1 single-element array unwrap).
 function Test-JsonArrayField {
   param([string]$RawText, [string]$Field)
   $pat = '"' + $Field + '"\s*:\s*\['
   return [System.Text.RegularExpressions.Regex]::IsMatch($RawText, $pat)
 }
 
-# Claude envelope에서 계획 JSON '텍스트'를 안전 추출한다. structured_output 객체 우선, 없으면 result가
-# '단일 JSON 객체 문자열'일 때만 사용. prose/markdown/설명 혼입은 추출하지 않고 throw(BLOCK) — 호출부가 Stop-Fail 12.
-# 단일원소 배열 unwrap을 피하려고 result-string 경로는 원문 텍스트를 그대로 반환한다.
+# Safely extract the plan JSON 'text' from the Claude envelope. Prefer the structured_output object; otherwise use
+# result only when it is a 'single JSON object string'. prose/markdown/explanation mixed in is not extracted but throws (BLOCK) - caller does Stop-Fail 12.
+# To avoid single-element array unwrap, the result-string path returns the raw text as-is.
 function Resolve-ClaudePlanJson {
   param([object]$Envelope)
   if ($null -eq $Envelope) { throw "envelope null" }
   $isErr = Get-JsonProp $Envelope "is_error"
-  if ($isErr -eq $true) { throw "is_error=true (Claude 성공 응답 아님)" }
+  if ($isErr -eq $true) { throw "is_error=true (not a Claude success response)" }
   $structured = Get-JsonProp $Envelope "structured_output"
   if ($null -ne $structured -and ($structured -is [System.Management.Automation.PSCustomObject])) {
     return ($structured | ConvertTo-Json -Depth 30)
   }
   $result = Get-JsonProp $Envelope "result"
-  if ($null -eq $result) { throw "structured_output/result 없음" }
+  if ($null -eq $result) { throw "structured_output/result missing" }
   if ($result -is [System.Management.Automation.PSCustomObject]) {
     return ($result | ConvertTo-Json -Depth 30)
   }
   if ($result -is [string]) {
     $rs = $result.Trim()
-    # 순수 단일 JSON 객체만 허용: 반드시 '{'로 시작·'}'로 끝나야 함(prose/마크다운펜스/앞뒤텍스트 차단).
+    # Accept only a pure single JSON object: must start with '{' and end with '}' (block prose/markdown-fence/surrounding text).
     if (-not ($rs.StartsWith("{") -and $rs.EndsWith("}"))) {
-      throw "result가 단일 JSON 객체가 아님(prose/markdown 혼입) — BLOCK"
+      throw "result is not a single JSON object (prose/markdown mixed in) - BLOCK"
     }
     $probe = $null
-    try { $probe = $rs | ConvertFrom-Json } catch { throw "result JSON 파싱 실패 — BLOCK" }
-    if (-not ($probe -is [System.Management.Automation.PSCustomObject])) { throw "result가 JSON 객체 아님 — BLOCK" }
+    try { $probe = $rs | ConvertFrom-Json } catch { throw "result JSON parse failed - BLOCK" }
+    if (-not ($probe -is [System.Management.Automation.PSCustomObject])) { throw "result is not a JSON object - BLOCK" }
     return $rs
   }
-  throw "result 형식 불명 — BLOCK"
+  throw "result type unknown - BLOCK"
 }
 
-# Codex 결과를 schema 수준으로 검증한다. 생성용 schema는 Codex --output-schema 호환을 위해 단순화했으므로
-# 제거한 엄격 제약(hex·const·배열성·요소 타입)을 전부 여기서 강제한다. 위반 시 throw -> 호출부 Stop-Fail 14.
+# Validate the Codex result at schema level. The generation schema is simplified for Codex --output-schema compatibility,
+# so enforce all the removed strict constraints (hex/const/array-ness/element type) here. On violation throw -> caller Stop-Fail 14.
 function Assert-CodexReviewShape {
   param([object]$Review, [string]$RawText)
   $required = @(
@@ -229,50 +231,50 @@ function Assert-CodexReviewShape {
     "reviewed_task_sha256", "reviewed_plan_sha256", "verdict", "blockers", "warnings", "evidence",
     "allowed_files", "forbidden_files", "required_validations", "no_modification_performed"
   )
-  # 필수 필드 전체 존재(빈 배열이 null로 와도 property 존재로 판정)
+  # all required fields present (property exists even if an empty array arrives as null)
   foreach ($f in $required) {
-    if ($null -eq $Review.PSObject.Properties[$f]) { throw "필수 필드 누락: $f" }
+    if ($null -eq $Review.PSObject.Properties[$f]) { throw "missing required field: $f" }
   }
-  # 허용 외 추가 필드 금지
+  # forbid fields outside the allowed set
   foreach ($p in $Review.PSObject.Properties.Name) {
-    if ($required -notcontains $p) { throw "허용 외 추가 필드: $p" }
+    if ($required -notcontains $p) { throw "unexpected extra field: $p" }
   }
-  # const 대체(type+value를 함께 검증 — 방어적)
+  # const replacement (validate type+value together - defensive)
   $artifact = Get-JsonProp $Review "artifact_type"
   if (-not ($artifact -is [string]) -or $artifact -ne "codex_review") { throw "artifact_type != codex_review" }
   $rstage = Get-JsonProp $Review "review_stage"
   if (-not ($rstage -is [string]) -or $rstage -ne "plan") { throw "review_stage != plan" }
   $rtarget = Get-JsonProp $Review "review_target"
   if (-not ($rtarget -is [string]) -or $rtarget -ne "claude-plan.json") { throw "review_target != claude-plan.json" }
-  # bool 타입 강제(PS 비교 변환으로 "true"/1 이 통과하는 것 차단)
+  # enforce bool type (block "true"/1 passing via PS comparison coercion)
   $nomod = Get-JsonProp $Review "no_modification_performed"
   if (-not ($nomod -is [bool]) -or $nomod -ne $true) { throw "no_modification_performed != boolean true" }
   # verdict enum
-  if (@("APPROVE", "BLOCK") -notcontains (Get-JsonProp $Review "verdict")) { throw "verdict enum 위반" }
-  # schema_version 비어있지 않은 string
+  if (@("APPROVE", "BLOCK") -notcontains (Get-JsonProp $Review "verdict")) { throw "verdict enum violation" }
+  # schema_version non-empty string
   $sv = Get-JsonProp $Review "schema_version"
-  if (-not ($sv -is [string]) -or [string]::IsNullOrWhiteSpace($sv)) { throw "schema_version 비어있지 않은 문자열 아님" }
-  # hex (pattern 대체)
+  if (-not ($sv -is [string]) -or [string]::IsNullOrWhiteSpace($sv)) { throw "schema_version is not a non-empty string" }
+  # hex (pattern replacement)
   $cb = Get-JsonProp $Review "checked_base_commit"
-  if (-not ($cb -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($cb, '^[0-9a-f]{7,40}$')) { throw "checked_base_commit 형식 위반(7~40 hex)" }
+  if (-not ($cb -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($cb, '^[0-9a-f]{7,40}$')) { throw "checked_base_commit format violation (7-40 hex)" }
   foreach ($hf in @("reviewed_task_sha256", "reviewed_plan_sha256")) {
     $hv = Get-JsonProp $Review $hf
-    if (-not ($hv -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($hv, '^[0-9a-f]{64}$')) { throw "$hf 형식 위반(64 hex)" }
+    if (-not ($hv -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($hv, '^[0-9a-f]{64}$')) { throw "$hf format violation (64 hex)" }
   }
-  # 배열들: raw JSON 기준 '진짜 배열' 확인(스칼라 @() 감싸기 차단) 후 각 요소 string
+  # arrays: confirm 'real array' by raw JSON (block scalar @() wrapping) then each element string
   foreach ($af in @("blockers", "warnings", "evidence", "allowed_files", "forbidden_files", "required_validations")) {
-    if (-not (Test-JsonArrayField $RawText $af)) { throw "$af 필드가 배열이 아님" }
+    if (-not (Test-JsonArrayField $RawText $af)) { throw "$af field is not an array" }
     $val = (Get-JsonProp $Review $af)
     foreach ($el in @($val)) {
       if ($null -eq $el) { continue }
-      if (-not ($el -is [string])) { throw "$af 요소가 문자열이 아님" }
+      if (-not ($el -is [string])) { throw "$af element is not a string" }
     }
   }
 }
 
-# Claude plan을 schema 수준으로 검증한다. 생성용 schema는 structured_output 생성을 위해 단순화했으므로
-# 제거한 엄격 제약(hex·const·비어있지 않은 string·배열 요소 타입·file_changes item)을 전부 여기서 강제한다.
-# 위반 시 throw -> 호출부 try/catch가 Stop-Fail 12로 매핑(self-test 가능하도록 Stop-Fail 직접 호출하지 않음).
+# Validate the Claude plan at schema level. The generation schema is simplified to allow structured_output generation,
+# so enforce all the removed strict constraints (hex/const/non-empty string/array element type/file_changes item) here.
+# On violation throw -> caller try/catch maps to Stop-Fail 12 (do not call Stop-Fail directly so self-test works).
 function Assert-ClaudePlanShape {
   param([object]$Plan, [string]$RawText)
   $required = @(
@@ -280,66 +282,66 @@ function Assert-ClaudePlanShape {
     "risk_level", "allowed_files", "forbidden_files", "file_changes", "risks", "acceptance_criteria",
     "required_validations", "rollback", "requires_human_approval", "no_implementation_performed"
   )
-  # 필수 필드 전체 존재(빈 배열이 null로 와도 property 존재로 판정)
+  # all required fields present (property exists even if an empty array arrives as null)
   foreach ($f in $required) {
-    if ($null -eq $Plan.PSObject.Properties[$f]) { throw "필수 필드 누락: $f" }
+    if ($null -eq $Plan.PSObject.Properties[$f]) { throw "missing required field: $f" }
   }
-  # 허용 외 추가 필드 금지
+  # forbid fields outside the allowed set
   foreach ($p in $Plan.PSObject.Properties.Name) {
-    if ($required -notcontains $p) { throw "허용 외 추가 필드: $p" }
+    if ($required -notcontains $p) { throw "unexpected extra field: $p" }
   }
-  # const 대체
-  # 변수 미사용으로 인라인 호출(StrictMode 즉석 변수 미정의 회피). $stage 등은 param과 충돌하므로 변수 자체를 두지 않음.
+  # const replacement
+  # Inline calls since the variable is unused (avoid StrictMode undefined-variable). Do not keep a $stage variable as it collides with the param.
   $planArtifact = Get-JsonProp $Plan "artifact_type"
   if (-not ($planArtifact -is [string]) -or $planArtifact -ne "claude_plan") { throw "artifact_type != claude_plan" }
   $planStage = Get-JsonProp $Plan "stage"
   if (-not ($planStage -is [string]) -or $planStage -ne "plan") { throw "stage != plan" }
-  # bool 타입 강제(PS 비교 변환으로 "true"/1 이 통과하는 것 차단)
+  # enforce bool type (block "true"/1 passing via PS comparison coercion)
   $rha = Get-JsonProp $Plan "requires_human_approval"
   if (-not ($rha -is [bool]) -or $rha -ne $true) { throw "requires_human_approval != boolean true" }
   $nip = Get-JsonProp $Plan "no_implementation_performed"
   if (-not ($nip -is [bool]) -or $nip -ne $true) { throw "no_implementation_performed != boolean true" }
   # risk_level enum
-  if (@("low", "medium", "high") -notcontains (Get-JsonProp $Plan "risk_level")) { throw "risk_level enum 위반" }
-  # 비어 있지 않은 string (minLength 대체)
+  if (@("low", "medium", "high") -notcontains (Get-JsonProp $Plan "risk_level")) { throw "risk_level enum violation" }
+  # non-empty string (minLength replacement)
   foreach ($sf in @("schema_version", "task_id", "summary", "rollback")) {
     $v = Get-JsonProp $Plan $sf
-    if (-not ($v -is [string]) -or [string]::IsNullOrWhiteSpace($v)) { throw "$sf 가 비어있지 않은 문자열이 아님" }
+    if (-not ($v -is [string]) -or [string]::IsNullOrWhiteSpace($v)) { throw "$sf is not a non-empty string" }
   }
-  # base_commit / task_sha256 hex (pattern 대체)
+  # base_commit / task_sha256 hex (pattern replacement)
   $bc = Get-JsonProp $Plan "base_commit"
-  if (-not ($bc -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($bc, '^[0-9a-f]{7,40}$')) { throw "base_commit 형식 위반(7~40 hex)" }
+  if (-not ($bc -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($bc, '^[0-9a-f]{7,40}$')) { throw "base_commit format violation (7-40 hex)" }
   $ts = Get-JsonProp $Plan "task_sha256"
-  if (-not ($ts -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($ts, '^[0-9a-f]{64}$')) { throw "task_sha256 형식 위반(64 hex)" }
-  # string 배열들: raw JSON 기준 '진짜 배열'인지 먼저 확인(스칼라 문자열이 @()로 감싸져 통과하는 것 차단) 후 각 요소 string.
+  if (-not ($ts -is [string]) -or -not [System.Text.RegularExpressions.Regex]::IsMatch($ts, '^[0-9a-f]{64}$')) { throw "task_sha256 format violation (64 hex)" }
+  # string arrays: first confirm 'real array' by raw JSON (block a scalar string wrapped by @()) then each element string.
   foreach ($af in @("allowed_files", "forbidden_files", "risks", "acceptance_criteria", "required_validations")) {
-    if (-not (Test-JsonArrayField $RawText $af)) { throw "$af 필드가 배열이 아님" }
+    if (-not (Test-JsonArrayField $RawText $af)) { throw "$af field is not an array" }
     $val = (Get-JsonProp $Plan $af)
     foreach ($el in @($val)) {
       if ($null -eq $el) { continue }
-      if (-not ($el -is [string])) { throw "$af 요소가 문자열이 아님" }
+      if (-not ($el -is [string])) { throw "$af element is not a string" }
     }
   }
-  # file_changes: raw JSON 기준 배열인지 먼저 확인한 뒤 각 item 검증(객체 하나만 와도 배열 아님으로 거부).
-  if (-not (Test-JsonArrayField $RawText "file_changes")) { throw "file_changes 필드가 배열이 아님" }
+  # file_changes: first confirm array by raw JSON then validate each item (reject a single object as not-an-array).
+  if (-not (Test-JsonArrayField $RawText "file_changes")) { throw "file_changes field is not an array" }
   $fcVal = (Get-JsonProp $Plan "file_changes")
   foreach ($item in @($fcVal)) {
     if ($null -eq $item) { continue }
-    if (-not ($item -is [System.Management.Automation.PSCustomObject])) { throw "file_changes item이 객체가 아님" }
+    if (-not ($item -is [System.Management.Automation.PSCustomObject])) { throw "file_changes item is not an object" }
     foreach ($n in $item.PSObject.Properties.Name) {
-      if (@("path", "change") -notcontains $n) { throw "file_changes item 허용 외 필드: $n" }
+      if (@("path", "change") -notcontains $n) { throw "file_changes item has unexpected field: $n" }
     }
     $pp = Get-JsonProp $item "path"
     $cc = Get-JsonProp $item "change"
-    if (-not ($pp -is [string]) -or [string]::IsNullOrWhiteSpace($pp)) { throw "file_changes.path 비어있지 않은 문자열 아님" }
-    if (-not ($cc -is [string]) -or [string]::IsNullOrWhiteSpace($cc)) { throw "file_changes.change 비어있지 않은 문자열 아님" }
+    if (-not ($pp -is [string]) -or [string]::IsNullOrWhiteSpace($pp)) { throw "file_changes.path is not a non-empty string" }
+    if (-not ($cc -is [string]) -or [string]::IsNullOrWhiteSpace($cc)) { throw "file_changes.change is not a non-empty string" }
   }
 }
 
-# ---------- 절대 경로 헬퍼 ----------
+# ---------- absolute path helper ----------
 function Abs([string]$Rel) { return (Join-Path $RepoRoot $Rel) }
 
-# 정제 task 텍스트의 고신뢰 secret 검사(존재 시 fail-closed). 값은 출력하지 않는다.
+# High-confidence secret check on the checked task text (fail-closed if present). Values are not printed.
 function Test-HighConfidenceSecret([string]$Text) {
   $patterns = @(
     'sk-ant-[A-Za-z0-9_\-]{8,}',
@@ -352,15 +354,15 @@ function Test-HighConfidenceSecret([string]$Text) {
   return $false
 }
 
-# task 검사 통과본: 의미를 바꾸는 silent masking은 하지 않는다. 고신뢰 secret만 위에서 fail-closed로 막고,
-# 생년월일/출생시간/출생지 등 일반 PII는 자동 제거하지 않는다(운영자가 task에 PII를 넣지 않아야 함).
-# 산출물 이름을 'checked'(secret 검사 통과)로 두며 PII 제거를 보장하지 않는다. 향후 PII 마스킹 확장 지점.
+# Checked task: no semantic-changing silent masking. Only high-confidence secrets are fail-closed above;
+# general PII like birth date/birth time/birthplace is not auto-removed (the operator must not put PII in the task).
+# The artifact is named 'checked' (passed secret check) and does not guarantee PII removal. Future PII-masking extension point.
 function Get-CheckedTask([string]$Text) { return $Text }
 
-# git 헬퍼(읽기 전용만, PS 5.1/7 공통). call 연산자 + 배열 splat, -C로 작업트리 지정.
-# 중요: git이 stderr로 내는 경고(예: .pytest_cache 권한)는 native error다. $ErrorActionPreference="Stop"
-# 상태의 PS 5.1에서는 이 stderr가 NativeCommandError로 승격돼 스크립트를 중단시킨다. 따라서 native 호출
-# 구간만 EAP=Continue로 낮추고 복원하며, status stderr는 로그에 남기지 않고 버린다(stdout만 필요).
+# git helper (read-only only, PS 5.1/7 common). call operator + array splat, -C to set the work tree.
+# Important: git warnings on stderr (e.g. .pytest_cache permission) are native errors. With $ErrorActionPreference="Stop"
+# on PS 5.1 this stderr gets promoted to NativeCommandError and aborts the script. So lower EAP=Continue only around the native
+# call and restore it, and discard status stderr instead of logging it (only stdout is needed).
 function Invoke-GitRead {
   param([string[]]$GitArgs)
   $allArgs = @("-C", $RepoRoot) + $GitArgs
@@ -378,32 +380,32 @@ function Invoke-GitRead {
 }
 
 # ======================================================================
-# SelfTest — 실 Claude/Codex 없이 Invoke-Cli의 stdin write 경로를 dummy reader(sort)로 검증(PS 5.1/7).
-# preflight·실행 폴더·git 이전에 동작하며 검증 후 즉시 종료한다. 실 LLM/CLI 호출 아님.
+# SelfTest - without real Claude/Codex, verify Invoke-Cli's stdin write path via a dummy reader (sort) (PS 5.1/7).
+# Runs before preflight/run-folder/git and exits immediately after. Not a real LLM/CLI call.
 # ======================================================================
 if ($SelfTest) {
   $selftestCode = 1
   $tmpOut = [System.IO.Path]::GetTempFileName()
   $tmpErr = [System.IO.Path]::GetTempFileName()
   try {
-    # (a) stdin write 경로(dummy reader sort)
+    # (a) stdin write path (dummy reader sort)
     $marker = "SELFTEST_ROUNDTRIP_OK"
     $rc = Invoke-Cli -Exe "sort" -CliArgs @() -StdinText $marker -OutLog $tmpOut -ErrLog $tmpErr
     $stdinOk = ((Read-TextNoBom $tmpOut) -match $marker)
 
-    # 샘플 envelope은 inline JSON string+ConvertFrom-Json(PS5.1/StrictMode escaping 영향) 대신
-    # [pscustomobject]로 직접 구성한다. (실 envelope 처리는 메인 흐름의 ConvertFrom-Json 경로로 동작)
-    # (b) result가 순수 단일 JSON 객체 문자열 -> 통과
+    # Build sample envelopes with [pscustomobject] directly instead of inline JSON string + ConvertFrom-Json
+    # (which is affected by PS5.1/StrictMode escaping). (Real envelope handling uses the main-flow ConvertFrom-Json path.)
+    # (b) result is a pure single JSON object string -> pass
     $env1 = [pscustomobject]@{ is_error = $false; result = '{"a":1}' }
     $j1 = Resolve-ClaudePlanJson $env1
     $pureOk = ($j1 -match '"a"')
 
-    # (c) result에 prose+JSON 혼입 -> 추출하지 않고 BLOCK
+    # (c) prose+JSON mixed in result -> not extracted, BLOCK
     $env2 = [pscustomobject]@{ is_error = $false; result = 'Here is the plan: {"a":1} thanks' }
     $proseBlocked = $false
     try { [void](Resolve-ClaudePlanJson $env2) } catch { $proseBlocked = $true }
 
-    # (d) structured_output 객체 -> 통과
+    # (d) structured_output object -> pass
     $env3 = [pscustomobject]@{ is_error = $false; structured_output = [pscustomobject]@{ b = 2 } }
     $j3 = Resolve-ClaudePlanJson $env3
     $soOk = ($j3 -match '"b"')
@@ -413,96 +415,96 @@ if ($SelfTest) {
     $errBlocked = $false
     try { [void](Resolve-ClaudePlanJson $env4) } catch { $errBlocked = $true }
 
-    # (f) Assert-ClaudePlanShape: raw JSON 기준 배열 검증 회복. RawText로 실제 JSON을 넘긴다(clean JSON string).
+    # (f) Assert-ClaudePlanShape: restore raw-JSON array validation. Pass real JSON as RawText (clean JSON string).
     $zeros = ("0" * 64)
     $validRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
     $validObj = $validRaw | ConvertFrom-Json
     $validOk = $true
     try { Assert-ClaudePlanShape $validObj $validRaw } catch { $validOk = $false }
 
-    # base_commit가 hex 아님 -> 거부
+    # base_commit not hex -> reject
     $badRaw = $validRaw.Replace('"base_commit":"0000000"', '"base_commit":"NOTHEX"')
     $badObj = $badRaw | ConvertFrom-Json
     $badRejected = $false
     try { Assert-ClaudePlanShape $badObj $badRaw } catch { $badRejected = $true }
 
-    # allowed_files가 배열이 아니라 스칼라 문자열 -> 거부(이번 BLOCK의 핵심 회귀)
+    # allowed_files is a scalar string, not an array -> reject (the core regression of this BLOCK)
     $scalarRaw = $validRaw.Replace('"allowed_files":["a"]', '"allowed_files":"a"')
     $scalarObj = $scalarRaw | ConvertFrom-Json
     $scalarRejected = $false
     try { Assert-ClaudePlanShape $scalarObj $scalarRaw } catch { $scalarRejected = $true }
 
-    # file_changes가 배열이 아니라 객체 하나 -> 거부
+    # file_changes is a single object, not an array -> reject
     $fcObjRaw = $validRaw.Replace('"file_changes":[{"path":"a","change":"edit"}]', '"file_changes":{"path":"a","change":"edit"}')
     $fcObjObj = $fcObjRaw | ConvertFrom-Json
     $fcObjRejected = $false
     try { Assert-ClaudePlanShape $fcObjObj $fcObjRaw } catch { $fcObjRejected = $true }
 
-    # 실제 경로 라운드트립(structured_output -> ConvertTo-Json -> 파일 -> ConvertFrom-Json)에서
-    # 단일원소/빈 배열이 '배열'로 보존되어 Test-JsonArrayField를 통과하는지 실측(통과해야 정상 plan을 안 깬다).
+    # Verify that in the real path roundtrip (structured_output -> ConvertTo-Json -> file -> ConvertFrom-Json)
+    # a single-element/empty array is preserved as an 'array' and passes Test-JsonArrayField (must pass so a valid plan is not broken).
     $rtJson = ($validRaw | ConvertFrom-Json) | ConvertTo-Json -Depth 30
     $rtObj = $rtJson | ConvertFrom-Json
     $roundtripOk = $true
     try { Assert-ClaudePlanShape $rtObj $rtJson } catch { $roundtripOk = $false }
 
-    # bool 타입 강제: requires_human_approval가 string "true" -> 거부
+    # enforce bool type: requires_human_approval as string "true" -> reject
     $rhaStrRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":"true","no_implementation_performed":true}'
     $rhaStrRejected = $false
     try { Assert-ClaudePlanShape ($rhaStrRaw | ConvertFrom-Json) $rhaStrRaw } catch { $rhaStrRejected = $true }
 
-    # no_implementation_performed가 number 1 -> 거부
+    # no_implementation_performed as number 1 -> reject
     $nipNumRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":1}'
     $nipNumRejected = $false
     try { Assert-ClaudePlanShape ($nipNumRaw | ConvertFrom-Json) $nipNumRaw } catch { $nipNumRejected = $true }
 
-    # artifact_type 가 boolean true -> 거부(string const 타입+값 강제)
+    # artifact_type as boolean true -> reject (string const type+value enforced)
     $artBoolRaw = '{"schema_version":"1.0","artifact_type":true,"stage":"plan","task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
     $artBoolRejected = $false
     try { Assert-ClaudePlanShape ($artBoolRaw | ConvertFrom-Json) $artBoolRaw } catch { $artBoolRejected = $true }
 
-    # stage 가 boolean true -> 거부
+    # stage as boolean true -> reject
     $stageBoolRaw = '{"schema_version":"1.0","artifact_type":"claude_plan","stage":true,"task_id":"t1","base_commit":"0000000","task_sha256":"' + $zeros + '","summary":"s","risk_level":"low","allowed_files":["a"],"forbidden_files":["b"],"file_changes":[{"path":"a","change":"edit"}],"risks":[],"acceptance_criteria":["ok"],"required_validations":["test"],"rollback":"revert","requires_human_approval":true,"no_implementation_performed":true}'
     $stageBoolRejected = $false
     try { Assert-ClaudePlanShape ($stageBoolRaw | ConvertFrom-Json) $stageBoolRaw } catch { $stageBoolRejected = $true }
 
-    # (g) Assert-CodexReviewShape: 각 케이스를 독립 raw JSON fixture로 명시 작성(Replace 파생 금지)
+    # (g) Assert-CodexReviewShape: write each case as an independent raw JSON fixture (no Replace-derived fixtures)
     $cz = ("0" * 64)
-    # 정상 review -> 통과
+    # valid review -> pass
     $cxValidRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
     $codexValidOk = $true
     try { Assert-CodexReviewShape ($cxValidRaw | ConvertFrom-Json) $cxValidRaw } catch { $codexValidOk = $false }
 
-    # artifact_type 가 "wrong" -> 거부
+    # artifact_type "wrong" -> reject
     $cxBadArtRaw = '{"schema_version":"1.0","artifact_type":"wrong","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
     $cxBadArtRejected = $false
     try { Assert-CodexReviewShape ($cxBadArtRaw | ConvertFrom-Json) $cxBadArtRaw } catch { $cxBadArtRejected = $true }
 
-    # artifact_type 가 "codex_plan_review"(실제 codex가 냈던 비-canonical 값) -> 거부(회귀)
+    # artifact_type "codex_plan_review" (the non-canonical value codex actually emitted) -> reject (regression)
     $cxCanonRaw = '{"schema_version":"1.0","artifact_type":"codex_plan_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
     $cxCanonRejected = $false
     try { Assert-CodexReviewShape ($cxCanonRaw | ConvertFrom-Json) $cxCanonRaw } catch { $cxCanonRejected = $true }
 
-    # reviewed_plan_sha256 형식 불량 -> 거부
+    # reviewed_plan_sha256 bad format -> reject
     $cxBadHashRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"NOTHEX","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
     $cxBadHashRejected = $false
     try { Assert-CodexReviewShape ($cxBadHashRaw | ConvertFrom-Json) $cxBadHashRaw } catch { $cxBadHashRejected = $true }
 
-    # blockers 가 배열이 아니라 스칼라 문자열 -> 거부
+    # blockers is a scalar string, not an array -> reject
     $cxBlkScalarRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":"x","warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":true}'
     $cxBlkScalarRejected = $false
     try { Assert-CodexReviewShape ($cxBlkScalarRaw | ConvertFrom-Json) $cxBlkScalarRaw } catch { $cxBlkScalarRejected = $true }
 
-    # no_modification_performed 가 false -> 거부
+    # no_modification_performed false -> reject
     $cxNomodRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":false}'
     $cxNomodRejected = $false
     try { Assert-CodexReviewShape ($cxNomodRaw | ConvertFrom-Json) $cxNomodRaw } catch { $cxNomodRejected = $true }
 
-    # no_modification_performed 가 string "true" -> 거부(bool 타입 강제)
+    # no_modification_performed string "true" -> reject (bool type enforced)
     $cxNomodStrRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":"true"}'
     $cxNomodStrRejected = $false
     try { Assert-CodexReviewShape ($cxNomodStrRaw | ConvertFrom-Json) $cxNomodStrRaw } catch { $cxNomodStrRejected = $true }
 
-    # no_modification_performed 가 number 1 -> 거부(bool 타입 강제)
+    # no_modification_performed number 1 -> reject (bool type enforced)
     $cxNomodNumRaw = '{"schema_version":"1.0","artifact_type":"codex_review","review_stage":"plan","review_target":"claude-plan.json","checked_base_commit":"0000000","reviewed_task_sha256":"' + $cz + '","reviewed_plan_sha256":"' + $cz + '","verdict":"APPROVE","blockers":[],"warnings":[],"evidence":["ok"],"allowed_files":["a"],"forbidden_files":["b"],"required_validations":["test"],"no_modification_performed":1}'
     $cxNomodNumRejected = $false
     try { Assert-CodexReviewShape ($cxNomodNumRaw | ConvertFrom-Json) $cxNomodNumRaw } catch { $cxNomodNumRejected = $true }
@@ -523,49 +525,49 @@ if ($SelfTest) {
 }
 
 # ======================================================================
-# 0) 명령 미리보기 문자열(DryRun 출력 + 사람이 읽는 용도)
-#    실제 호출은 인자 배열을 사용하지만, 미리보기는 정규 형태로 보여준다.
+# 0) command preview strings (DryRun output + human readable)
+#    actual calls use the arg array, but the preview shows the canonical form.
 # ======================================================================
 $ClaudeCmdPreview = 'claude -p --safe-mode --permission-mode plan --output-format json --json-schema <schema-json> --tools "Read,Glob,Grep" --disallowedTools "mcp__*" --no-chrome --no-session-persistence  (stdin: prompt+policy+task)'
 $CodexCmdPreview  = 'codex exec --ephemeral --sandbox read-only --output-schema ' + $CodexReviewSchema + ' -o <run>/codex-plan-review.json -   (stdin: review packet)'
 
 # ======================================================================
-# 1) PREFLIGHT (읽기 전용, fail-closed) — 폴더/LATEST보다 먼저
+# 1) PREFLIGHT (read-only, fail-closed) - before folder/LATEST
 # ======================================================================
 $taskAbs = if ([System.IO.Path]::IsPathRooted($Task)) { $Task } else { Abs $Task }
 if (-not (Test-Path -LiteralPath $taskAbs -PathType Leaf)) {
-  Stop-Fail 10 "task 파일 없음: $Task"
+  Stop-Fail 10 "task file missing: $Task"
 }
 
-# policy 6파일 존재·가독 확인
+# check existence/readability of the 6 policy files
 foreach ($pf in $PolicyFiles) {
   $pfAbs = Abs $pf
   if (-not (Test-Path -LiteralPath $pfAbs -PathType Leaf)) {
-    Stop-Fail 10 "policy 파일 누락: $pf"
+    Stop-Fail 10 "policy file missing: $pf"
   }
 }
 
-# clean tree 강제(비-DryRun만)
+# enforce clean tree (non-DryRun only)
 $statusRes = Invoke-GitRead @("status", "--porcelain", "--untracked-files=all")
-if ($statusRes.Code -ne 0) { Stop-Fail 10 "git status 실패" }
+if ($statusRes.Code -ne 0) { Stop-Fail 10 "git status failed" }
 $treeDirty = -not [string]::IsNullOrWhiteSpace($statusRes.Out)
 if ((-not $DryRun) -and $treeDirty) {
-  Stop-Fail 10 "작업 트리가 clean하지 않음(비-DryRun은 clean tree 필요). DryRun으로 점검하거나 커밋 후 실행."
+  Stop-Fail 10 "work tree not clean (non-DryRun needs a clean tree). Check with DryRun or run after committing."
 }
 
 # base_commit / branch
 $headRes = Invoke-GitRead @("rev-parse", "HEAD")
-if ($headRes.Code -ne 0) { Stop-Fail 10 "git rev-parse HEAD 실패" }
+if ($headRes.Code -ne 0) { Stop-Fail 10 "git rev-parse HEAD failed" }
 $baseCommit = $headRes.Out.Trim()
 $branchRes = Invoke-GitRead @("rev-parse", "--abbrev-ref", "HEAD")
 $branch = if ($branchRes.Code -eq 0) { $branchRes.Out.Trim() } else { "unknown" }
 
-# CLI 존재 확인
+# check CLI presence
 $claudeCmd = Get-Command "claude" -ErrorAction SilentlyContinue
 $codexCmd  = Get-Command "codex" -ErrorAction SilentlyContinue
 if (-not $DryRun) {
-  if ($null -eq $claudeCmd) { Stop-Fail 10 "claude CLI 없음" }
-  if ($null -eq $codexCmd)  { Stop-Fail 10 "codex CLI 없음" }
+  if ($null -eq $claudeCmd) { Stop-Fail 10 "claude CLI missing" }
+  if ($null -eq $codexCmd)  { Stop-Fail 10 "codex CLI missing" }
 }
 $claudeVersion = "unknown"
 $codexVersion  = "unknown"
@@ -576,26 +578,26 @@ if ($null -ne $codexCmd) {
   try { $codexVersion = (& codex --version 2>$null | Out-String).Trim() } catch { $codexVersion = "unknown" }
 }
 
-# task 읽기 + secret 검사 + 정제 + 해시(메모리상; 파일 기록은 폴더 생성 후)
+# read task + secret check + checked + hash (in memory; file write after folder creation)
 $rawTask = Read-TextNoBom $taskAbs
 if (Test-HighConfidenceSecret $rawTask) {
-  Stop-Fail 10 "고신뢰 secret 패턴 발견 — task에서 제거 후 재실행(값은 출력하지 않음)."
+  Stop-Fail 10 "high-confidence secret pattern found - remove from task and re-run (value not printed)."
 }
 $checkedTask = Get-CheckedTask $rawTask
 $taskSha = Get-Sha256OfText $checkedTask
 
-# schema 2종 유효성(파싱 확인) — DryRun에서도 점검.
-# --json-schema는 파일 경로가 아니라 JSON 문자열 인수다(claude -p --help). PS 5.1 native 인자에서
-# 개행/따옴표 손상을 줄이려고 compact(minified) JSON으로 직렬화해 전달한다(파일 경로 전환 아님).
+# schema validity for both (parse check) - also checked in DryRun.
+# --json-schema is a JSON string argument, not a file path (claude -p --help). To reduce newline/quote
+# damage in PS 5.1 native args, serialize to compact (minified) JSON to pass (not a switch to file path).
 $claudeSchemaRaw = Read-TextNoBom (Abs $ClaudePlanSchema)
 $codexSchemaText = Read-TextNoBom (Abs $CodexReviewSchema)
 $claudeSchemaObj = $null
-try { $claudeSchemaObj = $claudeSchemaRaw | ConvertFrom-Json } catch { Stop-Fail 10 "claude-plan.schema.json 파싱 실패" }
-try { [void]($codexSchemaText | ConvertFrom-Json) } catch { Stop-Fail 10 "codex-plan-review.schema.json 파싱 실패" }
+try { $claudeSchemaObj = $claudeSchemaRaw | ConvertFrom-Json } catch { Stop-Fail 10 "claude-plan.schema.json parse failed" }
+try { [void]($codexSchemaText | ConvertFrom-Json) } catch { Stop-Fail 10 "codex-plan-review.schema.json parse failed" }
 $claudeSchemaJson = $claudeSchemaObj | ConvertTo-Json -Depth 30 -Compress
 
 # ======================================================================
-# DryRun 분기 — 실호출·런타임 산출물 없음
+# DryRun branch - no real call, no runtime artifacts
 # ======================================================================
 if ($DryRun) {
   Write-PlainLine "DRYRUN=1"
@@ -606,14 +608,14 @@ if ($DryRun) {
   Write-PlainLine ("would_run_codex:  " + $CodexCmdPreview)
   $claudePresent = if ($null -ne $claudeCmd) { "present" } else { "MISSING" }
   $codexPresent = if ($null -ne $codexCmd) { "present" } else { "MISSING" }
-  # DryRun의 CLI 점검은 best-effort 표시만(하드 실패는 비-DryRun에서). 실제 실행 전 참고용.
+  # DryRun CLI check is a best-effort display only (hard failure is in non-DryRun). For reference before a real run.
   Write-PlainLine ("cli_check(best-effort): claude=" + $claudePresent + " codex=" + $codexPresent)
   Write-PlainLine "no_runtime_output_written=true (no run folder, no LATEST.txt, no logs, no manifest)"
   exit 0
 }
 
 # ======================================================================
-# 2) PREFLIGHT 통과 후 — 실행 폴더 생성(이 시점에 처음 쓰기)
+# 2) After PREFLIGHT passes - create the run folder (first write happens here)
 # ======================================================================
 $runStampUtc = [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssZ")
 $suffix = ([Guid]::NewGuid().ToString("N")).Substring(0, 8)
@@ -627,12 +629,12 @@ $startedAtUtc = [DateTime]::UtcNow.ToString("o")
 $checkedPath = Join-Path $runDir "task.checked.md"
 Write-TextNoBom $checkedPath $checkedTask
 
-# LATEST.txt — 상대 경로 기록
+# LATEST.txt - record relative path
 $latestPath = Join-Path $currentDir "LATEST.txt"
 Write-TextNoBom $latestPath ("handoff/current/" + $runId)
 
 # ======================================================================
-# 3) policy packet 조립 (6파일만)
+# 3) assemble policy packet (6 files only)
 # ======================================================================
 $policyParts = @()
 foreach ($pf in $PolicyFiles) {
@@ -642,7 +644,7 @@ foreach ($pf in $PolicyFiles) {
 $policyPacket = [string]::Join("`n`n", $policyParts)
 $policySha = Get-Sha256OfText $policyPacket
 
-# 로그/산출물 경로
+# log/artifact paths
 $claudeRespPath = Join-Path $runDir "claude-response.json"
 $claudePlanPath = Join-Path $runDir "claude-plan.json"
 $codexReviewPath = Join-Path $runDir "codex-plan-review.json"
@@ -654,7 +656,7 @@ $codexOut = Join-Path $runDir "codex-stdout.log"
 $codexErr = Join-Path $runDir "codex-stderr.log"
 
 # ======================================================================
-# 4) STAGE 1 — Claude Plan (safe-mode 격리, stdin으로 긴 컨텍스트)
+# 4) STAGE 1 - Claude Plan (safe-mode isolation, long context via stdin)
 # ======================================================================
 $claudeStdin = (Read-TextNoBom (Abs $ClaudePromptFile)) + "`n`n" +
   "===== POLICY PACKET =====`n" + $policyPacket + "`n`n" +
@@ -679,46 +681,46 @@ $claudeExit = 0
 try {
   $claudeExit = Invoke-Cli -Exe "claude" -CliArgs $claudeArgs -StdinText $claudeStdin -OutLog $claudeOut -ErrLog $claudeErr
 } catch {
-  # Invoke-Cli 내부 예외(프로세스 시작·stdin·읽기 실패 등)를 하네스 종료코드로 매핑(exit 1 누출 방지).
-  Stop-Fail 11 ("Claude 호출 예외: " + $_.Exception.Message)
+  # Map Invoke-Cli internal exceptions (process start/stdin/read failure etc.) to a harness exit code (prevent exit 1 leak).
+  Stop-Fail 11 ("Claude call exception: " + $_.Exception.Message)
 }
-if ($claudeExit -ne 0) { Stop-Fail 11 "Claude 실행 실패(exit=$claudeExit)" }
+if ($claudeExit -ne 0) { Stop-Fail 11 "Claude execution failed(exit=$claudeExit)" }
 
-# Claude 응답: 읽기/저장/파싱을 전부 fail-closed로 처리(어떤 PowerShell 예외도 exit 1로 새지 않고 Stop-Fail 12).
-if (-not (Test-Path -LiteralPath $claudeOut -PathType Leaf)) { Stop-Fail 12 "claude-stdout.log 없음" }
+# Claude response: handle read/save/parse all fail-closed (no PowerShell exception leaks as exit 1; use Stop-Fail 12).
+if (-not (Test-Path -LiteralPath $claudeOut -PathType Leaf)) { Stop-Fail 12 "claude-stdout.log missing" }
 $claudeOutLen = (Get-Item -LiteralPath $claudeOut).Length
-if ($claudeOutLen -le 0) { Stop-Fail 12 "claude-stdout.log 비어 있음(Claude 무출력)" }
+if ($claudeOutLen -le 0) { Stop-Fail 12 "claude-stdout.log empty (Claude no output)" }
 
-# pre-declare 후 try/catch로 읽는다(StrictMode 즉석 변수 미정의 크래시 방지).
+# pre-declare then read in try/catch (prevent StrictMode undefined-variable crash).
 $claudeRespText = $null
-try { $claudeRespText = Read-TextNoBom $claudeOut } catch { Stop-Fail 12 ("Claude 응답 읽기 실패: " + $_.Exception.Message) }
-if ([string]::IsNullOrEmpty($claudeRespText)) { Stop-Fail 12 "Claude 응답 텍스트 비어 있음" }
-try { Write-TextNoBom $claudeRespPath $claudeRespText } catch { Stop-Fail 12 ("claude-response.json 저장 실패: " + $_.Exception.Message) }
+try { $claudeRespText = Read-TextNoBom $claudeOut } catch { Stop-Fail 12 ("Claude response read failed: " + $_.Exception.Message) }
+if ([string]::IsNullOrEmpty($claudeRespText)) { Stop-Fail 12 "Claude response text empty" }
+try { Write-TextNoBom $claudeRespPath $claudeRespText } catch { Stop-Fail 12 ("claude-response.json write failed: " + $_.Exception.Message) }
 
 $envelope = $null
-try { $envelope = $claudeRespText | ConvertFrom-Json } catch { Stop-Fail 12 ("Claude envelope JSON 파싱 실패: " + $_.Exception.Message) }
-if ($null -eq $envelope) { Stop-Fail 12 "Claude envelope 비어 있음" }
+try { $envelope = $claudeRespText | ConvertFrom-Json } catch { Stop-Fail 12 ("Claude envelope JSON parse failed: " + $_.Exception.Message) }
+if ($null -eq $envelope) { Stop-Fail 12 "Claude envelope empty" }
 
-# structured_output 우선, 없으면 result가 '단일 JSON 객체'일 때만 사용(prose/markdown 혼입은 BLOCK). 임의 substring 추출 금지.
+# Prefer structured_output; otherwise use result only when it is a 'single JSON object' (prose/markdown mixed in = BLOCK). No arbitrary substring extraction.
 $planJson = $null
-try { $planJson = Resolve-ClaudePlanJson $envelope } catch { Stop-Fail 12 ("Claude 응답 처리 BLOCK: " + $_.Exception.Message) }
-try { Write-TextNoBom $claudePlanPath $planJson } catch { Stop-Fail 12 ("claude-plan.json 저장 실패: " + $_.Exception.Message) }
+try { $planJson = Resolve-ClaudePlanJson $envelope } catch { Stop-Fail 12 ("Claude response processing BLOCK: " + $_.Exception.Message) }
+try { Write-TextNoBom $claudePlanPath $planJson } catch { Stop-Fail 12 ("claude-plan.json write failed: " + $_.Exception.Message) }
 $planSha = Get-Sha256OfText (Read-TextNoBom $claudePlanPath)
 
 # ======================================================================
-# 5) Codex 호출 전 — Claude plan 내부 해시 직접 대조 (fail-closed)
+# 5) Before Codex call - directly compare hashes inside the Claude plan (fail-closed)
 # ======================================================================
 $planRaw = Read-TextNoBom $claudePlanPath
 $planObj = $null
-try { $planObj = $planRaw | ConvertFrom-Json } catch { Stop-Fail 12 "claude-plan.json 파싱 실패" }
-try { Assert-ClaudePlanShape $planObj $planRaw } catch { Stop-Fail 12 ("Claude plan 검증 실패: " + $_.Exception.Message) }
+try { $planObj = $planRaw | ConvertFrom-Json } catch { Stop-Fail 12 "claude-plan.json parse failed" }
+try { Assert-ClaudePlanShape $planObj $planRaw } catch { Stop-Fail 12 ("Claude plan validation failed: " + $_.Exception.Message) }
 $planBase = Get-JsonProp $planObj "base_commit"
 $planTaskSha = Get-JsonProp $planObj "task_sha256"
-if ($planBase -ne $baseCommit) { Stop-Fail 14 "Claude plan base_commit 불일치(Codex 호출 전 차단)" }
-if ($planTaskSha -ne $taskSha) { Stop-Fail 14 "Claude plan task_sha256 불일치(Codex 호출 전 차단)" }
+if ($planBase -ne $baseCommit) { Stop-Fail 14 "Claude plan base_commit mismatch (blocked before Codex call)" }
+if ($planTaskSha -ne $taskSha) { Stop-Fail 14 "Claude plan task_sha256 mismatch (blocked before Codex call)" }
 
 # ======================================================================
-# 6) STAGE 2 — Codex Plan Review (읽기 전용, stdin packet)
+# 6) STAGE 2 - Codex Plan Review (read-only, stdin packet)
 # ======================================================================
 $reviewPacket = (Read-TextNoBom (Abs $CodexPromptFile)) + "`n`n" +
   "===== REVIEW PACKET =====`n" +
@@ -744,32 +746,32 @@ $codexExit = 0
 try {
   $codexExit = Invoke-Cli -Exe "codex" -CliArgs $codexArgs -StdinText $reviewPacket -OutLog $codexOut -ErrLog $codexErr
 } catch {
-  Stop-Fail 13 ("Codex 호출 예외: " + $_.Exception.Message)
+  Stop-Fail 13 ("Codex call exception: " + $_.Exception.Message)
 }
-if ($codexExit -ne 0) { Stop-Fail 13 "Codex 실행 실패(exit=$codexExit)" }
+if ($codexExit -ne 0) { Stop-Fail 13 "Codex execution failed(exit=$codexExit)" }
 
-# -o 저장본을 PS가 직접 파싱·검증(CLI 검증에 의존하지 않음)
+# PS parses/validates the -o output directly (does not rely on CLI validation)
 if (-not (Test-Path -LiteralPath $codexReviewPath -PathType Leaf)) {
-  Stop-Fail 14 "Codex 결과 파일 미생성: codex-plan-review.json"
+  Stop-Fail 14 "Codex result file not created: codex-plan-review.json"
 }
 $codexRaw = Read-TextNoBom $codexReviewPath
 $review = $null
-try { $review = $codexRaw | ConvertFrom-Json } catch { Stop-Fail 14 "codex-plan-review.json 파싱 실패" }
-# schema 수준 검증(필수 필드·const·enum·hex·배열·추가필드 차단). 해시만 맞으면 통과하는 우회 방지.
-try { Assert-CodexReviewShape $review $codexRaw } catch { Stop-Fail 14 ("Codex 결과 검증 실패: " + $_.Exception.Message) }
+try { $review = $codexRaw | ConvertFrom-Json } catch { Stop-Fail 14 "codex-plan-review.json parse failed" }
+# schema-level validation (required fields/const/enum/hex/array/extra-field block). Prevent a bypass where only hashes match.
+try { Assert-CodexReviewShape $review $codexRaw } catch { Stop-Fail 14 ("Codex result validation failed: " + $_.Exception.Message) }
 
 $verdict = Get-JsonProp $review "verdict"
 $revPlanSha = Get-JsonProp $review "reviewed_plan_sha256"
 $revTaskSha = Get-JsonProp $review "reviewed_task_sha256"
 $revBase = Get-JsonProp $review "checked_base_commit"
 
-# 해시·base_commit 재대조
-if ($revPlanSha -ne $planSha) { Stop-Fail 14 "reviewed_plan_sha256 불일치" }
-if ($revTaskSha -ne $taskSha) { Stop-Fail 14 "reviewed_task_sha256 불일치" }
-if ($revBase -ne $baseCommit) { Stop-Fail 14 "checked_base_commit 불일치" }
+# re-compare hash/base_commit
+if ($revPlanSha -ne $planSha) { Stop-Fail 14 "reviewed_plan_sha256 mismatch" }
+if ($revTaskSha -ne $taskSha) { Stop-Fail 14 "reviewed_task_sha256 mismatch" }
+if ($revBase -ne $baseCommit) { Stop-Fail 14 "checked_base_commit mismatch" }
 
 # ======================================================================
-# 7) Verdict & manifest 기록
+# 7) Verdict & manifest
 # ======================================================================
 $blockers = Get-JsonProp $review "blockers"
 if ($null -eq $blockers) { $blockers = @() }
