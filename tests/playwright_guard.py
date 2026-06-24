@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 
 import pytest
@@ -10,6 +11,8 @@ import pytest
 
 @lru_cache(maxsize=1)
 def _playwright_subprocess_error() -> str | None:
+    if os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SANDBOX_NETWORK_DISABLED"):
+        return "Playwright subprocess skipped in Codex sandbox"
     try:
         from playwright.sync_api import sync_playwright
 

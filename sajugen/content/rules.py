@@ -681,6 +681,9 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
     has_group = _has_any(text, ("청마", "로타리", "클럽", "창립", "모임", "단체", "봉사"))
     has_helper = _has_any(text, ("도와", "도움", "협조", "귀인", "장재화", "조력"))
     has_contract = _has_any(text, ("계약", "매매", "대출", "가격", "손해", "명의", "잔금"))
+    has_land_asset = _has_any(text, ("땅", "토지", "자산", "재산", "부동산", "땅값"))
+    has_children = _has_any(text, ("자식복", "자식", "자녀", "아이"))
+    has_danger = _has_any(text, ("위험", "조심", "주의", "손실", "크게 잃", "무너"))
     has_work = _has_any(text, ("이직", "직장", "직업", "창업", "사업", "일"))
     has_income = _has_any(text, ("수입", "월급", "매출", "지출", "돈이 새"))
 
@@ -700,6 +703,15 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
     if has_contract:
         topics.append("계약과 돈의 확인")
         detail_parts.append("계약은 말보다 서류, 가격, 잔금, 명의를 먼저 보아야 손해를 줄입니다.")
+    if has_land_asset and "땅과 자산" not in topics:
+        topics.append("땅과 자산")
+        detail_parts.append("땅과 자산은 값이 오르는 말보다 개발 계획, 세금, 명의, 현금화 시점을 함께 보아야 합니다.")
+    if has_children:
+        topics.append("자식복")
+        detail_parts.append("자식복은 자식이 잘되는지보다 서로 의지가 되는 거리와 간섭을 줄이는 방식을 함께 보아야 합니다.")
+    if has_danger:
+        topics.append("위험한 시점")
+        detail_parts.append("위험한 시점은 큰돈, 보증, 명의 이전, 무리한 확장을 한꺼번에 겹치지 않게 나누어 보는 것이 핵심입니다.")
     if has_work and not has_group:
         topics.append("직업과 역할 변화")
         detail_parts.append("이직과 일의 변화는 지금 당장 옮기는 결론보다 맡을 역할과 오래 버틸 조건을 먼저 보아야 합니다.")
@@ -721,6 +733,12 @@ def _concern_snapshot_label(topics: list[str]) -> str:
             axes.append("사람의 신뢰")
         elif ("계약" in topic or "돈" in topic) and "계약과 돈" not in axes:
             axes.append("계약과 돈")
+        elif ("땅" in topic or "자산" in topic) and "땅과 자산" not in axes:
+            axes.append("땅과 자산")
+        elif ("자식" in topic) and "자식복" not in axes:
+            axes.append("자식복")
+        elif ("위험" in topic) and "위험 시점" not in axes:
+            axes.append("위험 시점")
         elif ("직업" in topic or "역할" in topic) and "직업과 역할" not in axes:
             axes.append("직업과 역할")
         elif ("수입" in topic or "지출" in topic) and "수입과 지출" not in axes:

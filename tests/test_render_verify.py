@@ -45,6 +45,12 @@ def test_split_paragraphs_merges_short_tail():
     assert len(render_pdf._split_paragraphs(text2)) == 2
 
 
+def test_report_template_keeps_paragraph_tails_together():
+    # Avoid two-line customer-facing tails on an otherwise empty premium page.
+    template = Path("sajugen/render/templates/report.html.j2").read_text(encoding="utf-8")
+    assert "orphans:4;widows:4" in template
+
+
 # ───────────────── H1.5.3: 본문 페이지 분리(단어 키워드로 제외 금지) ─────────────────
 def test_customer_body_pages_keeps_keyword_pages():
     # '오행/명식/십성'이 있어도 본문 페이지를 제외하면 안 된다(치명 구멍 방지).
