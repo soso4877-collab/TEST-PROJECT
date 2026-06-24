@@ -28,6 +28,7 @@ _REPEAT_CAPS = {
     "정리": 8,
     "중심": 8,
 }
+_FAIL_REPEAT_TERMS = {"또렷"}
 _REPEAT_BASE_LEN = 10_000
 _FRONTLOAD_CHARS = 1_800
 
@@ -308,11 +309,16 @@ def analyze(
 
     repetition_hits = _repetition_hits(text)
     if repetition_hits:
-        finding = {"rule": "repetitive_phrasing", "hits": repetition_hits}
-        if (is_premium and has_customer_context) or required_axes:
-            failures.append(finding)
-        else:
-            warnings.append(finding)
+        fail_hits = [h for h in repetition_hits if h["term"] in _FAIL_REPEAT_TERMS]
+        warn_hits = [h for h in repetition_hits if h["term"] not in _FAIL_REPEAT_TERMS]
+        if fail_hits:
+            finding = {"rule": "repetitive_phrasing", "hits": fail_hits}
+            if (is_premium and has_customer_context) or required_axes:
+                failures.append(finding)
+            else:
+                warnings.append(finding)
+        if warn_hits:
+            warnings.append({"rule": "domain_term_repetition", "hits": warn_hits})
 
     guarantee_hits = _guarantee_hits(text)
     if guarantee_hits:
