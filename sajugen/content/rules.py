@@ -679,8 +679,8 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
     has_house = _has_any(text, ("집", "아파트", "매매", "부동산", "이사", "거처"))
     has_region = _has_any(text, ("김포", "계양"))
     has_group = _has_any(text, ("청마", "로타리", "클럽", "창립", "모임", "단체", "봉사"))
-    has_helper = _has_any(text, ("도와", "도움", "협조", "귀인", "사람", "장재화", "조력"))
-    has_contract = _has_any(text, ("계약", "매매", "돈", "대출", "가격", "손해", "명의", "잔금"))
+    has_helper = _has_any(text, ("도와", "도움", "협조", "귀인", "장재화", "조력"))
+    has_contract = _has_any(text, ("계약", "매매", "대출", "가격", "손해", "명의", "잔금"))
     has_work = _has_any(text, ("이직", "직장", "직업", "창업", "사업", "일"))
     has_income = _has_any(text, ("수입", "월급", "매출", "지출", "돈이 새"))
 
@@ -708,6 +708,24 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
         detail_parts.append("수입은 들어오는 돈만 보지 말고 새는 돈과 고정 지출을 함께 줄여야 남습니다.")
 
     return {"topics": topics, "detail": " ".join(detail_parts)}
+
+
+def _concern_snapshot_label(topics: list[str]) -> str:
+    axes: list[str] = []
+    for topic in topics:
+        if ("집" in topic or "이사" in topic or "지역" in topic) and "집과 이동" not in axes:
+            axes.append("집과 이동")
+        elif ("모임" in topic or "창립" in topic) and "모임과 역할" not in axes:
+            axes.append("모임과 역할")
+        elif ("사람" in topic or "신뢰" in topic) and "사람의 신뢰" not in axes:
+            axes.append("사람의 신뢰")
+        elif ("계약" in topic or "돈" in topic) and "계약과 돈" not in axes:
+            axes.append("계약과 돈")
+        elif ("직업" in topic or "역할" in topic) and "직업과 역할" not in axes:
+            axes.append("직업과 역할")
+        elif ("수입" in topic or "지출" in topic) and "수입과 지출" not in axes:
+            axes.append("수입과 지출")
+    return ", ".join(axes) if axes else "조건과 시기"
 
 
 def _love_context_detail(concern_text: str | None) -> str:
@@ -1410,10 +1428,11 @@ def build_all(
             + (f" {_love_detail}" if _love_detail else "")
         )
     elif _ctx_topics:
+        _snapshot_label = _concern_snapshot_label(_ctx_topics)
         T["concern_snapshot"] = (
-            f"{nm_pfx}신청 질문부터 먼저 답하면, 이번 고민은 집, 사람, 계약, 시기를 "
+            f"{nm_pfx}신청 질문부터 먼저 답하면, 이번 고민은 {_snapshot_label}을 "
             f"나누어 확인해야 합니다. {_near_label}에는 서두르기보다 조건과 서류, "
-            "사람의 책임 범위, 실제 동선을 먼저 확인한 뒤 움직이는 편이 안전합니다."
+            "책임 범위, 실제 동선을 먼저 확인한 뒤 움직이는 편이 안전합니다."
         )
     elif concern_text:
         T["concern_snapshot"] = (
@@ -1444,17 +1463,17 @@ def build_all(
         )
     elif _ctx_topics:
         _topic_text = ", ".join(_ctx_topics)
+        _focus_text = _concern_snapshot_label(_ctx_topics)
         T["consult"] = (
             f"{nm_pfx}먼저 핵심부터 말하면, 이번 질문은 {_topic_text}을 한꺼번에 보아야 하는 고민입니다. "
-            f"{_near_label} 구간에서는 한 번에 크게 밀어붙이기보다, 집과 사람과 계약을 나누어 확인하는 "
+            f"{_near_label} 구간에서는 한 번에 크게 밀어붙이기보다, {_focus_text}을 나누어 확인하는 "
             f"쪽이 더 안전합니다. 결론을 먼저 잡으면, 움직일 수는 있지만 서두르는 방식은 맞지 않고, "
             f"확인해야 할 조건을 적어 두고 하나씩 지우는 쪽이 맞습니다.\n\n"
             f"{_ctx_detail} "
-            f"특히 이사와 집 문제는 터전의 편안함, 돈 문제는 계약서와 명의, 사람 문제는 책임을 어디까지 "
-            f"맡길지를 따로 보아야 합니다. 좋은 말만 믿고 한 번에 넘기기보다, 낮과 저녁의 동선, 주변 도움, "
-            f"계약 조건을 직접 확인한 뒤 움직이는 편이 낫습니다.\n\n"
-            f"명리에서는 이 문제를 시기의 흐름으로 보고, 자미두수에서는 집, 사람, 돈, 바깥 역할이 어느 "
-            f"자리에서 함께 움직이는지를 봅니다. 두 관점을 같이 놓으면 위로보다 기준이 먼저 나옵니다. "
+            f"특히 이 질문은 {_focus_text}을 따로 나누어 보아야 합니다. 좋은 말만 믿고 한 번에 넘기기보다, "
+            f"실제 조건과 역할, 돈의 흐름을 직접 확인한 뒤 움직이는 편이 낫습니다.\n\n"
+            f"명리에서는 이 문제를 시기의 흐름으로 보고, 자미두수에서는 관련 자리들이 어느 방향으로 "
+            f"함께 움직이는지를 봅니다. 두 관점을 같이 놓으면 위로보다 기준이 먼저 나옵니다. "
             f"{_near_label}는 조건을 정리하고 실제로 해 볼 수 있는 것을 확인하는 구간으로 두고, 부담이 "
             f"커지는 약속은 한 번 더 늦추는 것이 좋습니다."
         )
