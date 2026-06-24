@@ -9,6 +9,7 @@
 - Claude 계획(`claude-plan.json`) 본문, `claude_plan_sha256`
 - policy packet(프로젝트 규칙 전문), `policy_sha256`
 - `base_commit`, 허용 파일 목록, 금지 파일 목록, `stage=plan`
+- policy packet에는 톤 스펙과 품질 사고 장부(`docs/14-tone-spec.md`, `docs/16-quality-incident-ledger.md`)도 포함된다.
 
 ## 판정 (PLAN_VERDICT)
 - 출력은 제공된 JSON Schema(`codex-plan-review.schema.json`)에 정확히 맞는 단일 JSON만.
@@ -22,8 +23,10 @@
 2. **범위**: 계획이 허용 파일 범위를 벗어나지 않는가. 금지 파일을 건드리는가.
 3. **규칙 준수**: policy packet의 불변 규칙(계산 LLM 위임 금지, 가드 우회 금지, APPROVED 전 발송 금지,
    예측 정확도 주장 금지, AI 산출 고지 금지 등)을 위반하는 계획인가.
-4. **검증 가능성**: `acceptance_criteria`·`required_validations`·`rollback`이 구체적이고 측정 가능한가.
-5. **판정 분리**: 이것은 구현 전 계획 판정(PLAN_VERDICT)이다. 구현 후 diff 판정(DIFF_VERDICT)을 내지 마라.
+4. **품질 사고 재발 방지**: 상담 품질·PDF·하네스 작업은 `docs/16-quality-incident-ledger.md`의 관련 사고를 반영하는가.
+   예: 질문축 누락, 근거 없는 맥락 삽입, 반복 표현, API 윤문 순서, Playwright sandbox, PS5.1 제약.
+5. **검증 가능성**: `acceptance_criteria`·`required_validations`·`rollback`이 구체적이고 측정 가능한가.
+6. **판정 분리**: 이것은 구현 전 계획 판정(PLAN_VERDICT)이다. 구현 후 diff 판정(DIFF_VERDICT)을 내지 마라.
 
 ## 금지
 - PII/secret을 출력에 인용하지 않는다.

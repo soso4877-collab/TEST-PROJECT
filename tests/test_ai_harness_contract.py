@@ -4,7 +4,7 @@
 검증 대상:
 - 허용 9개 파일 존재.
 - 두 JSON Schema 구조(draft 2020-12·required·additionalProperties:false·필수 필드·enum·DIFF_VERDICT 부재).
-- ai-harness.ps1 정적 계약(플래그 토큰 포함·--bare 부재·정책 6파일·제외 5경로 미열람·Preflight 선행·금지 호출 부재).
+- ai-harness.ps1 정적 계약(플래그 토큰 포함·--bare 부재·정책 packet·제외 5경로 미열람·Preflight 선행·금지 호출 부재).
 - handoff/current/.gitignore 격리(git check-ignore).
 - DryRun(best-effort): 실호출 없이 종료코드 0 + 런타임 산출물 미생성.
 """
@@ -67,8 +67,12 @@ def test_project_manifest_declares_project_specific_policy():
         ".claude/rules/calc.md",
         ".claude/rules/content.md",
         ".claude/rules/render.md",
+        "docs/14-tone-spec.md",
+        "docs/16-quality-incident-ledger.md",
     ):
         assert f"- {pf}" in raw
+    assert "핵심 축 누락" in _read("docs/16-quality-incident-ledger.md")
+    assert "API 윤문 투입 순서 혼동" in _read("docs/16-quality-incident-ledger.md")
 
 
 def test_claude_plan_schema_simplified():
@@ -212,9 +216,11 @@ def test_ps_passes_json_schema_safely():
     assert '"--json-schema", $claudeSchemaJson' in t
     # --json-schema 인자 바로 뒤에 .schema.json 파일 경로 리터럴을 넘기지 않는다
     assert not re.search(r'--json-schema"?\s*,\s*"[^"]*\.schema\.json"', t)
+    # 함수 호출 결과를 먼저 확정한 뒤 split 해야 PS 5.1에서도 manifest list를 안정적으로 읽는다.
+    assert "(Read-TextNoBom $Path) -split" in t
 
 
-def test_ps_reads_only_policy_six_files():
+def test_ps_reads_project_manifest_policy_files():
     t = _ps_text()
     assert '[string]$Project = "harness/project.yml"' in t
     assert "Read-HarnessProjectManifest" in t
@@ -232,8 +238,21 @@ def test_ps_reads_only_policy_six_files():
     ):
         assert pf in t, f"정책 파일 경로 누락: {pf}"
     manifest = _read("harness/project.yml")
+    for pf in ("docs/14-tone-spec.md", "docs/16-quality-incident-ledger.md"):
+        assert f"- {pf}" in manifest, f"manifest 정책 파일 누락: {pf}"
     for excluded in (".env", "data/**", "harness/profiles/local/**", "sajugen/render/out/**", "handoff/reports/**"):
         assert excluded in manifest, f"manifest default_forbidden 누락: {excluded}"
+
+
+def test_ai_prompts_reference_quality_incident_ledger():
+    claude = _read("harness/prompts/claude-plan.md")
+    codex = _read("harness/prompts/codex-plan-review.md")
+    for text in (claude, codex):
+        assert "docs/14-tone-spec.md" in text
+        assert "docs/16-quality-incident-ledger.md" in text
+    assert "질문축" in claude
+    assert "근거 없는 맥락" in claude
+    assert "API 윤문 순서" in codex
 
 
 def test_ps_git_stderr_does_not_terminate():
@@ -463,6 +482,8 @@ def test_dryrun_best_effort():
     assert r.returncode == 0, f"DryRun 종료코드 0 기대, got {r.returncode}: {r.stderr}"
     assert "DRYRUN=1" in r.stdout
     assert "no_runtime_output_written=true" in r.stdout
+    assert "docs/14-tone-spec.md" in r.stdout
+    assert "docs/16-quality-incident-ledger.md" in r.stdout
     # DryRun은 LATEST.txt를 새로 만들지 않는다
     if not latest_before:
         assert not latest.exists(), "DryRun이 LATEST.txt를 생성하면 안 됨"
