@@ -122,6 +122,37 @@ def test_generated_premium_context_report_passes_with_domain_term_repetition_war
     assert "repetitive_phrasing" not in {f["rule"] for f in r["failures"]}
 
 
+def test_generated_reunion_context_report_frontloads_question_answer(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder
+
+    saju = engine.build(2000, 1, 1, 12, 0, is_male=False, horoscope_date="2026-06-01")
+    concern = (
+        "헤어진지 7개월이고 상대가 군대에 있어 접촉 기회가 잘 없습니다. "
+        "겹지인이 많고 학교와 전공이 같은 선후배 사이인데 어떤 방식으로 다가가야 할까요"
+    )
+    rep = builder.build_report(
+        saju,
+        use_llm=False,
+        ref_year=2026,
+        name="은채",
+        concern=concern,
+        product="integrated",
+    )
+    body = "\n".join(s.final_text for s in rep.sections)
+    r = dq.analyze(body, pages=24, product="integrated", premium=True, concern=concern)
+    rules = {f["rule"] for f in r["failures"]}
+    assert r["clean"] is True, r
+    assert "missing_frontloaded_answer" not in rules
+    assert r["frontloaded_answer"]["ok"] is True
+    assert r["near_term_timing"]["ok"] is True
+    assert "군대" in body and "휴가나 외출" in body
+    assert "학교와 전공이 같은 선후배" in body
+    assert "짧은 안부" in body
+    assert "재회합니다" not in body and "결혼합니다" not in body
+
+
 def test_love_or_reunion_question_requires_near_term_timing_and_action():
     text = (
         "재회 문제는 상대의 연락과 대화 태도를 보아야 합니다. "
