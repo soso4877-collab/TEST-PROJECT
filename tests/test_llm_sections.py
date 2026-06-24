@@ -175,6 +175,31 @@ def test_love_concern_answers_near_term_first(monkeypatch):
     assert rep.guard.clean is True
 
 
+def test_love_followup_reflects_military_and_school_context(monkeypatch):
+    _no_key(monkeypatch)
+    concern = (
+        "헤어진지 7개월이고 상대가 군대에 있어 접촉 기회가 잘 없습니다. "
+        "겹지인이 많고 학교와 전공이 같은 선후배 사이인데 어떤 방식으로 다가가야 할까요"
+    )
+    rep = builder.build_report(
+        _saju(),
+        use_llm=False,
+        ref_year=2026,
+        name="은채",
+        concern=concern,
+    )
+    consult = rep.section("consult").final_text
+    assert "군대" in consult
+    assert "휴가나 외출" in consult
+    assert "학교와 전공이 같은 선후배" in consult
+    assert "겹지인은 마음을 묻는 역할이 아니라" in consult
+    assert "소문" in consult
+    assert "짧은 안부" in consult
+    assert "재회합니다" not in consult and "결혼합니다" not in consult
+    assert "또렷" not in consult
+    assert rep.guard.clean is True
+
+
 def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
     _no_key(monkeypatch)
     concern = (

@@ -702,6 +702,31 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
     return {"topics": topics, "detail": " ".join(detail_parts)}
 
 
+def _love_context_detail(concern_text: str | None) -> str:
+    """연애/재회 질문의 안전한 생활 맥락만 보강한다. 원문 전체나 이름은 넣지 않는다."""
+    text = concern_text or ""
+    if not text.strip():
+        return ""
+
+    detail_parts: list[str] = []
+    if _has_any(text, ("군대", "군 복무", "입대", "복무")):
+        detail_parts.append(
+            "상대가 군대에 있어 연락 폭이 좁다면, 답이 늦는 것만으로 마음이 끝났다고 "
+            "단정하지 말고 휴가나 외출처럼 연락이 가능한 작은 시점을 기다리세요."
+        )
+    if _has_any(text, ("선후배", "학교", "전공", "동기", "동문")):
+        detail_parts.append(
+            "학교와 전공이 같은 선후배 사이라면 그 접점은 압박할 수단이 아니라, "
+            "가벼운 안부가 어색하지 않게 열리는 자리로만 쓰는 것이 좋습니다."
+        )
+    if _has_any(text, ("겹지인", "공통 지인", "공통지인", "친구")):
+        detail_parts.append(
+            "겹지인은 마음을 묻는 역할이 아니라 소문이 돌지 않게 거리를 두고, "
+            "필요할 때 자연스러운 만남의 자리를 만드는 정도가 안전합니다."
+        )
+    return " ".join(detail_parts)
+
+
 def build_all(
     saju,
     ref_year: int | None = None,
@@ -1356,6 +1381,7 @@ def build_all(
     _ctx = _consult_context(concern_text)
     _ctx_topics = list(_ctx["topics"])
     _ctx_detail = str(_ctx["detail"])
+    _love_detail = _love_context_detail(concern_text)
     if _cc == "연애":
         T["consult"] = (
             f"{nm_pfx}먼저 핵심부터 말하면, 연애와 재회 질문은 마음을 오래 설명하기보다 "
@@ -1368,8 +1394,10 @@ def build_all(
             f"피하지 않고 말하려 한다면 관계가 다시 움직일 여지가 있습니다. 반대로 답이 짧고 늦어지거나, "
             f"같은 상처를 반복하거나, 주변을 통해서만 소식을 흘리는 흐름이라면 기다림을 길게 끌수록 "
             f"{nm_call}만 지치기 쉽습니다. 이때는 한 번 더 붙잡는 것보다 마음을 정리하는 쪽이 더 안전합니다. "
-            f"접촉이 제한된 상황에서는 겹지인에게 마음을 떠보게 하기보다, 서로 부담이 적은 자리에서 "
-            f"짧은 안부가 자연스럽게 오갈 수 있는지를 먼저 보는 편이 낫습니다.\n\n"
+            f"접촉이 제한된 상황에서는 무리하게 마음을 확인하려 들기보다, 서로 부담이 적은 자리에서 "
+            f"짧은 안부가 자연스럽게 오갈 수 있는지를 먼저 보세요."
+            + (f" {_love_detail}" if _love_detail else "")
+            + "\n\n"
             f"명리에서는 이 문제를 시기의 흐름으로 보고, 자미두수에서는 관계가 놓인 자리와 사람 사이의 "
             f"거리감으로 봅니다. 두 관점이 함께 가리키는 것은 하나입니다. 좋은 말만 듣고 버티는 것이 "
             f"아니라, 언제 다가가고 언제 멈출지를 나누어 보는 것입니다. 재회나 결혼을 단정하지는 않지만, "
