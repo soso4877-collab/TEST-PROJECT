@@ -29,6 +29,7 @@ _REPEAT_CAPS = {
     "중심": 8,
 }
 _REPEAT_BASE_LEN = 10_000
+_FRONTLOAD_CHARS = 1_800
 
 _GUARANTEE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"100\s*%"), "absolute percentage"),
@@ -92,6 +93,30 @@ _ZIWEI_DOMAIN_TERMS = {
     "move": ("이동", "밖", "김포", "계양", "나가", "옮"),
 }
 
+_NEAR_TERM_TIMING_TERMS = (
+    "1년",
+    "일년",
+    "올해",
+    "내년",
+    "상반기",
+    "하반기",
+    "봄",
+    "여름",
+    "가을",
+    "겨울",
+    "월",
+)
+
+_FRONTLOAD_TERMS = {
+    "decision": ("결론", "핵심", "먼저", "한마디", "정리하면", "말씀드리면"),
+    "timing": _NEAR_TERM_TIMING_TERMS + ("시기", "판단 지점"),
+    "action": ("먼저", "확인", "주의", "조심", "기다", "다가", "말", "정하", "피하", "서두르"),
+}
+
+# Customer-specific context that is easy to hallucinate and must be grounded in
+# the order concern or explicit expected_context_terms.
+_PROVENANCE_CONTEXT_TERMS = ("청마",)
+
 
 def _is_premium(product: str | None, premium: bool) -> bool:
     return bool(premium or (product or "").strip().lower() in _PREMIUM_PRODUCTS)
@@ -123,6 +148,45 @@ def _repetition_hits(text: str) -> list[dict]:
     return hits
 
 
+def _frontloaded_result(text: str, required_axes: set[str]) -> dict:
+    """Check that a paid answer gives the customer a usable answer early."""
+
+    if not required_axes:
+        return {"ok": True, "missing": [], "window_chars": _FRONTLOAD_CHARS}
+
+    early = text[:_FRONTLOAD_CHARS]
+    missing: list[str] = []
+    if not _hit_terms(early, _FRONTLOAD_TERMS["decision"]):
+        missing.append("decision")
+    if "timing" in required_axes and not _hit_terms(early, _FRONTLOAD_TERMS["timing"]):
+        missing.append("timing")
+    if "action" in required_axes and not _hit_terms(early, _FRONTLOAD_TERMS["action"]):
+        missing.append("action")
+
+    topic_axes = sorted(a for a in required_axes if a not in {"timing", "action"})
+    covered_topic_axes = [
+        axis for axis in topic_axes if _hit_terms(early, _AXES[axis]["evidence"])
+    ]
+    if topic_axes and not covered_topic_axes:
+        missing.append("question_topic")
+
+    return {
+        "ok": not missing,
+        "missing": missing,
+        "window_chars": _FRONTLOAD_CHARS,
+        "covered_topic_axes": covered_topic_axes,
+    }
+
+
+def _near_term_timing_result(text: str, required_axes: set[str]) -> dict:
+    """Love/reunion customers usually ask for a near-term usable window."""
+
+    if "love_reunion" not in required_axes:
+        return {"required": False, "ok": True, "hits": []}
+    hits = _hit_terms(text, _NEAR_TERM_TIMING_TERMS)
+    return {"required": True, "ok": bool(hits), "hits": hits}
+
+
 def _guarantee_hits(text: str) -> list[dict]:
     hits: list[dict] = []
     for rx, why in _GUARANTEE_PATTERNS:
@@ -139,11 +203,40 @@ def _ziwei_result(text: str) -> dict:
         for name, terms in _ZIWEI_DOMAIN_TERMS.items()
         if _hit_terms(text, terms)
     }
+    cross_domains: dict[str, list[str]] = {}
+    for marker in _ZIWEI_MARKERS:
+        for match in re.finditer(re.escape(marker), text):
+            start = max(0, match.start() - 180)
+            end = min(len(text), match.end() + 260)
+            window = text[start:end]
+            for name, terms in _ZIWEI_DOMAIN_TERMS.items():
+                hits = _hit_terms(window, terms)
+                if hits:
+                    cross_domains.setdefault(name, [])
+                    for hit in hits:
+                        if hit not in cross_domains[name]:
+                            cross_domains[name].append(hit)
     return {
         "markers": markers,
         "domains": domains,
-        "ok": bool(markers) and len(domains) >= 2,
+        "cross_domains": cross_domains,
+        "ok": bool(markers) and len(cross_domains) >= 2,
     }
+
+
+def _context_provenance_result(
+    text: str,
+    concern: str | None,
+    expected_context_terms: list[str] | None,
+) -> dict:
+    concern = concern or ""
+    expected = set(expected_context_terms or [])
+    unbacked = [
+        term
+        for term in _PROVENANCE_CONTEXT_TERMS
+        if term in text and term not in concern and term not in expected
+    ]
+    return {"ok": not unbacked, "unbacked_terms": unbacked}
 
 
 def analyze(
@@ -165,6 +258,7 @@ def analyze(
 
     text = text or ""
     is_premium = _is_premium(product, premium)
+    has_customer_context = bool((concern or "").strip() or expected_context_terms)
     failures: list[dict] = []
     warnings: list[dict] = []
 
@@ -186,12 +280,14 @@ def analyze(
                 }
             )
         if low_density_pages:
-            failures.append(
-                {
-                    "rule": "premium_low_density_pages",
-                    "pages": low_density_pages[:20],
-                }
-            )
+            finding = {
+                "rule": "premium_low_density_pages",
+                "pages": low_density_pages[:20],
+            }
+            if has_customer_context:
+                failures.append(finding)
+            else:
+                warnings.append(finding)
 
     required_axes = _required_axes(concern)
     coverage_hits = {
@@ -202,9 +298,21 @@ def analyze(
     if missing_axes:
         failures.append({"rule": "missing_question_axes", "axes": missing_axes})
 
+    frontloaded = _frontloaded_result(text, required_axes)
+    if is_premium and not frontloaded["ok"]:
+        failures.append({"rule": "missing_frontloaded_answer", "frontloaded": frontloaded})
+
+    near_term_timing = _near_term_timing_result(text, required_axes)
+    if is_premium and not near_term_timing["ok"]:
+        failures.append({"rule": "missing_near_term_timing", "timing": near_term_timing})
+
     repetition_hits = _repetition_hits(text)
     if repetition_hits:
-        failures.append({"rule": "repetitive_phrasing", "hits": repetition_hits})
+        finding = {"rule": "repetitive_phrasing", "hits": repetition_hits}
+        if (is_premium and has_customer_context) or required_axes:
+            failures.append(finding)
+        else:
+            warnings.append(finding)
 
     guarantee_hits = _guarantee_hits(text)
     if guarantee_hits:
@@ -213,6 +321,10 @@ def analyze(
     ziwei = _ziwei_result(text)
     if is_premium and not ziwei["ok"]:
         failures.append({"rule": "missing_usable_ziwei", "ziwei": ziwei})
+
+    context_provenance = _context_provenance_result(text, concern, expected_context_terms)
+    if is_premium and not context_provenance["ok"]:
+        failures.append({"rule": "unbacked_context_terms", "context": context_provenance})
 
     context_hits = {
         term: text.count(term)
@@ -234,6 +346,7 @@ def analyze(
         "clean": not failures,
         "premium": is_premium,
         "product": product,
+        "has_customer_context": has_customer_context,
         "pages": pages,
         "text_chars": len(text),
         "min_premium_pages": MIN_PREMIUM_PAGES,
@@ -243,9 +356,12 @@ def analyze(
         "required_axes": sorted(required_axes),
         "coverage_hits": coverage_hits,
         "missing_axes": missing_axes,
+        "frontloaded_answer": frontloaded,
+        "near_term_timing": near_term_timing,
         "repetition_hits": repetition_hits,
         "guarantee_hits": guarantee_hits,
         "ziwei": ziwei,
+        "context_provenance": context_provenance,
         "expected_context_hits": context_hits,
         "missing_context_terms": missing_context,
         "overused_context_terms": overused_context,
