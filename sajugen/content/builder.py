@@ -188,6 +188,7 @@ def build_report(
         name=name,
         unknown_time=unknown_time,
         concern_category=category.value,
+        concern_text=concern,
         closing_sign=closing_sign,
     )
     drop = _PRODUCT_DROP.get(product, set())

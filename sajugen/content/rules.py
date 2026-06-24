@@ -664,12 +664,51 @@ def _singang_phrase(singang: str, *, kind: str = "general") -> str:
     return table.get(kind, table["general"]).get(singang, "균형을 그때그때 살피는 관점")
 
 
+def _has_any(text: str, terms: tuple[str, ...]) -> bool:
+    return any(t in text for t in terms)
+
+
+def _consult_context(concern_text: str | None) -> dict[str, object]:
+    """고객 원문을 그대로 넣지 않고, 안전한 질문 축만 뽑아 consult 초반에 반영한다."""
+    text = concern_text or ""
+    if not text.strip():
+        return {"topics": [], "detail": ""}
+
+    topics: list[str] = []
+    detail_parts: list[str] = []
+    has_house = _has_any(text, ("집", "아파트", "매매", "부동산", "이사", "거처"))
+    has_region = _has_any(text, ("김포", "계양"))
+    has_group = _has_any(text, ("청마", "로타리", "클럽", "창립", "모임", "단체", "봉사"))
+    has_helper = _has_any(text, ("도와", "도움", "협조", "귀인", "사람", "장재화", "조력"))
+    has_contract = _has_any(text, ("계약", "매매", "돈", "대출", "가격", "손해", "명의", "잔금"))
+
+    if has_house:
+        topics.append("집과 이사")
+        detail_parts.append("집은 마음이 끌리는 곳보다 생활 거리와 실제 버틸 힘을 먼저 보아야 합니다.")
+    if has_region:
+        topics.append("김포와 계양 같은 지역 비교")
+        detail_parts.append("지역은 이름보다 낮과 저녁의 동선, 병원과 장보기, 주변 사람의 도움을 같이 확인해야 합니다.")
+    if has_group:
+        label = "청마로타리클럽 창립" if ("청마" in text and "로타리" in text) else "모임 창립"
+        topics.append(label)
+        detail_parts.append("모임 창립은 역할과 돈 관리를 작게 나누어 시작해야 오래 갑니다.")
+    if has_helper:
+        topics.append("도움을 주겠다는 사람의 신뢰")
+        detail_parts.append("사람의 호의는 받되 큰돈과 명의, 계약 판단은 직접 확인하는 선을 두어야 합니다.")
+    if has_contract:
+        topics.append("계약과 돈의 확인")
+        detail_parts.append("계약은 말보다 서류, 가격, 잔금, 명의를 먼저 보아야 손해를 줄입니다.")
+
+    return {"topics": topics, "detail": " ".join(detail_parts)}
+
+
 def build_all(
     saju,
     ref_year: int | None = None,
     name: str | None = None,
     unknown_time: bool = False,
     concern_category: str | None = None,
+    concern_text: str | None = None,
     closing_sign: str | None = None,
 ) -> dict[str, str]:
     m, z, x = saju.myeongni, saju.ziwei, saju.crosscheck
@@ -1314,6 +1353,9 @@ def build_all(
         if ref_year
         else "앞으로 1년 안"
     )
+    _ctx = _consult_context(concern_text)
+    _ctx_topics = list(_ctx["topics"])
+    _ctx_detail = str(_ctx["detail"])
     if _cc == "연애":
         T["consult"] = (
             f"{nm_pfx}먼저 핵심부터 말하면, 연애와 재회 질문은 마음을 오래 설명하기보다 "
@@ -1333,13 +1375,29 @@ def build_all(
             f"아니라, 언제 다가가고 언제 멈출지를 나누어 보는 것입니다. 재회나 결혼을 단정하지는 않지만, "
             f"관계가 움직이는 신호와 무리하면 흔들리는 신호를 먼저 확인하는 것이 이 고민의 핵심입니다."
         )
+    elif _ctx_topics:
+        _topic_text = ", ".join(_ctx_topics)
+        T["consult"] = (
+            f"{nm_pfx}먼저 핵심부터 말하면, 이번 질문은 {_topic_text}을 한꺼번에 보아야 하는 고민입니다. "
+            f"{_near_label} 구간에서는 한 번에 크게 밀어붙이기보다, 집과 사람과 계약을 나누어 확인하는 "
+            f"쪽이 더 안전합니다. 결론을 먼저 잡으면, 움직일 수는 있지만 서두르는 방식은 맞지 않고, "
+            f"확인해야 할 조건을 적어 두고 하나씩 지우는 쪽이 맞습니다.\n\n"
+            f"{_ctx_detail} "
+            f"특히 이사와 집 문제는 터전의 편안함, 돈 문제는 계약서와 명의, 사람 문제는 책임을 어디까지 "
+            f"맡길지를 따로 보아야 합니다. 좋은 말만 믿고 한 번에 넘기기보다, 낮과 저녁의 동선, 주변 도움, "
+            f"계약 조건을 직접 확인한 뒤 움직이는 편이 낫습니다.\n\n"
+            f"명리에서는 이 문제를 시기의 흐름으로 보고, 자미두수에서는 집, 사람, 돈, 바깥 역할이 어느 "
+            f"자리에서 함께 움직이는지를 봅니다. 두 관점을 같이 놓으면 위로보다 기준이 먼저 나옵니다. "
+            f"{_near_label}는 조건을 정리하고 실제로 해 볼 수 있는 것을 확인하는 구간으로 두고, 부담이 "
+            f"커지는 약속은 한 번 더 늦추는 것이 좋습니다."
+        )
     else:
         T["consult"] = (
             f"{nm_pfx}신청해 주신 고민은 '{_cc}' 영역에 닿아 있습니다. "
             f"먼저 결론부터 잡으면, 이 결과지에서는 {_domain}을 기준으로 답을 보셔야 합니다. "
             f"좋다 나쁘다를 한마디로 끝내기보다, 지금 움직여도 되는 자리와 조금 더 준비해야 하는 "
             f"자리를 나누어 읽는 것이 중요합니다.\n\n"
-            f"가까운 흐름은 {_near_label} 안에서 먼저 확인해 보세요. 같은 기운도 그 시기에 어떻게 쓰느냐에 "
+            f"가까운 흐름은 {_near_label} 구간에서 먼저 확인해 보세요. 같은 기운도 그 시기에 어떻게 쓰느냐에 "
             f"따라 결과가 달라집니다. 무리하게 밀어붙여야 하는 때인지, 사람과 조건을 더 살펴야 하는 때인지, "
             f"그리고 손해를 줄이기 위해 먼저 확인해야 할 것이 무엇인지가 이 질문의 실제 답입니다.\n\n"
             f"명리는 시기의 흐름을 보고, 자미두수는 삶의 어느 영역이 강하게 작동하는지를 봅니다. "
