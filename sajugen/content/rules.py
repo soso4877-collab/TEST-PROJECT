@@ -1382,6 +1382,27 @@ def build_all(
     _ctx_topics = list(_ctx["topics"])
     _ctx_detail = str(_ctx["detail"])
     _love_detail = _love_context_detail(concern_text)
+    T["concern_snapshot"] = ""
+    if _cc == "연애":
+        T["concern_snapshot"] = (
+            f"{nm_pfx}신청 질문부터 먼저 답하면, {_near_label} 안에서는 상대의 반응이 "
+            "다시 살아나는지 보고 짧은 안부부터 여는 쪽이 안전합니다. "
+            "무리하게 결론을 묻기보다 답이 이어지는지, 약속을 구체적으로 잡는지, "
+            "예전 문제가 반복되지 않는지를 판단하세요."
+            + (f" {_love_detail}" if _love_detail else "")
+        )
+    elif _ctx_topics:
+        T["concern_snapshot"] = (
+            f"{nm_pfx}신청 질문부터 먼저 답하면, 이번 고민은 집, 사람, 계약, 시기를 "
+            f"나누어 확인해야 합니다. {_near_label}에는 서두르기보다 조건과 서류, "
+            "사람의 책임 범위, 실제 동선을 먼저 확인한 뒤 움직이는 편이 안전합니다."
+        )
+    elif concern_text:
+        T["concern_snapshot"] = (
+            f"{nm_pfx}신청 질문부터 먼저 답하면, {_near_label} 안에서 움직일 자리와 "
+            "멈춰야 할 자리를 나누어 보는 것이 핵심입니다. 결론을 서두르기보다 "
+            "조건, 사람, 시기를 차례대로 확인하세요."
+        )
     if _cc == "연애":
         T["consult"] = (
             f"{nm_pfx}먼저 핵심부터 말하면, 연애와 재회 질문은 마음을 오래 설명하기보다 "
@@ -1440,7 +1461,7 @@ def build_all(
 
     NT: dict[str, str] = {
         "cover": T["cover"],
-        "intro": _join("summary", "howto", "keywords"),
+        "intro": _join("concern_snapshot", "summary", "howto", "keywords"),
         "wonguk": _join("wonguk", "ohaeng"),
         "nature": _join("ilgan", "sipseong", "character", "strength"),
         "frame": _join("geukguk", "shinsal"),
