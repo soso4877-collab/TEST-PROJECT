@@ -4,6 +4,9 @@
 > 계획 전문(현행): C:\Users\pc\.claude\plans\role-claude-distributed-hellman.md (상용화 플랜, 2026-06-10 승인)
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
 > 정책 문서: C:\Users\pc\test-project\docs\00~10 (research ledger·유파 결정·LLM 정책·검수 워크플로우)
+> 품질 사고 장부: C:\Users\pc\test-project\docs\16-quality-incident-ledger.md
+>   (청마/로타리 맥락 환각, 질문축 누락, 재회 접점, 자산/자식복/위험 시점, PDF 말미 밀도,
+>   Playwright sandbox, PS5.1, API 윤문 순서 재발 방지)
 > 영속 메모리: ~/.claude/projects/C--Users-pc-test-project/memory/ (MEMORY.md 인덱스)
 > 최종 갱신: 2026-06-14  (베타 재정비 Phase A+B 완료. A=브랜드 서담선생 기본+자유입력 / 가정어 제거(세운
 >   연도 앵커)+style_lint 가드. B=챕터 간 일주 자기소개 반복 해소: 프롬프트(소유권)+rules ilgan 골격 근원수정
