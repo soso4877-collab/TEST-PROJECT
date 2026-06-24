@@ -153,6 +153,56 @@ def test_generated_reunion_context_report_frontloads_question_answer(monkeypatch
     assert "재회합니다" not in body and "결혼합니다" not in body
 
 
+def test_generated_question_type_matrix_keeps_customer_axes_visible(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder
+
+    saju = engine.build(1988, 5, 14, 10, 0, is_male=False, horoscope_date="2026-06-01")
+    cases = [
+        {
+            "concern": "연애를 못한 지 오래됐는데 앞으로 1년 안에 만남이 들어올까요. 소개팅을 받아도 되는지 궁금합니다",
+            "contains": ["연애", "만남", "소개팅", "짧은 안부"],
+        },
+        {
+            "concern": "나이가 있어서 언제 결혼운이 들어오는지 궁금합니다. 지금 만나는 사람과 결혼까지 봐도 될까요",
+            "contains": ["결혼", "현재 만나는 사람", "생활 기준", "돈 관리"],
+        },
+        {
+            "concern": "아파트 매매와 이사 시기가 궁금합니다. 계약과 잔금, 대출을 어떻게 조심해야 할까요",
+            "contains": ["집과 이사", "계약", "잔금"],
+        },
+        {
+            "concern": "모임을 창립하고 작은 사업도 같이 준비하려 합니다. 사람을 모으고 돈 관리를 어떻게 해야 할까요",
+            "contains": ["모임 창립", "돈 관리", "역할"],
+        },
+        {
+            "concern": "이직과 수입 흐름이 궁금합니다. 올해 움직여도 되는지, 돈이 새는 부분은 무엇인지 알고 싶습니다",
+            "contains": ["이직", "수입", "지출", "직업"],
+        },
+    ]
+    for case in cases:
+        rep = builder.build_report(
+            saju,
+            use_llm=False,
+            ref_year=2026,
+            name="고객",
+            concern=case["concern"],
+            product="integrated",
+        )
+        body = "\n".join(s.final_text for s in rep.sections)
+        r = dq.analyze(body, pages=24, product="integrated", premium=True, concern=case["concern"])
+        assert r["clean"] is True, (case["concern"], r)
+        assert r["frontloaded_answer"]["ok"] is True, case["concern"]
+        assert r["near_term_timing"]["ok"] is True, case["concern"]
+        assert r["missing_axes"] == [], (case["concern"], r["missing_axes"])
+        assert r["ziwei"]["ok"] is True, case["concern"]
+        for term in case["contains"]:
+            assert term in body, (case["concern"], term)
+        assert "재회합니다" not in body and "결혼합니다" not in body
+        assert "또렷" not in body
+
+
 def test_love_or_reunion_question_requires_near_term_timing_and_action():
     text = (
         "재회 문제는 상대의 연락과 대화 태도를 보아야 합니다. "
