@@ -262,12 +262,52 @@ def test_reunion_question_passes_with_one_year_timing_and_contact_action():
         "결론부터 말하면 1년 안에서는 올해 하반기보다 내년 초가 더 조심스럽게 볼 구간입니다. "
         "먼저 연락을 세게 밀지 말고, 겹지인과 학교 접점을 통해 짧은 안부부터 여는 편이 좋습니다. "
         "상대가 대화를 이어 오면 다음 단계로 가고, 반응이 끊기면 한 번 물러서야 합니다. "
+        "명리에서는 시기의 흐름을 먼저 보고 조심할 구간을 나눕니다. "
         "자미두수로 보면 관계와 사람의 자리가 함께 움직여, 연락보다 분위기 회복이 먼저입니다. "
-    ) * 45
+    ) * 60
     r = dq.analyze(text, pages=24, product="integrated", concern="헤어진 사람과 재회 시기와 다가가는 방법")
     assert r["near_term_timing"]["ok"] is True
     assert r["frontloaded_answer"]["ok"] is True
     assert "missing_near_term_timing" not in {f["rule"] for f in r["failures"]}
+
+
+def test_love_axis_requires_action_caution_and_myeongni():
+    text = (
+        "결론부터 말하면 1년 안의 연애 흐름은 소개팅과 첫 만남에서 확인해야 합니다. "
+        "자미두수로 보면 사람과 관계, 돈 관리의 부담도 함께 보입니다. "
+        "올해와 내년의 흐름을 길게 설명합니다. "
+    ) * 55
+    r = dq.analyze(text, pages=24, product="integrated", concern="연애를 못했는데 만남이 들어올까요")
+    rules = {f["rule"] for f in r["failures"]}
+    assert "missing_love_reunion_action" in rules
+    assert "missing_love_myeongni" in rules
+    assert r["clean"] is False
+
+
+def test_new_love_question_passes_with_meeting_action_caution_and_two_views():
+    text = (
+        "결론부터 말하면 1년 안에는 소개팅이나 가벼운 첫 만남으로 확인할 구간이 있습니다. "
+        "먼저 대화를 이어 보는 자리로 두고, 서두르지 말고 상대가 다음 약속을 잡는지 보세요. "
+        "조심할 점은 외로움 때문에 결론을 빨리 정하려는 마음입니다. "
+        "명리에서는 시기의 흐름을 보고, 자미두수로 보면 사람과 관계, 돈 관리의 부담을 함께 봅니다. "
+    ) * 60
+    r = dq.analyze(text, pages=24, product="integrated", concern="연애를 못했는데 소개팅을 받아도 될까요")
+    assert r["clean"] is True, r
+    assert r["love_action"]["ok"] is True
+    assert r["love_myeongni"]["ok"] is True
+
+
+def test_marriage_question_passes_with_conditions_money_caution_and_two_views():
+    text = (
+        "결론부터 말하면 1년 안의 결혼운은 현재 만나는 사람과 생활 기준을 맞추는지부터 보아야 합니다. "
+        "먼저 돈 관리와 가족의 거리를 확인하고, 큰 약속은 서두르지 않는 것이 좋습니다. "
+        "조심할 점은 감정만 앞서 결혼 이야기를 크게 잡는 흐름입니다. "
+        "명리에서는 시기의 흐름을 보고, 자미두수로 보면 사람과 관계, 돈과 가족의 자리를 함께 봅니다. "
+    ) * 60
+    r = dq.analyze(text, pages=24, product="integrated", concern="언제 결혼운이 들어오고 지금 만나는 사람과 결혼까지 볼 수 있나요")
+    assert r["clean"] is True, r
+    assert r["love_action"]["ok"] is True
+    assert r["love_myeongni"]["ok"] is True
 
 
 def test_ziwei_name_only_without_cross_domains_fails_premium():

@@ -201,6 +201,70 @@ def test_love_followup_reflects_military_and_school_context(monkeypatch):
     assert rep.guard.clean is True
 
 
+def test_new_love_concern_answers_meeting_window_and_action(monkeypatch):
+    _no_key(monkeypatch)
+    concern = (
+        "연애를 못한 지 오래됐는데 앞으로 1년 안에 만남이 들어올까요. "
+        "소개팅을 받아도 되는지 궁금합니다"
+    )
+    rep = builder.build_report(
+        _saju(),
+        use_llm=False,
+        ref_year=2026,
+        name="고객",
+        concern=concern,
+    )
+    consult = rep.section("consult").final_text
+    assert "먼저 핵심부터 말하면" in consult[:20], consult
+    for term in (
+        "2026년 하반기부터 2027년 상반기까지",
+        "소개팅",
+        "가벼운 첫 만남",
+        "좋은 구간",
+        "조심할 구간",
+        "서두르지 말고",
+        "명리에서는",
+        "자미두수에서는",
+    ):
+        assert term in consult, (term, consult)
+    assert "재회합니다" not in consult and "결혼합니다" not in consult
+    assert "또렷" not in consult
+    assert rep.guard.clean is True
+
+
+def test_marriage_concern_answers_conditions_money_and_caution(monkeypatch):
+    _no_key(monkeypatch)
+    concern = (
+        "나이가 있어서 언제 결혼운이 들어오는지 궁금합니다. "
+        "지금 만나는 사람과 결혼까지 봐도 될까요"
+    )
+    rep = builder.build_report(
+        _saju(),
+        use_llm=False,
+        ref_year=2026,
+        name="고객",
+        concern=concern,
+    )
+    consult = rep.section("consult").final_text
+    assert "먼저 핵심부터 말하면" in consult[:20], consult
+    for term in (
+        "2026년 하반기부터 2027년 상반기까지",
+        "결혼",
+        "현재 만나는 사람",
+        "생활 기준",
+        "돈 관리",
+        "가족",
+        "좋은 구간",
+        "조심할 구간",
+        "명리에서는",
+        "자미두수에서는",
+    ):
+        assert term in consult, (term, consult)
+    assert "재회합니다" not in consult and "결혼합니다" not in consult
+    assert "또렷" not in consult
+    assert rep.guard.clean is True
+
+
 def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
     _no_key(monkeypatch)
     concern = (

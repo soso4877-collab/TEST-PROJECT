@@ -781,6 +781,83 @@ def _love_context_detail(concern_text: str | None) -> str:
     return " ".join(detail_parts)
 
 
+def _love_focus(concern_text: str | None) -> str:
+    """연애 질문을 재회/새 만남/결혼 축으로 나눈다. 원문은 본문에 넣지 않는다."""
+
+    text = concern_text or ""
+    if _has_any(text, ("재회", "전남친", "전여친", "헤어진", "다시 만나")):
+        return "reunion"
+    if _has_any(text, ("결혼", "결혼운", "혼인", "배우자", "만나는 사람")):
+        return "marriage"
+    if _has_any(text, ("소개팅", "새 인연", "새로운 인연", "연애를 못", "연애 못", "만남")):
+        return "new_love"
+    return "relationship"
+
+
+def _love_snapshot_text(
+    focus: str,
+    near_label: str,
+    love_detail: str,
+    name_prefix: str,
+) -> str:
+    if focus == "reunion":
+        base = (
+            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에서는 상대의 반응이 "
+            "다시 살아나는지 보되 짧은 안부부터 여는 쪽이 안전합니다. 좋은 구간은 "
+            "연락이 자연스럽게 이어지고 약속이 구체화되는 때이고, 조심할 구간은 답이 짧거나 "
+            "예전 문제가 그대로 반복되는 때입니다."
+        )
+    elif focus == "new_love":
+        base = (
+            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에는 새 만남을 "
+            "가볍게 열어 볼 여지가 있습니다. 좋은 구간은 소개팅이나 지인 소개처럼 부담이 작은 "
+            "자리에서 대화가 이어지는 때이고, 조심할 구간은 외로움 때문에 서둘러 결론을 "
+            "정하려는 때입니다."
+        )
+    elif focus == "marriage":
+        base = (
+            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에는 결혼을 "
+            "확정하기보다 생활 기준과 돈 관리, 가족과의 거리를 확인해야 합니다. 좋은 구간은 "
+            "현실 조건을 함께 맞춰 보는 때이고, 조심할 구간은 감정만 앞서 약속을 크게 잡는 때입니다."
+        )
+    else:
+        base = (
+            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에서 관계가 "
+            "움직이는 신호와 멈춰야 할 신호를 나누어 보는 것이 핵심입니다. 좋은 구간은 대화가 "
+            "자연스럽게 이어지는 때이고, 조심할 구간은 혼자만 애쓰는 때입니다."
+        )
+    return base + (f" {love_detail}" if love_detail else "")
+
+
+def _love_consult_intro(focus: str, near_label: str) -> str:
+    if focus == "reunion":
+        return (
+            f"연애와 재회 질문은 마음을 오래 설명하기보다 시기와 판단 지점을 먼저 보아야 합니다. "
+            f"{near_label}를 한 묶음으로 보면, 처음부터 결론을 밀어붙이기보다 상대의 반응이 "
+            "실제로 살아나는지 확인하는 쪽이 맞습니다. 좋은 구간은 짧은 연락이 대화로 이어지고 "
+            "약속이 구체화되는 때이며, 조심할 구간은 답이 짧고 늦어지거나 같은 상처가 반복되는 때입니다."
+        )
+    if focus == "new_love":
+        return (
+            f"연애가 오래 비어 있었던 질문은 위로보다 실제 만남의 문이 언제 열리는지를 먼저 보아야 합니다. "
+            f"{near_label}에는 소개팅, 지인 소개, 가벼운 첫 만남처럼 부담이 작은 자리부터 확인하는 것이 좋습니다. "
+            "좋은 구간은 대화가 자연스럽게 이어지고 다음 약속이 잡히는 때이며, 조심할 구간은 외로움 때문에 "
+            "상대를 빨리 정하려는 때입니다. 서두르지 말고 첫 만남은 확인하는 자리로 두세요."
+        )
+    if focus == "marriage":
+        return (
+            f"결혼 질문은 마음만으로 결론을 내기보다 시기와 생활 조건을 함께 보아야 합니다. "
+            f"{near_label}에는 결혼을 확정한다고 보기보다 현재 만나는 사람, 또는 앞으로 만날 사람과 "
+            "생활 기준, 돈 관리, 가족과의 거리가 맞는지 확인하는 쪽이 더 중요합니다. 좋은 구간은 "
+            "현실 조건을 서로 맞추는 때이고, 조심할 구간은 감정만 앞서 큰 약속을 잡는 때입니다."
+        )
+    return (
+        f"연애 질문은 감정을 길게 끌기보다 시기와 행동 기준을 먼저 보아야 합니다. "
+        f"{near_label}에는 대화가 이어지는지, 만남이 자연스럽게 잡히는지, 혼자만 애쓰지 않는지를 "
+        "차례대로 확인하는 것이 좋습니다."
+    )
+
+
 def build_all(
     saju,
     ref_year: int | None = None,
@@ -1436,15 +1513,10 @@ def build_all(
     _ctx_topics = list(_ctx["topics"])
     _ctx_detail = str(_ctx["detail"])
     _love_detail = _love_context_detail(concern_text)
+    _love_focus_kind = _love_focus(concern_text)
     T["concern_snapshot"] = ""
     if _cc == "연애":
-        T["concern_snapshot"] = (
-            f"{nm_pfx}신청 질문부터 먼저 답하면, {_near_label} 안에서는 상대의 반응이 "
-            "다시 살아나는지 보고 짧은 안부부터 여는 쪽이 안전합니다. "
-            "무리하게 결론을 묻기보다 답이 이어지는지, 약속을 구체적으로 잡는지, "
-            "예전 문제가 반복되지 않는지를 판단하세요."
-            + (f" {_love_detail}" if _love_detail else "")
-        )
+        T["concern_snapshot"] = _love_snapshot_text(_love_focus_kind, _near_label, _love_detail, nm_pfx)
     elif _ctx_topics:
         _snapshot_label = _concern_snapshot_label(_ctx_topics)
         T["concern_snapshot"] = (
@@ -1459,10 +1531,9 @@ def build_all(
             "조건, 사람, 시기를 차례대로 확인하세요."
         )
     if _cc == "연애":
+        _love_intro = _love_consult_intro(_love_focus_kind, _near_label)
         T["consult"] = (
-            f"{nm_pfx}먼저 핵심부터 말하면, 연애와 재회 질문은 마음을 오래 설명하기보다 "
-            f"시기와 판단 지점을 먼저 보아야 합니다. {_near_label}를 한 묶음으로 보면, "
-            f"처음부터 결론을 밀어붙이기보다 상대의 반응이 실제로 살아나는지 확인하는 쪽이 맞습니다. "
+            f"{nm_pfx}먼저 핵심부터 말하면, {_love_intro} "
             f"연락은 길게 감정을 쏟아내는 방식보다 짧고 담백하게 시작하는 편이 좋고, 직접 닿기 어려운 "
             f"상황이라면 겹지인, 학교, 전공, 일상 동선처럼 자연스럽게 마주치는 자리부터 살피는 것이 "
             f"무리한 접근보다 낫습니다.\n\n"
@@ -1471,7 +1542,8 @@ def build_all(
             f"같은 상처를 반복하거나, 주변을 통해서만 소식을 흘리는 흐름이라면 기다림을 길게 끌수록 "
             f"{nm_call}만 지치기 쉽습니다. 이때는 한 번 더 붙잡는 것보다 마음을 정리하는 쪽이 더 안전합니다. "
             f"접촉이 제한된 상황에서는 무리하게 마음을 확인하려 들기보다, 서로 부담이 적은 자리에서 "
-            f"짧은 안부가 자연스럽게 오갈 수 있는지를 먼저 보세요."
+            f"짧은 안부가 자연스럽게 오갈 수 있는지를 먼저 보세요. 새 만남은 소개팅이나 가벼운 첫 만남에서 "
+            f"대화가 이어지는지 보고, 결혼은 생활 기준과 돈 관리가 맞는지부터 확인해야 합니다."
             + (f" {_love_detail}" if _love_detail else "")
             + "\n\n"
             f"명리에서는 이 문제를 시기의 흐름으로 보고, 자미두수에서는 관계가 놓인 자리와 사람 사이의 "
