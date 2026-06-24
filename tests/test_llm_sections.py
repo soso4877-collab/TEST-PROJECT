@@ -344,6 +344,14 @@ def test_compose_prompt_has_no_ttorot_repetition():
     assert text.count("또렷") == 0
 
 
+def test_compose_prompt_matches_delivery_quality_guardrails():
+    text = Path("sajugen/content/llm_sections.py").read_text(encoding="utf-8")
+    assert "기운·흐름·구조·자리·정리" in text
+    assert "각각 두 번을 넘기지 마라" in text
+    assert "문맥과 상관없이 본문에 쓰지 마라" in text
+    assert "무조건 막을 필요는 없어요" in text
+
+
 def test_no_concern_defaults_general_and_section_present():
     rep = builder.build_report(_saju(), use_llm=False)  # concern 없음
     assert rep.concern_category == "전반"
