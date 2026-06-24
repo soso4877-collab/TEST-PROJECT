@@ -17,6 +17,8 @@ policy_files:
   - .claude/rules/calc.md
   - .claude/rules/content.md
   - .claude/rules/render.md
+  - docs/14-tone-spec.md
+  - docs/16-quality-incident-ledger.md
 
 high_confidence_secret_patterns:
   - 'sk-ant-[A-Za-z0-9_\-]{8,}'

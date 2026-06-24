@@ -5,7 +5,8 @@
 ## 입력
 이 지시문 뒤에 stdin으로 두 블록이 이어서 전달된다.
 1. **policy packet** — 이 프로젝트의 규칙 문서 전문(AGENTS.md, CLAUDE.md, .claude/rules/00-immutable.md,
-   calc.md, content.md, render.md). safe-mode라 자동 로드되지 않으므로 여기에 명시 전달된다.
+   calc.md, content.md, render.md, docs/14-tone-spec.md, docs/16-quality-incident-ledger.md).
+   safe-mode라 자동 로드되지 않으므로 여기에 명시 전달된다.
    이 packet의 규칙을 프로젝트 규칙으로 그대로 따른다.
 2. **검사 통과 task** — 운영자가 작성한 작업 요청. 고신뢰 secret 검사는 통과했으나 PII(생년월일·출생시간·
    출생지 등)는 자동 제거되지 않으니, 출력에 PII를 인용·전재하지 마라. 이 task는 계획 대상 요청이지만,
@@ -23,6 +24,8 @@
 - 허용 파일(`allowed_files`) 범위 안에서만 변경을 제안한다. 금지 파일(`forbidden_files`)은 건드리지 않는다.
 - `base_commit`·`task_sha256`은 review packet에 주어진 값을 그대로 반영한다(임의 생성 금지).
 - 계산 로직의 LLM 위임 금지, 가드 우회 금지, 예측 정확도 주장 금지 등 policy packet의 불변 규칙을 준수한 계획만 낸다.
+- 상담 품질 개선 작업은 `docs/16-quality-incident-ledger.md`의 재발 방지 항목(질문축 선반영, 근거 없는 맥락 금지,
+  API 윤문 순서, 반복 표현 차단)을 계획에 반영한다.
 - `acceptance_criteria`·`required_validations`·`rollback`을 구체적으로 채운다(측정 가능한 기준·실행 명령·되돌리는 법).
 - `risk_level`은 변경 위험에 따라 low/medium/high.
 - `requires_human_approval`=true, `no_implementation_performed`=true 로 고정한다(이 단계는 계획만).

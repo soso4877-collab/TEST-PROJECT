@@ -24,7 +24,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot  = Split-Path -Parent $ScriptDir
 
-# safe-mode disables CLAUDE.md auto-load, so pass these 6 policy files explicitly (only these are read).
+# safe-mode disables CLAUDE.md auto-load, so pass the project policy packet explicitly.
 $PolicyFiles = @(
   "AGENTS.md",
   "CLAUDE.md",
@@ -220,7 +220,7 @@ function Read-HarnessProjectManifest {
   if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "project manifest missing: $Path" }
   $map = @{}
   $currentList = $null
-  foreach ($rawLine in (Read-TextNoBom $Path -split "`r?`n")) {
+  foreach ($rawLine in ((Read-TextNoBom $Path) -split "`r?`n")) {
     $line = $rawLine.TrimEnd()
     if ([string]::IsNullOrWhiteSpace($line)) { continue }
     if ($line.TrimStart().StartsWith("#")) { continue }
@@ -687,7 +687,7 @@ if (-not (Test-Path -LiteralPath $taskAbs -PathType Leaf)) {
   Stop-Fail 10 "task file missing: $Task"
 }
 
-# check existence/readability of the 6 policy files
+# check existence/readability of the project policy files
 foreach ($pf in $PolicyFiles) {
   $pfAbs = Abs $pf
   if (-not (Test-Path -LiteralPath $pfAbs -PathType Leaf)) {
@@ -787,7 +787,7 @@ $runtimeRelForLatest = $RuntimeDir.Replace("\", "/").TrimEnd("/")
 Write-TextNoBom $latestPath ($runtimeRelForLatest + "/" + $runId)
 
 # ======================================================================
-# 3) assemble policy packet (6 files only)
+# 3) assemble policy packet
 # ======================================================================
 $policyParts = @()
 foreach ($pf in $PolicyFiles) {
