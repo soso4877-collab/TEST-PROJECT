@@ -636,7 +636,7 @@ def build_gunghap(
 
 import typer  # noqa: E402
 
-app = typer.Typer(add_completion=False, help="다인(2인 이상) 사업 궁합 리포트 — 서담선생 PDF")
+app = typer.Typer(add_completion=False, help="다인(2인 이상) 사업 궁합 리포트 - 서담선생 PDF")
 
 
 @app.command()
