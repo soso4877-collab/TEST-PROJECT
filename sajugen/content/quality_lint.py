@@ -20,6 +20,9 @@ _CONTRADICTIONS = [
 _TYPO = [
     re.compile(r"재수(?:는|가|를|의)?\s*(?:돈|재물|재정|자금|흐름)"),
 ]
+_ADJACENT_HANGUL_DUP_RX = re.compile(
+    r"(?<![\uac00-\ud7a3])(?P<word>[\uac00-\ud7a3]{2,8})(?:\s+(?P=word))+(?![\uac00-\ud7a3])"
+)
 
 
 def lint(text: str, names: list[str] | None = None) -> list[dict]:
@@ -31,6 +34,8 @@ def lint(text: str, names: list[str] | None = None) -> list[dict]:
     for rx in _TYPO:
         for m in rx.finditer(text):
             out.append({"type": "typo", "match": m.group(0), "why": "재무→재수 오타 의심(돈 맥락)"})
+    for m in _ADJACENT_HANGUL_DUP_RX.finditer(text):
+        out.append({"type": "adjacent_duplicate", "match": m.group(0), "why": "인접 단어 반복"})
     for nm in names or []:
         if not nm:
             continue
