@@ -36,6 +36,7 @@ RULES: list[tuple[str, str]] = [
         r"약\s*\d+\s*(세|살)|\d+\s*(세|살|년)\s*전후|전후라면|쯤|안팎|즈음",
         "시기·나이 가정어(확정 명식인데 추정형)",
     ),
+    (r"또렷[가-힣]*", "AI틱 반복 표현(또렷)"),
 ]
 _COMPILED = [(re.compile(p), why) for p, why in RULES]
 
