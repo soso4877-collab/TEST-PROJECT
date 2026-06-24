@@ -492,3 +492,30 @@ def test_love_consult_rule_text_tone_clean(monkeypatch):
     text = rep.section("consult").final_text
     assert ct.loanword_lint(text) == [], ct.loanword_lint(text)
     assert ct.raw_calc_headwords(text) == [], ct.raw_calc_headwords(text)
+
+
+def test_new_love_and_marriage_consult_rule_text_tone_clean(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder
+    from sajugen.content import safe_lint
+
+    saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
+    concerns = [
+        "연애를 못한 지 오래됐는데 앞으로 1년 안에 만남이 들어올까요. 소개팅을 받아도 되는지 궁금합니다",
+        "나이가 있어서 언제 결혼운이 들어오는지 궁금합니다. 지금 만나는 사람과 결혼까지 봐도 될까요",
+    ]
+    for concern in concerns:
+        rep = builder.build_report(
+            saju,
+            use_llm=False,
+            ref_year=2026,
+            name="김태수",
+            concern=concern,
+        )
+        text = rep.section("consult").final_text
+        assert ct.loanword_lint(text) == [], ct.loanword_lint(text)
+        assert ct.raw_calc_headwords(text) == [], ct.raw_calc_headwords(text)
+        assert safe_lint.lint(text) == [], safe_lint.lint(text)
+        assert "또렷" not in text
+        assert "재회합니다" not in text and "결혼합니다" not in text

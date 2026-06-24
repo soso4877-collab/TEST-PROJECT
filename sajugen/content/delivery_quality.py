@@ -67,7 +67,21 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
     },
     "love_reunion": {
         "triggers": ("재회", "연애", "결혼", "전남친", "전여친", "헤어진", "소개팅", "만남"),
-        "evidence": ("재회", "연애", "결혼", "만남", "상대", "연락", "대화", "판단"),
+        "evidence": (
+            "재회",
+            "연애",
+            "결혼",
+            "만남",
+            "상대",
+            "연락",
+            "대화",
+            "판단",
+            "소개팅",
+            "현재 만나는 사람",
+            "생활 기준",
+            "돈 관리",
+            "배우자 기준",
+        ),
     },
     "timing": {
         "triggers": ("언제", "시기", "올해", "내년", "1년", "일년", "상반기", "하반기"),
@@ -115,6 +129,34 @@ _NEAR_TERM_TIMING_TERMS = (
     "겨울",
     "월",
 )
+
+_LOVE_ACTION_TERMS = (
+    "연락",
+    "안부",
+    "소개팅",
+    "첫 만남",
+    "현재 만나는 사람",
+    "생활 기준",
+    "돈 관리",
+    "가족",
+    "다가",
+    "접점",
+    "약속",
+)
+
+_LOVE_CAUTION_TERMS = (
+    "조심",
+    "주의",
+    "멈추",
+    "물러서",
+    "서두르",
+    "답이 짧",
+    "늦어지",
+    "무리",
+    "반복",
+)
+
+_MYEONGNI_MARKERS = ("명리", "사주")
 
 _FRONTLOAD_TERMS = {
     "decision": ("결론", "핵심", "먼저", "한마디", "정리하면", "말씀드리면"),
@@ -193,6 +235,30 @@ def _near_term_timing_result(text: str, required_axes: set[str]) -> dict:
     if "love_reunion" not in required_axes:
         return {"required": False, "ok": True, "hits": []}
     hits = _hit_terms(text, _NEAR_TERM_TIMING_TERMS)
+    return {"required": True, "ok": bool(hits), "hits": hits}
+
+
+def _love_action_result(text: str, required_axes: set[str]) -> dict:
+    """Paid love/reunion/marriage answers need usable action and caution."""
+
+    if "love_reunion" not in required_axes:
+        return {"required": False, "ok": True, "action_hits": [], "caution_hits": []}
+    action_hits = _hit_terms(text, _LOVE_ACTION_TERMS)
+    caution_hits = _hit_terms(text, _LOVE_CAUTION_TERMS)
+    return {
+        "required": True,
+        "ok": bool(action_hits) and bool(caution_hits),
+        "action_hits": action_hits,
+        "caution_hits": caution_hits,
+    }
+
+
+def _love_myeongni_result(text: str, required_axes: set[str]) -> dict:
+    """Love-axis paid answers should not lean on ziwei alone."""
+
+    if "love_reunion" not in required_axes:
+        return {"required": False, "ok": True, "hits": []}
+    hits = _hit_terms(text, _MYEONGNI_MARKERS)
     return {"required": True, "ok": bool(hits), "hits": hits}
 
 
@@ -315,6 +381,10 @@ def analyze(
     if is_premium and not near_term_timing["ok"]:
         failures.append({"rule": "missing_near_term_timing", "timing": near_term_timing})
 
+    love_action = _love_action_result(text, required_axes)
+    if is_premium and not love_action["ok"]:
+        failures.append({"rule": "missing_love_reunion_action", "action": love_action})
+
     repetition_hits = _repetition_hits(text)
     if repetition_hits:
         fail_hits = [h for h in repetition_hits if h["term"] in _FAIL_REPEAT_TERMS]
@@ -335,6 +405,10 @@ def analyze(
     ziwei = _ziwei_result(text)
     if is_premium and not ziwei["ok"]:
         failures.append({"rule": "missing_usable_ziwei", "ziwei": ziwei})
+
+    love_myeongni = _love_myeongni_result(text, required_axes)
+    if is_premium and not love_myeongni["ok"]:
+        failures.append({"rule": "missing_love_myeongni", "myeongni": love_myeongni})
 
     context_provenance = _context_provenance_result(text, concern, expected_context_terms)
     if is_premium and not context_provenance["ok"]:
@@ -372,6 +446,8 @@ def analyze(
         "missing_axes": missing_axes,
         "frontloaded_answer": frontloaded,
         "near_term_timing": near_term_timing,
+        "love_action": love_action,
+        "love_myeongni": love_myeongni,
         "repetition_hits": repetition_hits,
         "guarantee_hits": guarantee_hits,
         "ziwei": ziwei,
