@@ -19,6 +19,7 @@ policy_files:
   - .claude/rules/render.md
   - docs/14-tone-spec.md
   - docs/16-quality-incident-ledger.md
+  - docs/17-agent-tooling-runbook.md
 
 high_confidence_secret_patterns:
   - 'sk-ant-[A-Za-z0-9_\-]{8,}'

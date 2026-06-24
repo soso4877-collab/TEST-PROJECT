@@ -1,5 +1,24 @@
 # 08. Claude Code / Codex / MCP / Skills Plan
 
+## 2026-06-24 update: tool-first workflow
+
+Decision: keep MCP MVP at zero for sajugen product work. Use installed Codex/GitHub Skills and repo-native harnesses before adding a new MCP server.
+
+Why:
+
+- Codex already exposes Skills, GitHub integration, shell, web search, AGENTS.md, and MCP as separate tool surfaces. For this repo, GitHub PR/CI/review work is covered by the installed GitHub Skills and connector.
+- MCP tools are external-system calls that a model may invoke automatically. The MCP tool spec also treats annotations as untrusted unless they come from trusted servers, and structured outputs still need client validation. That is too broad for customer birth data, PDFs, `.env`, and `data/` until a specific read-only use case is proven.
+- The recurring failures were not caused by missing MCP. They were process gaps: missing hrun evidence in the AI plan, sandbox/network confusion, Playwright probe noise, pytest hang diagnosis, and quality incidents not being consulted first.
+
+Use order:
+
+1. Repo docs and gates: `AGENTS.md`, `CLAUDE.md`, `.claude/rules/00-immutable.md`, `docs/14-tone-spec.md`, `docs/16-quality-incident-ledger.md`, `docs/17-agent-tooling-runbook.md`.
+2. Installed Skills: GitHub Skills for PR/CI/review, local Codex Skills for reusable workflows.
+3. Repo tools: `scripts/hrun.py`, `scripts/ai-harness.ps1`, targeted pytest, PDF verify.
+4. External MCP only if it passes the checklist in `docs/17-agent-tooling-runbook.md`.
+
+Deferred improvement: create a personal `sajugen-workflow` Codex Skill only after this workflow repeats again. The Skill should point to `docs/17-agent-tooling-runbook.md` and avoid duplicating full project rules.
+
 > 최초 작성: 2026-06-10. 공식자료 확인: docs/00 §A. 원칙: AI 도구 = 개발·검증 전용, 제품 런타임은 공식 API 호출만.
 
 ## 기존 자산 (설치 완료, 유지)

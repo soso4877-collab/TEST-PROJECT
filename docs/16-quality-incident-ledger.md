@@ -1,5 +1,18 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-06-24 추가: QI-2026-06-24-07 도구 우선 조사 없이 직접 진행해 반복 지연
+
+- 증상: 이미 있는 하네스, GitHub Skill, Playwright guard, pytest 진단 순서를 먼저 고정하지 않아 같은 종류의 막힘이 반복되었다.
+- 영향: 사용자가 "왜 이렇게 오래 걸리는지", "왜 계속 오류가 나는지"를 물을 정도로 개발 속도와 신뢰가 떨어졌다.
+- 원인: 작업 시작 전에 "기존 Skill/MCP/도구로 해결 가능한가"를 체크하는 운영 절차가 문서와 task 템플릿에 없었다. PLAN_VERDICT=BLOCK, API 연결 실패, pytest hang, Playwright sandbox noise를 각각 별도 사건처럼 처리했다.
+- 재발 방지:
+  - 새 작업은 `docs/17-agent-tooling-runbook.md`의 시작 순서를 먼저 따른다.
+  - `handoff/templates/ai_task.md`에 도구/Skill/MCP 사전 확인 항목을 채운다.
+  - MCP는 기본 보류한다. 고객 PII, `.env`, `data/`, PDF 산출물이 걸리는 작업은 repo-native 도구와 설치된 Skills가 먼저다.
+  - 오류가 나면 같은 명령을 반복하지 말고 runbook의 blocker playbook으로 원인을 먼저 분리한다.
+- 연결 커밋/PR: tool-first runbook 도입 PR.
+- 다음 세션 검증: 작업 시작 보고에 "사용할 기존 도구/Skill"과 "MCP 사용 여부"가 한 줄로 들어가 있는지 본다.
+
 > 목적: 운영 중 발견한 풀이 품질 사고를 대화방 기억에만 두지 않고, 저장소 안에 남겨 다음 세션과 다른 도구가 같은 실수를 반복하지 않게 한다.
 > 이 문서는 고객 원문, 생년월일, 연락처, PDF 전문을 보관하지 않는다. 필요한 경우에도 `P건`, `S건`처럼 최소 식별자만 쓴다.
 
