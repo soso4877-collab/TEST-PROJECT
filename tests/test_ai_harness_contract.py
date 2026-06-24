@@ -69,10 +69,12 @@ def test_project_manifest_declares_project_specific_policy():
         ".claude/rules/render.md",
         "docs/14-tone-spec.md",
         "docs/16-quality-incident-ledger.md",
+        "docs/17-agent-tooling-runbook.md",
     ):
         assert f"- {pf}" in raw
     assert "핵심 축 누락" in _read("docs/16-quality-incident-ledger.md")
     assert "API 윤문 투입 순서 혼동" in _read("docs/16-quality-incident-ledger.md")
+    assert "Agent Tooling Runbook" in _read("docs/17-agent-tooling-runbook.md")
 
 
 def test_claude_plan_schema_simplified():
@@ -238,7 +240,7 @@ def test_ps_reads_project_manifest_policy_files():
     ):
         assert pf in t, f"정책 파일 경로 누락: {pf}"
     manifest = _read("harness/project.yml")
-    for pf in ("docs/14-tone-spec.md", "docs/16-quality-incident-ledger.md"):
+    for pf in ("docs/14-tone-spec.md", "docs/16-quality-incident-ledger.md", "docs/17-agent-tooling-runbook.md"):
         assert f"- {pf}" in manifest, f"manifest 정책 파일 누락: {pf}"
     for excluded in (".env", "data/**", "harness/profiles/local/**", "sajugen/render/out/**", "handoff/reports/**"):
         assert excluded in manifest, f"manifest default_forbidden 누락: {excluded}"
@@ -250,6 +252,7 @@ def test_ai_prompts_reference_quality_incident_ledger():
     for text in (claude, codex):
         assert "docs/14-tone-spec.md" in text
         assert "docs/16-quality-incident-ledger.md" in text
+        assert "docs/17-agent-tooling-runbook.md" in text
     assert "질문축" in claude
     assert "근거 없는 맥락" in claude
     assert "API 윤문 순서" in codex
@@ -484,6 +487,7 @@ def test_dryrun_best_effort():
     assert "no_runtime_output_written=true" in r.stdout
     assert "docs/14-tone-spec.md" in r.stdout
     assert "docs/16-quality-incident-ledger.md" in r.stdout
+    assert "docs/17-agent-tooling-runbook.md" in r.stdout
     # DryRun은 LATEST.txt를 새로 만들지 않는다
     if not latest_before:
         assert not latest.exists(), "DryRun이 LATEST.txt를 생성하면 안 됨"
