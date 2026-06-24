@@ -163,11 +163,28 @@ def test_love_concern_answers_near_term_first(monkeypatch):
     assert rep.concern_category == "연애", rep.concern_category
     consult = rep.section("consult").final_text
     assert consult.startswith("먼저 핵심부터 말하면"), consult
-    assert "앞으로 1년 안" in consult
+    assert "2026년 하반기부터 2027년 상반기까지" in consult
     assert "판단 지점" in consult
-    assert "상대가 실제로 대화를 이어 오는지" in consult
+    assert "짧고 담백하게" in consult
+    assert "겹지인" in consult and "학교" in consult and "전공" in consult
+    assert "상대가 답을 이어 오고" in consult
+    assert "답이 짧고 늦어지거나" in consult
+    assert "명리에서는" in consult and "자미두수에서는" in consult
+    assert len(consult) >= 700
     assert "재회합니다" not in consult and "결혼합니다" not in consult
     assert rep.guard.clean is True
+
+
+def test_rule_generated_body_avoids_ttorot_repetition(monkeypatch):
+    _no_key(monkeypatch)
+    rep = builder.build_report(
+        _saju(),
+        use_llm=False,
+        ref_year=2026,
+        concern="전남친과 재회 시기 언제가 좋을까요",
+    )
+    body = "\n".join(s.final_text for s in rep.sections)
+    assert body.count("또렷") == 0
 
 
 def test_compose_prompt_has_no_ttorot_repetition():
