@@ -65,7 +65,7 @@ def test_premium_without_customer_context_reports_layout_and_repetition_only():
     assert "premium_low_density_pages" not in failure_rules
     assert "repetitive_phrasing" not in failure_rules
     assert "premium_low_density_pages" in warning_rules
-    assert "repetitive_phrasing" in warning_rules
+    assert "domain_term_repetition" in warning_rules
 
 
 def test_premium_integrated_question_passes_when_axes_and_ziwei_are_present():
@@ -84,6 +84,42 @@ def test_premium_integrated_question_passes_when_axes_and_ziwei_are_present():
     assert r["expected_context_hits"]["청마"] == 1
     assert r["frontloaded_answer"]["ok"] is True
     assert r["ziwei"]["cross_domains"]
+
+
+def test_generated_premium_context_report_passes_with_domain_term_repetition_warning(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder
+
+    saju = engine.build(1966, 8, 1, 2, 0, is_male=False, horoscope_date="2026-06-01")
+    concern = (
+        "집 매매와 김포 이주, 계양과 비교, 청마로타리클럽 창립, "
+        "도와주는 사람 도움 여부, 계약 주의점과 시기가 궁금합니다"
+    )
+    rep = builder.build_report(
+        saju,
+        use_llm=False,
+        ref_year=2026,
+        name="정숙",
+        concern=concern,
+        product="integrated",
+    )
+    body = "\n".join(s.final_text for s in rep.sections)
+    r = dq.analyze(
+        body,
+        pages=27,
+        product="integrated",
+        premium=True,
+        concern=concern,
+        expected_context_terms=["청마"],
+    )
+    assert r["clean"] is True, r
+    assert r["frontloaded_answer"]["ok"] is True
+    assert r["missing_axes"] == []
+    assert r["ziwei"]["ok"] is True
+    assert r["expected_context_hits"]["청마"] == 1
+    assert "domain_term_repetition" in {w["rule"] for w in r["warnings"]}
+    assert "repetitive_phrasing" not in {f["rule"] for f in r["failures"]}
 
 
 def test_love_or_reunion_question_requires_near_term_timing_and_action():
