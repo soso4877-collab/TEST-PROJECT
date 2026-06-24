@@ -60,6 +60,7 @@ def test_classify_golden():
         ("전남친과 다시 만날 수 있을까요", _C.LOVE),
         ("소개팅은 언제가 좋을까요", _C.LOVE),
         ("주식 투자 시기 괜찮을까요", _C.WEALTH),  # 투자/주식이 시기보다 우선
+        ("가지고 있는 땅과 재산이 언제 큰 자산이 될까요. 자식복과 위험한 시점도 궁금합니다", _C.WEALTH),
         ("요즘 건강이 걱정돼요", _C.HEALTH),
         ("부모님과 갈등이 있어요", _C.RELATION),
         ("이사 가기 좋은 때가 언제일까요", _C.TIMING),
@@ -213,7 +214,7 @@ def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
         concern=concern,
     )
     consult = rep.section("consult").final_text
-    assert consult.startswith("먼저 핵심부터 말하면"), consult
+    assert "먼저 핵심부터 말하면" in consult[:20], consult
     for term in (
         "2026년 하반기부터 2027년 상반기까지",
         "집과 이사",
@@ -228,6 +229,37 @@ def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
     ):
         assert term in consult, term
     assert "장재화" not in consult
+    assert rep.guard.clean is True
+
+
+def test_property_children_and_risk_concern_is_frontloaded(monkeypatch):
+    _no_key(monkeypatch)
+    concern = (
+        "가지고 있는 땅이 언제쯤 더 큰 자산이 될까요. 자식복은 어떨까요. "
+        "재산이 크게 부풀어질 시점과 인생의 위험한 시점이 궁금합니다"
+    )
+    rep = builder.build_report(
+        _saju(),
+        use_llm=False,
+        ref_year=2026,
+        name="순자",
+        concern=concern,
+    )
+    assert rep.concern_category == "재물", rep.concern_category
+    consult = rep.section("consult").final_text
+    assert "먼저 핵심부터 말하면" in consult[:20], consult
+    for term in (
+        "2026년 하반기부터 2027년 상반기까지",
+        "땅과 자산",
+        "자식복",
+        "위험 시점",
+        "개발 계획",
+        "세금",
+        "현금화 시점",
+        "보증",
+        "명의 이전",
+    ):
+        assert term in consult, (term, consult)
     assert rep.guard.clean is True
 
 

@@ -185,6 +185,11 @@ def test_generated_question_type_matrix_keeps_customer_axes_visible(monkeypatch)
             "contains": ["이직", "수입", "지출", "직업"],
             "absent": ["이사와 집 문제", "집과 사람과 계약"],
         },
+        {
+            "concern": "가지고 있는 땅이 언제 더 큰 자산이 될까요. 자식복과 재산이 크게 부풀어질 시점, 위험한 시점도 궁금합니다",
+            "contains": ["땅과 자산", "자식복", "위험 시점", "개발 계획", "현금화 시점"],
+            "absent": ["대인관계와 성향"],
+        },
     ]
     for case in cases:
         rep = builder.build_report(
