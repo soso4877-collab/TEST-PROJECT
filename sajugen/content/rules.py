@@ -681,6 +681,8 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
     has_group = _has_any(text, ("청마", "로타리", "클럽", "창립", "모임", "단체", "봉사"))
     has_helper = _has_any(text, ("도와", "도움", "협조", "귀인", "사람", "장재화", "조력"))
     has_contract = _has_any(text, ("계약", "매매", "돈", "대출", "가격", "손해", "명의", "잔금"))
+    has_work = _has_any(text, ("이직", "직장", "직업", "창업", "사업", "일"))
+    has_income = _has_any(text, ("수입", "월급", "매출", "지출", "돈이 새"))
 
     if has_house:
         topics.append("집과 이사")
@@ -698,6 +700,12 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
     if has_contract:
         topics.append("계약과 돈의 확인")
         detail_parts.append("계약은 말보다 서류, 가격, 잔금, 명의를 먼저 보아야 손해를 줄입니다.")
+    if has_work and not has_group:
+        topics.append("직업과 역할 변화")
+        detail_parts.append("이직과 일의 변화는 지금 당장 옮기는 결론보다 맡을 역할과 오래 버틸 조건을 먼저 보아야 합니다.")
+    if has_income:
+        topics.append("수입과 지출의 흐름")
+        detail_parts.append("수입은 들어오는 돈만 보지 말고 새는 돈과 고정 지출을 함께 줄여야 남습니다.")
 
     return {"topics": topics, "detail": " ".join(detail_parts)}
 
@@ -723,6 +731,16 @@ def _love_context_detail(concern_text: str | None) -> str:
         detail_parts.append(
             "겹지인은 마음을 묻는 역할이 아니라 소문이 돌지 않게 거리를 두고, "
             "필요할 때 자연스러운 만남의 자리를 만드는 정도가 안전합니다."
+        )
+    if _has_any(text, ("소개팅", "새 인연", "새로운 인연", "연애를 못", "연애 못", "만남")):
+        detail_parts.append(
+            "연애가 오래 비어 있었다면 소개팅이나 새 만남은 빠른 확답을 받는 자리보다, "
+            "상대가 대화를 이어 가는지 보는 첫 확인 자리로 두는 편이 좋습니다."
+        )
+    if _has_any(text, ("결혼", "결혼운", "혼인", "배우자", "만나는 사람")):
+        detail_parts.append(
+            "결혼은 단번에 확정되는 흐름으로 보지 말고, 현재 만나는 사람과 생활 기준, "
+            "돈 관리, 가족과의 거리가 맞는지 확인하는 문제로 보아야 합니다."
         )
     return " ".join(detail_parts)
 
