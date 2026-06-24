@@ -43,6 +43,15 @@ _CJK_RX = re.compile("[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]+")
 
 _CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩"  # ①~⑩
 
+_ADJACENT_HANGUL_DUP_RX = re.compile(
+    r"(?<![\uac00-\ud7a3])(?P<word>[\uac00-\ud7a3]{2,8})(?:\s+(?P=word))+(?![\uac00-\ud7a3])"
+)
+
+
+def collapse_adjacent_duplicates(text: str) -> str:
+    """Collapse accidental adjacent Korean word duplication, e.g. '반복되는 반복되는'."""
+    return _ADJACENT_HANGUL_DUP_RX.sub(lambda m: m.group("word"), text)
+
 
 def hanja_clean(text: str) -> str:
     # 한자 제거 + 기호 산문화. '수면·식사'(무간격) 보존, 불릿용 ' · '(양옆 공백)만 환원.
@@ -68,6 +77,7 @@ def hanja_clean(text: str) -> str:
     t = re.sub(r"(?:\s*,\s*){2,}", ", ", t)  # ',,'·', ,' → ', '
     t = re.sub(r"\s*,\s*\.", ".", t)  # ',.'·', .' → '.'
     t = re.sub(r"\.{2,}", ".", t)  # '..'(연속 마침표) → '.'
+    t = collapse_adjacent_duplicates(t)
     t = re.sub(r"[ \t]{2,}", " ", t)
     t = re.sub(r" +([,.)])", r"\1", t)  # 구두점 앞 공백 정리
     return t.strip()

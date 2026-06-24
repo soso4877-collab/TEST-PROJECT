@@ -69,6 +69,14 @@ def test_punctuation_normalization():
     )  # 자연 구두점 불변
 
 
+def test_hanja_clean_collapses_adjacent_duplicate_korean_words():
+    assert (
+        pp.hanja_clean("관계에서 반복되는 반복되는 흐름이 보입니다.")
+        == "관계에서 반복되는 흐름이 보입니다."
+    )
+    assert pp.hanja_clean("흐름 흐름 자체를 보는 문장입니다.") == "흐름 자체를 보는 문장입니다."
+
+
 def test_markdown_artifacts_detects_and_clean():
     assert v.markdown_artifacts("정상 한국어 본문입니다. 문제 없음.") == []
     hits = v.markdown_artifacts("앞줄\n---\n**굵게** 줄\n# 제목 줄")

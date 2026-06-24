@@ -33,6 +33,12 @@ def test_quality_flags_jaesu_typo():
     assert q.is_clean("재수가 트이는 시기입니다.")
 
 
+def test_quality_flags_adjacent_duplicate_words():
+    hits = q.lint("관계에서 반복되는 반복되는 흐름이 보입니다.")
+    assert any(h["type"] == "adjacent_duplicate" for h in hits)
+    assert q.is_clean("관계에서 반복되는 흐름이 보입니다.")
+
+
 # ── 이슈6: 시제 ──
 def test_temporal_flags_past_or_current_year():
     assert tl.lint("2026년이 오기 전까지 준비하세요.", 2026)  # ref=2026 → 위반
