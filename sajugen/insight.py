@@ -149,7 +149,7 @@ def extract(
             typer.echo(f"주문 없음: {order_id}")
             raise typer.Exit(code=1)
         if not all_cases and not is_boundary(report):
-            typer.echo(f"평범한 케이스(경계 신호 없음) — 건너뜀. 전수 추출은 --all.")
+            typer.echo(f"평범한 케이스(경계 신호 없음) - 건너뜀. 전수 추출은 --all.")
             raise typer.Exit(code=0)
         rec = extract_insight(report, extracted_at=_now_iso())
         append_insight(rec, out)
@@ -177,7 +177,7 @@ def sweep(
                 continue
             append_insight(extract_insight(report, extracted_at=_now_iso()), out)
             n += 1
-        typer.echo(f"추출 완료: {n}건 → {out}")
+        typer.echo(f"추출 완료: {n}건 -> {out}")
     finally:
         store.close()
 

@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """P5 내부 도구화 E2E — pipeline · Typer CLI · FastAPI 폼."""
 
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +16,28 @@ from sajugen import pipeline  # noqa: E402
 from sajugen.app import app as fastapi_app  # noqa: E402
 from sajugen.cli import app as cli_app  # noqa: E402
 from playwright_guard import require_playwright_subprocess  # noqa: E402
+
+
+def test_operator_cli_help_cp949_safe():
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "cp949:strict"
+    modules = [
+        "sajugen.cli",
+        "sajugen.gunghap",
+        "sajugen.delete_order",
+        "sajugen.insight",
+    ]
+    for mod in modules:
+        r = subprocess.run(
+            [sys.executable, "-m", mod, "--help"],
+            cwd=Path(__file__).resolve().parents[1],
+            capture_output=True,
+            text=True,
+            encoding="cp949",
+            env=env,
+            timeout=30,
+        )
+        assert r.returncode == 0, (mod, r.stderr, r.stdout)
 
 
 def test_pipeline_e2e_gate_pass():
