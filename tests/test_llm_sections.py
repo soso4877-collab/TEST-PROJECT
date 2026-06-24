@@ -175,6 +175,37 @@ def test_love_concern_answers_near_term_first(monkeypatch):
     assert rep.guard.clean is True
 
 
+def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
+    _no_key(monkeypatch)
+    concern = (
+        "김포와 계양 중 어디로 이사해야 하고 장재화님 도움을 받아도 될까요. "
+        "청마로타리클럽 창립과 매매 계약 시기가 궁금합니다"
+    )
+    rep = builder.build_report(
+        _saju(),
+        use_llm=False,
+        ref_year=2026,
+        concern=concern,
+    )
+    consult = rep.section("consult").final_text
+    assert consult.startswith("먼저 핵심부터 말하면"), consult
+    for term in (
+        "2026년 하반기부터 2027년 상반기까지",
+        "집과 이사",
+        "김포",
+        "계양",
+        "청마로타리클럽 창립",
+        "도움을 주겠다는 사람",
+        "계약",
+        "직접 확인",
+        "명리에서는",
+        "자미두수에서는",
+    ):
+        assert term in consult, term
+    assert "장재화" not in consult
+    assert rep.guard.clean is True
+
+
 def test_rule_generated_body_avoids_ttorot_repetition(monkeypatch):
     _no_key(monkeypatch)
     rep = builder.build_report(
