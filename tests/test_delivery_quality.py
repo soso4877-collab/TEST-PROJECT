@@ -48,6 +48,31 @@ def test_premium_thin_report_fails_density_and_ziwei():
     assert r["clean"] is False
 
 
+def test_gunghap_relationship_requires_30_pages_and_question_axes():
+    concern = (
+        "현재 8살 연상의 남성과 썸을 타고 있습니다. 서로 호감은 있지만 대화나 갈등에서 "
+        "생각하는 방식 차이가 있습니다. 상대방의 진심, 성격, 가치관, 연애관, 좋은 영향, "
+        "안정적인 관계를 이어갈 수 있는 궁합인지 궁금합니다."
+    )
+    text = (
+        "결론부터 말하면 이 관계는 호감과 진심을 확인하되 대화와 갈등의 속도를 맞추는 것이 핵심입니다. "
+        "성격과 가치관, 연애관은 생활 기준과 약속을 어떻게 맞추는지에서 드러납니다. "
+        "상대의 마음은 말보다 표현과 반복되는 태도, 신뢰를 지키는 방식으로 보아야 합니다. "
+        "두 사람은 서로에게 좋은 영향을 줄 수 있지만 안정적으로 이어가려면 조율과 속도 조절이 필요합니다. "
+        "앞으로 1년은 올해 하반기와 내년 상반기를 나누어 판단하면 좋습니다. "
+        "먼저 안부와 대화를 가볍게 열고, 서두르지 말고 관계 기준을 확인해야 합니다. "
+        "명리에서는 궁합과 보완을 보고, 자미두수로는 사람과 관계, 돈과 생활, 밖에서 드러나는 모습을 함께 봅니다. "
+    ) * 70
+    thin = dq.analyze(text, pages=29, product="gunghap_relationship", concern=concern)
+    assert thin["clean"] is False
+    assert {"rule": "premium_pages", "value": 29, "minimum": 30} in thin["failures"]
+
+    ok = dq.analyze(text, pages=30, product="gunghap_relationship", concern=concern)
+    assert ok["clean"] is True, ok
+    assert ok["min_gunghap_pages"] == 30
+    assert ok["missing_axes"] == []
+
+
 def test_premium_without_customer_context_reports_layout_and_repetition_only():
     text = (
         "자미두수로 보면 집과 돈과 일이 함께 보이고 흐름도 함께 봅니다. "

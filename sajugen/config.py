@@ -75,6 +75,11 @@ _PRESETS = {
         "cover_title": "서담선생 종합 사주 풀이",
         "closing_sign": "서담선생 드림",
     },
+    "sajudoryeong": {
+        "seal": "사주도령",
+        "cover_title": "사주도령 종합 사주 풀이",
+        "closing_sign": "사주도령 드림",
+    },
 }
 _BRAND_DEFAULT = _PRESETS["default"]
 _SEAL_MAX = 24  # 자유 입력 브랜드 문구 길이 상한(표지·낙관 안전)

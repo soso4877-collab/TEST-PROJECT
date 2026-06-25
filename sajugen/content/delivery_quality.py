@@ -15,9 +15,11 @@ import re
 from collections.abc import Iterable
 
 MIN_PREMIUM_PAGES = 20
+MIN_GUNGHAP_PAGES = 30
 MIN_PREMIUM_TEXT_CHARS = 10_000
 
-_PREMIUM_PRODUCTS = {"premium", "integrated", "premium_integrated", "custom"}
+_GUNGHAP_PRODUCTS = {"gunghap", "gunghap_relationship", "relationship_gunghap"}
+_PREMIUM_PRODUCTS = {"premium", "integrated", "premium_integrated", "custom"} | _GUNGHAP_PRODUCTS
 
 _REPEAT_CAPS = {
     "또렷": 0,
@@ -66,7 +68,16 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
         "evidence": ("위험", "조심", "주의", "손실", "보증", "명의", "무리한 확장", "큰돈"),
     },
     "love_reunion": {
-        "triggers": ("재회", "연애", "결혼", "전남친", "전여친", "헤어진", "소개팅", "만남"),
+        "triggers": (
+            "재회",
+            "연애",
+            "결혼",
+            "전남친",
+            "전여친",
+            "헤어진",
+            "소개팅",
+            "만남",
+        ),
         "evidence": (
             "재회",
             "연애",
@@ -82,6 +93,26 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
             "돈 관리",
             "배우자 기준",
         ),
+    },
+    "relationship_intent": {
+        "triggers": ("썸", "호감", "진심", "상대방", "마음"),
+        "evidence": ("썸", "호감", "진심", "상대", "마음", "표현", "속도"),
+    },
+    "relationship_conflict": {
+        "triggers": ("대화", "갈등", "생각하는 방식", "차이"),
+        "evidence": ("대화", "갈등", "생각", "차이", "말", "속도", "조율"),
+    },
+    "relationship_values": {
+        "triggers": ("성격", "가치관", "연애관"),
+        "evidence": ("성격", "가치관", "연애관", "생활 기준", "관계 기준", "맞추"),
+    },
+    "relationship_stability": {
+        "triggers": ("안정", "좋은 영향", "이어갈", "관계"),
+        "evidence": ("안정", "좋은 영향", "이어갈", "관계", "신뢰", "지속"),
+    },
+    "relationship_compatibility": {
+        "triggers": ("궁합", "잘 맞", "맞는지"),
+        "evidence": ("궁합", "맞는", "맞추", "보완", "끌림", "관계"),
     },
     "timing": {
         "triggers": ("언제", "시기", "올해", "내년", "1년", "일년", "상반기", "하반기"),
@@ -171,6 +202,12 @@ _PROVENANCE_CONTEXT_TERMS = ("청마",)
 
 def _is_premium(product: str | None, premium: bool) -> bool:
     return bool(premium or (product or "").strip().lower() in _PREMIUM_PRODUCTS)
+
+
+def _min_pages(product: str | None) -> int:
+    if (product or "").strip().lower() in _GUNGHAP_PRODUCTS:
+        return MIN_GUNGHAP_PAGES
+    return MIN_PREMIUM_PAGES
 
 
 def _hit_terms(text: str, terms: Iterable[str]) -> list[str]:
@@ -338,12 +375,13 @@ def analyze(
     warnings: list[dict] = []
 
     if is_premium:
-        if pages is not None and pages < MIN_PREMIUM_PAGES:
+        min_pages = _min_pages(product)
+        if pages is not None and pages < min_pages:
             failures.append(
                 {
                     "rule": "premium_pages",
                     "value": pages,
-                    "minimum": MIN_PREMIUM_PAGES,
+                    "minimum": min_pages,
                 }
             )
         if len(text) < MIN_PREMIUM_TEXT_CHARS:
@@ -438,6 +476,7 @@ def analyze(
         "pages": pages,
         "text_chars": len(text),
         "min_premium_pages": MIN_PREMIUM_PAGES,
+        "min_gunghap_pages": MIN_GUNGHAP_PAGES,
         "min_premium_text_chars": MIN_PREMIUM_TEXT_CHARS,
         "failures": failures,
         "warnings": warnings,

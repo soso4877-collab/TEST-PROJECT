@@ -162,6 +162,7 @@ def verify(
     premium: bool = False,
     concern: str | None = None,
     expected_context_terms: list[str] | None = None,
+    ref_date: str | None = None,
 ) -> dict:
     """렌더 PDF 게이트. name_full(전체 이름 리스트)·identity((expected_gans, expected_terms,
     subject_specs))·singang([{full,given,honor,singang}]) 가 주어지면 H1.5.3/3.2 이름 호칭·일간
@@ -207,7 +208,7 @@ def verify(
     from ..content import quality_lint, temporal_lint
 
     qh = quality_lint.lint(text, names)
-    th = temporal_lint.lint(text, ref_year)
+    th = temporal_lint.lint(text, ref_year, ref_date=ref_date)
     r["quality_hits"] = qh[:20]
     r["quality_clean"] = not qh
     r["temporal_hits"] = th[:20]

@@ -66,6 +66,57 @@ def test_name_honor_slots(monkeypatch):
     assert "태수 씨는" in timing or "태수 씨" in timing
 
 
+def test_finalize_strips_llm_signature_and_customer_term_collision():
+    text = (
+        "마음이 없어서가 아니라, 속으로 한 번 더 재고 나서야 입이 열리는 쪽이에요.\n\n"
+        "속을 다 꺼내놓기 전에 상대가 믿을 만한지 먼저 재고, 품위를 지키려 합니다. *사주도령*\n\n"
+        "이 풀이를 쓰면 더 정확합니다.\n\n"
+        "단체 자리보다 작은 자리를 먼저 만들고, 관계의 자리를 천천히 본다.\n\n"
+        "상대와 거리를 재고, 관계를 자리를 잡아주는 역할을 합니다.\n\n"
+        "상황을 재고 조심스럽게 움직입니다.\n\n"
+        "같은 불안이 반복되면 속도를 낮추면 됩니다. 🌙 사주도령\n\n"
+        "마지막 기준입니다. 사주도령 🪄\n\n"
+        "한 번의 고백보다 이 작은 반복들을 먼저 보세요. *사주도령 궁합 풀이*\n\n"
+        "두 분의 관계, 응원합니다. 🌿\n\n"
+        "🔮 사주도령 전문 상담\n"
+        "더 깊은 궁합과 시기별 흐름이 궁금하시다면 아래 링크에서 확인하세요.\n\n"
+        "고객 질문: 현재 썸 관계가 궁금합니다.\n"
+        "상담 대상: 가현 씨, 상철 씨\n"
+        "[자미두수]\n"
+        "이 장에서 가장 중요한 기준은 반복 태도입니다.\n\n"
+        "마지막 결정은 감정의 세기보다 상대의 반복 태도로 해야 한다. 기다릴 기준과 물러설 기준을 따로 세운다.\n\n"
+        "🔮 사주도령 | 연애, 썸, 재회, 결혼 궁합 전문 상담"
+    )
+    out = g._finalize(text)
+    assert "사주도령 |" not in out
+    assert "*사주도령*" not in out
+    assert "🌙 사주도령" not in out
+    assert "🔮" not in out
+    assert "재고" not in out
+    assert "이 풀이" not in out
+    assert "이 기준을 쓰면" in out
+    assert "단체 자리" not in out
+    assert "작은 자리" not in out
+    assert "관계의 자리" not in out
+    assert "거리를 재고" not in out
+    assert "상황을 재고" not in out
+    assert "안정되아" not in out
+    assert "사주도령 🪄" not in out
+    assert "*사주도령 궁합 풀이*" not in out
+    assert "두 분의 관계, 응원합니다" not in out
+    assert "전문 상담" not in out
+    assert "아래 링크" not in out
+    assert "고객 질문" not in out
+    assert "상담 대상" not in out
+    assert "[자미두수]" not in out
+    assert "이 장에서" not in out
+    assert "해야 한다" not in out
+    assert "세운다" not in out
+    assert "해야 해요" in out
+    assert "세우는 게 좋아요" in out
+    assert "한 번 더 생각하고 나서야" in out
+
+
 def test_pdfwide_name_policy_clean_on_reused_slots():
     # H1.5.3.1: _person_slot 이 overview·each·business 에 재사용돼도 PDF-wide 순화 후 위반 0.
     from itertools import combinations
@@ -191,15 +242,234 @@ def _fake_anthropic(monkeypatch, text):
 def test_compose_falls_back_on_quality_violation(monkeypatch):
     # 이슈4·5: LLM이 모순/오타 문장을 내면 quality_lint 가 잡아 룰 슬롯 폴백
     _fake_anthropic(monkeypatch, "두 사람은 신강한 신약의 차이가 큽니다.")
-    out = g._compose("each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026)
+    out = g._compose(
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+    )
     assert "신강한 신약" not in out and out == "근거 슬롯"
 
 
 def test_compose_falls_back_on_temporal_violation(monkeypatch):
     # 이슈6: ref_year 이하 연도를 '오기 전'으로 쓰면 temporal_lint 가 잡아 폴백
     _fake_anthropic(monkeypatch, "2026년이 오기 전까지 준비하세요.")
-    out = g._compose("timing", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026)
+    out = g._compose(
+        "timing", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+    )
     assert "오기 전까지" not in out and out == "근거 슬롯"
+
+
+def test_compose_does_not_use_llm_without_explicit_flag(monkeypatch):
+    _fake_anthropic(monkeypatch, "LLM 문장")
+    out = g._compose("each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026)
+    assert out == "근거 슬롯"
+
+
+def test_relationship_mode_uses_sajudoryeong_gate_and_unknown_time(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured = {}
+
+    def fake_render(report, saju, out_name, **kwargs):
+        captured["titles"] = [s.title for s in report.sections]
+        captured["texts"] = [s.final_text for s in report.sections]
+        captured["brand"] = kwargs["brand"]
+        captured["chapter_breaks"] = kwargs.get("chapter_breaks")
+        captured["out_name"] = out_name
+        return "fake.pdf"
+
+    def fake_verify(pdf_path, **kwargs):
+        captured["verify"] = kwargs
+        return {"gate_pass": True, "markdown_clean": True}
+
+    monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
+    monkeypatch.setattr(g.render_verify, "verify", fake_verify)
+
+    r = g.build_gunghap(
+        [
+            ("서가현", (2002, 10, 23, 11, 40), False, False),
+            ("민상철", (1994, 6, 27, 12, 0), True, True),
+        ],
+        situation="썸 관계에서 상대방의 진심, 대화 갈등, 성격 가치관 연애관, 안정적인 궁합이 궁금합니다.",
+        ref_year=2026,
+        out_name="relationship.pdf",
+        brand="sajudoryeong",
+        mode="relationship",
+    )
+
+    assert r["mode"] == "relationship"
+    assert captured["brand"]["seal"] == "사주도령"
+    assert captured["brand"]["cover_title"] == "사주도령 궁합 풀이"
+    assert captured["chapter_breaks"] is True
+    assert captured["verify"]["product"] == "gunghap_relationship"
+    assert captured["verify"]["premium"] is True
+    assert "상대의 진심과 표현 방식" in captured["titles"]
+    assert all("사업" not in title for title in captured["titles"])
+    assert "출생시각은 미상" in "\n".join(captured["texts"])
+
+
+def test_relationship_fallback_is_customer_facing_not_raw_fact_slot(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured = {}
+
+    def fake_render(report, saju, out_name, **kwargs):
+        captured["texts"] = [s.final_text for s in report.sections]
+        return "fake.pdf"
+
+    def fake_verify(pdf_path, **kwargs):
+        return {"gate_pass": True, "markdown_clean": True}
+
+    monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
+    monkeypatch.setattr(g.render_verify, "verify", fake_verify)
+
+    g.build_gunghap(
+        [
+            ("서가현", (2002, 10, 23, 11, 40), False, False),
+            ("민상철", (1994, 6, 27, 12, 0), True, True),
+        ],
+        situation="현재 8살 연상의 남성과 썸을 타고 있고 대화와 갈등 방식이 고민입니다.",
+        ref_year=2026,
+        out_name="relationship.pdf",
+        brand="sajudoryeong",
+        mode="relationship",
+    )
+
+    joined = "\n".join(captured["texts"])
+    for bad in (
+        "고객 질문",
+        "상담 대상",
+        "근거 자료",
+        "이 장에서",
+        "두 사람 사이에서 실제로 맞물리는 부분",
+        "십성으로",
+        "일지 삼합",
+        "협업의 결",
+        "명궁은 명궁",
+        "신궁은 명궁",
+        "시기 흐름은 다음처럼",
+    ):
+        assert bad not in joined
+    assert "출생시각이 미상" in joined or "출생시각은 미상" in joined
+    assert "가현 씨" in joined and "상철 씨" in joined
+
+
+def test_relationship_honorifics_normalized_to_ssi():
+    out = g._normalize_gunghap_honorifics(
+        "가현 님이 먼저 묻고, 상철 님에게 확인합니다. 서가현님과 민상철 님의 속도를 봅니다.",
+        ["서가현", "민상철"],
+    )
+    assert "가현 님" not in out
+    assert "상철 님" not in out
+    assert "서가현님" not in out
+    assert "민상철 님" not in out
+    assert "가현 씨" in out
+    assert "상철 씨" in out
+
+
+def test_relationship_llm_keeps_chapter_breaks_for_premium_layout(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    captured = {}
+
+    def fake_compose(section_id, base_text, *args, **kwargs):
+        return g._finalize(base_text)
+
+    def fake_render(report, saju, out_name, **kwargs):
+        captured["chapter_breaks"] = kwargs.get("chapter_breaks")
+        captured["body_font_size"] = kwargs.get("body_font_size")
+        captured["body_line_height"] = kwargs.get("body_line_height")
+        return "fake.pdf"
+
+    def fake_verify(pdf_path, **kwargs):
+        return {"gate_pass": True, "markdown_clean": True}
+
+    monkeypatch.setattr(g, "_compose", fake_compose)
+    monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
+    monkeypatch.setattr(g.render_verify, "verify", fake_verify)
+
+    g.build_gunghap(
+        [
+            ("서가현", (2002, 10, 23, 11, 40), False, False),
+            ("민상철", (1994, 6, 27, 12, 0), True, True),
+        ],
+        mode="relationship",
+        brand="sajudoryeong",
+        use_llm=True,
+    )
+
+    assert captured["chapter_breaks"] is True
+    assert captured["body_font_size"] == "13.8pt"
+    assert captured["body_line_height"] == "1.68"
+
+
+def test_relationship_layout_retries_only_low_density_without_recomposing(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    compose_calls = []
+    render_calls = []
+    verify_calls = []
+
+    def fake_compose(section_id, base_text, *args, **kwargs):
+        compose_calls.append(section_id)
+        return g._finalize(base_text)
+
+    def fake_render(report, saju, out_name, **kwargs):
+        render_calls.append((kwargs.get("body_font_size"), kwargs.get("body_line_height")))
+        return "fake.pdf"
+
+    def fake_verify(pdf_path, **kwargs):
+        verify_calls.append(kwargs)
+        if len(verify_calls) == 1:
+            return {
+                "gate_pass": False,
+                "markdown_clean": True,
+                "no_orphan": False,
+                "delivery_quality": {"failures": [{"rule": "premium_low_density_pages"}]},
+            }
+        return {"gate_pass": True, "markdown_clean": True, "delivery_quality": {"failures": []}}
+
+    monkeypatch.setattr(g, "_compose", fake_compose)
+    monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
+    monkeypatch.setattr(g.render_verify, "verify", fake_verify)
+
+    result = g.build_gunghap(
+        [
+            ("서가현", (2002, 10, 23, 11, 40), False, False),
+            ("민상철", (1994, 6, 27, 12, 0), True, True),
+        ],
+        mode="relationship",
+        brand="sajudoryeong",
+        use_llm=True,
+    )
+
+    assert render_calls == [("13.8pt", "1.68"), ("13.6pt", "1.64")]
+    assert len(compose_calls) == len(g._REL_SECTIONS)
+    assert len(verify_calls) == 2
+    assert result["layout_attempts"][0]["low_density_only"] is True
+    assert result["layout_attempts"][1]["gate_pass"] is True
+
+
+def test_business_mode_keeps_business_cover_without_premium_gate(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured = {}
+
+    def fake_render(report, saju, out_name, **kwargs):
+        captured["brand"] = kwargs["brand"]
+        return "fake.pdf"
+
+    monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
+
+    def fake_verify(pdf_path, **kwargs):
+        captured["verify"] = kwargs
+        return {"gate_pass": True, "markdown_clean": True}
+
+    monkeypatch.setattr(g.render_verify, "verify", fake_verify)
+    g.build_gunghap(
+        [
+            ("김태수", (1997, 10, 27, 9, 46), True),
+            ("김태성", (1995, 3, 28, 16, 10), True),
+        ],
+        mode="business",
+        brand="seodam",
+    )
+    assert captured["brand"]["cover_title"] == "서담선생 사업 궁합 풀이"
+    assert captured["verify"]["product"] is None
+    assert captured["verify"]["premium"] is False
 
 
 def test_singang_specs_from_person_facts():
@@ -243,5 +513,6 @@ def test_compose_falls_back_on_singang_group(monkeypatch):
         2026,
         None,
         specs,
+        use_llm=True,
     )
     assert "세 사람 모두 신약" not in out and out == "근거 슬롯"

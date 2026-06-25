@@ -83,13 +83,25 @@ def _regen_pdf(profile: dict, python: str) -> dict:
             "--out",
             out_name,
         ]
+        if profile.get("brand"):
+            cmd += ["--brand", str(profile["brand"])]
+        if profile.get("product"):
+            cmd += ["--product", str(profile["product"])]
+        if profile.get("concern"):
+            cmd += ["--concern", str(profile["concern"])]
     else:
-        cmd = [python, "-m", "sajugen.gunghap"]
+        cmd = [python, "-m", "sajugen.gunghap", "--llm"]
         for p in profile["people"]:
             b = p["birth"].split()
-            t = b[1] if len(b) > 1 else "12:00"
+            t = b[1] if len(b) > 1 else ""
             cmd += ["--person", f"{p['name']},{b[0]},{t},{p.get('gender', '남')}"]
         cmd += ["--ref-year", str(profile.get("ref_year", 2026)), "--out", out_name]
+        if profile.get("brand"):
+            cmd += ["--brand", str(profile["brand"])]
+        if profile.get("mode"):
+            cmd += ["--mode", str(profile["mode"])]
+        if profile.get("situation") or profile.get("concern"):
+            cmd += ["--situation", str(profile.get("situation") or profile.get("concern"))]
     r = subprocess.run(
         cmd,
         cwd=ROOT,

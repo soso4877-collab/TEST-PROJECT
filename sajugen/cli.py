@@ -29,7 +29,7 @@ def gen(
     concern: str = typer.Option(None, help="고객 고민/질문(선택). 분류 -> 맞춤 안내 섹션"),
     product: str = typer.Option("integrated", help="상품: integrated|myeongni|ziwei"),
     brand: str = typer.Option(
-        "seodam", help="브랜드: 프리셋 키(seodam/default) 또는 임의 문구(그 문구로 표기)"
+        "sajudoryeong", help="브랜드: 프리셋 키(sajudoryeong/seodam/default) 또는 임의 문구(그 문구로 표기)"
     ),
     out: str = typer.Option("saju_report.pdf", help="출력 파일명"),
 ) -> None:

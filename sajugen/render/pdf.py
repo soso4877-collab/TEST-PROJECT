@@ -57,6 +57,9 @@ def render_html(
     name: str | None = None,
     unknown_time: bool = False,
     brand: dict | None = None,
+    chapter_breaks: bool = True,
+    body_font_size: str = "14.5pt",
+    body_line_height: str = "1.8",
 ) -> str:
     # 도판 전면 제거(운영자 지시 — 목차+글만). 챕터·번호·차트 변수 미전달.
     # 본문은 빈 줄 기준 문단 분할 → 템플릿 <p> 렌더(단문 호흡 보존 + tagged 구조 개선).
@@ -76,6 +79,9 @@ def render_html(
         cover_name=(f"{name} 님" if name else ""),
         cover_sub=(f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")),
         sections=secs,
+        chapter_breaks=chapter_breaks,
+        body_font_size=body_font_size,
+        body_line_height=body_line_height,
     )
 
 
@@ -105,9 +111,22 @@ def render_pdf(
     name: str | None = None,
     unknown_time: bool = False,
     brand: dict | None = None,
+    chapter_breaks: bool = True,
+    body_font_size: str = "14.5pt",
+    body_line_height: str = "1.8",
 ) -> str:
     os.makedirs(_OUT, exist_ok=True)
-    html = render_html(report, saju, age=age, name=name, unknown_time=unknown_time, brand=brand)
+    html = render_html(
+        report,
+        saju,
+        age=age,
+        name=name,
+        unknown_time=unknown_time,
+        brand=brand,
+        chapter_breaks=chapter_breaks,
+        body_font_size=body_font_size,
+        body_line_height=body_line_height,
+    )
     html_path = os.path.join(_OUT, out_name.replace(".pdf", ".html"))
     pdf_path = os.path.join(_OUT, out_name)
     with open(html_path, "w", encoding="utf-8") as f:

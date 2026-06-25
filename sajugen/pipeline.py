@@ -112,6 +112,7 @@ def generate(
         identity=_id_spec,
         product=product,
         concern=concern,
+        ref_date=horoscope_date,
     )
 
     reasons: list[str] = []

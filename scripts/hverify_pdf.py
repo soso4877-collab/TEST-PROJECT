@@ -124,6 +124,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         premium=bool(profile.get("premium", False)),
         concern=profile.get("concern"),
         expected_context_terms=profile.get("expected_context_terms"),
+        ref_date=profile.get("ref_date"),
     )
     out["status"] = "verified"
     out["meta"] = _file_meta(pdf_abs)
