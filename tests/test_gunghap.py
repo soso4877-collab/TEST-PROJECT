@@ -6,7 +6,10 @@
 
 import re
 import sys
+import types
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -22,6 +25,17 @@ def test_person_facts_known_chart():
     # 김태수 = 食神 + 財 → 식신생재 구조, 재성(화) 묘고 戌 보유 → 재고
     assert p["patterns"]["sik_saeng_jae"] is True
     assert p["patterns"]["jaego"] is True
+
+
+def test_relationship_package_import_compatibility():
+    from sajugen.gunghap import build_gunghap
+    import sajugen.relationship as relationship
+    from sajugen.relationship import context, delivery_gate, fallback
+
+    assert build_gunghap is g.build_gunghap
+    assert relationship.context is context
+    assert relationship.fallback is fallback
+    assert relationship.delivery_gate is delivery_gate
 
 
 def test_timing_slot_natural_fallback():
@@ -305,6 +319,29 @@ def test_relationship_mode_uses_sajudoryeong_gate_and_unknown_time(monkeypatch):
     assert "출생시각은 미상" in "\n".join(captured["texts"])
 
 
+def test_build_gunghap_default_brand_is_sajudoryeong(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured = {}
+
+    def fake_render(report, saju, out_name, **kwargs):
+        captured["brand"] = kwargs["brand"]
+        return "fake.pdf"
+
+    def fake_verify(pdf_path, **kwargs):
+        return {"gate_pass": True, "markdown_clean": True}
+
+    monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
+    monkeypatch.setattr(g.render_verify, "verify", fake_verify)
+    g.build_gunghap(
+        [
+            ("서가현", (2002, 10, 23, 11, 40), False, False),
+            ("민상철", (1994, 6, 27, 12, 0), True, True),
+        ],
+        mode="relationship",
+    )
+    assert captured["brand"]["seal"] == "사주도령"
+
+
 def test_relationship_fallback_is_customer_facing_not_raw_fact_slot(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     captured = {}
@@ -348,6 +385,37 @@ def test_relationship_fallback_is_customer_facing_not_raw_fact_slot(monkeypatch)
         assert bad not in joined
     assert "출생시각이 미상" in joined or "출생시각은 미상" in joined
     assert "가현 씨" in joined and "상철 씨" in joined
+
+
+def test_relationship_delivery_gate_blocks_llm_before_api(monkeypatch):
+    from sajugen.relationship import delivery_gate
+
+    calls = []
+    _fake_anthropic(monkeypatch, "LLM 문장")
+
+    class _BoomMessages:
+        def create(self, *a, **k):
+            calls.append(1)
+            raise AssertionError("API must not be called")
+
+    import sys as _sys
+
+    _sys.modules["anthropic"].Anthropic = lambda *a, **k: types.SimpleNamespace(messages=_BoomMessages())
+
+    with pytest.raises(delivery_gate.DeliveryGateError) as ei:
+        g._compose(
+            "overview",
+            "고객 질문: 원문이 들어간 잘못된 context",
+            {"ganzhi": [], "ganzhi_ko": []},
+            "",
+            ["서가현", "민상철"],
+            2026,
+            fallback_text="가현 씨와 상철 씨는 반복 태도를 봐야 합니다.",
+            use_llm=True,
+        )
+    assert calls == []
+    assert "고객 질문" not in str(ei.value)
+    assert ei.value.failures[0]["rule"] in {"internal_meta_label", "raw_or_internal_label"}
 
 
 def test_relationship_honorifics_normalized_to_ssi():

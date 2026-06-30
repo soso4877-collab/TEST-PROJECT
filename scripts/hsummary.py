@@ -8,6 +8,7 @@ tests PASS 수만 기록. 실제 이름/생년월일/출생시간은 넣지 않�
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from pathlib import Path
@@ -24,15 +25,27 @@ _PDF_GATE = [
     "no_orphan",
     "loanword_clean",
     "raw_calc_head_clean",
+    "customer_meta_clean",
+    "placeholder_residue_clean",
+    "style_clean",
+    "role_perspective_clean",
+    "honorific_consistency_clean",
     "name_policy_clean",
     "identity_role_clean",
     "singang_role_clean",
     "delivery_quality_clean",
 ]
 _PDF_COUNT = [
+    "quality_hits_count",
+    "temporal_hits_count",
     "loanword_hits_count",
     "raw_calc_phrase_hits_count",
     "punctuation_hits_count",
+    "semantic_style_hits_count",
+    "ai_meta_hits_count",
+    "placeholder_residue_hits_count",
+    "role_perspective_hits_count",
+    "honorific_consistency_hits_count",
     "name_policy_hits_count",
     "identity_role_hits_count",
     "singang_role_hits_count",
@@ -42,6 +55,27 @@ _PDF_COUNT = [
     "delivery_guarantee_hits_count",
     "loanword_substring_count",
 ]
+_SEMANTIC_GATE_DEFAULTS = {
+    "customer_meta_clean": None,
+    "placeholder_residue_clean": None,
+    "style_clean": None,
+    "role_perspective_clean": None,
+    "honorific_consistency_clean": None,
+}
+_SEMANTIC_COUNT_DEFAULTS = {
+    "semantic_style_hits_count": 0,
+    "ai_meta_hits_count": 0,
+    "placeholder_residue_hits_count": 0,
+    "role_perspective_hits_count": 0,
+    "honorific_consistency_hits_count": 0,
+}
+_SEMANTIC_HIT_FIELDS = (
+    "semantic_style_hits",
+    "ai_meta_hits",
+    "placeholder_residue_hits",
+    "role_perspective_hits",
+    "honorific_consistency_hits",
+)
 
 
 def build_summary(preflight: dict, pytest_result: dict, pdf_results: list[dict]) -> dict:
@@ -66,7 +100,7 @@ def build_summary(preflight: dict, pytest_result: dict, pdf_results: list[dict])
 def _redact_pdf(p: dict) -> dict:
     out = {
         "type": p.get("type"),
-        "pdf": Path(p.get("pdf") or "").name,
+        "pdf": _redacted_pdf_name(p.get("pdf")),
         "status": p.get("status"),
         "regen": p.get("regen", "skipped(미승인)"),
     }
@@ -77,15 +111,110 @@ def _redact_pdf(p: dict) -> dict:
     for k in _PDF_GATE:
         if k in p:
             out[k] = p[k]
+    for k, default in _SEMANTIC_GATE_DEFAULTS.items():
+        out.setdefault(k, default)
     for k in _PDF_COUNT:
         if k in p:
             out[k] = p[k]
-    # 문구는 노출하되(검수용) PII 아님 — 금지문구/힌트 텍스트만
-    for k in ("name_policy_hits", "identity_role_hits", "singang_role_hits", "loanword_hits"):
+    for k, default in _SEMANTIC_COUNT_DEFAULTS.items():
+        out.setdefault(k, default)
+    for k in (
+        "quality_hits",
+        "temporal_hits",
+        "name_policy_hits",
+        "identity_role_hits",
+        "singang_role_hits",
+        "loanword_hits",
+        "orphan_pages",
+        "low_density_pages",
+    ):
         if p.get(k):
-            out[k] = [h.get("match") for h in p[k]][:20]
+            out[k] = _summarize_hits(p[k])
+    for k in _SEMANTIC_HIT_FIELDS:
+        out[k] = _summarize_hits(p.get(k) or [])
+    if "semantic_review_status" in p:
+        out["semantic_review_status"] = p.get("semantic_review_status")
+    else:
+        out["semantic_review_status"] = None
+    if p.get("delivery_quality"):
+        out["delivery_quality"] = _summarize_delivery_quality(p["delivery_quality"])
     out["daewoon_current"] = p.get("daewoon_current")
     return out
+
+
+def _redacted_pdf_name(path: str | None) -> str | None:
+    if not path:
+        return None
+    suffix = Path(path).suffix or ".pdf"
+    return f"[redacted]{suffix}"
+
+
+def _summarize_hits(hits: list[dict]) -> list[dict]:
+    out: list[dict] = []
+    for h in hits[:20]:
+        item = {}
+        for key in (
+            "type",
+            "kind",
+            "rule",
+            "page",
+            "chars",
+            "term",
+            "count",
+            "allowed",
+            "severity",
+            "role",
+            "expected",
+            "actual",
+        ):
+            if key in h:
+                item[key] = h[key]
+        if not item and isinstance(h, dict):
+            item["type"] = "hit"
+        out.append(item)
+    return out
+
+
+def _summarize_delivery_quality(dq: dict) -> dict:
+    return {
+        "clean": dq.get("clean"),
+        "premium": dq.get("premium"),
+        "product": dq.get("product"),
+        "pages": dq.get("pages"),
+        "text_chars": dq.get("text_chars"),
+        "required_axes": dq.get("required_axes"),
+        "missing_axes": dq.get("missing_axes"),
+        "failures": dq.get("failure_messages") or [_delivery_finding(f) for f in dq.get("failures", [])],
+        "warnings": dq.get("warning_messages") or [_delivery_finding(w) for w in dq.get("warnings", [])],
+    }
+
+
+def _delivery_finding(finding: dict) -> dict:
+    out = {"rule": finding.get("rule")}
+    for key in ("value", "minimum", "axes"):
+        if key in finding:
+            out[key] = finding[key]
+    if "pages" in finding:
+        out["pages_count"] = len(finding.get("pages") or [])
+    return {k: v for k, v in out.items() if v is not None}
+
+
+def _sha12_payload(payload: dict) -> str:
+    data = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(data).hexdigest()[:12]
+
+
+def _archive_summary(summary: dict, out_dir: Path) -> dict:
+    archived = json.loads(json.dumps(summary, ensure_ascii=False, default=str))
+    run_state = archived.pop("run_state", None)
+    if run_state:
+        report = dict(archived.get("report") or {})
+        report["run_state"] = {
+            "path": str(out_dir / "RUN_STATE.json"),
+            "sha12": _sha12_payload(run_state),
+        }
+        archived["report"] = report
+    return archived
 
 
 def _md(summary: dict) -> str:
@@ -115,6 +244,18 @@ def _md(summary: dict) -> str:
         L.append(f"- sha256: {p.get('sha256')} / pages: {p.get('pages')} / size: {p.get('size')}")
         L.append("- gates: " + ", ".join(f"{k}={p.get(k)}" for k in _PDF_GATE if k in p))
         L.append("- hit counts: " + ", ".join(f"{k}={p.get(k)}" for k in _PDF_COUNT if k in p))
+        if p.get("delivery_quality"):
+            dq = p["delivery_quality"]
+            L.append(f"- delivery failures: {dq.get('failures')}")
+            L.append(f"- delivery warnings: {dq.get('warnings')}")
+        if p.get("quality_hits"):
+            L.append(f"- quality_hits: {p.get('quality_hits')}")
+        if p.get("temporal_hits"):
+            L.append(f"- temporal_hits: {p.get('temporal_hits')}")
+        if p.get("low_density_pages"):
+            L.append(f"- low_density_pages: {p.get('low_density_pages')}")
+        if p.get("orphan_pages"):
+            L.append(f"- orphan_pages: {p.get('orphan_pages')}")
         L.append(f"- daewoon_current: {p.get('daewoon_current')}")
     L += ["", "> PII(실명·생년월일·출생시간) 미포함. PDF/LLM 재생성·커밋은 하네스 밖(승인 게이팅)."]
     return "\n".join(L)
@@ -128,6 +269,7 @@ def write_report(
     out_dir.mkdir(parents=True, exist_ok=True)
     j = out_dir / "summary.json"
     m = out_dir / "summary.md"
-    j.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    m.write_text(_md(summary), encoding="utf-8")
+    archived = _archive_summary(summary, out_dir)
+    j.write_text(json.dumps(archived, ensure_ascii=False, indent=2), encoding="utf-8")
+    m.write_text(_md(archived), encoding="utf-8")
     return {"json": str(j), "md": str(m), "dir": str(out_dir)}

@@ -13,6 +13,21 @@ import re
 
 _HR_RX = re.compile(r"^\s*(-{3,}|\*{3,}|_{3,}|={3,})\s*$")  # 마크다운 수평선('---' 누출)
 _LIST_MARK_RX = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")  # 줄머리 불릿/번호 마커
+_GENERIC_ADDRESS_RX = re.compile(r"(고객님|당신)(은|는|이|가|을|를|의|에게|께|도|만)?")
+_DOC_SELF_SUBJECT_RX = re.compile(r"이\s*(?:글|문서|리포트)\s*(?:은|는)\s*")
+_DOC_META_RX = re.compile(
+    r"고객용\s*문서(?:로서|에서는|에서|은|는)?\s*|"
+    r"수신자(?:에게|께|는|은|의)?\s*|"
+    r"한\s*분께\s*드리는\s*"
+)
+_FORMULAIC_CONCLUSION_LINE_RX = re.compile(
+    # 문두 라벨 + 선택 조사(은/는) + 선택 쉼표까지 함께 제거(선행 조사 잔존 차단).
+    r"(?m)^[ \t]*(?:종합하면|결론적으로)(?:은|는)?\s*[,，]?\s*"
+)
+_FORMULAIC_CORE_RX = re.compile(
+    # '핵심은 다음과 같습니다' + 뒤 문장부호(.,:,：,。,!,?,！,？) 함께 제거(부호 잔존 차단).
+    r"핵심은\s*다음과\s*같습니다\s*[.。:：!?！？]*\s*"
+)
 
 
 def strip_artifacts(text: str) -> str:
@@ -33,6 +48,49 @@ def strip_artifacts(text: str) -> str:
             ln = ln.lstrip()[2:]
         out.append(ln)
     return "\n".join(out).strip()
+
+
+def _default_honorific() -> str:
+    try:
+        from . import rules
+
+        return rules.call_name(None) or "그대"
+    except Exception:
+        return "그대"
+
+
+def replace_generic_address(text: str, honorific: str | None = None) -> str:
+    """Replace generic customer addresses while preserving attached Korean particles."""
+
+    honorific = (honorific or "").strip() or _default_honorific()
+
+    def repl(match: re.Match) -> str:
+        particle = match.group(2) or ""
+        return f"{honorific}{particle}"
+
+    return _GENERIC_ADDRESS_RX.sub(repl, text or "")
+
+
+def strip_document_self_reference(text: str) -> str:
+    """Remove document-meta subjects without dropping the customer-facing sentence body."""
+
+    text = _DOC_SELF_SUBJECT_RX.sub("", text or "")
+    text = _DOC_META_RX.sub("", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"^\s*,\s*", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def strip_formulaic_conclusion(text: str) -> str:
+    """Remove formulaic conclusion lead-ins while preserving the sentence body."""
+
+    text = _FORMULAIC_CONCLUSION_LINE_RX.sub("", text or "")
+    text = _FORMULAIC_CORE_RX.sub("", text)
+    text = re.sub(r"[ \t]{2,}", " ", text)
+    text = re.sub(r"^\s*[,，.:：]\s*", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 # CJK 한자(확장A U+3400-4DBF·통합 U+4E00-9FFF·호환 U+F900-FAFF) — 본문은 한글 전용이라

@@ -277,6 +277,9 @@ def build_report(
             llm_changed = bool(cand) and cand != rule_text  # 정규화 '이전'에 판정
             if cand and llm_changed:
                 cand = _strip_artifacts(cand)  # 섹션 제목 누출 등 메타 제거
+                cand = postprocess.strip_document_self_reference(cand)
+                cand = postprocess.strip_formulaic_conclusion(cand)
+                cand = postprocess.replace_generic_address(cand, rules.call_name(name))
                 # 기계적 기호는 가드 전에 결정론 정규화(— · → 쉼표) — 같은 변환을
                 # 표시 단계(_hanja_clean)에도 적용하므로 우회가 아니라 선반영.
                 # 비유·메타발화·반복 남발은 변환 불가 → style_lint 하드 차단 유지.
@@ -319,6 +322,9 @@ def build_report(
                         )
                         or ""
                     )
+                    retry = postprocess.strip_document_self_reference(retry)
+                    retry = postprocess.strip_formulaic_conclusion(retry)
+                    retry = postprocess.replace_generic_address(retry, rules.call_name(name))
                     retry = client_tone_lint.normalize_loanwords(retry)  # 재작성도 1차 순화
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
                     if retry and retry != rule_text:

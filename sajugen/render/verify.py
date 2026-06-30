@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+from collections import Counter
 
 import fitz
 
@@ -76,14 +77,88 @@ def _split_body_appendix(pages_text: list[str]) -> tuple[str, str]:
 # 별도 표 페이지가 없으므로 표 마커 제외는 적용 대상 없음(구조적 마커 조합만 허용 정책).
 def _customer_body_pages(pages_text: list[str]) -> tuple[str, str]:
     """(고객 본문 산문 텍스트, 제외 영역 텍스트=표지·목차·부록). 페이지 단위 분리."""
-    app_idx = next((i for i, t in enumerate(pages_text) if _APPENDIX_MARK in t), len(pages_text))
+    body_items = _customer_body_page_items(pages_text)
+    body_pages = {page for page, _ in body_items}
     body, allowed = [], []
+    for i, t in enumerate(pages_text, start=1):
+        (body if i in body_pages else allowed).append(t)
+    return "".join(body), "".join(allowed)
+
+
+def _customer_body_page_items(pages_text: list[str]) -> list[tuple[int, str]]:
+    """고객 본문 산문 페이지 목록. 표지·목차·용어풀이 부록은 제외."""
+    app_idx = next((i for i, t in enumerate(pages_text) if _APPENDIX_MARK in t), len(pages_text))
+    body: list[tuple[int, str]] = []
     for i, t in enumerate(pages_text):
         is_cover = i == 0
         is_toc = "목차" in t and len(t.strip()) < 400
         is_appendix = i >= app_idx
-        (allowed if (is_cover or is_toc or is_appendix) else body).append(t)
-    return "".join(body), "".join(allowed)
+        if not (is_cover or is_toc or is_appendix):
+            body.append((i + 1, t))
+    return body
+
+
+def _paged_lint_hits(
+    page_items: list[tuple[int, str]],
+    lint_func,
+    *,
+    limit: int = 50,
+) -> list[dict]:
+    """Run an aggregated lint per page and add page without leaking source text."""
+
+    out: list[dict] = []
+    for page, page_text in page_items:
+        for hit in lint_func(page_text):
+            safe = {
+                k: v
+                for k, v in hit.items()
+                if k in {"type", "rule", "count", "severity", "allowed", "role", "expected", "actual"}
+            }
+            safe["page"] = page
+            out.append(safe)
+    return out[:limit]
+
+
+_STYLE_RULES = {
+    "규칙 누설": "instruction_meta_leak",
+    "호칭 선언": "address_meta_declaration",
+    "em dash": "ai_signature_punctuation",
+    "가운뎃점": "ai_signature_punctuation",
+    "기호 난발": "symbol_overuse",
+    "과한 비유": "poetic_overreach",
+    "시기·나이 가정어": "uncertain_timing_wording",
+    "AI틱 반복 표현": "ai_like_repetition",
+    "반복 남발": "excessive_repetition",
+}
+
+
+def _style_rule_id(why: str) -> str:
+    for marker, rule in _STYLE_RULES.items():
+        if marker in why:
+            return rule
+    return "style_lint"
+
+
+def _semantic_style_hits(page_items: list[tuple[int, str]]) -> list[dict]:
+    """style_lint hits grouped by rule/page. Raw matched text is not returned."""
+
+    from ..content import style_lint
+
+    counts: Counter[tuple[int, str]] = Counter()
+    for page, page_text in page_items:
+        for hit in style_lint.lint(page_text):
+            counts[(page, _style_rule_id(str(hit.get("why", ""))))] += 1
+    return [
+        {"type": "semantic_style", "rule": rule, "page": page, "count": count}
+        for (page, rule), count in sorted(counts.items())
+    ][:50]
+
+
+def _placeholder_residue_hits_clean(hits: list[dict], product: str | None = None) -> bool:
+    # Phase 1 hard gate: definite masking/placeholder residue fails everywhere.
+    # Candidate hits such as "두 분께" are exposed for product-aware follow-up without
+    # failing relationship/gunghap documents by default.
+    return not any(h.get("severity") == "hard" for h in hits)
 
 
 def _low_density_pages(pages_text: list[str]) -> list[dict]:
@@ -163,6 +238,8 @@ def verify(
     concern: str | None = None,
     expected_context_terms: list[str] | None = None,
     ref_date: str | None = None,
+    role_perspective: list[dict] | None = None,
+    honorific: list[dict] | None = None,
 ) -> dict:
     """렌더 PDF 게이트. name_full(전체 이름 리스트)·identity((expected_gans, expected_terms,
     subject_specs))·singang([{full,given,honor,singang}]) 가 주어지면 H1.5.3/3.2 이름 호칭·일간
@@ -204,11 +281,12 @@ def verify(
     r["no_orphan"] = not r["orphan_pages"]
     doc.close()
 
-    # 문장 품질·시제 스캔(이슈4·5·6) — 최종 PDF 본문 기준 known-bad 검출
+    # 문장 품질·시제 스캔(이슈4·5·6) — 최종 PDF 고객 본문 기준 known-bad 검출
     from ..content import quality_lint, temporal_lint
 
-    qh = quality_lint.lint(text, names)
-    th = temporal_lint.lint(text, ref_year, ref_date=ref_date)
+    cust_body, allowed_region = _customer_body_pages(pages_text)
+    qh = quality_lint.lint(cust_body, names)
+    th = temporal_lint.lint(cust_body, ref_year, ref_date=ref_date)
     r["quality_hits"] = qh[:20]
     r["quality_clean"] = not qh
     r["temporal_hits"] = th[:20]
@@ -234,7 +312,43 @@ def verify(
     ][:30]
 
     # 이름 호칭 정책 + 일간 role(H1.5.3) — 고객 본문 챕터 페이지만 게이트(표지·목차·부록 제외).
-    cust_body, allowed_region = _customer_body_pages(pages_text)
+    body_page_items = _customer_body_page_items(pages_text)
+    from ..content import customer_meta_lint
+
+    semantic_style_hits = _semantic_style_hits(body_page_items)
+    ai_meta_hits = _paged_lint_hits(body_page_items, customer_meta_lint.lint)
+    placeholder_hits = _paged_lint_hits(body_page_items, _ct.placeholder_residue_lint)
+    r["semantic_style_hits"] = semantic_style_hits
+    r["semantic_style_hits_count"] = sum(int(h.get("count", 1)) for h in semantic_style_hits)
+    r["style_clean"] = not semantic_style_hits
+    r["ai_meta_hits"] = ai_meta_hits
+    r["ai_meta_hits_count"] = sum(int(h.get("count", 1)) for h in ai_meta_hits)
+    r["customer_meta_clean"] = not ai_meta_hits
+    r["placeholder_residue_hits"] = placeholder_hits
+    r["placeholder_residue_hits_count"] = sum(
+        int(h.get("count", 1)) for h in placeholder_hits
+    )
+    r["placeholder_residue_clean"] = _placeholder_residue_hits_clean(
+        placeholder_hits, product=product
+    )
+    r["role_perspective_hits"] = []
+    r["role_perspective_hits_count"] = 0
+    role_hits = _paged_lint_hits(
+        body_page_items,
+        lambda page_text: _ct.role_perspective_lint(page_text, role_perspective or []),
+    )
+    honorific_hits = _paged_lint_hits(
+        body_page_items,
+        lambda page_text: _ct.honorific_consistency_lint(page_text, honorific or role_perspective or []),
+    )
+    r["role_perspective_hits"] = role_hits
+    r["role_perspective_hits_count"] = sum(int(h.get("count", 1)) for h in role_hits)
+    r["role_perspective_clean"] = not role_hits
+    r["honorific_consistency_hits"] = honorific_hits
+    r["honorific_consistency_hits_count"] = sum(
+        int(h.get("count", 1)) for h in honorific_hits
+    )
+    r["honorific_consistency_clean"] = not honorific_hits
     r["name_policy_clean"] = True
     r["identity_role_clean"] = True
     r["name_policy_hits"] = []
@@ -293,6 +407,11 @@ def verify(
         and r["no_orphan"]
         and r["loanword_clean"]  # 외래어 hard-ban(고객 본문)
         and r["raw_calc_head_clean"]  # 표제형 계산표현(오행 분포·십성축·신강약)
+        and r["customer_meta_clean"]  # AI/meta/document self-reference residue
+        and r["placeholder_residue_clean"]  # placeholder/masking residue
+        and r["style_clean"]  # compose 외 경로까지 style_lint 보편 적용
+        and r["role_perspective_clean"]  # integrated_full receiver perspective
+        and r["honorific_consistency_clean"]  # integrated_full honorific consistency
         and r["name_policy_clean"]  # 전체 이름 반복(H1.5.3, name_full 전달 시)
         and r["identity_role_clean"]  # 일간 role 오서술(H1.5.3, identity 전달 시)
         and r["singang_role_clean"]  # 신강약 group/role(H1.5.3.2, singang 전달 시)

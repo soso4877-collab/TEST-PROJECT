@@ -551,3 +551,147 @@ def singang_role_lint(text: str, specs: list[dict]) -> list[dict]:
                     }
                 )
     return out
+
+
+# ───────────────── Phase 1: placeholder/masking residue ─────────────────
+# 고객 문서에 남으면 안 되는 익명 placeholder/수신자 흐림 표현. 반환값은 rule/count
+# 중심이며 고객 본문 원문을 넣지 않는다. "두 분" 자체는 관계/궁합 문서의 정상 표현일
+# 수 있어 금지하지 않고, "두 분께" 같은 수신자 흐림 후보만 candidate 로 보고한다.
+_PLACEHOLDER_RULES: list[tuple[str, re.Pattern[str], str]] = [
+    ("ordinal_person_placeholder", re.compile(r"첫\s*번째\s*분|두\s*번째\s*분|세\s*번째\s*분"), "hard"),
+    ("generic_customer_address", re.compile(r"고객님|당신"), "hard"),
+    ("operator_intake_label", re.compile(r"신청자|상담\s*대상"), "hard"),
+    ("counterpart_placeholder", re.compile(r"상대\s*분"), "hard"),
+    ("ambiguous_pair_recipient", re.compile(r"두\s*분께"), "candidate"),
+]
+
+
+def placeholder_residue_lint(text: str) -> list[dict]:
+    """Placeholder/masking residue hits, aggregated without source text."""
+
+    counts: dict[tuple[str, str], int] = {}
+    for rule, rx, severity in _PLACEHOLDER_RULES:
+        matches = rx.findall(text or "")
+        if matches:
+            key = (rule, severity)
+            counts[key] = counts.get(key, 0) + len(matches)
+    return [
+        {
+            "type": "placeholder_residue",
+            "rule": rule,
+            "severity": severity,
+            "count": count,
+        }
+        for (rule, severity), count in sorted(counts.items())
+    ]
+
+
+def placeholder_residue_clean(text: str) -> bool:
+    return not any(h.get("severity") == "hard" for h in placeholder_residue_lint(text))
+
+
+# ───────────────── Integrated full: receiver perspective / honorific ─────────────────
+def role_perspective_specs(full_names: list[str], receiver: str | None = None) -> list[dict]:
+    """Build PII-bearing specs for runtime linting; lint hits never echo aliases."""
+
+    receiver = (receiver or "").strip()
+    specs: list[dict] = []
+    for full in full_names:
+        if not full:
+            continue
+        given = given_name(full)
+        is_receiver = bool(receiver and full == receiver)
+        expected = "님" if is_receiver else "씨"
+        aliases = sorted({full, given, f"{full} 씨", f"{given} 씨", f"{full} 님", f"{given} 님"})
+        specs.append(
+            {
+                "role": "receiver" if is_receiver else "subject",
+                "aliases": aliases,
+                "expected_honorific": expected,
+            }
+        )
+    return specs
+
+
+def _honorific_counts(text: str, spec: dict) -> dict[str, int]:
+    counts = {"님": 0, "씨": 0}
+    bases = set()
+    for alias in spec.get("aliases") or []:
+        alias = str(alias).strip()
+        for suffix in ("님", "씨"):
+            if alias.endswith(f" {suffix}"):
+                bases.add(alias[: -len(f" {suffix}")].strip())
+            elif alias.endswith(suffix):
+                bases.add(alias[: -len(suffix)].strip())
+            elif alias:
+                bases.add(alias)
+    for base in bases:
+        for suffix in ("님", "씨"):
+            rx = re.compile(
+                rf"(?<![A-Za-z0-9가-힣]){re.escape(base)}\s*{suffix}"
+                rf"(?=(?:\s|은|는|이|가|을|를|에게|한테|께|과|와|도|만|의|라|이라|,|\.|$))"
+            )
+            counts[suffix] += len(rx.findall(text or ""))
+    return counts
+
+
+def honorific_consistency_lint(text: str, specs: list[dict] | None) -> list[dict]:
+    """Detect mixed/unexpected 님/씨 usage per subject without returning raw names."""
+
+    out: list[dict] = []
+    for spec in specs or []:
+        counts = _honorific_counts(text or "", spec)
+        expected = spec.get("expected_honorific")
+        role = spec.get("role", "subject")
+        if counts["님"] and counts["씨"]:
+            out.append(
+                {
+                    "type": "honorific_consistency",
+                    "rule": "mixed_honorific",
+                    "role": role,
+                    "count": counts["님"] + counts["씨"],
+                }
+            )
+        for actual in ("님", "씨"):
+            if expected and actual != expected and counts[actual]:
+                out.append(
+                    {
+                        "type": "honorific_consistency",
+                        "rule": "unexpected_honorific",
+                        "role": role,
+                        "expected": expected,
+                        "actual": actual,
+                        "count": counts[actual],
+                    }
+                )
+    return out
+
+
+def honorific_consistent(text: str, specs: list[dict] | None) -> bool:
+    return not honorific_consistency_lint(text, specs)
+
+
+def role_perspective_lint(text: str, specs: list[dict] | None) -> list[dict]:
+    """Detect receiver described in third-person honorific form in integrated PDFs."""
+
+    out: list[dict] = []
+    for spec in specs or []:
+        if spec.get("role") != "receiver":
+            continue
+        counts = _honorific_counts(text or "", spec)
+        if counts["씨"]:
+            out.append(
+                {
+                    "type": "role_perspective",
+                    "rule": "receiver_third_person_honorific",
+                    "role": "receiver",
+                    "expected": spec.get("expected_honorific") or "님",
+                    "actual": "씨",
+                    "count": counts["씨"],
+                }
+            )
+    return out
+
+
+def role_perspective_clean(text: str, specs: list[dict] | None) -> bool:
+    return not role_perspective_lint(text, specs)

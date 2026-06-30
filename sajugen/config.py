@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 
 import yaml
@@ -30,6 +31,12 @@ _DEFAULTS = {
         "samhap_axis": "both",  # day_zhi | year_zhi | both
         "twelve_axis": "day_zhi",  # day_zhi(현대 대세) | year_zhi
         "gongmang_display": "year_day",  # year_day | day_only
+    },
+    "llm_models": {
+        "compose": "claude-sonnet-4-6",
+        "relationship_compose": "claude-sonnet-4-6",
+        "classify": "claude-haiku-4-5-20251001",
+        "polish": "claude-haiku-4-5-20251001",
     },
 }
 
@@ -59,6 +66,31 @@ def ziwei() -> dict:
 def myeongni_shinsal() -> dict:
     """명리 신살 학파 정책 섹션(괴강 범위·삼합 축·12신살 축·공망 표기)."""
     return load().get("myeongni_shinsal", _DEFAULTS["myeongni_shinsal"])
+
+
+def llm_models() -> dict:
+    """LLM 모델 역할별 설정."""
+    models = dict(_DEFAULTS["llm_models"])
+    configured = load().get("llm_models", {})
+    if isinstance(configured, dict):
+        models.update({str(k): str(v) for k, v in configured.items() if v})
+    env_map = {
+        "compose": "SAJUGEN_LLM_COMPOSE_MODEL",
+        "relationship_compose": "SAJUGEN_LLM_RELATIONSHIP_COMPOSE_MODEL",
+        "classify": "SAJUGEN_LLM_CLASSIFY_MODEL",
+        "polish": "SAJUGEN_LLM_POLISH_MODEL",
+    }
+    for key, env_name in env_map.items():
+        val = os.environ.get(env_name)
+        if val:
+            models[key] = val
+    return models
+
+
+def llm_model(role: str) -> str:
+    """역할명에 맞는 모델 ID. 미정의 역할은 compose 기본값으로 안전 폴백."""
+    models = llm_models()
+    return models.get(role) or models["compose"]
 
 
 # --- 브랜드 프로필(config/brands.yaml) — 다계정 운영(2026-06-12) ---

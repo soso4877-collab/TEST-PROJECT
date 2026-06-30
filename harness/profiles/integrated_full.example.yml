@@ -1,0 +1,15 @@
+# 통합 PDF 검증/재생성 프로파일 — 예시(커밋됨). 값은 전부 가짜다.
+# 실제 고객값은 절대 여기 넣지 말 것 → harness/profiles/local/integrated_*.yml (gitignore).
+# hrun --regen 은 type=integrated_full 을 sajugen.integrated 로 라우팅한다.
+
+type: integrated_full
+product: integrated_full
+premium: true
+brand: sajudoryeong
+pdf: sajugen/render/out/FINAL_UPLOAD_integrated_full_EXAMPLE.pdf
+ref_year: 2026
+receiver: 갑동
+situation: "합성 관계와 생활 기준을 함께 확인합니다."
+people:
+  - {name: 갑동, birth: "1990-01-01 10:00", gender: 남}
+  - {name: 을순, birth: "1991-02-02 11:00", gender: 여}

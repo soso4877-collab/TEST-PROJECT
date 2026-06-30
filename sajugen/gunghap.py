@@ -30,6 +30,9 @@ from .content import (
     trace,
 )
 from .input import partner as input_partner
+from .relationship import context as relationship_context
+from .relationship import delivery_gate as relationship_delivery_gate
+from .relationship import fallback as relationship_fallback
 from .render import pdf as render_pdf
 from .render import verify as render_verify
 
@@ -392,6 +395,8 @@ _GH_SYSTEM = (
     "사업 궁합을 그들에게 직접 말하듯 쓴다. 따뜻하지만 분명하게, 정면으로.\n\n"
     "[형식] 한 호흡(한두 문장) 쓰고 줄을 바꾼다. 의미가 바뀌면 빈 줄. 같은 문형 반복 금지.\n"
     "[말투] '~예요/~해요'와 '~합니다'를 자연스럽게 섞는다. '당신' 금지.\n"
+    "[문체 잔재 금지] '고객님', '이 글은', '이 문서는', '이 리포트는' 같은 호명/문서 자기소개 표현 금지.\n"
+    "[결론 표지 금지] '종합하면', '결론적으로', '핵심은 다음과 같습니다' 같은 공식적 결론 표지 금지.\n"
     "[호칭] 표지·근거표만 전체 이름. 본문은 각 사람 첫 소개에서만 '김태수 씨/김태성 씨/장순조 씨'처럼 "
     "성 포함 1회 쓰고, 이후로는 '태수 씨/태성 씨/순조 씨'로 부른다. 둘씩 볼 때는 '태수와 태성/태수와 순조/"
     "태성과 순조'. '김태수는·김태성은·장순조는'처럼 성 포함 전체 이름+조사를 반복하지 마라.\n"
@@ -584,6 +589,94 @@ def _normalize_gunghap_honorifics(text: str, full_names: list[str]) -> str:
     return text
 
 
+def _apply_receiver_perspective(text: str, full_names: list[str], receiver_name: str | None) -> str:
+    """Integrated-full mode: address the receiver as 님, others stay 씨."""
+
+    if not receiver_name:
+        return text
+    receiver_given = client_tone_lint.given_name(receiver_name)
+    if not receiver_given:
+        return text
+    aliases = {
+        receiver_name,
+        receiver_given,
+        f"{receiver_name} 씨",
+        f"{receiver_given} 씨",
+        f"{receiver_name} 님",
+        f"{receiver_given} 님",
+    }
+    for alias in sorted(aliases, key=len, reverse=True):
+        stem = alias
+        for suffix in (" 님", " 님", " 씨", "씨", "님"):
+            if stem.endswith(suffix):
+                stem = stem[: -len(suffix)].strip()
+        if not stem:
+            continue
+        text = re.sub(
+            rf"{re.escape(stem)}\s*(?:씨|님)?"
+            rf"(?=(?:\s|은|는|이|가|을|를|에게|한테|께|과|와|도|만|의|,|\.|$))",
+            f"{receiver_given} 님",
+            text,
+        )
+    return _normalize_gunghap_honorifics(text, [n for n in full_names if n != receiver_name])
+
+
+def _role_honorific(full_name: str, receiver_name: str | None) -> str:
+    if not full_name:
+        return "그대"
+    given = client_tone_lint.given_name(full_name)
+    suffix = "님" if receiver_name and full_name == receiver_name else "씨"
+    return f"{given} {suffix}"
+
+
+_ORDINAL_PREFIXES = ("첫", "두", "세", "네")
+
+
+def _unmask_receiver_placeholders(
+    text: str, full_names: list[str], receiver_name: str | None
+) -> str:
+    """Map LLM prompt ordinal placeholders back to receiver/subject honorifics.
+
+    유연 공백 정규식으로 치환 — placeholder_residue_lint(content/client_tone_lint.py)와 동일한
+    `첫\\s*번째\\s*분` 패턴 계열을 쓴다. 과거엔 정확 문자열 str.replace 라서 LLM이 낸 공백 변형
+    ("첫번째 분"·"첫 번째분" 등)을 unmask 가 놓치고 lint 는 잡아 placeholder 누출+게이트 실패가
+    났다(2026-06-29 실고객 Tier2 실측: "첫 번째 분" 55·"두 번째 분" 67 누출). unmask 커버리지를
+    lint 와 동일 이상으로 맞춰, 게이트가 잡을 토큰이 애초에 남지 않게 한다."""
+
+    for idx, full_name in enumerate(full_names):
+        if idx >= len(_ORDINAL_PREFIXES) or not full_name:
+            continue
+        rx = re.compile(rf"{_ORDINAL_PREFIXES[idx]}\s*번째\s*분")
+        text = rx.sub(_role_honorific(full_name, receiver_name), text)
+    subjects = [name for name in full_names if name and name != receiver_name]
+    if len(subjects) == 1:
+        text = re.sub(r"상대\s*분", _role_honorific(subjects[0], receiver_name), text)
+    # belt-and-suspenders: 사람 수를 넘는 ordinal 변형(LLM 환각)이 남아도 수신자 호칭으로 폴백 치환
+    # → lint 가 잡는 ordinal placeholder 가 최종 문안에 절대 남지 않도록 보증.
+    if full_names:
+        fallback = _role_honorific(receiver_name or full_names[0], receiver_name)
+        text = re.sub(r"(?:첫|두|세|네)\s*번째\s*분", fallback, text)
+    return text
+
+
+def apply_receiver_perspective_to_sections(
+    sections: list[object], full_names: list[str], receiver_name: str | None
+) -> None:
+    for section in sections:
+        section.final_text = _apply_receiver_perspective(
+            section.final_text, full_names, receiver_name
+        )
+        section.final_text = _unmask_receiver_placeholders(
+            section.final_text, full_names, receiver_name
+        )
+        honorific = _role_honorific(
+            receiver_name or (full_names[0] if full_names else ""), receiver_name
+        )
+        section.final_text = postprocess.strip_document_self_reference(section.final_text)
+        section.final_text = postprocess.strip_formulaic_conclusion(section.final_text)
+        section.final_text = postprocess.replace_generic_address(section.final_text, honorific)
+
+
 def _relationship_layout_variants(llm_active: bool) -> list[tuple[str, str]]:
     if not llm_active:
         return [("14.5pt", "1.8")]
@@ -614,6 +707,8 @@ def _only_low_density_failure(v: dict) -> bool:
             "temporal_clean",
             "loanword_clean",
             "raw_calc_head_clean",
+            "role_perspective_clean",
+            "honorific_consistency_clean",
             "name_policy_clean",
             "identity_role_clean",
             "singang_role_clean",
@@ -621,7 +716,14 @@ def _only_low_density_failure(v: dict) -> bool:
     )
 
 
-def _relationship_slot(section_id: str, people: list[dict], persons_txt: str, pairs_txt: str, timing_txt: str, situation: str) -> str:
+def _relationship_slot(
+    section_id: str,
+    people: list[dict],
+    persons_txt: str,
+    pairs_txt: str,
+    timing_txt: str,
+    situation: str,
+) -> str:
     names = [client_tone_lint.honor(p["name"]) for p in people]
     unknown = [client_tone_lint.honor(p["name"]) for p in people if p.get("unknown_time")]
     unknown_note = (
@@ -676,8 +778,8 @@ def _relationship_fallback(section_id: str, people: list[dict], situation: str) 
     )
     texts = {
         "overview": (
-            common_open +
-            "이 궁합은 처음부터 안 맞는 쪽이라기보다, 서로 마음을 확인하는 속도와 갈등 뒤 회복 방식이 달라 조율이 필요한 쪽입니다. "
+            common_open
+            + "이 궁합은 처음부터 안 맞는 쪽이라기보다, 서로 마음을 확인하는 속도와 갈등 뒤 회복 방식이 달라 조율이 필요한 쪽입니다. "
             "좋아하는 마음이 있어도 약속이 흐려지거나 불편한 이야기를 계속 피하면 불안이 커질 수 있어요. "
             "반대로 연락이 늦어도 이유를 말하고, 약속을 다시 잡고, 주변 관계 안에서도 자연스럽게 배려한다면 이어갈 힘은 충분히 있습니다."
         ),
@@ -771,6 +873,19 @@ def _stabilize_relationship_section_lengths(sections: list[object]) -> None:
             section.final_text = (text + "\n\n" + filler).strip()
 
 
+# 관계/재회/궁합 전용 동작은 relationship 패키지 구현을 사용한다.
+_REL_SYSTEM = relationship_context.SYSTEM
+_REL_SECTIONS = relationship_context.SECTIONS
+_REL_GUIDE = relationship_context.GUIDE
+_REL_TAIL_FILLERS = relationship_fallback.TAIL_FILLERS
+_relationship_layout_variants = relationship_context.layout_variants
+_only_low_density_failure = relationship_context.only_low_density_failure
+_relationship_slot = relationship_context.build_context
+_relationship_fallback = relationship_fallback.build_fallback
+_relationship_frontload_summary = relationship_fallback.frontload_summary
+_stabilize_relationship_section_lengths = relationship_fallback.stabilize_section_lengths
+
+
 def _finalize(text: str) -> str:
     """본문 표시용 정제 — 개인 경로(builder)와 동일한 postprocess 공통 함수 사용.
 
@@ -837,24 +952,38 @@ def _compose(
     situation 은 호출부에서 이미 마스킹된 본문이 들어온다(절대규칙 17, build_gunghap).
     가드 = §12 안전 + AI틱 스타일 + 품질(모순·오타) + 시제 + 사실(간지·별).
     """
-    fallback = _finalize(fallback_text if fallback_text is not None else base_text)
+    is_relationship_section = fallback_text is not None and section_id in _REL_GUIDE
+    raw_fallback = fallback_text if fallback_text is not None else base_text
+    if is_relationship_section:
+        relationship_delivery_gate.assert_clean(
+            prompt_text=base_text,
+            fallback_text=raw_fallback,
+            names=names or [],
+        )
+    fallback = _finalize(raw_fallback)
+    if is_relationship_section:
+        relationship_delivery_gate.assert_clean(
+            prompt_text=base_text,
+            fallback_text=fallback,
+            names=names or [],
+        )
     if not use_llm or not os.environ.get("ANTHROPIC_API_KEY"):
         return fallback
     try:
         import anthropic
     except Exception:
         return fallback
-    guide = _REL_GUIDE.get(section_id) or _GH_GUIDE.get(section_id, "")
-    system_prompt = _REL_SYSTEM if section_id in _REL_GUIDE else _GH_SYSTEM
+    guide = _REL_GUIDE.get(section_id) if is_relationship_section else _GH_GUIDE.get(section_id, "")
+    system_prompt = _REL_SYSTEM if is_relationship_section else _GH_SYSTEM
     user = (
         f"[작성 방향]\n{guide}\n\n"
         f"[현재 맥락 - 참고용이며 그대로 인용하지 말 것]\n{situation}\n\n"
         f"[참고 근거 - 원문 라벨과 전문용어를 그대로 쓰지 말고 고객 문장으로 풀 것]\n{base_text}\n"
     )
     try:
-        client = anthropic.Anthropic(max_retries=8)
+        client = anthropic.Anthropic(max_retries=0)
         msg = client.messages.create(
-            model="claude-sonnet-4-6",
+            model=cfg.llm_model("relationship_compose" if is_relationship_section else "compose"),
             max_tokens=4000,
             system=system_prompt,
             messages=[{"role": "user", "content": user}],
@@ -868,6 +997,10 @@ def _compose(
     cand = client_tone_lint.normalize_loanwords(cand)  # 외래어 1차 자동 순화(폴백 전, H1.5.1)
     if names:
         cand = client_tone_lint.normalize_names(cand, names)  # 전체이름→호칭 1차 순화(H1.5.3)
+    if is_relationship_section:
+        dg = relationship_delivery_gate.check(final_section_text=cand, names=names or [])
+        if not dg.ok:
+            return fallback
     bad = (
         safe_lint.lint(cand)
         + style_lint.lint(cand)
@@ -909,9 +1042,13 @@ def build_gunghap(
     situation: str = "",
     ref_year: int = 2026,
     out_name: str = "gunghap.pdf",
-    brand: str = "seodam",
+    brand: str = "sajudoryeong",
     mode: str = "business",
     use_llm: bool = False,
+    receiver_perspective: bool = False,
+    receiver_name: str | None = None,
+    product: str | None = None,
+    render: bool = True,
 ) -> dict:
     """people_in = [(이름, (y,mo,d,h,mi), is_male), ...]. 성별 생략 시 남(하위호환).
 
@@ -948,7 +1085,9 @@ def build_gunghap(
     if mode == "relationship":
         section_defs = _REL_SECTIONS
         slot = {
-            sid: _relationship_slot(sid, people, persons_txt, pairs_txt, timing_txt, masked_situation)
+            sid: _relationship_slot(
+                sid, people, persons_txt, pairs_txt, timing_txt, masked_situation
+            )
             for sid, _title in section_defs
         }
         fallback_slot = {
@@ -1003,23 +1142,41 @@ def build_gunghap(
     normalized = client_tone_lint.normalize_names_pdfwide([s.final_text for s in sections], names)
     for s, nt in zip(sections, normalized):
         s.final_text = _normalize_gunghap_honorifics(nt, names)
+    if receiver_perspective:
+        apply_receiver_perspective_to_sections(sections, names, receiver_name or names[0])
 
     # 그라운딩 게이트 — 빈 본문/근거 없는 섹션 차단(개인 경로 builder 와 동일 정책)
     grounding_ok, gbad = trace.check(sections)
     if not grounding_ok:
         raise RuntimeError(f"궁합 그라운딩 실패(빌드 중단): {gbad}")
 
-    product = "gunghap_relationship" if mode == "relationship" else None
+    product = (
+        product
+        if product is not None
+        else ("gunghap_relationship" if mode == "relationship" else None)
+    )
     premium = mode == "relationship"
     bp = dict(cfg.brand(brand))
     label = "궁합 풀이" if mode == "relationship" else "사업 궁합 풀이"
-    bp["cover_title"] = f"{bp.get('seal', '서담선생')} {label}"
+    bp["cover_title"] = f"{bp['seal']} {label}"
     fake_saju = SimpleNamespace(input_civil=" · ".join(p["name"] for p in people))
     report = SimpleNamespace(sections=sections)
     llm_active = bool(use_llm and os.environ.get("ANTHROPIC_API_KEY"))
     layout_attempts: list[dict] = []
     pdf_path = ""
     v: dict = {}
+    if not render:
+        return {
+            "pdf_path": pdf_path,
+            "people": people,
+            "sections": sections,
+            "allow": allow,
+            "verify": v,
+            "mode": mode,
+            "product": product,
+            "layout_attempts": layout_attempts,
+            "receiver_name": receiver_name or (names[0] if names else None),
+        }
     variants = _relationship_layout_variants(mode == "relationship" and llm_active)
     for idx, (body_font_size, body_line_height) in enumerate(variants):
         pdf_path = render_pdf.render_pdf(

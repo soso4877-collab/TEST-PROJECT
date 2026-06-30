@@ -17,6 +17,8 @@ import os
 import sys
 from typing import Protocol, runtime_checkable
 
+from sajugen import config as cfg
+
 from . import llm_polish
 from .question_router import QuestionCategory
 from .question_router import classify as _rule_classify
@@ -46,6 +48,8 @@ _COMPOSE_SYSTEM = (
     "· '~예요/~해요'와 '~합니다'를 자연스럽게 섞은 따뜻한 구어체.\n"
     "· 거의 모든 의미 덩어리에서 그 사람을 [호칭]으로 부른다. '당신'이라는 말은 절대 쓰지 마라. "
     "호칭이 '그대'면 주어를 자연스럽게 생략하는 쪽을 우선하고 강조 자리에서만 부른다.\n"
+    "· '고객님', '이 글은', '이 문서는', '이 리포트는' 같은 고객 호명/문서 자기소개 표현도 쓰지 마라.\n"
+    "· '종합하면', '결론적으로', '핵심은 다음과 같습니다' 같은 공식적 결론 표지도 쓰지 마라.\n"
     "· 계산된 사실은 단정해서 분명하게 말한다. '○○님은 임술일주에요', '토의 기운이 아주 강합니다', "
     "'관성이 강한 사주라 인연 자체가 없는 분은 아닙니다'처럼. 얼버무리지 마라.\n"
     "· 미래의 결과만은 보장하지 않는다. '결혼 이야기가 나올 수 있는 해'처럼 흐름과 방향은 분명히 "
@@ -293,10 +297,11 @@ class AnthropicBackend:
             class _Cat(BaseModel):
                 category: QuestionCategory
 
-            client = instructor.from_anthropic(anthropic.Anthropic())
+            client = instructor.from_anthropic(anthropic.Anthropic(max_retries=0))
             res = client.messages.create(
-                model="claude-haiku-4-5-20251001",  # 분류=저비용
+                model=cfg.llm_model("classify"),  # 분류=저비용
                 max_tokens=20,
+                max_retries=0,
                 system=_CLASSIFY_SYSTEM,
                 messages=[{"role": "user", "content": concern.strip()}],
                 response_model=_Cat,
@@ -360,10 +365,10 @@ class AnthropicBackend:
 
             # 순수 텍스트 호출(instructor 구조화 JSON 미사용) — 긴 챕터에서 도구JSON 절단→재시도
             # 무한루프(행) 회피. 본문만 필요하므로 plain text 가 더 빠르고 안전·저비용.
-            # max_retries 상향 — Tier1 속도제한(429/529)에 지수백오프 재시도로 폴백률↓.
-            client = anthropic.Anthropic(max_retries=8)
+            # SDK 자동 재시도 금지 — 첫 API 실패 뒤 같은 납품 생성 흐름에서 추가 네트워크 시도 금지.
+            client = anthropic.Anthropic(max_retries=0)
             msg = client.messages.create(
-                model="claude-sonnet-4-6",  # 해석 챕터 작성 = 본문 품질 모델
+                model=cfg.llm_model("compose"),  # 해석 챕터 작성 = 본문 품질 모델
                 max_tokens=6000,  # 긴 챕터(원국·기질·자미) 중간 잘림 방지. 출력 상한, 실제 사용분만 과금.
                 system=_COMPOSE_SYSTEM,
                 messages=[{"role": "user", "content": user}],

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import os
 
+from sajugen import config as cfg
+
 _SYSTEM = (
     "너는 한국어 사주 상담 결과지의 '윤문' 담당이다. 입력 문장의 "
     "사실(간지·오행·십성·별·궁·수치·시기)은 절대 바꾸거나 추가하지 마라. "
@@ -41,11 +43,12 @@ def polish(rule_text: str, title: str) -> str:
         class Polished(BaseModel):
             text: str
 
-        client = instructor.from_anthropic(anthropic.Anthropic())
+        client = instructor.from_anthropic(anthropic.Anthropic(max_retries=0))
         res = client.messages.create(
-            model="claude-haiku-4-5-20251001",  # 윤문=단순작업 → 저비용 모델
+            model=cfg.llm_model("polish"),  # 윤문=단순작업 → 저비용 모델
             # 긴 섹션은 instructor 도구JSON 래핑으로 1200 초과→절단→폴백되던 이슈가 있어 상향
             max_tokens=2000,
+            max_retries=0,
             system=_SYSTEM,
             messages=[{"role": "user", "content": f"[섹션:{title}]\n원문:\n{rule_text}"}],
             response_model=Polished,

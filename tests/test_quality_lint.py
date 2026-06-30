@@ -9,7 +9,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sajugen.content import client_tone_lint as ct  # noqa: E402
+from sajugen.content import customer_meta_lint as cmeta  # noqa: E402
 from sajugen.content import quality_lint as q  # noqa: E402
+from sajugen.content import style_lint as style  # noqa: E402
 from sajugen.content import temporal_lint as tl  # noqa: E402
 
 
@@ -49,6 +52,17 @@ def test_quality_flags_customer_framing_phrases():
 def test_quality_flags_internal_meta_labels():
     hits = q.lint("고객 질문: 현재 썸 관계가 궁금합니다.\n상담 대상: 가현 씨, 상철 씨\n[자미두수]\n이 장에서 봅니다.")
     assert any(h["type"] == "internal_meta_label" for h in hits)
+
+
+def test_customer_meta_lint_is_separate_from_internal_label_lint():
+    text = "이 글은 통합 풀이입니다."
+    assert cmeta.lint(text)
+    assert not any(h["type"] == "internal_meta_label" for h in q.lint(text))
+
+
+def test_customer_meta_lint_allows_customer_facing_explanation():
+    text = "명리와 자미두수는 서로 다른 관점이라, 같은 선택도 다르게 비출 수 있습니다."
+    assert cmeta.is_clean(text), cmeta.lint(text)
 
 
 def test_quality_flags_relationship_raw_fact_slot_leak():
@@ -117,3 +131,25 @@ def test_love_consult_rule_text_quality_and_temporal_clean(monkeypatch):
     text = rep.section("consult").final_text
     assert q.is_clean(text), q.lint(text)
     assert tl.is_clean(text, 2026), tl.lint(text, 2026)
+
+
+def test_personal_rule_positive_body_semantic_gate_clean(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder
+
+    saju = engine.build(2000, 1, 1, 12, 0, is_male=True, horoscope_date="2026-06-01")
+    rep = builder.build_report(saju, use_llm=False, ref_year=2026)
+    body = "\n\n".join(
+        s.final_text
+        for s in rep.sections
+        if s.id not in {"cover", "toc", "appendix_terms", "colophon"}
+    )
+
+    assert cmeta.is_clean(body), cmeta.lint(body)
+    assert not [h for h in ct.placeholder_residue_lint(body) if h.get("severity") == "hard"]
+    assert style.is_clean(body), style.lint(body)
+    assert q.is_clean(body), q.lint(body)
+    assert tl.is_clean(body, 2026, ref_date="2026-06-01"), tl.lint(
+        body, 2026, ref_date="2026-06-01"
+    )

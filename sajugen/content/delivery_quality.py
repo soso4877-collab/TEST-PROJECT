@@ -16,10 +16,16 @@ from collections.abc import Iterable
 
 MIN_PREMIUM_PAGES = 20
 MIN_GUNGHAP_PAGES = 30
+MIN_INTEGRATED_FULL_PAGES = 30
 MIN_PREMIUM_TEXT_CHARS = 10_000
 
 _GUNGHAP_PRODUCTS = {"gunghap", "gunghap_relationship", "relationship_gunghap"}
-_PREMIUM_PRODUCTS = {"premium", "integrated", "premium_integrated", "custom"} | _GUNGHAP_PRODUCTS
+_INTEGRATED_FULL_PRODUCTS = {"integrated_full"}
+_PREMIUM_PRODUCTS = (
+    {"premium", "integrated", "premium_integrated", "custom"}
+    | _GUNGHAP_PRODUCTS
+    | _INTEGRATED_FULL_PRODUCTS
+)
 
 _REPEAT_CAPS = {
     "또렷": 0,
@@ -205,8 +211,11 @@ def _is_premium(product: str | None, premium: bool) -> bool:
 
 
 def _min_pages(product: str | None) -> int:
-    if (product or "").strip().lower() in _GUNGHAP_PRODUCTS:
+    product_key = (product or "").strip().lower()
+    if product_key in _GUNGHAP_PRODUCTS:
         return MIN_GUNGHAP_PAGES
+    if product_key in _INTEGRATED_FULL_PRODUCTS:
+        return MIN_INTEGRATED_FULL_PAGES
     return MIN_PREMIUM_PAGES
 
 
@@ -351,6 +360,34 @@ def _context_provenance_result(
     return {"ok": not unbacked, "unbacked_terms": unbacked}
 
 
+def _finding_message(finding: dict) -> dict:
+    rule = finding.get("rule", "unknown")
+    messages = {
+        "premium_pages": "납품 페이지 수가 상품 기준보다 적습니다.",
+        "premium_text_chars": "납품 본문 글자 수가 상품 기준보다 적습니다.",
+        "premium_low_density_pages": "본문 밀도가 낮은 페이지가 있습니다.",
+        "missing_question_axes": "질문 축에 대한 답변 근거가 부족합니다.",
+        "missing_frontloaded_answer": "초반부에 결론, 시기, 행동 기준이 충분히 앞서 나오지 않았습니다.",
+        "missing_near_term_timing": "연애/재회 질문에 필요한 가까운 시기 기준이 부족합니다.",
+        "missing_love_reunion_action": "연애/재회 질문에 필요한 행동 기준과 주의 기준이 부족합니다.",
+        "repetitive_phrasing": "반복 표현이 기준을 넘었습니다.",
+        "domain_term_repetition": "영역 단어 반복이 많습니다.",
+        "absolute_guarantee": "결과 보장처럼 읽히는 표현이 있습니다.",
+        "missing_usable_ziwei": "자미두수 관점이 고객 질문과 충분히 연결되지 않았습니다.",
+        "missing_love_myeongni": "연애/재회 질문에 필요한 명리 관점이 부족합니다.",
+        "unbacked_context_terms": "입력 근거 없는 맥락 단어가 본문에 들어갔습니다.",
+        "missing_expected_context": "요청된 맥락 단어가 본문에 반영되지 않았습니다.",
+        "overused_expected_context": "요청된 맥락 단어가 과도하게 반복됩니다.",
+    }
+    out = {"rule": rule, "message": messages.get(rule, "납품 품질 기준을 충족하지 못했습니다.")}
+    for key in ("value", "minimum", "axes"):
+        if key in finding:
+            out[key] = finding[key]
+    if "pages" in finding:
+        out["pages_count"] = len(finding.get("pages") or [])
+    return out
+
+
 def analyze(
     text: str,
     *,
@@ -477,9 +514,12 @@ def analyze(
         "text_chars": len(text),
         "min_premium_pages": MIN_PREMIUM_PAGES,
         "min_gunghap_pages": MIN_GUNGHAP_PAGES,
+        "min_integrated_full_pages": MIN_INTEGRATED_FULL_PAGES,
         "min_premium_text_chars": MIN_PREMIUM_TEXT_CHARS,
         "failures": failures,
         "warnings": warnings,
+        "failure_messages": [_finding_message(f) for f in failures],
+        "warning_messages": [_finding_message(w) for w in warnings],
         "required_axes": sorted(required_axes),
         "coverage_hits": coverage_hits,
         "missing_axes": missing_axes,
