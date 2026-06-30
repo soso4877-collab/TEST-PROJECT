@@ -1,5 +1,38 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-06-26 추가: QI-2026-06-26-01 Phase 0 문서 운영 containment
+
+- 증상: 구조 검사는 통과했지만 납품 후보 문안에 AI-meta 문장, placeholder residue, 마스킹 잔재가 남을 수 있는 workflow 위험이 확인되었다.
+- 영향: 손편집 HTML/PDF가 표준 게이트를 우회하면 고객 납품 기준선이 흔들리고, Claude/Codex/Harness/Operator 역할 혼선으로 검수 책임이 불명확해진다.
+- 원인: TASK_PACKET과 context snapshot 같은 handoff artifact가 부족했고, context overflow 뒤 최신 source-of-truth SHA 확인이 약했다.
+- 재발 방지:
+  - Claude는 Plan Architect/Semantic Reviewer, Codex는 승인된 TASK_PACKET 구현자, Codex Verifier는 별도 세션 검증자로 분리한다.
+  - TASK_PACKET, CONTEXT_SNAPSHOT, PDF_REVIEW_REPORT를 handoff 필수 artifact로 둔다.
+  - 납품 후보는 표준 게이트 파이프라인에서만 만들고, 손편집 HTML/PDF는 최종 납품 기준선으로 쓰지 않는다.
+  - RUN_STATE에는 current_stage, input_sha, output_sha, api_calls, pdf_rendered, retry_blocked, final_status를 남긴다.
+  - 최신본은 파일명으로 판단하지 않고 SHA로 판단한다.
+- 연결 커밋/PR: Phase 0 docs containment 작업.
+- 남은 수동 검수: 실제 고객 PDF는 render_verify, 금칙 텍스트 스캔, 300dpi 시각 점검, 운영자 전문 검수 전 REVIEW_REQUIRED 상태로 둔다.
+
+## 2026-06-27 추가: QI-2026-06-27-01 Phase 1 universal semantic gate verified
+
+- 증상: 손편집 또는 편집 경로를 거친 납품 후보에 AI-meta 문안, placeholder residue, document self-reference가 남을 수 있었다.
+- 영향: 구조 검사가 통과해도 최종 고객 문안에 편집자/도구/문서 구조 설명식 잔재가 노출될 위험이 있었다.
+- 원인: PDF 최종 추출 본문에 대해 모든 생성 경로에 공통 적용되는 universal semantic gate가 부족했다.
+- 재발 방지:
+  - `verify.py`의 `gate_pass`에 `customer_meta_clean`, `placeholder_residue_clean`, `style_clean`을 무조건 AND 조건으로 편입했다.
+  - 기존 `quality_clean`, `temporal_clean`, `delivery_quality_clean` 의미와 기준은 낮추지 않았다.
+  - hit 보고는 `semantic_style_hits`, `ai_meta_hits`, `placeholder_residue_hits`, `role_perspective_hits`처럼 rule/count/page 중심으로 유지하고 본문 문장을 넣지 않는다.
+- 검증 근거:
+  - clean worktree: `test-project-phase1-verify`
+  - semantic focused: 22 passed
+  - harness focused: 2 passed, 7 deselected
+  - 고객 데이터 접근 0, API 호출 0, PDF 렌더 0, Playwright 실행 0, commit/push 0
+- 남은 후속:
+  - FOLLOWUP-A: `scripts/hrun.py` RUN_STATE/retry 배선
+  - NON_BLOCKING_FOLLOWUP: `scripts/hverify_pdf.py` adapter 확장
+  - Phase 2는 운영자 명시 승인 전 금지
+
 ## 2026-06-24 추가: QI-2026-06-24-07 도구 우선 조사 없이 직접 진행해 반복 지연
 
 - 증상: 이미 있는 하네스, GitHub Skill, Playwright guard, pytest 진단 순서를 먼저 고정하지 않아 같은 종류의 막힘이 반복되었다.

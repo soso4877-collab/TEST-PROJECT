@@ -1,5 +1,15 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ★ 활성 워크플로우 (2026-06-30, 압축 재개용 — 이 줄 먼저):
+>   고객 통합 PDF(integrated_full) Tier2 + 고객 문안 잔재 수정 진행 중.
+>   현행 truth·다음 directive = `C:\Users\pc\.claude\plans\1-playful-puddle.md` 상단 "CURRENT TRUTH" 절을 먼저 읽을 것.
+>   요약: 잔재 버그 3종(ordinal unmask · 당신/고객님/이 글은 · formulaic_conclusion) 수정·검증 완료.
+>   `./.venv/Scripts/python.exe -m pytest tests/ -q` = 393 passed / 3 skipped / exit 0. p4/p5 실렌더 0 skipped.
+>   synthetic 실-LLM acceptance = PASS(금지 토큰 11종·placeholder/customer_meta/style 전부 0/clean).
+>   변경분은 uncommitted(작업트리에 persist — git checkout/stash 금지). 게이트/룰 완화 0.
+>   다음 = 운영자 승인 하 고객 Tier2 한 발(`hrun --regen --allow-llm --no-tests`, 새 stamp tier2-integrated-customer1-retry2).
+>   운영자 전문 검수·APPROVED 전 발송 0.
+>
 > 컨텍스트가 비워져도 이 파일만 읽으면 그대로 이어갈 수 있다.
 > 계획 전문(현행): C:\Users\pc\.claude\plans\role-claude-distributed-hellman.md (상용화 플랜, 2026-06-10 승인)
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
@@ -65,6 +75,11 @@
 >   안전 확인: PDF 재생성 없음, 애플리케이션 실행 경로 LLM 호출 없음(단 개발 도구인 Claude Code·Codex 사용은
 >   이 항목에서 제외), push 없음, deploy 없음.
 >   다음 단계: Phase 2A — Claude Plan → Codex Plan Review 자동화 v1.
+> [2026-06-27 Phase 1 Scope A 검증 완료]
+>   상태: PHASE1_GATE_VERIFIED. clean worktree(test-project-phase1-verify)에서 semantic focused 22 passed,
+>   harness focused 2 passed, 7 deselected. FOLLOWUP-A(`scripts/hrun.py` RUN_STATE/retry 배선) 대기,
+>   `scripts/hverify_pdf.py` adapter 확장은 NON_BLOCKING_FOLLOWUP 대기. Phase 2는 운영자 명시 승인 전 금지.
+>   전체 render/end-to-end 검증은 이번 Scope A에서 미실행.
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).
