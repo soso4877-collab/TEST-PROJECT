@@ -41,12 +41,23 @@
 >     **integrated.py 무수정**(STATE 원래 계획인 `_compact_sparse_sections` 손봄은 오진단이라 폐기).
 >     실측: content.json 무료 재렌더 gate_pass=**True**(page2 목차 354자·page3 첫 챕터 455자), 전체 pytest
 >     436 passed/3 skipped/실패0, git diff --check clean. 기하 게이트 clean 유지.
+>     목차 CSS 수정은 커밋됨(`95c9019` fix: 통합본 목차 1페이지화). 실제 customer2 PDF 도 재렌더 완료(gate_pass True).
+>   [2026-07-02 통합본 장(章) 레이아웃 = 새 페이지 — 운영자 선택] 운영자가 최종본 열람 후 '장이 페이지 중간에서
+>     시작해 어색'을 지적(제5장 등). 원인 = **통합본만 chapter_breaks=False**(개인 리딩·궁합 리포트·render_pdf
+>     기본값은 전부 True). 운영자 결정(AskUserQuestion)='장마다 새 페이지'. 수정 3종:
+>     - integrated.py:329 `chapter_breaks=True` (개인·궁합과 일관, 책/프리미엄 표준). 43→55페이지.
+>     - 부작용(긴 장 자미두수의 마지막 짧은 조판 꼬리 page=67자)이 저밀도 게이트에 걸림 → verify.py
+>       `_starts_new_chapter`(정규식 `^\s*제\s*\d+\s*장`) 신설, `_low_density_pages` 가 '다음 페이지가 새 장인
+>       짧은 페이지'만 제외(정상 조판 꼬리). **짧은 장-시작·중간 콘텐츠·맺음 직전 말미밀도는 계속 차단**
+>       (회귀 테스트 test_low_density_excludes_chapter_tail / _keeps_short_page_before_colophon).
+>     - integrated.py:359 RuntimeError 가 raw verify_result(고객 이름·장표제 PII) 노출하던 것 →
+>       `_pii_free_verify_digest`(rule/page/count/bool 만) 로 교체(절대규칙17, advisor 지적).
+>     실측: customer2 실 파이프라인 재렌더 gate_pass=**True**·저밀도0·기하clean, 전체 pytest **438 passed**/3 skipped.
+>     test_integrated_product.py chapter_breaks 단언 False→True 갱신.
 >   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp·render/out = gitignored.
->   ★ 다음 작업: (1) 이 목차 CSS 수정 커밋(운영자 지시 시) — 변경 = report.html.j2 1파일 + STATE.md.
->     (2) 실제 customer2 최종물 반영은 운영자 승인 하 1발: `integrated.render_integrated_from_content(
->     "sajugen/render/out/customer2_integrated_full.content.json", out_name="customer2_integrated_full.pdf")`
->     (재compose 없음·API 0). 현재는 tmp/diag_customer2.pdf 로 검증만 완료(실 고객 파일 미덮어씀).
->   [핵심] 운영자 지적 "레이아웃 틀어짐" = (a)본문 중앙정렬+기하게이트, (b)목차 1페이지화 로 **전부 해결**.
+>   ★ 다음 작업: 이 장-레이아웃 수정 커밋(변경 = integrated.py·verify.py·test 2개 + STATE.md). push 는 지시 시만.
+>     실제 customer2 PDF 는 이미 chapter_breaks=True 최종본으로 재렌더됨(발송은 운영자 육안검수·APPROVED 후).
+>   [핵심] 운영자 지적 "레이아웃 틀어짐" = (a)본문 중앙정렬+기하게이트, (b)목차 1페이지화, (c)장마다 새 페이지 로 해결.
 >   [백로그] 장이 ~20개 넘는 초대형 통합본은 목차가 다시 2페이지 될 수 있음 → 그때는 low_density 가 목차
 >     넘침 페이지도 제외하도록 게이트 보강 검토(현재는 CSS 압축으로 통상 범위 커버).
 >   커밋/push·고객 발송은 운영자 지시 시만. 운영자 전문 검수·APPROVED 전 발송 0.

@@ -498,7 +498,7 @@ def test_integrated_full_low_density_only_retries_layout_then_passes(monkeypatch
     assert len(render_calls) == 2
     assert render_calls[0]["body_font_size"] == "14.5pt"
     assert render_calls[1]["body_font_size"] != render_calls[0]["body_font_size"]
-    assert all(call["chapter_breaks"] is False for call in render_calls)
+    assert all(call["chapter_breaks"] is True for call in render_calls)
     assert all(call["out_dir"] == "synthetic-tmp" for call in render_calls)
     assert result["layout_attempts"] == [
         {
@@ -619,11 +619,17 @@ def test_build_integrated_full_saves_reusable_content(monkeypatch, tmp_path):
     # compose 결과가 .content.json 으로 영속돼, 이후 재compose 없이 재렌더 가능해야 함(2026-07-02).
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     _patch_integrated_sources(monkeypatch)  # build_report/build_gunghap mock(=compose 대체)
-    monkeypatch.setattr(integrated, "_render_integrated", lambda report, **k: ("x.pdf", {"gate_pass": True}, []))
+    monkeypatch.setattr(
+        integrated, "_render_integrated", lambda report, **k: ("x.pdf", {"gate_pass": True}, [])
+    )
 
     res = integrated.build_integrated_full(
-        _people(), receiver_name="DOC_A", situation="합성 맥락",
-        out_name="save_rt.pdf", out_dir=str(tmp_path), render=True,
+        _people(),
+        receiver_name="DOC_A",
+        situation="합성 맥락",
+        out_name="save_rt.pdf",
+        out_dir=str(tmp_path),
+        render=True,
     )
     cpath = Path(res["content_path"])
     assert cpath.is_file()
@@ -637,35 +643,55 @@ def test_build_integrated_full_saves_reusable_content(monkeypatch, tmp_path):
 def test_render_only_from_content_does_not_recompose(monkeypatch, tmp_path):
     # 재렌더는 저장 본문만 쓰고 build_report/build_gunghap(=compose)를 절대 다시 부르지 않는다(LLM/API 0).
     monkeypatch.setattr(
-        integrated.builder, "build_report",
+        integrated.builder,
+        "build_report",
         lambda *a, **k: pytest.fail("re-render must NOT compose (build_report called)"),
     )
     monkeypatch.setattr(
-        integrated.gunghap, "build_gunghap",
+        integrated.gunghap,
+        "build_gunghap",
         lambda *a, **k: pytest.fail("re-render must NOT compose (build_gunghap called)"),
     )
     seen = {}
     monkeypatch.setattr(
-        integrated, "_render_integrated",
+        integrated,
+        "_render_integrated",
         lambda report, **k: (
-            seen.update(sections=[s.final_text for s in report.sections], names=k["names"],
-                        identity=k["identity"], role=k["role_specs"])
+            seen.update(
+                sections=[s.final_text for s in report.sections],
+                names=k["names"],
+                identity=k["identity"],
+                role=k["role_specs"],
+            )
             or ("relayout.pdf", {"gate_pass": True}, [])
         ),
     )
     content = {
-        "product": "integrated_full", "receiver": "DOC_A", "names": ["DOC_A", "DOC_B"],
-        "ref_year": 2026, "situation": "맥락", "brand": "sajudoryeong",
-        "role_perspective": [{"given": "DOC_A"}], "identity": [["임"], ["임수"], []], "singang": [],
+        "product": "integrated_full",
+        "receiver": "DOC_A",
+        "names": ["DOC_A", "DOC_B"],
+        "ref_year": 2026,
+        "situation": "맥락",
+        "brand": "sajudoryeong",
+        "role_perspective": [{"given": "DOC_A"}],
+        "identity": [["임"], ["임수"], []],
+        "singang": [],
         "sections": [
             {"id": "nature", "title": "성향", "source_keys": ["m"], "final_text": "DOC_A 님 본문"},
-            {"id": "overview", "title": "관계", "source_keys": ["gunghap"], "final_text": "관계 본문"},
+            {
+                "id": "overview",
+                "title": "관계",
+                "source_keys": ["gunghap"],
+                "final_text": "관계 본문",
+            },
         ],
     }
     p = tmp_path / "rt.content.json"
     p.write_text(json.dumps(content, ensure_ascii=False), encoding="utf-8")
 
-    res = integrated.render_integrated_from_content(str(p), out_name="relayout.pdf", out_dir=str(tmp_path))
+    res = integrated.render_integrated_from_content(
+        str(p), out_name="relayout.pdf", out_dir=str(tmp_path)
+    )
     assert res["pdf_path"] == "relayout.pdf"
     assert seen["sections"] == ["DOC_A 님 본문", "관계 본문"]  # 저장 본문 그대로 재렌더로 흐름
     assert seen["names"] == ["DOC_A", "DOC_B"]

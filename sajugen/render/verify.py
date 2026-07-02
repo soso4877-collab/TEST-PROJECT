@@ -162,8 +162,21 @@ def _placeholder_residue_hits_clean(hits: list[dict], product: str | None = None
     return not any(h.get("severity") == "hard" for h in hits)
 
 
+_CHAPTER_HEAD_RX = re.compile(r"^\s*제\s*\d+\s*장")
+
+
+def _starts_new_chapter(page_text: str) -> bool:
+    """페이지가 장 마스트헤드(제 N 장)로 시작하면 True.
+
+    장마다 새 페이지로 시작하는 레이아웃(chapter_breaks=True)에서 긴 장의 끝이 다음
+    장 직전에 몇 줄만 흘러넘칠 수 있다. 이 짧은 페이지는 '콘텐츠 부족'이 아니라 책에서
+    흔한 정상 조판 꼬리다. 다음 페이지가 새 장이면 직전 짧은 페이지를 저밀도에서 제외.
+    (짧은 '장 시작' 페이지·중간 콘텐츠 페이지·맺음 직전 말미 밀도는 계속 잡는다.)"""
+    return bool(_CHAPTER_HEAD_RX.match(page_text or ""))
+
+
 def _low_density_pages(pages_text: list[str]) -> list[dict]:
-    """본문 글자수 <120 저밀도 페이지(보고). 표지/목차/부록/맺음/마지막 제외, 장 시작은 포함."""
+    """본문 글자수 <120 저밀도 페이지(보고). 표지/목차/부록/맺음/마지막·장꼬리 제외, 장 시작은 포함."""
     n = len(pages_text)
     out: list[dict] = []
     for i, t in enumerate(pages_text):
@@ -173,6 +186,9 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
         if len(s) >= _LOW_DENSITY_MIN:
             continue
         if any(k in s for k in ("목차", "용어 풀이", _APPENDIX_MARK, "글을 맺으며")):
+            continue
+        if i + 1 < n and _starts_new_chapter(pages_text[i + 1]):
+            # 다음이 새 장 → 이 짧은 페이지는 긴 장의 정상 조판 꼬리(콘텐츠 부족 아님).
             continue
         out.append({"page": i + 1, "chars": len(s), "text": s[:40]})
     return out

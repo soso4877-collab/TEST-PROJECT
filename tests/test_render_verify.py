@@ -34,6 +34,32 @@ def test_orphan_detector_excludes_chapter_and_appendix():
     assert v._orphan_pages(pages) == []
 
 
+def test_low_density_excludes_chapter_tail():
+    # 장마다 새 페이지(chapter_breaks=True)에서 긴 장의 짧은 조판 꼬리(다음 페이지가
+    # 새 장 시작)는 콘텐츠 부족이 아니라 정상 조판 → 저밀도에서 제외.
+    pages = [
+        "표지",
+        "제 1 장 본문 " + "가" * 200,  # 긴 장 본문(정상)
+        "이 장의 마지막 몇 줄만 넘어온 짧은 꼬리입니다.",  # <120, 다음이 새 장
+        "제 2 장 " + "나" * 200,  # 새 장 시작
+        "글을 맺으며",  # 마지막(제외)
+    ]
+    assert v._low_density_pages(pages) == [], v._low_density_pages(pages)
+
+
+def test_low_density_keeps_short_page_before_colophon():
+    # 맺음('글을 맺으며') 직전의 짧은 본문 말미 = 원래 'PDF 말미 밀도' 회귀 케이스.
+    # 다음 페이지가 새 장이 아니므로 챕터꼬리 제외에 걸리지 않고 계속 차단되어야 한다.
+    pages = [
+        "표지",
+        "제 1 장 본문 " + "가" * 200,
+        "본문 말미가 너무 짧게 끝납니다.",  # <120, 다음이 맺음(장 아님)
+        "글을 맺으며 감사합니다.",  # 마지막(제외)
+    ]
+    hits = v._low_density_pages(pages)
+    assert [h["page"] for h in hits] == [3], hits
+
+
 def test_split_paragraphs_merges_short_tail():
     # '있습니다.' 같은 짧은 마지막 단락은 직전 단락에 합쳐 단독 페이지화 방지
     text = "앞 단락은 충분히 깁니다. 흐름을 이어 갑니다.\n\n있습니다."

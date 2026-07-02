@@ -240,6 +240,25 @@ def _integrated_style_safe_text(text: str) -> str:
     return text
 
 
+def _pii_free_verify_digest(verify_result: dict) -> dict:
+    """게이트 실패 진단용 PII-free 요약(고객 이름·본문·장표제 미포함, 절대규칙17).
+
+    verify_result 를 raw 로 예외 메시지에 담으면 고객 이름/장표제가 로그·트레이스로
+    새므로, 실패 원인 파악에 필요한 rule/page/count/bool 만 추출한다."""
+    dq = verify_result.get("delivery_quality") or {}
+    return {
+        "gate_pass": verify_result.get("gate_pass"),
+        "failed_clean_flags": sorted(
+            k for k, v in verify_result.items() if k.endswith("_clean") and v is False
+        ),
+        "delivery_failures": [f.get("rule") for f in (dq.get("failures") or [])],
+        "low_density": [
+            {"page": p.get("page"), "chars": p.get("chars")}
+            for p in (verify_result.get("low_density_pages") or [])
+        ],
+    }
+
+
 def _integrated_only_low_density_failure(verify_result: dict) -> bool:
     dq = verify_result.get("delivery_quality") or {}
     failures = dq.get("failures") or []
@@ -326,7 +345,9 @@ def _render_integrated(
             brand=bp,
             body_font_size=body_font_size,
             body_line_height=body_line_height,
-            chapter_breaks=False,
+            # 장마다 새 페이지 시작(개인·궁합 리포트와 동일, 책/프리미엄 표준). 긴 장의
+            # 짧은 조판 꼬리는 verify._starts_new_chapter 로 저밀도에서 제외(2026-07-02).
+            chapter_breaks=True,
             out_dir=out_dir,
         )
         verify_result = render_verify.verify(
@@ -356,7 +377,10 @@ def _render_integrated(
             break
         if idx < len(_LAYOUT_VARIANTS) - 1 and low_density_only:
             continue
-        raise RuntimeError(f"integrated_full PDF 하드 게이트 실패(빌드 실패): {verify_result}")
+        raise RuntimeError(
+            "integrated_full PDF 하드 게이트 실패(빌드 실패, PII 제외): "
+            f"{_pii_free_verify_digest(verify_result)}"
+        )
     return pdf_path, verify_result, attempts
 
 
