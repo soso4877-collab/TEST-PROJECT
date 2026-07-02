@@ -124,8 +124,14 @@ def _regen_pdf(profile: dict, python: str) -> dict:
         encoding="utf-8",
         errors="replace",
         timeout=1800,
+        # 자식 프로세스 stdout/stderr 를 UTF-8 로 강제(Windows 기본 cp949 에서 진단 print 의
+        # 특수문자(em dash 등)로 서브프로세스가 UnicodeEncodeError 크래시하던 것 차단, 2026-07-02).
+        env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"},
     )
-    return {"returncode": r.returncode}
+    # 실패 시 원인 추적용 — 그동안 returncode 만 반환해 CLI 에러가 가려졌다(관측 갭). stderr tail 보존.
+    # getattr: 테스트가 subprocess.run 을 stdout/stderr 없는 mock 으로 대체해도 안전.
+    tail = ((getattr(r, "stderr", "") or "") + (getattr(r, "stdout", "") or ""))[-3000:]
+    return {"returncode": r.returncode, "stderr_tail": tail}
 
 
 def _profile_concern(profile: dict) -> str | None:
@@ -177,6 +183,10 @@ def run(profiles: list[str], args) -> dict:
             res["regen"] = "skipped(미승인)"
         if regen_result is not None:
             res["regen_returncode"] = regen_result.get("returncode")
+            # 재생성 실패 시 CLI stderr tail 을 로컬 진단용으로 보존(PII 포함 가능 → gitignored,
+            # 채팅/커밋 비출력). 그동안 원인이 가려지던 관측 갭 보강(2026-07-02).
+            if regen_result.get("returncode") not in (0, None) and regen_result.get("stderr_tail"):
+                res["regen_stderr_tail"] = regen_result["stderr_tail"]
         if res.get("status") != "verified" or not res.get("gate_pass"):
             retry_blocked = True
             retry_reasons.append(_retry_reason(res))
