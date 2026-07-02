@@ -54,6 +54,13 @@ sajugen/tools/
 # sajugen - P0 PoC 잔재(재생성 가능)
 sajugen/_poc_out/
 
+# sajugen - 감사/진단 임시 작업물(PII 파생물 포함 가능 — 커밋 유출 차단, T1.1/A-1).
+# tmp/·synthetic-tmp/ 는 진단 산출물(고객 content.json·렌더 PDF/HTML 포함) 누적 위치.
+# *.content.json 은 compose 결과(이름·질문원문·본문 전문 포함)라 위치 무관 전역 차단.
+tmp/
+synthetic-tmp/
+*.content.json
+
 # sajugen - 일회성 검증/진단 스크립트·로그(deny 규칙상 rm 불가, 무해).
 # 단일 underscore 로 시작하는 임시 파일만(__init__.py 같은 dunder는 예외)
 _[!_]*.py
