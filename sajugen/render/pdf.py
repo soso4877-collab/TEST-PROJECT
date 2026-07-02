@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
+from pathlib import Path
 
 import fitz
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -50,6 +52,32 @@ _env = Environment(
 )
 
 
+def _require_brand(brand: dict | None) -> dict:
+    if not isinstance(brand, dict) or not brand:
+        raise ValueError("render brand is required")
+    missing = [k for k in ("cover_title", "seal", "closing_sign") if not brand.get(k)]
+    if missing:
+        raise ValueError(f"render brand missing keys: {', '.join(missing)}")
+    return brand
+
+
+# 표지(front-matter) 표시 문자열만 렌더 직전 semantic-clean 처리.
+# style_lint 가 ai_signature_punctuation 으로 잡는 가운뎃점('·')·em/en dash('—'·'–')가
+# page 1 표지에 남지 않게 한다. 원인: integrated/gunghap 의 input_civil=" · ".join(names)
+# 과 생시 미상 고지("생시 미상·추정")가 cover_sub 로 그대로 출력돼 full-PDF semantic 이
+# 실패하던 것(2026-06-30). 본문은 대상 아님 — builder/gunghap 후처리 경로가 따로 통제하고,
+# 여기서는 표지 표시 문자열만 정규화한다. 날짜 하이픈('-' U+002D)은 대상이 아니라 보존된다.
+_COVER_PUNCT_RX = re.compile(r"\s*[·—–]\s*")
+
+
+def _clean_cover_text(text: str | None) -> str:
+    if not text:
+        return text or ""
+    text = _COVER_PUNCT_RX.sub(", ", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
+
+
 def render_html(
     report,
     saju,
@@ -57,11 +85,14 @@ def render_html(
     name: str | None = None,
     unknown_time: bool = False,
     brand: dict | None = None,
+    chapter_breaks: bool = True,
+    body_font_size: str = "14.5pt",
+    body_line_height: str = "1.8",
 ) -> str:
     # 도판 전면 제거(운영자 지시 — 목차+글만). 챕터·번호·차트 변수 미전달.
     # 본문은 빈 줄 기준 문단 분할 → 템플릿 <p> 렌더(단문 호흡 보존 + tagged 구조 개선).
     # brand = config.brand() 프로필(다계정 — 표지 표제·세로 박스 가변).
-    b = brand or {}
+    brand_profile = _require_brand(brand)
     secs = [
         {"id": s.id, "title": s.title, "paragraphs": _split_paragraphs(s.final_text)}
         for s in report.sections
@@ -71,11 +102,16 @@ def render_html(
         title="사주풀이 결과지",
         font_dir=_FONT_DIR,
         page_margin_css=_PAGE_MARGIN_CSS,
-        brand_title=b.get("cover_title", "종합 사주 풀이"),
-        brand_seal=b.get("seal", "사주명리"),
-        cover_name=(f"{name} 님" if name else ""),
-        cover_sub=(f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")),
+        brand_title=brand_profile["cover_title"],
+        brand_seal=brand_profile["seal"],
+        cover_name=_clean_cover_text(f"{name} 님") if name else "",
+        cover_sub=_clean_cover_text(
+            f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")
+        ),
         sections=secs,
+        chapter_breaks=chapter_breaks,
+        body_font_size=body_font_size,
+        body_line_height=body_line_height,
     )
 
 
@@ -105,38 +141,73 @@ def render_pdf(
     name: str | None = None,
     unknown_time: bool = False,
     brand: dict | None = None,
+    chapter_breaks: bool = True,
+    body_font_size: str = "14.5pt",
+    body_line_height: str = "1.8",
+    out_dir: str | Path | None = None,
 ) -> str:
-    os.makedirs(_OUT, exist_ok=True)
-    html = render_html(report, saju, age=age, name=name, unknown_time=unknown_time, brand=brand)
-    html_path = os.path.join(_OUT, out_name.replace(".pdf", ".html"))
-    pdf_path = os.path.join(_OUT, out_name)
+    brand_profile = _require_brand(brand)
+    seal_text = brand_profile["seal"]
+    output_dir = os.fspath(out_dir) if out_dir is not None else _OUT
+    if out_dir is not None and os.path.basename(out_name) != out_name:
+        raise ValueError("out_name must be a filename when out_dir is set")
+    os.makedirs(output_dir, exist_ok=True)
+    html = render_html(
+        report,
+        saju,
+        age=age,
+        name=name,
+        unknown_time=unknown_time,
+        brand=brand_profile,
+        chapter_breaks=chapter_breaks,
+        body_font_size=body_font_size,
+        body_line_height=body_line_height,
+    )
+    html_path = os.path.join(output_dir, out_name.replace(".pdf", ".html"))
+    pdf_path = os.path.join(output_dir, out_name)
+    staging_fd, staging_path = tempfile.mkstemp(
+        prefix=f".{os.path.splitext(os.path.basename(out_name))[0]}.",
+        suffix=".pdf",
+        dir=output_dir,
+    )
+    os.close(staging_fd)
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
 
-    # display_header_footer 미사용: Chromium 머리말/꼬리말은 미태깅 콘텐츠라
-    # PDF/UA-1 7.1-3(콘텐츠는 태깅 또는 Artifact여야 함) 대량 위반 원인.
-    with sync_playwright() as pw:
-        b = pw.chromium.launch()
-        pg = b.new_page()
-        pg.goto("file:///" + html_path.replace("\\", "/"))
-        pg.emulate_media(media="print")
-        # pdf()는 screenshot과 달리 웹폰트 로딩을 기다리지 않는다 — 대용량 폰트
-        # (Source Han Serif 24MB)가 콜드 캐시일 때 본문 글리프가 통째로 빠지는
-        # 레이스 실측(2026-06-12, text_chars 13467→606). 명시 대기 필수.
-        pg.evaluate("document.fonts.ready")
-        pg.pdf(
-            path=pdf_path,
-            format="A4",
-            tagged=True,
-            outline=True,
-            print_background=True,
-            prefer_css_page_size=True,
-            margin=_PAGE_MARGIN,
-        )
-        b.close()
+    try:
+        # display_header_footer 미사용: Chromium 머리말/꼬리말은 미태깅 콘텐츠라
+        # PDF/UA-1 7.1-3(콘텐츠는 태깅 또는 Artifact여야 함) 대량 위반 원인.
+        with sync_playwright() as playwright:
+            browser = None
+            try:
+                browser = playwright.chromium.launch()
+                page = browser.new_page()
+                page.goto("file:///" + html_path.replace("\\", "/"))
+                page.emulate_media(media="print")
+                # pdf()는 screenshot과 달리 웹폰트 로딩을 기다리지 않는다 — 대용량 폰트
+                # (Source Han Serif 24MB)가 콜드 캐시일 때 본문 글리프가 통째로 빠지는
+                # 레이스 실측(2026-06-12, text_chars 13467→606). 명시 대기 필수.
+                page.evaluate("document.fonts.ready")
+                page.pdf(
+                    path=staging_path,
+                    format="A4",
+                    tagged=True,
+                    outline=True,
+                    print_background=True,
+                    prefer_css_page_size=True,
+                    margin=_PAGE_MARGIN,
+                )
+            finally:
+                if browser is not None:
+                    browser.close()
 
-    _apply_background(pdf_path, seal_text=(brand or {}).get("seal", "사주명리"))
-    harden_pdf_ua(pdf_path, title="사주풀이 결과지", lang="ko-KR")
+        _apply_background(staging_path, seal_text=seal_text)
+        harden_pdf_ua(staging_path, title="사주풀이 결과지", lang="ko-KR")
+        os.replace(staging_path, pdf_path)
+    except Exception:
+        if os.path.exists(staging_path):
+            os.remove(staging_path)
+        raise
     return pdf_path
 
 
@@ -164,7 +235,7 @@ def _draw_gwakgwak(page) -> None:
     )
 
 
-def _apply_background(pdf_path: str, seal_text: str = "사주명리") -> None:
+def _apply_background(pdf_path: str, seal_text: str | None = None) -> None:
     """전 페이지 언더레이: 낙관 PNG(브랜드 가변) + 광곽 + 한지 배경.
 
     PyMuPDF overlay=False 는 콘텐츠 스트림 '맨 앞'에 prepend — 나중에 넣은 것이
@@ -172,6 +243,8 @@ def _apply_background(pdf_path: str, seal_text: str = "사주명리") -> None:
     이미지(낙관·한지)는 xref 재사용으로 각 1회만 임베드. 텍스트 임베드 없음
     (PyMuPDF insert_text 글리프 깨짐 실증 — 낙관은 build_seal PNG).
     """
+    if not seal_text:
+        raise ValueError("render brand seal is required")
     if not os.path.isfile(_BG_PATH):
         return
     from .assets.make_assets import build_seal

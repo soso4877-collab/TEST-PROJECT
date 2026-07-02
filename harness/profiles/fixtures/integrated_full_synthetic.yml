@@ -1,0 +1,11 @@
+# 합성 픽스처(커밋됨) — integrated_full 하네스 테스트 전용. 실존 인물 아님.
+type: integrated_full
+product: integrated_full
+pdf: sajugen/render/out/__nonexistent_synthetic_integrated_full__.pdf
+ref_year: 2026
+receiver: 합성갑
+brand: sajudoryeong
+concern: "합성 관계와 생활 기준을 함께 확인합니다."
+people:
+  - {name: 합성갑, birth: "1990-01-01 10:00", gender: 남}
+  - {name: 합성을, birth: "1991-02-02 11:00", gender: 여}

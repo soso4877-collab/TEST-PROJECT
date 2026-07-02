@@ -1,0 +1,97 @@
+{
+  "task_id": "TASK_YYYYMMDD_SHORT_NAME",
+  "owner": "Codex Implementer",
+  "next_reviewer": "Codex Verifier",
+  "goal": "One coherent unit only. State the observable outcome.",
+  "background": "PII-free summary using anonymous IDs such as DOC_A or CUSTOMER_1.",
+  "allowed_files": [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "handoff/templates/context_snapshot.md",
+    "handoff/templates/task_packet.json",
+    "handoff/templates/pdf_review_report.md",
+    "docs/16-quality-incident-ledger.md",
+    "docs/17-agent-tooling-runbook.md"
+  ],
+  "forbidden_files": [
+    "sajugen/**",
+    "tests/**",
+    "sajugen/render/out/**",
+    "render/out/**",
+    "harness/profiles/local/**",
+    ".env",
+    "data/**"
+  ],
+  "constraints": [
+    "Do not create or modify code, tests, HTML, PDF, Skills, or MCP servers unless this packet explicitly allows it.",
+    "Do not paste customer names, birth data, original questions, or full document bodies into chat or docs.",
+    "Use SHA, not filename, to identify the latest source of truth.",
+    "Separate implementation report from verification report."
+  ],
+  "commands": [
+    {
+      "name": "diff_check",
+      "command": "git diff --check",
+      "required": true
+    },
+    {
+      "name": "status",
+      "command": "git status --short",
+      "required": true
+    },
+    {
+      "name": "pii_policy_scan",
+      "command": "Run a count-only sensitive string scan over approved handoff/docs paths.",
+      "required": true
+    }
+  ],
+  "done_when": [
+    "All expected outputs exist.",
+    "Required commands have passing or explained results.",
+    "No forbidden file was read or modified.",
+    "No customer PII was introduced."
+  ],
+  "stop_conditions": [
+    "TASK_PACKET is missing or SHA mismatched.",
+    "Required source file is outside allowed_files.",
+    "Customer data, PDF text, or local profile contents are needed.",
+    "PDF rendering, API/LLM call, commit, push, or deploy would be required."
+  ],
+  "expected_outputs": [
+    "CODEX_IMPLEMENTATION_REPORT",
+    "CODEX_VERIFICATION_REPORT from a separate verifier session when requested",
+    "Updated RUN_STATE with current_stage, input_sha, output_sha, api_calls, pdf_rendered, retry_blocked, final_status"
+  ],
+  "rollback_policy": "Only revert files changed by this task. Do not revert unrelated user changes.",
+  "pii_policy": {
+    "allowed_identifiers": [
+      "DOC_A",
+      "DOC_B",
+      "CUSTOMER_1"
+    ],
+    "forbidden": [
+      "customer name",
+      "birth date",
+      "birth time",
+      "original customer question",
+      "full PDF/HTML body"
+    ],
+    "storage": "Customer data and generated review artifacts stay only in gitignored areas."
+  },
+  "api_policy": {
+    "api_calls_allowed": false,
+    "llm_calls_allowed": false,
+    "requires_explicit_operator_approval": true
+  },
+  "pdf_policy": {
+    "pdf_render_allowed": false,
+    "hand_edited_html_pdf_delivery_baseline_allowed": false,
+    "release_requires": [
+      "render_verify pass",
+      "forbidden text scan pass",
+      "300dpi visual review pass",
+      "PII review pass",
+      "operator full-text approval"
+    ]
+  }
+}

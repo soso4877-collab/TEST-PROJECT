@@ -10,6 +10,13 @@
 4. `docs/09-roadmap.md` — Phase 로드맵과 완료 기준
 5. 절대 규칙 상세: `.claude/rules/00-immutable.md` (항상 로드됨)
 
+## Phase 0 containment — durable handoff
+- Claude는 Plan Architect와 Semantic Reviewer로 동작한다. 구현은 승인된 TASK_PACKET을 받은 Codex가 수행하고, 검증은 별도 Codex Verifier 세션에서 분리한다.
+- 한 세션은 하나의 coherent unit만 담당한다. 컨텍스트가 길어지면 `handoff/templates/context_snapshot.md`와 RUN_STATE 기준으로 새 세션에 넘긴다.
+- TASK_PACKET은 구현 source of truth다. 최신본은 파일명이 아니라 SHA로 판단하고, 인계에는 파일 경로·SHA·결정사항·실패 rule만 남긴다.
+- 손편집 HTML/PDF는 최종 납품 기준선으로 금지한다. 납품 후보는 표준 게이트 파이프라인에서만 만들고, PDF는 `handoff/templates/pdf_review_report.md` 검수 항목이 REVIEW_REQUIRED에서 해소되기 전 발송 금지다.
+- 고객 PII, 질문 원문, HTML/PDF 본문 전문은 채팅·문서·템플릿에 붙이지 않는다. 예시는 `DOC_A`, `CUSTOMER_1` 같은 익명 ID만 쓴다.
+
 ## 스택 (확정 — 임의 변경 금지)
 - Python 올인: lunar-python 1.4.8 고정 / iztro-py / Skyfield(de440s.bsp, 절기) / KASI 캐시(3원 교차)
 - Jinja2 + Playwright Chromium tagged PDF / veraPDF(포터블 Java 21, 측정만·빌드 불차단)

@@ -27,8 +27,8 @@
     --gold:#9a6f1e; --gold-ink:#7d5610; --injoo:#a23b2c;
     /* 본문 타이포(2026-06-12 운영자 지시·금강산 실측 15pt/행송 28pt 기반 상향):
        한글 본문 행간 권장 180~210% 범위 안. 잉크는 한지 위 과대비 피해 #111. */
-    --fs:14.5pt;
-    --lh:1.8;
+    --fs:{{ body_font_size }};
+    --lh:{{ body_line_height }};
     --lh-tight:1.32;
     --ls:0;
     --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
@@ -74,7 +74,7 @@
     word-break:keep-all;overflow-wrap:normal;line-break:strict}
 
   /* 챕터 = 한 장(章). 새 페이지에서 시작, 제N장 라벨 + 제목(=h2 아웃라인 소스) + 가는 룰. */
-  section.chapter{page-break-before:always;page-break-inside:auto}
+  section.chapter{page-break-before:{% if chapter_breaks %}always{% else %}auto{% endif %};page-break-inside:auto}
   .cnum{font-family:'Saju',sans-serif;color:var(--gold-ink);font-size:10.5pt;
     letter-spacing:.32em;text-align:center;margin:14mm 0 0}
   h2.ctitle{font-family:'SajuHead','SajuBody',serif;font-size:26pt;font-weight:700;
@@ -88,7 +88,7 @@
     line-height:1.4;margin:var(--s6) 0 var(--s3)}
   /* 본문 = 단문 호흡: 문단(<p>)별 분리 + 여백이 빈 줄 호흡을 담당.
      좌측정렬(ragged right) — 금강산 방식, justify 강제 줄간 늘임 제거. */
-  .body{margin:0;max-width:var(--maxw);
+  .body{margin:0 auto;max-width:var(--maxw);
     line-height:var(--lh);text-align:left;word-break:keep-all}
   .body p{white-space:pre-line;text-indent:0;margin:0 0 .95em;
     orphans:4;widows:4}

@@ -1,5 +1,43 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ★ 활성 워크플로우 (2026-07-02 갱신, 압축 재개용 — 이 줄 먼저):
+>   customer2 통합 PDF(integrated_full) triage 후속 품질 게이트 보강 P1~P5 + relationship belt = 완료·커밋.
+>   커밋: `8012a20` feat(sajugen): 납품 문안 품질 게이트 보강 (브랜치 codex/gunghap-relationship-quality, push 안 함).
+>   - P1 concern 배선(situation→concern 정규화·context_required·missing_customer_context)
+>   - P2 customer_meta_lint.transition_section_preview(문서 진행/섹션 예고 차단, 생활흐름 오탐 0)
+>   - P3 compose 가드(builder/gunghap에 customer_meta_lint 부착)+프롬프트 belt(_COMPOSE_SYSTEM/_GH_SYSTEM)
+>   - P4 목차 리드 중립화("…다음 순서로 이어집니다"→"차례")
+>   - P5 물리 frontload 보조지표(physical_frontloaded_answer, warning 전용·게이트 불변)+검수 체크리스트
+>   - relationship belt(context.SYSTEM), 표지 semantic-clean(render/pdf), 보장형 compose 가드(guarantee_lint)
+>   [2026-07-02 PDF 레이아웃 근본수정 = 커밋 `b2143e5`] 육안 "레이아웃 다 틀어짐" 근본원인 2겹 규명·수정:
+>   - (즉시결함) 본문 칼럼 좌우 비대칭(좌20/우42mm) = report.html.j2 `.body{margin:0}` 미중앙정렬 →
+>     `margin:0 auto`(좌우 ≈31mm 대칭). 실측 20/42 → 31.2/31.6.
+>   - (시스템원인) verify가 텍스트/카운트만 검사·기하 검증 0 → 시각결함이 gate_pass=true로 반복통과.
+>     verify.py `_layout_geometry_hits`(블록 bbox 좌우여백·넘침) 신설·gate_pass 편입(기존게이트 완화 0).
+>   - (비용 근본차단) integrated.py compose결과 `.content.json`(gitignored) 영속 + render-only 재렌더
+>     (`render_integrated_from_content`/CLI `render`, `_render_integrated` 추출) → 레이아웃/템플릿 변경 시
+>     재compose(API 과금) 없이 재렌더. 실 라운드트립(build→저장→재렌더) 재compose 0 실증.
+>   실측: `pytest tests/ -q` = 436 passed / 3 skipped / exit 0. 구템플릿 customer2 PDF는 새 게이트가
+>     margin_asymmetry 49건으로 차단. BEFORE/AFTER 시각자료(tmp/layout_BEFORE·AFTER.png, 합성·PII0).
+>   [2026-07-02 seed·하네스 fix·저밀도 이슈] 세션 커밋(전부 push됨, HEAD=origin=`e55cca5`):
+>     8012a20(P1~P5)·6bb18db·b7a946d(docs)·b2143e5(layout)·cbe75fe(docs STATE/장부)·e55cca5(하네스 fix).
+>   - 하네스 fix `e55cca5`: `_regen_pdf` 자식 UTF-8 강제(PYTHONUTF8=1)+stderr 캡처. 서브프로세스 seed 가
+>     cp949 크래시/에러 은닉으로 실패하던 것 교정(단, hsummary 가 regen_stderr_tail 필드를 드롭 = 후속 관측 갭).
+>   - customer2 교정본 진행: **in-process build(use_llm=True)로 compose 성공·렌더됨·`.content.json` 저장**
+>     (`sajugen/render/out/customer2_integrated_full.content.json`, 80KB, gitignored). → 이후 재렌더 **무료**.
+>     레이아웃 대칭 확인(좌31.2/우31.5mm)·기하 게이트 clean. **단 gate_pass=False**, 유일 원인 =
+>     `delivery_quality → premium_low_density_pages`(page 3, 85자). 원인 = 이번 compose 의 **짧은 관계 섹션들
+>     장 표제(제N장)가 한 페이지에 쌓여** 희소 페이지. **폭 문제 아님**(--maxw 162mm $0 재렌더도 동일 page3 실패).
+>     나머지 게이트 전부 clean(문안/기하/placeholder/style/honorific/markdown/temporal). warning 만(물리 frontload·단어반복).
+>   [주의] verify_result 를 raw 로 출력하면 고객 이름/장표제가 노출됨(이번에 1회 실수) → 반드시 rule/page/count/bool 만 추출.
+>   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp·render/out = gitignored.
+>   ★ 다음 작업(전부 API 0 — content.json 재사용): 짧은 섹션 압축 보강 `integrated._compact_sparse_sections`(line~128)
+>     로 짧은 관계 섹션 표제가 희소 페이지 안 만들게 → `integrated.render_integrated_from_content(
+>     "sajugen/render/out/customer2_integrated_full.content.json", out_name="customer2_integrated_full.pdf")`
+>     로 **무료 재렌더** → delivery_quality premium_low_density_pages 통과 확인(gate_pass=True). 재compose(API) 불필요.
+>   [핵심] 운영자 지적 "레이아웃 틀어짐" = 중앙정렬+기하게이트로 **해결됨**. 남은 건 저밀도 1페이지(별개 품질게이트).
+>   커밋/push·고객 발송은 운영자 지시 시만. 운영자 전문 검수·APPROVED 전 발송 0.
+>
 > 컨텍스트가 비워져도 이 파일만 읽으면 그대로 이어갈 수 있다.
 > 계획 전문(현행): C:\Users\pc\.claude\plans\role-claude-distributed-hellman.md (상용화 플랜, 2026-06-10 승인)
 > 계획 전문(구): C:\Users\pc\.claude\plans\quirky-wibbling-wind.md
@@ -65,6 +103,11 @@
 >   안전 확인: PDF 재생성 없음, 애플리케이션 실행 경로 LLM 호출 없음(단 개발 도구인 Claude Code·Codex 사용은
 >   이 항목에서 제외), push 없음, deploy 없음.
 >   다음 단계: Phase 2A — Claude Plan → Codex Plan Review 자동화 v1.
+> [2026-06-27 Phase 1 Scope A 검증 완료]
+>   상태: PHASE1_GATE_VERIFIED. clean worktree(test-project-phase1-verify)에서 semantic focused 22 passed,
+>   harness focused 2 passed, 7 deselected. FOLLOWUP-A(`scripts/hrun.py` RUN_STATE/retry 배선) 대기,
+>   `scripts/hverify_pdf.py` adapter 확장은 NON_BLOCKING_FOLLOWUP 대기. Phase 2는 운영자 명시 승인 전 금지.
+>   전체 render/end-to-end 검증은 이번 Scope A에서 미실행.
 
 ## 한 줄 상태
 사주 PDF 생성기(sajugen) 핵심 빌드 + 디벨롭1·2·3 완료(pytest 34 PASS).

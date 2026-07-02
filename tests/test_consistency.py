@@ -21,6 +21,30 @@ def _sec(sid, text):
     return SimpleNamespace(id=sid, final_text=text)
 
 
+def _mixed_daewoon_pdf_input():
+    from sajugen import config as cfg
+
+    secs = [
+        SimpleNamespace(
+            id="flow",
+            title="시간의 흐름",
+            source_keys=["m"],
+            final_text="지금은 정미 대운을 지나는 시기입니다. " * 30,
+        ),
+        SimpleNamespace(
+            id="closing",
+            title="마무리",
+            source_keys=["m"],
+            final_text="지금 병오 대운 초입에 들어서는 자리입니다. " * 30,
+        ),
+    ]
+    return (
+        SimpleNamespace(sections=secs),
+        SimpleNamespace(input_civil="테스트"),
+        dict(cfg.brand("sajudoryeong")),
+    )
+
+
 def test_current_framed_extracts_current_daewoon():
     # B 패턴: '{간지} 대운 초입' (실제 결함 문장 형태)
     assert "병오" in c.current_framed("지금 태수님은 병오 대운 초입에 들어서는 자리입니다")
@@ -67,32 +91,24 @@ def test_verify_gate_fails_on_mixed_daewoon_pdf():
     # 핵심 요구 검증: 같은 PDF에 현재 대운이 2종으로 섞이면 렌더 후 게이트가 빌드 실패시킨다.
     # (PyMuPDF 추출이 간지를 '대운/초입'에서 분리해 정규식을 무력화하지 않는지도 함께 확인.)
     require_playwright_subprocess()
-    from sajugen import config as cfg
     from sajugen.render import pdf as render_pdf
     from sajugen.render import verify as v
 
-    secs = [
-        SimpleNamespace(
-            id="flow",
-            title="시간의 흐름",
-            source_keys=["m"],
-            final_text="지금은 정미 대운을 지나는 시기입니다. " * 30,
-        ),
-        SimpleNamespace(
-            id="closing",
-            title="마무리",
-            source_keys=["m"],
-            final_text="지금 병오 대운 초입에 들어서는 자리입니다. " * 30,
-        ),
-    ]
-    report = SimpleNamespace(sections=secs)
-    fake_saju = SimpleNamespace(input_civil="테스트")
-    bp = dict(cfg.brand("seodam"))
+    report, fake_saju, bp = _mixed_daewoon_pdf_input()
     path = render_pdf.render_pdf(report, fake_saju, "test_daewoon_gate.pdf", name="", brand=bp)
     r = v.verify(path)
     assert set(r["daewoon_current"]) == {"정미", "병오"}, r["daewoon_current"]
     assert r["daewoon_consistent"] is False
     assert r["gate_pass"] is False
+
+
+def test_mixed_daewoon_fixture_uses_sajudoryeong():
+    from sajugen.render import pdf as render_pdf
+
+    report, fake_saju, bp = _mixed_daewoon_pdf_input()
+    html = render_pdf.render_html(report, fake_saju, name="", brand=bp)
+    assert "사주도령" in html
+    assert "서담선생" not in html
 
 
 def test_builder_report_daewoon_single_and_consistent(monkeypatch):

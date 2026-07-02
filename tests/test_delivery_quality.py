@@ -48,6 +48,31 @@ def test_premium_thin_report_fails_density_and_ziwei():
     assert r["clean"] is False
 
 
+def test_gunghap_relationship_requires_30_pages_and_question_axes():
+    concern = (
+        "현재 8살 연상의 남성과 썸을 타고 있습니다. 서로 호감은 있지만 대화나 갈등에서 "
+        "생각하는 방식 차이가 있습니다. 상대방의 진심, 성격, 가치관, 연애관, 좋은 영향, "
+        "안정적인 관계를 이어갈 수 있는 궁합인지 궁금합니다."
+    )
+    text = (
+        "결론부터 말하면 이 관계는 호감과 진심을 확인하되 대화와 갈등의 속도를 맞추는 것이 핵심입니다. "
+        "성격과 가치관, 연애관은 생활 기준과 약속을 어떻게 맞추는지에서 드러납니다. "
+        "상대의 마음은 말보다 표현과 반복되는 태도, 신뢰를 지키는 방식으로 보아야 합니다. "
+        "두 사람은 서로에게 좋은 영향을 줄 수 있지만 안정적으로 이어가려면 조율과 속도 조절이 필요합니다. "
+        "앞으로 1년은 올해 하반기와 내년 상반기를 나누어 판단하면 좋습니다. "
+        "먼저 안부와 대화를 가볍게 열고, 서두르지 말고 관계 기준을 확인해야 합니다. "
+        "명리에서는 궁합과 보완을 보고, 자미두수로는 사람과 관계, 돈과 생활, 밖에서 드러나는 모습을 함께 봅니다. "
+    ) * 70
+    thin = dq.analyze(text, pages=29, product="gunghap_relationship", concern=concern)
+    assert thin["clean"] is False
+    assert {"rule": "premium_pages", "value": 29, "minimum": 30} in thin["failures"]
+
+    ok = dq.analyze(text, pages=30, product="gunghap_relationship", concern=concern)
+    assert ok["clean"] is True, ok
+    assert ok["min_gunghap_pages"] == 30
+    assert ok["missing_axes"] == []
+
+
 def test_premium_without_customer_context_reports_layout_and_repetition_only():
     text = (
         "자미두수로 보면 집과 돈과 일이 함께 보이고 흐름도 함께 봅니다. "
@@ -251,7 +276,9 @@ def test_reunion_question_requires_near_term_timing_not_only_generic_timing():
         "시기는 너무 멀리 보지 말고 상대가 실제로 대화를 이어 오는지 확인해야 합니다. "
         "자미두수로 보면 사람과 관계, 돈의 부담이 함께 걸립니다. "
     ) * 45
-    r = dq.analyze(text, pages=24, product="integrated", concern="헤어진 사람과 재회 시기가 궁금합니다")
+    r = dq.analyze(
+        text, pages=24, product="integrated", concern="헤어진 사람과 재회 시기가 궁금합니다"
+    )
     rules = {f["rule"] for f in r["failures"]}
     assert "missing_near_term_timing" in rules
     assert r["near_term_timing"]["required"] is True
@@ -265,7 +292,9 @@ def test_reunion_question_passes_with_one_year_timing_and_contact_action():
         "명리에서는 시기의 흐름을 먼저 보고 조심할 구간을 나눕니다. "
         "자미두수로 보면 관계와 사람의 자리가 함께 움직여, 연락보다 분위기 회복이 먼저입니다. "
     ) * 60
-    r = dq.analyze(text, pages=24, product="integrated", concern="헤어진 사람과 재회 시기와 다가가는 방법")
+    r = dq.analyze(
+        text, pages=24, product="integrated", concern="헤어진 사람과 재회 시기와 다가가는 방법"
+    )
     assert r["near_term_timing"]["ok"] is True
     assert r["frontloaded_answer"]["ok"] is True
     assert "missing_near_term_timing" not in {f["rule"] for f in r["failures"]}
@@ -277,7 +306,9 @@ def test_love_axis_requires_action_caution_and_myeongni():
         "자미두수로 보면 사람과 관계, 돈 관리의 부담도 함께 보입니다. "
         "올해와 내년의 흐름을 길게 설명합니다. "
     ) * 55
-    r = dq.analyze(text, pages=24, product="integrated", concern="연애를 못했는데 만남이 들어올까요")
+    r = dq.analyze(
+        text, pages=24, product="integrated", concern="연애를 못했는데 만남이 들어올까요"
+    )
     rules = {f["rule"] for f in r["failures"]}
     assert "missing_love_reunion_action" in rules
     assert "missing_love_myeongni" in rules
@@ -291,7 +322,9 @@ def test_new_love_question_passes_with_meeting_action_caution_and_two_views():
         "조심할 점은 외로움 때문에 결론을 빨리 정하려는 마음입니다. "
         "명리에서는 시기의 흐름을 보고, 자미두수로 보면 사람과 관계, 돈 관리의 부담을 함께 봅니다. "
     ) * 60
-    r = dq.analyze(text, pages=24, product="integrated", concern="연애를 못했는데 소개팅을 받아도 될까요")
+    r = dq.analyze(
+        text, pages=24, product="integrated", concern="연애를 못했는데 소개팅을 받아도 될까요"
+    )
     assert r["clean"] is True, r
     assert r["love_action"]["ok"] is True
     assert r["love_myeongni"]["ok"] is True
@@ -304,17 +337,27 @@ def test_marriage_question_passes_with_conditions_money_caution_and_two_views():
         "조심할 점은 감정만 앞서 결혼 이야기를 크게 잡는 흐름입니다. "
         "명리에서는 시기의 흐름을 보고, 자미두수로 보면 사람과 관계, 돈과 가족의 자리를 함께 봅니다. "
     ) * 60
-    r = dq.analyze(text, pages=24, product="integrated", concern="언제 결혼운이 들어오고 지금 만나는 사람과 결혼까지 볼 수 있나요")
+    r = dq.analyze(
+        text,
+        pages=24,
+        product="integrated",
+        concern="언제 결혼운이 들어오고 지금 만나는 사람과 결혼까지 볼 수 있나요",
+    )
     assert r["clean"] is True, r
     assert r["love_action"]["ok"] is True
     assert r["love_myeongni"]["ok"] is True
 
 
 def test_ziwei_name_only_without_cross_domains_fails_premium():
-    text = "자미두수도 참고했습니다. " + ("설명을 이어갑니다. " * 40) + (
-        "집 문제와 돈 문제와 사람 문제를 충분히 설명합니다. "
-        "이사와 계약과 관계를 차분히 보아야 합니다. "
-    ) * 120
+    text = (
+        "자미두수도 참고했습니다. "
+        + ("설명을 이어갑니다. " * 40)
+        + (
+            "집 문제와 돈 문제와 사람 문제를 충분히 설명합니다. "
+            "이사와 계약과 관계를 차분히 보아야 합니다. "
+        )
+        * 120
+    )
     r = dq.analyze(text, pages=27, premium=True)
     rules = {f["rule"] for f in r["failures"]}
     assert "missing_usable_ziwei" in rules
@@ -337,8 +380,128 @@ def test_repetitive_ai_like_word_and_absolute_guarantee_fail():
     assert "absolute_guarantee" in rules
 
 
+def test_context_required_for_helper():
+    assert dq.context_required_for("integrated_full") is True
+    assert dq.context_required_for("gunghap_relationship") is True
+    assert dq.context_required_for("gunghap") is True
+    assert dq.context_required_for("integrated") is False
+    assert dq.context_required_for("personal") is False
+    assert dq.context_required_for(None) is False
+
+
+def test_context_required_without_concern_fails_missing_customer_context():
+    # P1: 고객 질문 필수 상품인데 concern 부재 → 조용한 통과 금지.
+    r = dq.analyze(_premium_text(), pages=57, product="integrated_full", context_required=True)
+    assert r["has_customer_context"] is False
+    assert "missing_customer_context" in {f["rule"] for f in r["failures"]}
+    assert r["clean"] is False
+
+
+def test_context_required_with_concern_passes_context_and_populates_axes():
+    concern = "도와주는 사람과 시기가 궁금하고 어떻게 준비할지 알고 싶습니다"
+    r = dq.analyze(
+        _premium_text(),
+        pages=57,
+        product="integrated_full",
+        concern=concern,
+        context_required=True,
+    )
+    assert r["has_customer_context"] is True
+    assert r["required_axes"] != []
+    assert "missing_customer_context" not in {f["rule"] for f in r["failures"]}
+
+
+def test_context_required_default_false_preserves_no_concern_paths():
+    # 기존 무고객 합성/단위 경로 보존 — 기본 False 면 실패 추가 없음.
+    r = dq.analyze(_premium_text(), pages=57, product="integrated_full")
+    assert "missing_customer_context" not in {f["rule"] for f in r["failures"]}
+
+
+_PF_CONCERN = "도와주는 사람과 시기가 궁금하고 어떻게 준비할지 알고 싶습니다"
+
+
+def test_physical_frontloaded_flags_cover_toc_first_pages():
+    # P5: 물리 p1~p3이 표지/목차뿐이고 답변이 p4 이후면 warning(보고)로 드러남.
+    pages = ["표지", "차례", "인사말 페이지", _premium_text()]
+    r = dq.analyze(
+        _premium_text(),
+        pages=57,
+        product="integrated_full",
+        concern=_PF_CONCERN,
+        context_required=True,
+        page_texts=pages,
+    )
+    pf = r["physical_frontloaded_answer"]
+    assert pf["required"] is True
+    assert pf["ok"] is False
+    assert pf["answer_page"] == 4
+    assert "physical_frontloaded_answer" in {w["rule"] for w in r["warnings"]}
+    # 보고용 warning — failures 로는 올라가지 않는다(게이트 미변경).
+    assert "physical_frontloaded_answer" not in {f["rule"] for f in r["failures"]}
+
+
+def test_physical_frontloaded_ok_when_answer_in_first_pages():
+    # P5: 물리 첫 페이지에 답변 근거가 있으면 ok=True, warning 없음.
+    pages = [_premium_text(), "표지", "차례"]
+    r = dq.analyze(
+        _premium_text(),
+        pages=57,
+        product="integrated_full",
+        concern=_PF_CONCERN,
+        context_required=True,
+        page_texts=pages,
+    )
+    pf = r["physical_frontloaded_answer"]
+    assert pf["ok"] is True
+    assert pf["answer_page"] == 1
+    assert "physical_frontloaded_answer" not in {w["rule"] for w in r["warnings"]}
+
+
+def test_physical_frontloaded_not_evaluated_without_concern_or_pages():
+    # 기존 무고객/무페이지 경로 보존 — 평가 안 함, warning 없음.
+    r = dq.analyze(_premium_text(), pages=57, product="integrated_full")
+    assert r["physical_frontloaded_answer"]["required"] is False
+    assert "physical_frontloaded_answer" not in {w["rule"] for w in r["warnings"]}
+
+
+def test_guarantee_lint_flags_absolute_guarantee_family():
+    # public 헬퍼는 absolute_guarantee 계열을 잡는다(compose 단계 가드용).
+    assert dq.guarantee_lint("무조건")
+    assert dq.guarantee_lint("결혼합니다")
+    assert dq.guarantee_lint("재회합니다")
+    assert dq.guarantee_lint("100%")
+    assert dq.guarantee_lint("100 %")
+    assert dq.guarantee_lint("반드시 성공")
+    assert dq.guarantee_lint("확실히 된다")
+
+
+def test_guarantee_lint_allows_non_guarantee_phrasing():
+    # 결과 보장이 아닌 표현은 차단하지 않는다(과탐 회귀).
+    assert dq.guarantee_lint("반드시 확인해 보세요") == []
+    assert dq.guarantee_lint("결혼을 준비하는 마음으로 점검해 보세요") == []
+    assert dq.guarantee_lint("") == []
+
+
+def test_guarantee_lint_matches_analyze_criteria_no_drift():
+    # public 헬퍼와 analyze() 의 absolute_guarantee 기준이 동일(중복정의·드리프트 없음).
+    text = _premium_text() + " 결혼합니다 무조건 100%"
+    assert dq.guarantee_lint(text) == dq.analyze(text, pages=27, premium=True)["guarantee_hits"]
+    assert dq.guarantee_lint(text)
+
+
+def test_guarantee_lint_catches_hard_outcome_that_safe_lint_misses():
+    # retry3 갭: safe_lint 가 놓치는 보장형 hard-outcome 도 guarantee_lint 는 잡는다.
+    from sajugen.content import safe_lint
+
+    for phrase in ("이 흐름이면 두 분은 결혼합니다", "두 분은 무조건 잘 맞습니다"):
+        assert safe_lint.lint(phrase) == []  # safe_lint 단독으로는 통과(갭)
+        assert dq.guarantee_lint(phrase)  # guarantee_lint 가 안전망
+
+
 def test_expected_context_missing_fails_and_overuse_warns():
-    missing = dq.analyze(_premium_text(), pages=27, premium=True, expected_context_terms=["청마", "새이름"])
+    missing = dq.analyze(
+        _premium_text(), pages=27, premium=True, expected_context_terms=["청마", "새이름"]
+    )
     assert "새이름" in missing["missing_context_terms"]
     assert missing["clean"] is False
 

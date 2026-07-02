@@ -51,6 +51,34 @@ def _file_meta(pdf: str) -> dict:
     }
 
 
+def _safe_hits(hits: list[dict] | None) -> list[dict]:
+    """Forward count/rule metadata only; never forward raw matched text."""
+    out: list[dict] = []
+    for h in (hits or [])[:20]:
+        if not isinstance(h, dict):
+            continue
+        item = {}
+        for key in (
+            "type",
+            "kind",
+            "rule",
+            "page",
+            "chars",
+            "term",
+            "count",
+            "allowed",
+            "severity",
+            "role",
+            "expected",
+            "actual",
+        ):
+            if key in h:
+                item[key] = h[key]
+        if item:
+            out.append(item)
+    return out
+
+
 def _build_specs(profile: dict) -> dict:
     """프로파일 type → verify 인자(결정론 spec). 기존 헬퍼만 재사용."""
     t = profile["type"]
@@ -76,9 +104,14 @@ def _build_specs(profile: dict) -> dict:
             "name_full": None,
             "identity": builder.personal_identity_spec(saju, name),
             "singang": None,
+            "product": profile.get("product"),
+            "premium": bool(profile.get("premium", False)),
+            "role_perspective": None,
+            "honorific": None,
         }
-    if t == "gunghap":
+    if t in ("gunghap", "integrated", "integrated_full"):
         from sajugen import gunghap as g
+        from sajugen.content import client_tone_lint
 
         people = [
             g.person_facts(
@@ -90,12 +123,27 @@ def _build_specs(profile: dict) -> dict:
             for p in profile["people"]
         ]
         names = [p["name"] for p in people]
+        product = profile.get("product")
+        if not product and t == "integrated_full":
+            product = "integrated_full"
+        elif not product and t == "integrated":
+            product = "integrated"
+        receiver = profile.get("receiver") or (names[0] if names else None)
+        role_specs = (
+            client_tone_lint.role_perspective_specs(names, receiver=receiver)
+            if t in ("integrated", "integrated_full")
+            else None
+        )
         return {
             "ref_year": ref,
             "names": names,
             "name_full": names,
             "identity": g._identity_spec(people),
             "singang": g._singang_specs(people),
+            "product": product,
+            "premium": bool(profile.get("premium", product == "integrated_full")),
+            "role_perspective": role_specs,
+            "honorific": role_specs,
         }
     raise ValueError(f"알 수 없는 profile type: {t}")
 
@@ -120,10 +168,13 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         name_full=specs["name_full"],
         identity=specs["identity"],
         singang=specs["singang"],
-        product=profile.get("product"),
-        premium=bool(profile.get("premium", False)),
+        product=profile.get("product") or specs.get("product"),
+        premium=bool(specs.get("premium", profile.get("premium", False))),
         concern=profile.get("concern"),
         expected_context_terms=profile.get("expected_context_terms"),
+        ref_date=profile.get("ref_date"),
+        role_perspective=specs.get("role_perspective"),
+        honorific=specs.get("honorific"),
     )
     out["status"] = "verified"
     out["meta"] = _file_meta(pdf_abs)
@@ -137,10 +188,15 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "no_orphan",
         "loanword_clean",
         "raw_calc_head_clean",
+        "customer_meta_clean",
+        "placeholder_residue_clean",
+        "style_clean",
         "name_policy_clean",
         "identity_role_clean",
         "singang_role_clean",
         "delivery_quality_clean",
+        "role_perspective_clean",
+        "honorific_consistency_clean",
         "daewoon_current",
     ):
         out[k] = v.get(k)
@@ -153,14 +209,26 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "singang_role_hits",
         "orphan_pages",
         "low_density_pages",
+        "quality_hits",
+        "temporal_hits",
         "delivery_missing_axes",
         "delivery_repetition_hits",
         "delivery_guarantee_hits",
         "name_policy_allowed_hits",
+        "honorific_consistency_hits",
     ):
         val = v.get(k) or []
         out[k + "_count"] = len(val)
         out[k] = val[:20]
+    for k in (
+        "semantic_style_hits",
+        "ai_meta_hits",
+        "placeholder_residue_hits",
+        "role_perspective_hits",
+    ):
+        val = _safe_hits(v.get(k) or [])
+        out[k + "_count"] = len(v.get(k) or [])
+        out[k] = val
     out["delivery_quality"] = v.get("delivery_quality")
     # 보조: 외래어 원시 substring(목록은 client_tone_lint.LOANWORDS 재사용 — 정규식 복붙 아님)
     import fitz

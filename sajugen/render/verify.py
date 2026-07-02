@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+from collections import Counter
 
 import fitz
 
@@ -76,14 +77,89 @@ def _split_body_appendix(pages_text: list[str]) -> tuple[str, str]:
 # 별도 표 페이지가 없으므로 표 마커 제외는 적용 대상 없음(구조적 마커 조합만 허용 정책).
 def _customer_body_pages(pages_text: list[str]) -> tuple[str, str]:
     """(고객 본문 산문 텍스트, 제외 영역 텍스트=표지·목차·부록). 페이지 단위 분리."""
-    app_idx = next((i for i, t in enumerate(pages_text) if _APPENDIX_MARK in t), len(pages_text))
+    body_items = _customer_body_page_items(pages_text)
+    body_pages = {page for page, _ in body_items}
     body, allowed = [], []
+    for i, t in enumerate(pages_text, start=1):
+        (body if i in body_pages else allowed).append(t)
+    return "".join(body), "".join(allowed)
+
+
+def _customer_body_page_items(pages_text: list[str]) -> list[tuple[int, str]]:
+    """고객 본문 산문 페이지 목록. 표지·목차·용어풀이 부록은 제외."""
+    app_idx = next((i for i, t in enumerate(pages_text) if _APPENDIX_MARK in t), len(pages_text))
+    body: list[tuple[int, str]] = []
     for i, t in enumerate(pages_text):
         is_cover = i == 0
         is_toc = "목차" in t and len(t.strip()) < 400
         is_appendix = i >= app_idx
-        (allowed if (is_cover or is_toc or is_appendix) else body).append(t)
-    return "".join(body), "".join(allowed)
+        if not (is_cover or is_toc or is_appendix):
+            body.append((i + 1, t))
+    return body
+
+
+def _paged_lint_hits(
+    page_items: list[tuple[int, str]],
+    lint_func,
+    *,
+    limit: int = 50,
+) -> list[dict]:
+    """Run an aggregated lint per page and add page without leaking source text."""
+
+    out: list[dict] = []
+    for page, page_text in page_items:
+        for hit in lint_func(page_text):
+            safe = {
+                k: v
+                for k, v in hit.items()
+                if k
+                in {"type", "rule", "count", "severity", "allowed", "role", "expected", "actual"}
+            }
+            safe["page"] = page
+            out.append(safe)
+    return out[:limit]
+
+
+_STYLE_RULES = {
+    "규칙 누설": "instruction_meta_leak",
+    "호칭 선언": "address_meta_declaration",
+    "em dash": "ai_signature_punctuation",
+    "가운뎃점": "ai_signature_punctuation",
+    "기호 난발": "symbol_overuse",
+    "과한 비유": "poetic_overreach",
+    "시기·나이 가정어": "uncertain_timing_wording",
+    "AI틱 반복 표현": "ai_like_repetition",
+    "반복 남발": "excessive_repetition",
+}
+
+
+def _style_rule_id(why: str) -> str:
+    for marker, rule in _STYLE_RULES.items():
+        if marker in why:
+            return rule
+    return "style_lint"
+
+
+def _semantic_style_hits(page_items: list[tuple[int, str]]) -> list[dict]:
+    """style_lint hits grouped by rule/page. Raw matched text is not returned."""
+
+    from ..content import style_lint
+
+    counts: Counter[tuple[int, str]] = Counter()
+    for page, page_text in page_items:
+        for hit in style_lint.lint(page_text):
+            counts[(page, _style_rule_id(str(hit.get("why", ""))))] += 1
+    return [
+        {"type": "semantic_style", "rule": rule, "page": page, "count": count}
+        for (page, rule), count in sorted(counts.items())
+    ][:50]
+
+
+def _placeholder_residue_hits_clean(hits: list[dict], product: str | None = None) -> bool:
+    # Phase 1 hard gate: definite masking/placeholder residue fails everywhere.
+    # Candidate hits such as "두 분께" are exposed for product-aware follow-up without
+    # failing relationship/gunghap documents by default.
+    return not any(h.get("severity") == "hard" for h in hits)
 
 
 def _low_density_pages(pages_text: list[str]) -> list[dict]:
@@ -100,6 +176,92 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
             continue
         out.append({"page": i + 1, "chars": len(s), "text": s[:40]})
     return out
+
+
+# 레이아웃 기하 게이트(2026-07-02) — 텍스트/글자수 게이트가 못 잡는 시각 결함을 검출.
+# 근본원인: verify 가 텍스트/카운트/시맨틱만 검사해 좌우 비대칭·넘침 같은 기하 결함이
+# gate_pass=true 로 반복 통과했다. PyMuPDF 텍스트 블록 bbox 로 판정 — 픽셀 diff 는 폰트/AA
+# 차이에 취약하므로 결정론적 bbox 기하를 쓴다. 검출: (a) 좌우 여백 비대칭(칼럼 쏠림),
+# (b) 콘텐츠박스 밖 넘침. 표지·목차·부록·짧은/장식 페이지는 스코프 제외(오탐 방지).
+_PT_PER_MM = 72.0 / 25.4
+_PAGE_LR_MARGIN_MM = 20.0  # @page left/right (pdf._PAGE_MARGIN 과 동기 — 변경 시 함께 갱신)
+_MARGIN_ASYMMETRY_MM = (
+    10.0  # 좌우 여백 차 관용치(= 칼럼중심 5mm 오프셋). 중앙정렬≈0=통과, 쏠림 버그(≈22mm)=탐지
+)
+_OVERFLOW_EPS_MM = 3.0  # 콘텐츠박스 경계 넘침 허용 epsilon
+_GEOM_MIN_BLOCKS = 6  # 본문형 페이지 최소 텍스트 블록(표지/짧은/장식 페이지 오탐 제외)
+
+
+def _capture_page_geometry(doc) -> tuple[list, list]:
+    """페이지별 텍스트 블록 bbox·페이지 폭을 doc.close() 전에 캡처.
+
+    블록/rect 미지원 문서(테스트 fake doc)면 빈 리스트를 돌려 기하 게이트를 skip 한다
+    (실 렌더 PDF 는 항상 지원 → 기하 검사 적용)."""
+    try:
+        blocks: list[list[tuple]] = []
+        rects: list[tuple] = []
+        for i in range(doc.page_count):
+            pg = doc.load_page(i)
+            bl = [
+                b[:4]
+                for b in pg.get_text("blocks")
+                if len(b) > 6 and b[6] == 0 and (b[4] or "").strip()
+            ]
+            blocks.append(bl)
+            rects.append((pg.rect.width, pg.rect.height))
+        return blocks, rects
+    except (TypeError, AttributeError):
+        return [], []
+
+
+def _layout_geometry_hits(
+    pages_text: list[str],
+    pages_blocks: list,
+    page_rects: list,
+) -> list[dict]:
+    """고객 본문 페이지의 좌우 여백 대칭·콘텐츠 넘침을 텍스트 블록 bbox 로 검사(PII-free).
+
+    반환 hit = {page, kind: 'margin_asymmetry'|'content_overflow', left_mm, right_mm} — 본문 텍스트 미포함."""
+    if not pages_blocks or not page_rects:
+        return []
+    body_pages = {p for p, _ in _customer_body_page_items(pages_text)}
+    hits: list[dict] = []
+    for page in sorted(body_pages):
+        idx = page - 1
+        if idx >= len(pages_blocks) or idx >= len(page_rects):
+            continue
+        blocks = pages_blocks[idx]
+        if len(blocks) < _GEOM_MIN_BLOCKS:
+            continue  # 장식/짧은 페이지 제외
+        width = page_rects[idx][0]
+        x0 = min(b[0] for b in blocks)  # 최좌(칼럼 좌단 — 좌정렬이라 신뢰도 높음)
+        x1 = max(b[2] for b in blocks)  # 최우(가장 넓은 줄)
+        left_mm = x0 / _PT_PER_MM
+        right_mm = (width - x1) / _PT_PER_MM
+        content_left_mm = _PAGE_LR_MARGIN_MM
+        content_right_edge_mm = width / _PT_PER_MM - _PAGE_LR_MARGIN_MM
+        if abs(left_mm - right_mm) > _MARGIN_ASYMMETRY_MM:
+            hits.append(
+                {
+                    "page": page,
+                    "kind": "margin_asymmetry",
+                    "left_mm": round(left_mm, 1),
+                    "right_mm": round(right_mm, 1),
+                }
+            )
+        if (
+            left_mm < content_left_mm - _OVERFLOW_EPS_MM
+            or (x1 / _PT_PER_MM) > content_right_edge_mm + _OVERFLOW_EPS_MM
+        ):
+            hits.append(
+                {
+                    "page": page,
+                    "kind": "content_overflow",
+                    "left_mm": round(left_mm, 1),
+                    "right_mm": round(right_mm, 1),
+                }
+            )
+    return hits
 
 
 # 포터블 toolchain (시스템 미오염, 무관리자)
@@ -162,6 +324,9 @@ def verify(
     premium: bool = False,
     concern: str | None = None,
     expected_context_terms: list[str] | None = None,
+    ref_date: str | None = None,
+    role_perspective: list[dict] | None = None,
+    honorific: list[dict] | None = None,
 ) -> dict:
     """렌더 PDF 게이트. name_full(전체 이름 리스트)·identity((expected_gans, expected_terms,
     subject_specs))·singang([{full,given,honor,singang}]) 가 주어지면 H1.5.3/3.2 이름 호칭·일간
@@ -169,6 +334,8 @@ def verify(
     미전달이면 해당 게이트는 skip(clean True 기본 — 기존 호출·테스트 back-compat)."""
     doc = fitz.open(pdf_path)
     pages_text = [doc.load_page(i).get_text() for i in range(doc.page_count)]
+    # 레이아웃 기하 게이트용 — 텍스트 블록 bbox·페이지 폭을 close 전에 캡처(2026-07-02).
+    pages_blocks, page_rects = _capture_page_geometry(doc)
     text = "".join(pages_text).strip()
     fonts = []
     for i in range(min(doc.page_count, 3)):
@@ -203,11 +370,12 @@ def verify(
     r["no_orphan"] = not r["orphan_pages"]
     doc.close()
 
-    # 문장 품질·시제 스캔(이슈4·5·6) — 최종 PDF 본문 기준 known-bad 검출
+    # 문장 품질·시제 스캔(이슈4·5·6) — 최종 PDF 고객 본문 기준 known-bad 검출
     from ..content import quality_lint, temporal_lint
 
-    qh = quality_lint.lint(text, names)
-    th = temporal_lint.lint(text, ref_year)
+    cust_body, allowed_region = _customer_body_pages(pages_text)
+    qh = quality_lint.lint(cust_body, names)
+    th = temporal_lint.lint(cust_body, ref_year, ref_date=ref_date)
     r["quality_hits"] = qh[:20]
     r["quality_clean"] = not qh
     r["temporal_hits"] = th[:20]
@@ -233,7 +401,41 @@ def verify(
     ][:30]
 
     # 이름 호칭 정책 + 일간 role(H1.5.3) — 고객 본문 챕터 페이지만 게이트(표지·목차·부록 제외).
-    cust_body, allowed_region = _customer_body_pages(pages_text)
+    body_page_items = _customer_body_page_items(pages_text)
+    from ..content import customer_meta_lint
+
+    semantic_style_hits = _semantic_style_hits(body_page_items)
+    ai_meta_hits = _paged_lint_hits(body_page_items, customer_meta_lint.lint)
+    placeholder_hits = _paged_lint_hits(body_page_items, _ct.placeholder_residue_lint)
+    r["semantic_style_hits"] = semantic_style_hits
+    r["semantic_style_hits_count"] = sum(int(h.get("count", 1)) for h in semantic_style_hits)
+    r["style_clean"] = not semantic_style_hits
+    r["ai_meta_hits"] = ai_meta_hits
+    r["ai_meta_hits_count"] = sum(int(h.get("count", 1)) for h in ai_meta_hits)
+    r["customer_meta_clean"] = not ai_meta_hits
+    r["placeholder_residue_hits"] = placeholder_hits
+    r["placeholder_residue_hits_count"] = sum(int(h.get("count", 1)) for h in placeholder_hits)
+    r["placeholder_residue_clean"] = _placeholder_residue_hits_clean(
+        placeholder_hits, product=product
+    )
+    r["role_perspective_hits"] = []
+    r["role_perspective_hits_count"] = 0
+    role_hits = _paged_lint_hits(
+        body_page_items,
+        lambda page_text: _ct.role_perspective_lint(page_text, role_perspective or []),
+    )
+    honorific_hits = _paged_lint_hits(
+        body_page_items,
+        lambda page_text: _ct.honorific_consistency_lint(
+            page_text, honorific or role_perspective or []
+        ),
+    )
+    r["role_perspective_hits"] = role_hits
+    r["role_perspective_hits_count"] = sum(int(h.get("count", 1)) for h in role_hits)
+    r["role_perspective_clean"] = not role_hits
+    r["honorific_consistency_hits"] = honorific_hits
+    r["honorific_consistency_hits_count"] = sum(int(h.get("count", 1)) for h in honorific_hits)
+    r["honorific_consistency_clean"] = not honorific_hits
     r["name_policy_clean"] = True
     r["identity_role_clean"] = True
     r["name_policy_hits"] = []
@@ -267,12 +469,23 @@ def verify(
         premium=premium,
         concern=concern,
         expected_context_terms=expected_context_terms,
+        # integrated_full·궁합 계열은 고객 질문 필수 → concern 부재 시 조용히 통과 금지(P1).
+        context_required=delivery_quality.context_required_for(product),
+        # 물리 페이지 기준 초반 답변 보조지표(P5, 보고용 warning) — 표지/목차가 물리 p1~p3을
+        # 차지해 초반 답변이 없을 때를 드러낸다(게이트 미변경).
+        page_texts=pages_text,
     )
     r["delivery_quality"] = dq
     r["delivery_quality_clean"] = dq["clean"]
     r["delivery_missing_axes"] = dq["missing_axes"]
     r["delivery_repetition_hits"] = dq["repetition_hits"][:20]
     r["delivery_guarantee_hits"] = dq["guarantee_hits"][:20]
+
+    # 레이아웃 기하 게이트(2026-07-02) — 좌우 여백 비대칭·콘텐츠 넘침(텍스트 게이트가 못 잡는 시각 결함).
+    geom_hits = _layout_geometry_hits(pages_text, pages_blocks, page_rects)
+    r["layout_geometry_hits"] = geom_hits[:20]
+    r["layout_geometry_hits_count"] = len(geom_hits)
+    r["layout_geometry_clean"] = not geom_hits
 
     # PDF/UA-1 검증 활성화(포터블 veraPDF). 결과는 '측정·보고'.
     va = _verapdf_ua1(pdf_path)
@@ -292,9 +505,15 @@ def verify(
         and r["no_orphan"]
         and r["loanword_clean"]  # 외래어 hard-ban(고객 본문)
         and r["raw_calc_head_clean"]  # 표제형 계산표현(오행 분포·십성축·신강약)
+        and r["customer_meta_clean"]  # AI/meta/document self-reference residue
+        and r["placeholder_residue_clean"]  # placeholder/masking residue
+        and r["style_clean"]  # compose 외 경로까지 style_lint 보편 적용
+        and r["role_perspective_clean"]  # integrated_full receiver perspective
+        and r["honorific_consistency_clean"]  # integrated_full honorific consistency
         and r["name_policy_clean"]  # 전체 이름 반복(H1.5.3, name_full 전달 시)
         and r["identity_role_clean"]  # 일간 role 오서술(H1.5.3, identity 전달 시)
         and r["singang_role_clean"]  # 신강약 group/role(H1.5.3.2, singang 전달 시)
         and r["delivery_quality_clean"]
+        and r["layout_geometry_clean"]  # 레이아웃 기하(좌우 여백·넘침) — 시각 결함 반복 차단
     )
     return r

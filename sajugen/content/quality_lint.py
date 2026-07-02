@@ -23,6 +23,37 @@ _TYPO = [
 _ADJACENT_HANGUL_DUP_RX = re.compile(
     r"(?<![\uac00-\ud7a3])(?P<word>[\uac00-\ud7a3]{2,8})(?:\s+(?P=word))+(?![\uac00-\ud7a3])"
 )
+_CUSTOMER_FRAMING_RX = [
+    re.compile(r"이\s*풀이(?:는|에서는|에서)\b"),
+    re.compile(r"이\s*자료(?:는|에서는|에서)\b"),
+]
+_INTERNAL_META_RX = [
+    re.compile(r"고객\s*질문\s*:"),
+    re.compile(r"상담\s*대상\s*:"),
+    re.compile(r"\[(?:각자\s*명식|두\s*사람\s*관계|자미두수|시기)\]"),
+    re.compile(r"근거\s*자료"),
+    re.compile(r"프롬프트"),
+    re.compile(r"prompt", re.IGNORECASE),
+    re.compile(r"fallback", re.IGNORECASE),
+    re.compile(r"폴백"),
+    re.compile(r"LLM|API"),
+    re.compile(r"내부\s*(?:라벨|메모|설명)"),
+    re.compile(r"원문\s*라벨"),
+    re.compile(r"이\s*장\s*에서"),
+    re.compile(r"두\s*사람\s*사이에서\s*실제로\s*맞물리는\s*부분은\s*다음과\s*같습니다"),
+    re.compile(r"십성\s*으로"),
+    re.compile(r"같은\s*방향으로\s*모이는\s*협업의\s*결"),
+    re.compile(r"명궁은\s*명궁\s*[,，]\s*신궁은\s*명궁"),
+    re.compile(r"자미두수로는\s*사람과\s*관계,\s*돈과\s*생활,\s*일의\s*자리"),
+    re.compile(r"시기\s*흐름은\s*다음처럼\s*나누어\s*봅니다"),
+]
+_PROMO_CTA_RX = [
+    re.compile(r"(?:사주도령|서담선생)\s*(?:전문\s*)?(?:상담|궁합\s*상담)"),
+    re.compile(r"(?:전문\s*상담|궁합\s*상담)"),
+    re.compile(r"더\s*깊은\s*(?:궁합|해석|풀이|시기별\s*흐름).*(?:확인|신청|상담)"),
+    re.compile(r"(?:아래\s*)?링크"),
+]
+_DECORATIVE_EMOJI_RX = re.compile(r"[🔮🌙🪄🌿✦★☆]")
 
 
 def lint(text: str, names: list[str] | None = None) -> list[dict]:
@@ -36,6 +67,41 @@ def lint(text: str, names: list[str] | None = None) -> list[dict]:
             out.append({"type": "typo", "match": m.group(0), "why": "재무→재수 오타 의심(돈 맥락)"})
     for m in _ADJACENT_HANGUL_DUP_RX.finditer(text):
         out.append({"type": "adjacent_duplicate", "match": m.group(0), "why": "인접 단어 반복"})
+    for rx in _CUSTOMER_FRAMING_RX:
+        for m in rx.finditer(text):
+            out.append(
+                {
+                    "type": "customer_framing",
+                    "match": m.group(0),
+                    "why": "고객 본문에 자료 설명식 표현 사용",
+                }
+            )
+    for rx in _INTERNAL_META_RX:
+        for m in rx.finditer(text):
+            out.append(
+                {
+                    "type": "internal_meta_label",
+                    "match": m.group(0),
+                    "why": "고객 본문에 내부 근거/작업 라벨 누출",
+                }
+            )
+    for rx in _PROMO_CTA_RX:
+        for m in rx.finditer(text):
+            out.append(
+                {
+                    "type": "promo_cta",
+                    "match": m.group(0),
+                    "why": "고객 본문에 홍보성 상담/링크 문구 사용",
+                }
+            )
+    for m in _DECORATIVE_EMOJI_RX.finditer(text):
+        out.append(
+            {
+                "type": "decorative_emoji",
+                "match": m.group(0),
+                "why": "고객 본문에 장식 이모지 사용",
+            }
+        )
     for nm in names or []:
         if not nm:
             continue

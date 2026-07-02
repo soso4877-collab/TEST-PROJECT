@@ -8,13 +8,29 @@
 
 from __future__ import annotations
 
+from datetime import date
 import re
 
 _BEFORE = re.compile(r"(\d{4})\s*년이?\s*오기\s*전")  # 'YYYY년이 오기 전' / 'YYYY년 오기 전'
 _UNTIL = re.compile(r"(\d{4})\s*년\s*전까지(?!\s*지)")  # 'YYYY년 전까지'(앞에 '오기' 없는 형태)
+_MONTH_FUTURE = re.compile(
+    r"(?:(\d{4})\s*년\s*)?(\d{1,2})\s*월(?:이|은|에는|부터)?\s*"
+    r"(?:다가오|오면|오게|오고|열리|시작되|들어오)"
+)
 
 
-def lint(text: str, ref_year: int | None) -> list[dict]:
+def _parse_ref_date(ref_date: str | date | None) -> date | None:
+    if isinstance(ref_date, date):
+        return ref_date
+    if not ref_date:
+        return None
+    try:
+        return date.fromisoformat(str(ref_date)[:10])
+    except Exception:
+        return None
+
+
+def lint(text: str, ref_year: int | None, ref_date: str | date | None = None) -> list[dict]:
     """위반 목록(빈 리스트면 통과). ref_year 미지정 시 검사 생략."""
     if not ref_year:
         return []
@@ -30,8 +46,23 @@ def lint(text: str, ref_year: int | None) -> list[dict]:
                         "why": f"{y}년은 기준연도 {ref_year} 이하 — 이미 시작/지난 해를 미래로 서술",
                     }
                 )
+    rd = _parse_ref_date(ref_date)
+    if rd:
+        for m in _MONTH_FUTURE.finditer(text):
+            y = int(m.group(1)) if m.group(1) else rd.year
+            mo = int(m.group(2))
+            if not 1 <= mo <= 12:
+                continue
+            if (y, mo) < (rd.year, rd.month):
+                out.append(
+                    {
+                        "type": "temporal",
+                        "match": m.group(0),
+                        "why": f"{y}년 {mo}월은 기준일 {rd.isoformat()} 이전 — 지난 월을 미래로 서술",
+                    }
+                )
     return out
 
 
-def is_clean(text: str, ref_year: int | None) -> bool:
-    return not lint(text, ref_year)
+def is_clean(text: str, ref_year: int | None, ref_date: str | date | None = None) -> bool:
+    return not lint(text, ref_year, ref_date=ref_date)

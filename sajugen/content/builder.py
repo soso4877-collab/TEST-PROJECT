@@ -14,6 +14,8 @@ from ..input import partner as input_partner
 from . import (
     client_tone_lint,
     consistency,
+    customer_meta_lint,
+    delivery_quality,
     factcheck,
     llm_polish,
     llm_sections,
@@ -197,8 +199,10 @@ def build_report(
     _id_spec = personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
 
     # 목차(toc): 보이는 챕터 제목을 나열(노동착시·호기심격차·책 권위, docs/13). 빌더가 생성.
+    # 리드는 문서 진행/섹션 예고 메타("…다음 순서로 이어집니다")가 아니라 중립 헤딩만 둔다
+    # (P4, 2026-07-01 — transition_section_preview 게이트에 걸리는 작성자 진행 안내 제거).
     visible_titles = [t for s, t, _ in SECTION_SPECS if s not in drop and s not in ("cover", "toc")]
-    toc_text = "이 풀이는 다음 순서로 이어집니다.\n" + "\n".join(visible_titles)
+    toc_text = "차례\n" + "\n".join(visible_titles)
 
     # 챕터별 룰 골격 텍스트 + 룰 가드 결과 선계산
     rule_texts: dict[str, str] = {}
@@ -277,6 +281,9 @@ def build_report(
             llm_changed = bool(cand) and cand != rule_text  # 정규화 '이전'에 판정
             if cand and llm_changed:
                 cand = _strip_artifacts(cand)  # 섹션 제목 누출 등 메타 제거
+                cand = postprocess.strip_document_self_reference(cand)
+                cand = postprocess.strip_formulaic_conclusion(cand)
+                cand = postprocess.replace_generic_address(cand, rules.call_name(name))
                 # 기계적 기호는 가드 전에 결정론 정규화(— · → 쉼표) — 같은 변환을
                 # 표시 단계(_hanja_clean)에도 적용하므로 우회가 아니라 선반영.
                 # 비유·메타발화·반복 남발은 변환 불가 → style_lint 하드 차단 유지.
@@ -303,6 +310,8 @@ def build_report(
                         + client_tone_lint.identity_role_lint(  # 일간 role 오서술(H1.5.3)
                             cand, _id_spec[0], _id_spec[1], _id_spec[2]
                         )
+                        + delivery_quality.guarantee_lint(cand)  # 보장형(최종 게이트 갭 차단)
+                        + customer_meta_lint.lint(cand)  # 문서 진행/섹션 예고 메타 발화(P3)
                     )
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
@@ -319,6 +328,9 @@ def build_report(
                         )
                         or ""
                     )
+                    retry = postprocess.strip_document_self_reference(retry)
+                    retry = postprocess.strip_formulaic_conclusion(retry)
+                    retry = postprocess.replace_generic_address(retry, rules.call_name(name))
                     retry = client_tone_lint.normalize_loanwords(retry)  # 재작성도 1차 순화
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
                     if retry and retry != rule_text:
@@ -332,6 +344,8 @@ def build_report(
                             + client_tone_lint.identity_role_lint(
                                 retry, _id_spec[0], _id_spec[1], _id_spec[2]
                             )
+                            + delivery_quality.guarantee_lint(retry)  # 보장형(재작성도 검사)
+                            + customer_meta_lint.lint(retry)  # 문서 진행/섹션 예고 메타(재작성도)
                         )
                         rfv = factcheck.check(retry, saju, partner_gz)
                         if not rsv and not rfv:

@@ -10,6 +10,14 @@
 - **Claude Code**: 승인 범위 안에서 구현·검증. 매 작업 단위로 plan→승인→구현→`hrun` 검증→보고. 커밋/푸시/PDF 재생성/LLM 호출은 명시 승인 시에만.
 - **Codex (리뷰어)**: 기본 = 리뷰어. 권한·금지·동반 의무는 아래 `## Codex 운영 계약` 참조.
 
+## Phase 0 containment — handoff source of truth
+- 고객 납품·품질 사고 대응은 역할을 분리한다: Claude는 Plan Architect와 Semantic Reviewer, Codex는 승인된 TASK_PACKET 구현자, Codex Verifier는 별도 세션 검증자다. Claude가 직접 코딩·PDF 생성·테스트 수정을 하지 않는다.
+- 구현의 source of truth는 `handoff/templates/task_packet.json` 형식의 TASK_PACKET이다. 구현 보고와 검증 보고는 분리하고, 세션 전환은 `handoff/templates/context_snapshot.md` 형식을 따른다.
+- 납품 후보는 표준 게이트 파이프라인에서만 만든다. 손편집 HTML/PDF는 최종 납품 기준선으로 쓰지 않고, 실제 PDF는 render_verify·금칙 텍스트 스캔·300dpi 시각 점검·운영자 전문 검수 전 발송 금지다.
+- 컨텍스트가 길어지면 대화 전문이 아니라 파일 경로, SHA, 결정사항, 실패 rule만 인계한다. 최신본 판단은 파일명이 아니라 SHA를 기준으로 한다.
+- 고객 실데이터, PDF, PNG, summary는 gitignore 영역에만 둔다. 문서와 템플릿에는 고객 이름, 생년월일, 질문 원문, 본문 전문을 넣지 않고 `DOC_A`, `CUSTOMER_1` 같은 익명 ID만 쓴다.
+- 세부 운영 순서는 `docs/17-agent-tooling-runbook.md`, 품질 사고 기록은 `docs/16-quality-incident-ledger.md`, PDF 수동 검수는 `handoff/templates/pdf_review_report.md`를 따른다.
+
 ## Codex 운영 계약 (권한 경계 — 강제는 코드·게이트·git hook, 이 절은 경계 정의)
 1. 기본 역할 = 리뷰어. Codex는 diff와 `handoff/reports/<stamp>/summary.md`(+ `summary.json`)를 받아 게이트·회귀·안전(PII/secrets) 관점으로 읽고 판정만 한다.
 2. 구현(파일 수정) 권한 없음 — 코드를 고치려면 운영자의 사안별 명시 승인이 매번 필요(포괄 승인 불가).

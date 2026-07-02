@@ -1,5 +1,71 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-02 추가: QI-2026-07-02-02 PDF 본문 좌우 비대칭 + 기하 검증 부재 + 레이아웃 재렌더 API 낭비
+
+- 증상: 운영자 육안 "PDF 레이아웃이 다 틀어져 있고, 이 오류가 수십 번 반복된다." 본문 칼럼이 좌 20mm/우 42mm 로 왼쪽 쏠림(전 본문 페이지 일관).
+- 영향: 프리미엄 납품물의 시각 품질이 무너지는데 게이트는 gate_pass=true 로 통과. 게다가 레이아웃만 고쳐도 재생성이 재compose(API ~$1)를 강제해 비용 낭비.
+- 원인(3겹):
+  - (즉시) report.html.j2 `.body{max-width:148mm; margin:0}` — 148mm 칼럼이 중앙정렬(margin:0 auto)이 아니라 왼쪽 고정 → A4 콘텐츠 170mm 중 남는 22mm 가 전부 우측에 쌓임.
+  - (시스템) verify.py 게이트가 텍스트/글자수/시맨틱만 검사하고 픽셀·기하 검증이 0 → 글자수를 안 바꾸는 시각 결함이 반복 통과. orphan/저밀도조차 글자수 프록시이고 low_density 는 게이트도 아닌 '보고만'. 자동 rasterize/기하 회귀 전무, 300dpi 는 수동 체크리스트(NOT_RUN 기본).
+  - (비용) integrated 재생성 경로(_regen_pdf → `python -m sajugen.integrated --llm`)가 compose 결과를 영속하지 않아, 템플릿/레이아웃만 바꿔도 매번 26섹션(개인12+관계14, Sonnet) 재compose.
+- 재발 방지(구현·검증 완료, 커밋 b2143e5):
+  - `.body{margin:0 auto}`(중앙정렬, 좌우 ≈31mm 대칭).
+  - verify.py `_layout_geometry_hits` — PyMuPDF 텍스트 블록 bbox 로 좌우 여백 대칭(|Δ|≤10mm)·콘텐츠 넘침을 검사(픽셀 diff 아님, 폰트/AA 강건), gate_pass 편입. 표지·목차·짧은 페이지 스코프 제외로 오탐 방지. 기존 게이트 완화 0.
+  - integrated.py compose 결과(.content.json, gitignored) 영속 + render-only 재렌더(render_integrated_from_content / CLI `render`, _render_integrated 추출·build 동작 불변) → 레이아웃/템플릿 변경이 API 과금(재compose)을 강제하지 않음.
+- 실효 검증(API 0): 합성 렌더 좌31.2/우31.6mm 대칭·기하 게이트 clean. 구 템플릿 customer2 PDF 는 새 게이트가 margin_asymmetry 49건으로 차단. 실 라운드트립(build→저장→render-only 재렌더) 재compose 0(build_report/build_gunghap 예외 패치가 안 터짐). BEFORE/AFTER 시각자료(합성·PII0) tmp/layout_BEFORE.png(좌20/우42) vs tmp/layout_AFTER.png(좌31/우31). pytest 436 passed/3 skipped.
+- 연결 커밋/PR: b2143e5(layout feat), STATE/장부 docs 갱신.
+- 남은 수동 검수: customer2 교정본은 content 영속 이전 산출이라 저장본이 없어, 필요 시 seed 재compose 1회(운영자 승인) 후 재렌더는 무료. 신규 주문은 compose 시 자동 영속 → 레이아웃 반복 무료. render_verify + 300dpi 시각 점검 + 운영자 전문 검수 전 REVIEW_REQUIRED 유지.
+
+## 2026-07-02 추가: QI-2026-07-02-01 customer2 통합 PDF gate_pass=true인데 육안 품질 미달
+
+- 증상: customer2 integrated_full PDF가 gate_pass=true/all_gates_pass=true였으나 운영자 육안으로 납품 불가. 문서 진행/섹션 예고 메타("자미두수 명궁 이야기도 바로 이어집니다"), 질문 축 미반영이 통과.
+- 영향: 자동 게이트를 신뢰하면 저품질 납품이 통과할 수 있다(false-pass). 특히 질문 축 검사가 조용히 no-op 되면 프리미엄 상품이 고객 질문에 답하지 않은 채 기준을 충족한 것으로 보인다.
+- 원인:
+  - (배선) hverify_pdf.verify_profile이 profile.concern만 읽어, integrated/궁합이 고민을 담는 situation 필드를 놓침 → delivery_quality가 concern 없이 돌아 required_axes=[]로 질문축 검사 no-op.
+  - (룰 공백) customer_meta_lint 전이 룰의 앵커가 "살펴보겠습니다"뿐이라 "…이어집니다"/"이야기도 이어" 계열 미탐. compose 프롬프트·가드에도 문서 진행 금지 부재.
+  - (지표 괴리) frontloaded_answer가 앞 1800자 기준이라 물리 페이지 p1~p3(표지/목차)와 어긋나 "초반 답변" 체감과 불일치.
+- 재발 방지(구현·검증 완료, 커밋 8012a20):
+  - P1 concern 정규화(hrun situation→concern) + verify가 product로 context_required 산출 + concern 부재 시 missing_customer_context failure(조용한 no-op 금지).
+  - P2 customer_meta_lint.transition_section_preview(구조어+진행 앵커 공기 시만 FAIL, 생활흐름 오탐 0). P3 builder/gunghap compose 가드 부착 + _COMPOSE_SYSTEM/_GH_SYSTEM/relationship SYSTEM 프롬프트 belt.
+  - P4 목차 리드 중립화("…다음 순서로 이어집니다"→"차례"). P5 physical_frontloaded_answer(warning 전용·게이트 불변) + PDF 검수 체크리스트(delivery_answer_review).
+  - 게이트/차단룰 완화 0(전 diff의 '-'는 린터 재포맷). pytest 425 passed/3 skipped.
+- 실효 검증(2026-07-02, regen·LLM·PII 0의 read-only 재검증): 기존 customer2 PDF를 새 게이트로 재검증하니 이전 gate_pass=true였던 동일 PDF가 gate_pass=False로 정확히 실패. transition_section_preview page 5 count 1 포착, has_customer_context=True·required_axes=['action','helper_people','timing'] 복구, physical_frontloaded_answer ok=False answer_page=4(첫 3p=표지/목차) 보고.
+- 연결 커밋/PR: 8012a20(feat 게이트 보강), 6bb18db(docs STATE 갱신).
+- 남은 수동 검수: 개선 실효를 실제 납품으로 확인하려면 새 stamp로 customer2 Tier2 재생성 1발 필요(운영자 명시 승인 전 regen/발송/push 금지). 재생성물은 REVIEW_REQUIRED에서 운영자 전문 검수 후에만 발송.
+
+## 2026-06-26 추가: QI-2026-06-26-01 Phase 0 문서 운영 containment
+
+- 증상: 구조 검사는 통과했지만 납품 후보 문안에 AI-meta 문장, placeholder residue, 마스킹 잔재가 남을 수 있는 workflow 위험이 확인되었다.
+- 영향: 손편집 HTML/PDF가 표준 게이트를 우회하면 고객 납품 기준선이 흔들리고, Claude/Codex/Harness/Operator 역할 혼선으로 검수 책임이 불명확해진다.
+- 원인: TASK_PACKET과 context snapshot 같은 handoff artifact가 부족했고, context overflow 뒤 최신 source-of-truth SHA 확인이 약했다.
+- 재발 방지:
+  - Claude는 Plan Architect/Semantic Reviewer, Codex는 승인된 TASK_PACKET 구현자, Codex Verifier는 별도 세션 검증자로 분리한다.
+  - TASK_PACKET, CONTEXT_SNAPSHOT, PDF_REVIEW_REPORT를 handoff 필수 artifact로 둔다.
+  - 납품 후보는 표준 게이트 파이프라인에서만 만들고, 손편집 HTML/PDF는 최종 납품 기준선으로 쓰지 않는다.
+  - RUN_STATE에는 current_stage, input_sha, output_sha, api_calls, pdf_rendered, retry_blocked, final_status를 남긴다.
+  - 최신본은 파일명으로 판단하지 않고 SHA로 판단한다.
+- 연결 커밋/PR: Phase 0 docs containment 작업.
+- 남은 수동 검수: 실제 고객 PDF는 render_verify, 금칙 텍스트 스캔, 300dpi 시각 점검, 운영자 전문 검수 전 REVIEW_REQUIRED 상태로 둔다.
+
+## 2026-06-27 추가: QI-2026-06-27-01 Phase 1 universal semantic gate verified
+
+- 증상: 손편집 또는 편집 경로를 거친 납품 후보에 AI-meta 문안, placeholder residue, document self-reference가 남을 수 있었다.
+- 영향: 구조 검사가 통과해도 최종 고객 문안에 편집자/도구/문서 구조 설명식 잔재가 노출될 위험이 있었다.
+- 원인: PDF 최종 추출 본문에 대해 모든 생성 경로에 공통 적용되는 universal semantic gate가 부족했다.
+- 재발 방지:
+  - `verify.py`의 `gate_pass`에 `customer_meta_clean`, `placeholder_residue_clean`, `style_clean`을 무조건 AND 조건으로 편입했다.
+  - 기존 `quality_clean`, `temporal_clean`, `delivery_quality_clean` 의미와 기준은 낮추지 않았다.
+  - hit 보고는 `semantic_style_hits`, `ai_meta_hits`, `placeholder_residue_hits`, `role_perspective_hits`처럼 rule/count/page 중심으로 유지하고 본문 문장을 넣지 않는다.
+- 검증 근거:
+  - clean worktree: `test-project-phase1-verify`
+  - semantic focused: 22 passed
+  - harness focused: 2 passed, 7 deselected
+  - 고객 데이터 접근 0, API 호출 0, PDF 렌더 0, Playwright 실행 0, commit/push 0
+- 남은 후속:
+  - FOLLOWUP-A: `scripts/hrun.py` RUN_STATE/retry 배선
+  - NON_BLOCKING_FOLLOWUP: `scripts/hverify_pdf.py` adapter 확장
+  - Phase 2는 운영자 명시 승인 전 금지
+
 ## 2026-06-24 추가: QI-2026-06-24-07 도구 우선 조사 없이 직접 진행해 반복 지연
 
 - 증상: 이미 있는 하네스, GitHub Skill, Playwright guard, pytest 진단 순서를 먼저 고정하지 않아 같은 종류의 막힘이 반복되었다.
