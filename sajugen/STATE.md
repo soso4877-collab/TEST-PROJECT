@@ -30,12 +30,25 @@
 >     장 표제(제N장)가 한 페이지에 쌓여** 희소 페이지. **폭 문제 아님**(--maxw 162mm $0 재렌더도 동일 page3 실패).
 >     나머지 게이트 전부 clean(문안/기하/placeholder/style/honorific/markdown/temporal). warning 만(물리 frontload·단어반복).
 >   [주의] verify_result 를 raw 로 출력하면 고객 이름/장표제가 노출됨(이번에 1회 실수) → 반드시 rule/page/count/bool 만 추출.
+>   [2026-07-02 저밀도 page3 근본원인 규명·수정 — STATE 가설 정정] 실측(PII-free 진단)으로 page3 진짜 원인 확정:
+>     **page3 = 콘텐츠가 아니라 2페이지짜리 목차(TOC)의 넘침 꼬리**(마지막 5줄). 즉 "짧은 관계 섹션 표제
+>     쌓임" 가설은 틀렸다(모든 섹션 624~3086자로 건강, 짧은 섹션 없음). 근거: page2·page3 동일 목차 행
+>     폰트(13.3pt 장번호 + 15.4pt 장이름), 첫 실제 챕터(10.5pt cnum + 26pt 제목)는 page4 시작. 통합본은
+>     장(章)이 17개 → 목차 17행이 2페이지로 넘쳐 마지막 몇 줄만 남는 희소 목차 페이지가 생김.
+>     low_density 게이트는 '목차' 단어 든 page2 는 제외하나 넘침 꼬리 page3 는 못 걸러 실패로 잡음(오탐이자
+>     동시에 실제 시각 결함=희소 페이지). **수정 = `render/templates/report.html.j2` 목차 CSS 압축**(행 패딩
+>     s3→s1, toc-rule 하단여백 s7→s3, toc 상단패딩 14mm→6mm) → 17행이 한 페이지에 → 희소 페이지 소멸.
+>     **integrated.py 무수정**(STATE 원래 계획인 `_compact_sparse_sections` 손봄은 오진단이라 폐기).
+>     실측: content.json 무료 재렌더 gate_pass=**True**(page2 목차 354자·page3 첫 챕터 455자), 전체 pytest
+>     436 passed/3 skipped/실패0, git diff --check clean. 기하 게이트 clean 유지.
 >   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp·render/out = gitignored.
->   ★ 다음 작업(전부 API 0 — content.json 재사용): 짧은 섹션 압축 보강 `integrated._compact_sparse_sections`(line~128)
->     로 짧은 관계 섹션 표제가 희소 페이지 안 만들게 → `integrated.render_integrated_from_content(
+>   ★ 다음 작업: (1) 이 목차 CSS 수정 커밋(운영자 지시 시) — 변경 = report.html.j2 1파일 + STATE.md.
+>     (2) 실제 customer2 최종물 반영은 운영자 승인 하 1발: `integrated.render_integrated_from_content(
 >     "sajugen/render/out/customer2_integrated_full.content.json", out_name="customer2_integrated_full.pdf")`
->     로 **무료 재렌더** → delivery_quality premium_low_density_pages 통과 확인(gate_pass=True). 재compose(API) 불필요.
->   [핵심] 운영자 지적 "레이아웃 틀어짐" = 중앙정렬+기하게이트로 **해결됨**. 남은 건 저밀도 1페이지(별개 품질게이트).
+>     (재compose 없음·API 0). 현재는 tmp/diag_customer2.pdf 로 검증만 완료(실 고객 파일 미덮어씀).
+>   [핵심] 운영자 지적 "레이아웃 틀어짐" = (a)본문 중앙정렬+기하게이트, (b)목차 1페이지화 로 **전부 해결**.
+>   [백로그] 장이 ~20개 넘는 초대형 통합본은 목차가 다시 2페이지 될 수 있음 → 그때는 low_density 가 목차
+>     넘침 페이지도 제외하도록 게이트 보강 검토(현재는 CSS 압축으로 통상 범위 커버).
 >   커밋/push·고객 발송은 운영자 지시 시만. 운영자 전문 검수·APPROVED 전 발송 0.
 >
 > 컨텍스트가 비워져도 이 파일만 읽으면 그대로 이어갈 수 있다.

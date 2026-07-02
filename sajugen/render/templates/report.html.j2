@@ -59,14 +59,17 @@
   .cover .sub{color:var(--mut);font-size:11.5pt;white-space:pre-line;line-height:1.95;
     letter-spacing:var(--ls);margin-top:auto;padding-bottom:6mm}
 
-  /* 목차 — 금강산 구도: 붓글씨 헤더 + 장 칩 + 대시 리더 + 챕터명 */
-  .toc{page-break-after:always;padding:14mm 0 0}
+  /* 목차 — 금강산 구도: 붓글씨 헤더 + 장 칩 + 대시 리더 + 챕터명.
+     통합본은 장(章)이 17개까지 늘어 2페이지로 넘치면 마지막에 몇 줄만 남는 희소
+     목차 페이지가 생긴다(레이아웃 결함 + low_density 게이트 오탐). 행 패딩·헤더
+     여백을 조여 통상 20장까지 한 페이지에 담는다(2026-07-02). */
+  .toc{page-break-after:always;padding:6mm 0 0}
   .toc .toc-head{font-family:'SajuHead','SajuBody',serif;font-size:24pt;
     font-weight:700;letter-spacing:.55em;text-indent:.55em;text-align:center;
-    margin:0 0 4mm;color:var(--ink)}
-  .toc .toc-rule{width:34mm;height:1px;background:var(--line);margin:0 auto var(--s7)}
+    margin:0 0 3mm;color:var(--ink)}
+  .toc .toc-rule{width:34mm;height:1px;background:var(--line);margin:0 auto var(--s3)}
   .toc-row{display:flex;align-items:center;gap:var(--s4);
-    padding:var(--s3) 0;max-width:128mm;margin:0 auto}
+    padding:var(--s1) 0;max-width:128mm;margin:0 auto}
   .toc-no{color:var(--injoo);font-size:.92em;letter-spacing:.28em;min-width:5.2em;
     text-align:justify;text-align-last:justify}
   .toc-dash{flex:0 0 16mm;border-bottom:1px solid #8d8268;height:0}
