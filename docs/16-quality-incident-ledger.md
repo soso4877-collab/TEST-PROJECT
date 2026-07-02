@@ -1,5 +1,21 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-02 추가: QI-2026-07-02-02 PDF 본문 좌우 비대칭 + 기하 검증 부재 + 레이아웃 재렌더 API 낭비
+
+- 증상: 운영자 육안 "PDF 레이아웃이 다 틀어져 있고, 이 오류가 수십 번 반복된다." 본문 칼럼이 좌 20mm/우 42mm 로 왼쪽 쏠림(전 본문 페이지 일관).
+- 영향: 프리미엄 납품물의 시각 품질이 무너지는데 게이트는 gate_pass=true 로 통과. 게다가 레이아웃만 고쳐도 재생성이 재compose(API ~$1)를 강제해 비용 낭비.
+- 원인(3겹):
+  - (즉시) report.html.j2 `.body{max-width:148mm; margin:0}` — 148mm 칼럼이 중앙정렬(margin:0 auto)이 아니라 왼쪽 고정 → A4 콘텐츠 170mm 중 남는 22mm 가 전부 우측에 쌓임.
+  - (시스템) verify.py 게이트가 텍스트/글자수/시맨틱만 검사하고 픽셀·기하 검증이 0 → 글자수를 안 바꾸는 시각 결함이 반복 통과. orphan/저밀도조차 글자수 프록시이고 low_density 는 게이트도 아닌 '보고만'. 자동 rasterize/기하 회귀 전무, 300dpi 는 수동 체크리스트(NOT_RUN 기본).
+  - (비용) integrated 재생성 경로(_regen_pdf → `python -m sajugen.integrated --llm`)가 compose 결과를 영속하지 않아, 템플릿/레이아웃만 바꿔도 매번 26섹션(개인12+관계14, Sonnet) 재compose.
+- 재발 방지(구현·검증 완료, 커밋 b2143e5):
+  - `.body{margin:0 auto}`(중앙정렬, 좌우 ≈31mm 대칭).
+  - verify.py `_layout_geometry_hits` — PyMuPDF 텍스트 블록 bbox 로 좌우 여백 대칭(|Δ|≤10mm)·콘텐츠 넘침을 검사(픽셀 diff 아님, 폰트/AA 강건), gate_pass 편입. 표지·목차·짧은 페이지 스코프 제외로 오탐 방지. 기존 게이트 완화 0.
+  - integrated.py compose 결과(.content.json, gitignored) 영속 + render-only 재렌더(render_integrated_from_content / CLI `render`, _render_integrated 추출·build 동작 불변) → 레이아웃/템플릿 변경이 API 과금(재compose)을 강제하지 않음.
+- 실효 검증(API 0): 합성 렌더 좌31.2/우31.6mm 대칭·기하 게이트 clean. 구 템플릿 customer2 PDF 는 새 게이트가 margin_asymmetry 49건으로 차단. 실 라운드트립(build→저장→render-only 재렌더) 재compose 0(build_report/build_gunghap 예외 패치가 안 터짐). BEFORE/AFTER 시각자료(합성·PII0) tmp/layout_BEFORE.png(좌20/우42) vs tmp/layout_AFTER.png(좌31/우31). pytest 436 passed/3 skipped.
+- 연결 커밋/PR: b2143e5(layout feat), STATE/장부 docs 갱신.
+- 남은 수동 검수: customer2 교정본은 content 영속 이전 산출이라 저장본이 없어, 필요 시 seed 재compose 1회(운영자 승인) 후 재렌더는 무료. 신규 주문은 compose 시 자동 영속 → 레이아웃 반복 무료. render_verify + 300dpi 시각 점검 + 운영자 전문 검수 전 REVIEW_REQUIRED 유지.
+
 ## 2026-07-02 추가: QI-2026-07-02-01 customer2 통합 PDF gate_pass=true인데 육안 품질 미달
 
 - 증상: customer2 integrated_full PDF가 gate_pass=true/all_gates_pass=true였으나 운영자 육안으로 납품 불가. 문서 진행/섹션 예고 메타("자미두수 명궁 이야기도 바로 이어집니다"), 질문 축 미반영이 통과.

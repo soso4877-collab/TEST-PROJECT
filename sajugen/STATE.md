@@ -9,11 +9,20 @@
 >   - P4 목차 리드 중립화("…다음 순서로 이어집니다"→"차례")
 >   - P5 물리 frontload 보조지표(physical_frontloaded_answer, warning 전용·게이트 불변)+검수 체크리스트
 >   - relationship belt(context.SYSTEM), 표지 semantic-clean(render/pdf), 보장형 compose 가드(guarantee_lint)
->   실측: `./.venv/Scripts/python.exe -m pytest tests/ -q` = 425 passed / 3 skipped / exit 0. p4/p5 실렌더 0 skipped.
->   게이트/차단룰 완화 0(전 diff의 '-'는 린터 재포맷, verify PII-safe 필드셋 HEAD와 동일). PII 0.
->   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp = 스크래치.
->   다음(게이트, 운영자 명시 승인 필요) = customer2 Tier2 재생성 1발로 개선 실효 확인
->     (`hrun --regen --allow-llm --no-tests`, 새 stamp). 승인 없이 regen/발송/push 금지.
+>   [2026-07-02 PDF 레이아웃 근본수정 = 커밋 `b2143e5`] 육안 "레이아웃 다 틀어짐" 근본원인 2겹 규명·수정:
+>   - (즉시결함) 본문 칼럼 좌우 비대칭(좌20/우42mm) = report.html.j2 `.body{margin:0}` 미중앙정렬 →
+>     `margin:0 auto`(좌우 ≈31mm 대칭). 실측 20/42 → 31.2/31.6.
+>   - (시스템원인) verify가 텍스트/카운트만 검사·기하 검증 0 → 시각결함이 gate_pass=true로 반복통과.
+>     verify.py `_layout_geometry_hits`(블록 bbox 좌우여백·넘침) 신설·gate_pass 편입(기존게이트 완화 0).
+>   - (비용 근본차단) integrated.py compose결과 `.content.json`(gitignored) 영속 + render-only 재렌더
+>     (`render_integrated_from_content`/CLI `render`, `_render_integrated` 추출) → 레이아웃/템플릿 변경 시
+>     재compose(API 과금) 없이 재렌더. 실 라운드트립(build→저장→재렌더) 재compose 0 실증.
+>   실측: `pytest tests/ -q` = 436 passed / 3 skipped / exit 0. 구템플릿 customer2 PDF는 새 게이트가
+>     margin_asymmetry 49건으로 차단. BEFORE/AFTER 시각자료(tmp/layout_BEFORE·AFTER.png, 합성·PII0).
+>   게이트/차단룰 완화 0. PII 0. 세션 커밋: 8012a20(P1~P5)·6bb18db·b7a946d(docs)·b2143e5(layout).
+>   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp·render/out = 스크래치·gitignored.
+>   다음(게이트, 운영자 명시 승인 필요): (a) 커밋 push, (b) customer2 교정본 = seed 재compose 1회
+>     (구 content 영속 이전이라 저장본 없음 → 1회 seed 후 이후 재렌더는 무료). 승인 없이 regen/발송/push 금지.
 >   운영자 전문 검수·APPROVED 전 발송 0.
 >
 > 컨텍스트가 비워져도 이 파일만 읽으면 그대로 이어갈 수 있다.
