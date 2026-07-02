@@ -19,11 +19,24 @@
 >     재compose(API 과금) 없이 재렌더. 실 라운드트립(build→저장→재렌더) 재compose 0 실증.
 >   실측: `pytest tests/ -q` = 436 passed / 3 skipped / exit 0. 구템플릿 customer2 PDF는 새 게이트가
 >     margin_asymmetry 49건으로 차단. BEFORE/AFTER 시각자료(tmp/layout_BEFORE·AFTER.png, 합성·PII0).
->   게이트/차단룰 완화 0. PII 0. 세션 커밋: 8012a20(P1~P5)·6bb18db·b7a946d(docs)·b2143e5(layout).
->   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp·render/out = 스크래치·gitignored.
->   다음(게이트, 운영자 명시 승인 필요): (a) 커밋 push, (b) customer2 교정본 = seed 재compose 1회
->     (구 content 영속 이전이라 저장본 없음 → 1회 seed 후 이후 재렌더는 무료). 승인 없이 regen/발송/push 금지.
->   운영자 전문 검수·APPROVED 전 발송 0.
+>   [2026-07-02 seed·하네스 fix·저밀도 이슈] 세션 커밋(전부 push됨, HEAD=origin=`e55cca5`):
+>     8012a20(P1~P5)·6bb18db·b7a946d(docs)·b2143e5(layout)·cbe75fe(docs STATE/장부)·e55cca5(하네스 fix).
+>   - 하네스 fix `e55cca5`: `_regen_pdf` 자식 UTF-8 강제(PYTHONUTF8=1)+stderr 캡처. 서브프로세스 seed 가
+>     cp949 크래시/에러 은닉으로 실패하던 것 교정(단, hsummary 가 regen_stderr_tail 필드를 드롭 = 후속 관측 갭).
+>   - customer2 교정본 진행: **in-process build(use_llm=True)로 compose 성공·렌더됨·`.content.json` 저장**
+>     (`sajugen/render/out/customer2_integrated_full.content.json`, 80KB, gitignored). → 이후 재렌더 **무료**.
+>     레이아웃 대칭 확인(좌31.2/우31.5mm)·기하 게이트 clean. **단 gate_pass=False**, 유일 원인 =
+>     `delivery_quality → premium_low_density_pages`(page 3, 85자). 원인 = 이번 compose 의 **짧은 관계 섹션들
+>     장 표제(제N장)가 한 페이지에 쌓여** 희소 페이지. **폭 문제 아님**(--maxw 162mm $0 재렌더도 동일 page3 실패).
+>     나머지 게이트 전부 clean(문안/기하/placeholder/style/honorific/markdown/temporal). warning 만(물리 frontload·단어반복).
+>   [주의] verify_result 를 raw 로 출력하면 고객 이름/장표제가 노출됨(이번에 1회 실수) → 반드시 rule/page/count/bool 만 추출.
+>   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp·render/out = gitignored.
+>   ★ 다음 작업(전부 API 0 — content.json 재사용): 짧은 섹션 압축 보강 `integrated._compact_sparse_sections`(line~128)
+>     로 짧은 관계 섹션 표제가 희소 페이지 안 만들게 → `integrated.render_integrated_from_content(
+>     "sajugen/render/out/customer2_integrated_full.content.json", out_name="customer2_integrated_full.pdf")`
+>     로 **무료 재렌더** → delivery_quality premium_low_density_pages 통과 확인(gate_pass=True). 재compose(API) 불필요.
+>   [핵심] 운영자 지적 "레이아웃 틀어짐" = 중앙정렬+기하게이트로 **해결됨**. 남은 건 저밀도 1페이지(별개 품질게이트).
+>   커밋/push·고객 발송은 운영자 지시 시만. 운영자 전문 검수·APPROVED 전 발송 0.
 >
 > 컨텍스트가 비워져도 이 파일만 읽으면 그대로 이어갈 수 있다.
 > 계획 전문(현행): C:\Users\pc\.claude\plans\role-claude-distributed-hellman.md (상용화 플랜, 2026-06-10 승인)
