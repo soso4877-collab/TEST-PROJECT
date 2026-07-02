@@ -1,5 +1,22 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-02 추가: QI-2026-07-02-01 customer2 통합 PDF gate_pass=true인데 육안 품질 미달
+
+- 증상: customer2 integrated_full PDF가 gate_pass=true/all_gates_pass=true였으나 운영자 육안으로 납품 불가. 문서 진행/섹션 예고 메타("자미두수 명궁 이야기도 바로 이어집니다"), 질문 축 미반영이 통과.
+- 영향: 자동 게이트를 신뢰하면 저품질 납품이 통과할 수 있다(false-pass). 특히 질문 축 검사가 조용히 no-op 되면 프리미엄 상품이 고객 질문에 답하지 않은 채 기준을 충족한 것으로 보인다.
+- 원인:
+  - (배선) hverify_pdf.verify_profile이 profile.concern만 읽어, integrated/궁합이 고민을 담는 situation 필드를 놓침 → delivery_quality가 concern 없이 돌아 required_axes=[]로 질문축 검사 no-op.
+  - (룰 공백) customer_meta_lint 전이 룰의 앵커가 "살펴보겠습니다"뿐이라 "…이어집니다"/"이야기도 이어" 계열 미탐. compose 프롬프트·가드에도 문서 진행 금지 부재.
+  - (지표 괴리) frontloaded_answer가 앞 1800자 기준이라 물리 페이지 p1~p3(표지/목차)와 어긋나 "초반 답변" 체감과 불일치.
+- 재발 방지(구현·검증 완료, 커밋 8012a20):
+  - P1 concern 정규화(hrun situation→concern) + verify가 product로 context_required 산출 + concern 부재 시 missing_customer_context failure(조용한 no-op 금지).
+  - P2 customer_meta_lint.transition_section_preview(구조어+진행 앵커 공기 시만 FAIL, 생활흐름 오탐 0). P3 builder/gunghap compose 가드 부착 + _COMPOSE_SYSTEM/_GH_SYSTEM/relationship SYSTEM 프롬프트 belt.
+  - P4 목차 리드 중립화("…다음 순서로 이어집니다"→"차례"). P5 physical_frontloaded_answer(warning 전용·게이트 불변) + PDF 검수 체크리스트(delivery_answer_review).
+  - 게이트/차단룰 완화 0(전 diff의 '-'는 린터 재포맷). pytest 425 passed/3 skipped.
+- 실효 검증(2026-07-02, regen·LLM·PII 0의 read-only 재검증): 기존 customer2 PDF를 새 게이트로 재검증하니 이전 gate_pass=true였던 동일 PDF가 gate_pass=False로 정확히 실패. transition_section_preview page 5 count 1 포착, has_customer_context=True·required_axes=['action','helper_people','timing'] 복구, physical_frontloaded_answer ok=False answer_page=4(첫 3p=표지/목차) 보고.
+- 연결 커밋/PR: 8012a20(feat 게이트 보강), 6bb18db(docs STATE 갱신).
+- 남은 수동 검수: 개선 실효를 실제 납품으로 확인하려면 새 stamp로 customer2 Tier2 재생성 1발 필요(운영자 명시 승인 전 regen/발송/push 금지). 재생성물은 REVIEW_REQUIRED에서 운영자 전문 검수 후에만 발송.
+
 ## 2026-06-26 추가: QI-2026-06-26-01 Phase 0 문서 운영 containment
 
 - 증상: 구조 검사는 통과했지만 납품 후보 문안에 AI-meta 문장, placeholder residue, 마스킹 잔재가 남을 수 있는 workflow 위험이 확인되었다.
