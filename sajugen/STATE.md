@@ -1,13 +1,19 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ★ 활성 워크플로우 (2026-06-30, 압축 재개용 — 이 줄 먼저):
->   고객 통합 PDF(integrated_full) Tier2 + 고객 문안 잔재 수정 진행 중.
->   현행 truth·다음 directive = `C:\Users\pc\.claude\plans\1-playful-puddle.md` 상단 "CURRENT TRUTH" 절을 먼저 읽을 것.
->   요약: 잔재 버그 3종(ordinal unmask · 당신/고객님/이 글은 · formulaic_conclusion) 수정·검증 완료.
->   `./.venv/Scripts/python.exe -m pytest tests/ -q` = 393 passed / 3 skipped / exit 0. p4/p5 실렌더 0 skipped.
->   synthetic 실-LLM acceptance = PASS(금지 토큰 11종·placeholder/customer_meta/style 전부 0/clean).
->   변경분은 uncommitted(작업트리에 persist — git checkout/stash 금지). 게이트/룰 완화 0.
->   다음 = 운영자 승인 하 고객 Tier2 한 발(`hrun --regen --allow-llm --no-tests`, 새 stamp tier2-integrated-customer1-retry2).
+> ★ 활성 워크플로우 (2026-07-02 갱신, 압축 재개용 — 이 줄 먼저):
+>   customer2 통합 PDF(integrated_full) triage 후속 품질 게이트 보강 P1~P5 + relationship belt = 완료·커밋.
+>   커밋: `8012a20` feat(sajugen): 납품 문안 품질 게이트 보강 (브랜치 codex/gunghap-relationship-quality, push 안 함).
+>   - P1 concern 배선(situation→concern 정규화·context_required·missing_customer_context)
+>   - P2 customer_meta_lint.transition_section_preview(문서 진행/섹션 예고 차단, 생활흐름 오탐 0)
+>   - P3 compose 가드(builder/gunghap에 customer_meta_lint 부착)+프롬프트 belt(_COMPOSE_SYSTEM/_GH_SYSTEM)
+>   - P4 목차 리드 중립화("…다음 순서로 이어집니다"→"차례")
+>   - P5 물리 frontload 보조지표(physical_frontloaded_answer, warning 전용·게이트 불변)+검수 체크리스트
+>   - relationship belt(context.SYSTEM), 표지 semantic-clean(render/pdf), 보장형 compose 가드(guarantee_lint)
+>   실측: `./.venv/Scripts/python.exe -m pytest tests/ -q` = 425 passed / 3 skipped / exit 0. p4/p5 실렌더 0 skipped.
+>   게이트/차단룰 완화 0(전 diff의 '-'는 린터 재포맷, verify PII-safe 필드셋 HEAD와 동일). PII 0.
+>   미커밋(의도적 제외): sajugen/app.py·order_flow.py·scripts/dump_reading.py = 세션 前 무관 변경 / tmp = 스크래치.
+>   다음(게이트, 운영자 명시 승인 필요) = customer2 Tier2 재생성 1발로 개선 실효 확인
+>     (`hrun --regen --allow-llm --no-tests`, 새 stamp). 승인 없이 regen/발송/push 금지.
 >   운영자 전문 검수·APPROVED 전 발송 0.
 >
 > 컨텍스트가 비워져도 이 파일만 읽으면 그대로 이어갈 수 있다.
