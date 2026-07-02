@@ -178,6 +178,92 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
     return out
 
 
+# 레이아웃 기하 게이트(2026-07-02) — 텍스트/글자수 게이트가 못 잡는 시각 결함을 검출.
+# 근본원인: verify 가 텍스트/카운트/시맨틱만 검사해 좌우 비대칭·넘침 같은 기하 결함이
+# gate_pass=true 로 반복 통과했다. PyMuPDF 텍스트 블록 bbox 로 판정 — 픽셀 diff 는 폰트/AA
+# 차이에 취약하므로 결정론적 bbox 기하를 쓴다. 검출: (a) 좌우 여백 비대칭(칼럼 쏠림),
+# (b) 콘텐츠박스 밖 넘침. 표지·목차·부록·짧은/장식 페이지는 스코프 제외(오탐 방지).
+_PT_PER_MM = 72.0 / 25.4
+_PAGE_LR_MARGIN_MM = 20.0  # @page left/right (pdf._PAGE_MARGIN 과 동기 — 변경 시 함께 갱신)
+_MARGIN_ASYMMETRY_MM = (
+    10.0  # 좌우 여백 차 관용치(= 칼럼중심 5mm 오프셋). 중앙정렬≈0=통과, 쏠림 버그(≈22mm)=탐지
+)
+_OVERFLOW_EPS_MM = 3.0  # 콘텐츠박스 경계 넘침 허용 epsilon
+_GEOM_MIN_BLOCKS = 6  # 본문형 페이지 최소 텍스트 블록(표지/짧은/장식 페이지 오탐 제외)
+
+
+def _capture_page_geometry(doc) -> tuple[list, list]:
+    """페이지별 텍스트 블록 bbox·페이지 폭을 doc.close() 전에 캡처.
+
+    블록/rect 미지원 문서(테스트 fake doc)면 빈 리스트를 돌려 기하 게이트를 skip 한다
+    (실 렌더 PDF 는 항상 지원 → 기하 검사 적용)."""
+    try:
+        blocks: list[list[tuple]] = []
+        rects: list[tuple] = []
+        for i in range(doc.page_count):
+            pg = doc.load_page(i)
+            bl = [
+                b[:4]
+                for b in pg.get_text("blocks")
+                if len(b) > 6 and b[6] == 0 and (b[4] or "").strip()
+            ]
+            blocks.append(bl)
+            rects.append((pg.rect.width, pg.rect.height))
+        return blocks, rects
+    except (TypeError, AttributeError):
+        return [], []
+
+
+def _layout_geometry_hits(
+    pages_text: list[str],
+    pages_blocks: list,
+    page_rects: list,
+) -> list[dict]:
+    """고객 본문 페이지의 좌우 여백 대칭·콘텐츠 넘침을 텍스트 블록 bbox 로 검사(PII-free).
+
+    반환 hit = {page, kind: 'margin_asymmetry'|'content_overflow', left_mm, right_mm} — 본문 텍스트 미포함."""
+    if not pages_blocks or not page_rects:
+        return []
+    body_pages = {p for p, _ in _customer_body_page_items(pages_text)}
+    hits: list[dict] = []
+    for page in sorted(body_pages):
+        idx = page - 1
+        if idx >= len(pages_blocks) or idx >= len(page_rects):
+            continue
+        blocks = pages_blocks[idx]
+        if len(blocks) < _GEOM_MIN_BLOCKS:
+            continue  # 장식/짧은 페이지 제외
+        width = page_rects[idx][0]
+        x0 = min(b[0] for b in blocks)  # 최좌(칼럼 좌단 — 좌정렬이라 신뢰도 높음)
+        x1 = max(b[2] for b in blocks)  # 최우(가장 넓은 줄)
+        left_mm = x0 / _PT_PER_MM
+        right_mm = (width - x1) / _PT_PER_MM
+        content_left_mm = _PAGE_LR_MARGIN_MM
+        content_right_edge_mm = width / _PT_PER_MM - _PAGE_LR_MARGIN_MM
+        if abs(left_mm - right_mm) > _MARGIN_ASYMMETRY_MM:
+            hits.append(
+                {
+                    "page": page,
+                    "kind": "margin_asymmetry",
+                    "left_mm": round(left_mm, 1),
+                    "right_mm": round(right_mm, 1),
+                }
+            )
+        if (
+            left_mm < content_left_mm - _OVERFLOW_EPS_MM
+            or (x1 / _PT_PER_MM) > content_right_edge_mm + _OVERFLOW_EPS_MM
+        ):
+            hits.append(
+                {
+                    "page": page,
+                    "kind": "content_overflow",
+                    "left_mm": round(left_mm, 1),
+                    "right_mm": round(right_mm, 1),
+                }
+            )
+    return hits
+
+
 # 포터블 toolchain (시스템 미오염, 무관리자)
 _TOOLS = os.path.join(os.path.dirname(__file__), "..", "tools")
 _JAVA = os.path.abspath(os.path.join(_TOOLS, "jdk-21.0.11+10-jre", "bin", "java.exe"))
@@ -248,6 +334,8 @@ def verify(
     미전달이면 해당 게이트는 skip(clean True 기본 — 기존 호출·테스트 back-compat)."""
     doc = fitz.open(pdf_path)
     pages_text = [doc.load_page(i).get_text() for i in range(doc.page_count)]
+    # 레이아웃 기하 게이트용 — 텍스트 블록 bbox·페이지 폭을 close 전에 캡처(2026-07-02).
+    pages_blocks, page_rects = _capture_page_geometry(doc)
     text = "".join(pages_text).strip()
     fonts = []
     for i in range(min(doc.page_count, 3)):
@@ -393,6 +481,12 @@ def verify(
     r["delivery_repetition_hits"] = dq["repetition_hits"][:20]
     r["delivery_guarantee_hits"] = dq["guarantee_hits"][:20]
 
+    # 레이아웃 기하 게이트(2026-07-02) — 좌우 여백 비대칭·콘텐츠 넘침(텍스트 게이트가 못 잡는 시각 결함).
+    geom_hits = _layout_geometry_hits(pages_text, pages_blocks, page_rects)
+    r["layout_geometry_hits"] = geom_hits[:20]
+    r["layout_geometry_hits_count"] = len(geom_hits)
+    r["layout_geometry_clean"] = not geom_hits
+
     # PDF/UA-1 검증 활성화(포터블 veraPDF). 결과는 '측정·보고'.
     va = _verapdf_ua1(pdf_path)
     r["verapdf"] = va
@@ -420,5 +514,6 @@ def verify(
         and r["identity_role_clean"]  # 일간 role 오서술(H1.5.3, identity 전달 시)
         and r["singang_role_clean"]  # 신강약 group/role(H1.5.3.2, singang 전달 시)
         and r["delivery_quality_clean"]
+        and r["layout_geometry_clean"]  # 레이아웃 기하(좌우 여백·넘침) — 시각 결함 반복 차단
     )
     return r

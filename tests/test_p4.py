@@ -62,6 +62,14 @@ def test_render_gate_pass(rendered_pdf):
     assert v["gate_pass"] is True, v
 
 
+def test_layout_geometry_symmetric(rendered_pdf):
+    # 실 렌더 회귀: 본문 칼럼이 중앙정렬(margin:0 auto)이라 좌우 여백 대칭 → 기하 게이트 clean.
+    # (좌 20mm/우 42mm 로 쏠리던 결함 2026-07-02 수정. |Δ|>10mm 면 margin_asymmetry 로 실패.)
+    _, v, _, _ = rendered_pdf
+    assert v["layout_geometry_clean"] is True, v["layout_geometry_hits"]
+    assert v["layout_geometry_hits"] == []
+
+
 def test_brand_seal_drawn_every_page(rendered_pdf):
     # 런타임 낙관(브랜드 가변, R5) — 우하단 인주색 픽셀 존재 + 한지 위 z순서
     # (PyMuPDF overlay=False prepend 규칙: 낙관 먼저→한지 마지막 삽입 회귀 앵커)
@@ -119,9 +127,10 @@ def test_sajudoryeong_assets_do_not_share_legacy_seal_cache_if_present():
     assert "서담선생" not in sajudoryeong.name
     assert "사주도령" not in seodam.name
     if sajudoryeong.is_file() and seodam.is_file():
-        assert hashlib.sha256(sajudoryeong.read_bytes()).hexdigest() != hashlib.sha256(
-            seodam.read_bytes()
-        ).hexdigest()
+        assert (
+            hashlib.sha256(sajudoryeong.read_bytes()).hexdigest()
+            != hashlib.sha256(seodam.read_bytes()).hexdigest()
+        )
     if neutral_svg.is_file():
         svg = neutral_svg.read_text(encoding="utf-8")
         assert "서담선생" not in svg
@@ -213,7 +222,9 @@ def test_render_pdf_keeps_brand_profile_separate_from_browser(tmp_path, monkeypa
     )
     monkeypatch.setattr(render_pdf, "harden_pdf_ua", lambda *args, **kwargs: None)
 
-    path = render_pdf.render_pdf(report, saju, "brand_contract.pdf", brand=cfg.brand("sajudoryeong"))
+    path = render_pdf.render_pdf(
+        report, saju, "brand_contract.pdf", brand=cfg.brand("sajudoryeong")
+    )
 
     assert seen["seal_text"] == "사주도령"
     assert Path(path).is_file()
@@ -227,7 +238,9 @@ def test_render_pdf_does_not_publish_partial_pdf_when_postprocess_fails(tmp_path
     target.write_bytes(b"existing-target")
 
     monkeypatch.setattr(render_pdf, "_OUT", str(tmp_path))
-    monkeypatch.setattr(render_pdf, "sync_playwright", lambda: _FakePlaywrightContext(_FakeBrowser()))
+    monkeypatch.setattr(
+        render_pdf, "sync_playwright", lambda: _FakePlaywrightContext(_FakeBrowser())
+    )
 
     def fail_background(pdf_path, *, seal_text):
         raise RuntimeError("postprocess failed")

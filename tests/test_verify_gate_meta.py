@@ -126,6 +126,28 @@ def test_life_flow_continuation_keeps_gate_clean(monkeypatch):
     assert result["gate_pass"] is True, result
 
 
+def test_layout_geometry_hit_fails_gate(monkeypatch):
+    # 배선 회귀: 레이아웃 기하 결함(좌우 비대칭)이 있으면 gate_pass=False.
+    monkeypatch.setattr(
+        verify_pdf,
+        "_layout_geometry_hits",
+        lambda *a, **k: [
+            {"page": 4, "kind": "margin_asymmetry", "left_mm": 20.0, "right_mm": 42.0}
+        ],
+    )
+    result = _verify_text(monkeypatch, _CLEAN_SENTENCE * 24)
+    assert result["layout_geometry_clean"] is False
+    assert result["gate_pass"] is False
+    assert result["layout_geometry_hits"][0]["kind"] == "margin_asymmetry"
+
+
+def test_layout_geometry_clean_by_default_on_fake_doc(monkeypatch):
+    # fake doc(블록/rect 미지원)은 기하 게이트 skip → clean(기존 텍스트 게이트 경로 보존).
+    result = _verify_text(monkeypatch, _CLEAN_SENTENCE * 24)
+    assert result["layout_geometry_clean"] is True
+    assert result["layout_geometry_hits"] == []
+
+
 def test_hsemantic_review_never_outputs_ready():
     result = hsemantic_review.review_text(_CLEAN_SENTENCE * 4)
     assert result["semantic_review_status"] == "REVIEW_REQUIRED"

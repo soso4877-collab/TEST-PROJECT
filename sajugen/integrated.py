@@ -7,6 +7,7 @@ one report before rendering, so no hand-edited HTML/PDF baseline is needed.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from types import SimpleNamespace
@@ -219,7 +220,9 @@ def _assemble_sections(personal_report, relationship_sections: list[object]) -> 
             closing.insert(0, _copy_section(section))
             continue
         body.append(_copy_section(section, prefix="personal"))
-    relationship = [_copy_section(section, prefix="relationship") for section in relationship_sections]
+    relationship = [
+        _copy_section(section, prefix="relationship") for section in relationship_sections
+    ]
     sections = body + relationship + closing
     for section in sections:
         section.final_text = _integrated_style_safe_text(section.final_text)
@@ -245,6 +248,161 @@ def _integrated_only_low_density_failure(verify_result: dict) -> bool:
     if any(failure.get("rule") != "premium_low_density_pages" for failure in failures):
         return False
     return all(bool(verify_result.get(flag)) for flag in _LOW_DENSITY_ONLY_CLEAN_FLAGS)
+
+
+def _content_path(out_name: str, out_dir: str | Path | None) -> Path:
+    base = Path(out_dir) if out_dir else Path(render_pdf._OUT)
+    return base / f"{Path(out_name).stem}.content.json"
+
+
+def _save_integrated_content(
+    result: dict,
+    *,
+    situation: str,
+    ref_year: int,
+    brand: str,
+    out_name: str,
+    out_dir: str | Path | None,
+) -> str:
+    """compose 결과(본문 sections + 렌더/검증 파라미터)를 JSON 으로 영속.
+
+    레이아웃/템플릿만 바꿔 재렌더할 때 재compose(LLM 과금) 없이 이 파일로 재렌더한다
+    (2026-07-02). 고객 PII(이름·상황·본문)를 포함하므로 gitignore 대상 render/out 에만
+    저장하고 채팅/커밋에 노출하지 않는다."""
+    identity = result["identity"]
+    bundle = {
+        "product": PRODUCT,
+        "receiver": result["receiver"],
+        "names": [p["name"] for p in result["people"]],
+        "ref_year": ref_year,
+        "situation": situation,
+        "brand": brand,
+        "role_perspective": result["role_perspective"],
+        "identity": [list(identity[0]), list(identity[1]), identity[2]],
+        "singang": result["singang"],
+        "sections": [
+            {
+                "id": s.id,
+                "title": s.title,
+                "source_keys": list(getattr(s, "source_keys", []) or []),
+                "final_text": s.final_text,
+            }
+            for s in result["sections"]
+        ],
+    }
+    path = _content_path(out_name, out_dir)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")
+    result["content_path"] = str(path)
+    return str(path)
+
+
+def _render_integrated(
+    report,
+    *,
+    names: list[str],
+    ref_year: int,
+    situation: str,
+    identity,
+    singang,
+    role_specs,
+    brand: str,
+    out_name: str,
+    out_dir: str | Path | None,
+) -> tuple[str, dict, list]:
+    """assemble 된 report 를 _LAYOUT_VARIANTS 로 렌더+게이트(compose 없음). build·재렌더 공용."""
+    bp = dict(cfg.brand(brand))
+    bp["cover_title"] = f"{bp['seal']} 통합 사주와 관계 풀이"
+    fake_saju = SimpleNamespace(input_civil=" · ".join(names))
+    pdf_path = ""
+    verify_result: dict = {}
+    attempts: list = []
+    for idx, (body_font_size, body_line_height) in enumerate(_LAYOUT_VARIANTS):
+        pdf_path = render_pdf.render_pdf(
+            report,
+            fake_saju,
+            out_name,
+            name="",
+            brand=bp,
+            body_font_size=body_font_size,
+            body_line_height=body_line_height,
+            chapter_breaks=False,
+            out_dir=out_dir,
+        )
+        verify_result = render_verify.verify(
+            pdf_path,
+            ref_year=ref_year,
+            names=names,
+            name_full=names,
+            identity=identity,
+            singang=singang,
+            product=PRODUCT,
+            premium=True,
+            concern=situation,
+            ref_date=f"{ref_year}-06-13",
+            role_perspective=role_specs,
+            honorific=role_specs,
+        )
+        low_density_only = _integrated_only_low_density_failure(verify_result)
+        attempts.append(
+            {
+                "body_font_size": body_font_size,
+                "body_line_height": body_line_height,
+                "gate_pass": bool(verify_result.get("gate_pass")),
+                "low_density_only": low_density_only,
+            }
+        )
+        if verify_result.get("gate_pass"):
+            break
+        if idx < len(_LAYOUT_VARIANTS) - 1 and low_density_only:
+            continue
+        raise RuntimeError(f"integrated_full PDF 하드 게이트 실패(빌드 실패): {verify_result}")
+    return pdf_path, verify_result, attempts
+
+
+def render_integrated_from_content(
+    content_path: str | Path,
+    *,
+    brand: str | None = None,
+    out_name: str | None = None,
+    out_dir: str | Path | None = None,
+) -> dict:
+    """저장된 compose 본문(.content.json)에서 재compose 없이 재렌더(레이아웃/템플릿 변경용, LLM 0).
+
+    template/CSS 를 바꿨을 때 API 과금 없이 기존 고객 본문을 새 레이아웃으로 다시 렌더한다."""
+    data = json.loads(Path(content_path).read_text(encoding="utf-8"))
+    report = SimpleNamespace(
+        sections=[
+            SimpleNamespace(
+                id=s["id"],
+                title=s["title"],
+                source_keys=s.get("source_keys", []) or [],
+                final_text=s["final_text"],
+            )
+            for s in data["sections"]
+        ]
+    )
+    identity = (data["identity"][0], data["identity"][1], data["identity"][2])
+    out = out_name or f"{Path(content_path).stem.replace('.content', '')}.pdf"
+    pdf_path, verify_result, attempts = _render_integrated(
+        report,
+        names=data["names"],
+        ref_year=data.get("ref_year", 2026),
+        situation=data.get("situation", ""),
+        identity=identity,
+        singang=data.get("singang", []),
+        role_specs=data["role_perspective"],
+        brand=brand or data.get("brand", "sajudoryeong"),
+        out_name=out,
+        out_dir=out_dir,
+    )
+    return {
+        "product": PRODUCT,
+        "pdf_path": pdf_path,
+        "verify": verify_result,
+        "layout_attempts": attempts,
+        "content_path": str(content_path),
+    }
 
 
 def build_integrated_full(
@@ -317,51 +475,29 @@ def build_integrated_full(
     if not render:
         return result
 
-    bp = dict(cfg.brand(brand))
-    bp["cover_title"] = f"{bp['seal']} 통합 사주와 관계 풀이"
-    fake_saju = SimpleNamespace(input_civil=" · ".join(names))
-    pdf_path = ""
-    verify_result = {}
-    for idx, (body_font_size, body_line_height) in enumerate(_LAYOUT_VARIANTS):
-        pdf_path = render_pdf.render_pdf(
-            report,
-            fake_saju,
-            out_name,
-            name="",
-            brand=bp,
-            body_font_size=body_font_size,
-            body_line_height=body_line_height,
-            chapter_breaks=False,
-            out_dir=out_dir,
-        )
-        verify_result = render_verify.verify(
-            pdf_path,
-            ref_year=ref_year,
-            names=names,
-            name_full=names,
-            identity=result["identity"],
-            singang=result["singang"],
-            product=PRODUCT,
-            premium=True,
-            concern=situation,
-            ref_date=f"{ref_year}-06-13",
-            role_perspective=role_specs,
-            honorific=role_specs,
-        )
-        low_density_only = _integrated_only_low_density_failure(verify_result)
-        result["layout_attempts"].append(
-            {
-                "body_font_size": body_font_size,
-                "body_line_height": body_line_height,
-                "gate_pass": bool(verify_result.get("gate_pass")),
-                "low_density_only": low_density_only,
-            }
-        )
-        if verify_result.get("gate_pass"):
-            break
-        if idx < len(_LAYOUT_VARIANTS) - 1 and low_density_only:
-            continue
-        raise RuntimeError(f"integrated_full PDF 하드 게이트 실패(빌드 실패): {verify_result}")
+    # 재compose 없이 재렌더할 수 있도록 compose 결과를 영속(2026-07-02) — 레이아웃/템플릿 변경이
+    # API 과금(재compose)을 강제하지 않게 한다.
+    _save_integrated_content(
+        result,
+        situation=situation,
+        ref_year=ref_year,
+        brand=brand,
+        out_name=out_name,
+        out_dir=out_dir,
+    )
+    pdf_path, verify_result, attempts = _render_integrated(
+        report,
+        names=names,
+        ref_year=ref_year,
+        situation=situation,
+        identity=result["identity"],
+        singang=result["singang"],
+        role_specs=role_specs,
+        brand=brand,
+        out_name=out_name,
+        out_dir=out_dir,
+    )
+    result["layout_attempts"] = attempts
     result["pdf_path"] = pdf_path
     result["verify"] = verify_result
     return result
@@ -372,9 +508,7 @@ app = typer.Typer(add_completion=False, help="native integrated_full PDF product
 
 @app.command()
 def gen(
-    person: list[str] = typer.Option(
-        ..., "--person", help="이름,YYYY-MM-DD,HH:MM,성별 (반복)"
-    ),
+    person: list[str] = typer.Option(..., "--person", help="이름,YYYY-MM-DD,HH:MM,성별 (반복)"),
     receiver: str | None = typer.Option(None, "--receiver", help="수신자 이름"),
     situation: str = typer.Option("", "--situation", help="합성/운영 상황 맥락"),
     ref_year: int = typer.Option(2026, "--ref-year"),
@@ -394,6 +528,17 @@ def gen(
         render=True,
     )
     typer.echo(f"PDF: {result['pdf_path']} ({len(result['people'])}인)")
+
+
+@app.command()
+def render(
+    content: str = typer.Option(..., "--content", help="저장된 compose 본문(.content.json) 경로"),
+    out: str | None = typer.Option(None, "--out", help="출력 PDF 이름(미지정 시 content 기준)"),
+    brand: str | None = typer.Option(None, "--brand", help="미지정 시 저장된 brand 사용"),
+):
+    """저장된 본문으로 재compose 없이 재렌더(레이아웃/템플릿 변경용, LLM/API 0)."""
+    result = render_integrated_from_content(content, brand=brand, out_name=out)
+    typer.echo(f"PDF: {result['pdf_path']} (재렌더, LLM 0)")
 
 
 if __name__ == "__main__":
