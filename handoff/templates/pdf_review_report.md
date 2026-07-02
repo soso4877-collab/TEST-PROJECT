@@ -26,6 +26,15 @@
 - status: `PASS | FAIL | NOT_RUN`
 - notes: `AI-like phrasing, unsupported facts, repeated filler, tone mismatch`
 
+## delivery_answer_review
+> P1~P5 회귀 항목 — 게이트가 놓칠 수 있는 '납품 답변 품질'을 수동으로 확인한다.
+- customer_concern_reached_delivery_quality: `PASS | FAIL | NOT_RUN`  # has_customer_context=true (P1)
+- required_axes_non_empty_when_concern_has_triggers: `PASS | FAIL | NOT_RUN`  # required_axes != [] (P1)
+- first_physical_customer_pages_contain_direct_answer: `PASS | FAIL | NOT_RUN`  # physical_frontloaded_answer.ok (P5); 표지/목차로 물리 p1~p3에 답변 없으면 FAIL
+- transition_section_preview_meta_absent: `PASS | FAIL | NOT_RUN`  # 문서 진행/섹션 예고 발화 0 (P2/P3)
+- repeated_or_general_filler_checked: `PASS | FAIL | NOT_RUN`  # 반복/빈말/일반론
+- notes: `PII-free; count/page/rule only`
+
 ## visual_review_300dpi
 - status: `PASS | FAIL | NOT_RUN`
 - pages_checked: `first page, consult page, last two pages, sampled dense pages`

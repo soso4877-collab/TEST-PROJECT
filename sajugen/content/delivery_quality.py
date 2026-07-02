@@ -26,6 +26,17 @@ _PREMIUM_PRODUCTS = (
     | _GUNGHAP_PRODUCTS
     | _INTEGRATED_FULL_PRODUCTS
 )
+# 고객 질문(고민)이 반드시 있어야 하는 상품 — integrated_full·궁합 계열은 '고객 질문에
+# 답하는' 맞춤 납품이라 concern 부재는 질문축 검사를 통째로 no-op 시킨다(2026-07-01 P1).
+# 이 집합의 상품은 context_required 로 표시해, concern 부재 시 조용히 통과하지 않고
+# missing_customer_context 로 드러낸다. (계산·게이트 완화가 아니라 누락 신호 강화.)
+CONTEXT_REQUIRED_PRODUCTS = frozenset(_INTEGRATED_FULL_PRODUCTS | _GUNGHAP_PRODUCTS)
+
+
+def context_required_for(product: str | None) -> bool:
+    """product 가 고객 질문이 필수인 상품(integrated_full·궁합 계열)인지."""
+    return (product or "").strip().lower() in CONTEXT_REQUIRED_PRODUCTS
+
 
 _REPEAT_CAPS = {
     "또렷": 0,
@@ -50,8 +61,32 @@ _GUARANTEE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 
 _AXES: dict[str, dict[str, tuple[str, ...]]] = {
     "move_house": {
-        "triggers": ("이사", "집", "아파트", "매매", "김포", "계양", "부동산", "거처", "땅", "토지"),
-        "evidence": ("이사", "집", "아파트", "매매", "계약", "김포", "계양", "부동산", "거처", "터전", "땅", "토지"),
+        "triggers": (
+            "이사",
+            "집",
+            "아파트",
+            "매매",
+            "김포",
+            "계양",
+            "부동산",
+            "거처",
+            "땅",
+            "토지",
+        ),
+        "evidence": (
+            "이사",
+            "집",
+            "아파트",
+            "매매",
+            "계약",
+            "김포",
+            "계양",
+            "부동산",
+            "거처",
+            "터전",
+            "땅",
+            "토지",
+        ),
     },
     "club_group": {
         "triggers": ("로타리", "클럽", "창립", "모임", "단체", "봉사"),
@@ -62,8 +97,38 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
         "evidence": ("도움", "협조", "사람", "배우자", "조력", "맡기", "확인", "거리"),
     },
     "money_contract": {
-        "triggers": ("돈", "재물", "재산", "자산", "계약", "매매", "가격", "손해", "대출", "부동산", "땅", "토지", "땅값"),
-        "evidence": ("돈", "재물", "재산", "자산", "계약", "매매", "가격", "손해", "서류", "명의", "잔금", "땅", "토지", "세금", "현금화"),
+        "triggers": (
+            "돈",
+            "재물",
+            "재산",
+            "자산",
+            "계약",
+            "매매",
+            "가격",
+            "손해",
+            "대출",
+            "부동산",
+            "땅",
+            "토지",
+            "땅값",
+        ),
+        "evidence": (
+            "돈",
+            "재물",
+            "재산",
+            "자산",
+            "계약",
+            "매매",
+            "가격",
+            "손해",
+            "서류",
+            "명의",
+            "잔금",
+            "땅",
+            "토지",
+            "세금",
+            "현금화",
+        ),
     },
     "children_family": {
         "triggers": ("자식복", "자식", "자녀", "아이"),
@@ -140,7 +205,18 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
     },
     "action": {
         "triggers": ("어떻게", "방법", "해야", "다가", "주의", "조심", "확인"),
-        "evidence": ("먼저", "확인", "주의", "조심", "기다", "다가", "말", "정하", "피하", "서두르"),
+        "evidence": (
+            "먼저",
+            "확인",
+            "주의",
+            "조심",
+            "기다",
+            "다가",
+            "말",
+            "정하",
+            "피하",
+            "서두르",
+        ),
     },
 }
 
@@ -261,9 +337,7 @@ def _frontloaded_result(text: str, required_axes: set[str]) -> dict:
         missing.append("action")
 
     topic_axes = sorted(a for a in required_axes if a not in {"timing", "action"})
-    covered_topic_axes = [
-        axis for axis in topic_axes if _hit_terms(early, _AXES[axis]["evidence"])
-    ]
+    covered_topic_axes = [axis for axis in topic_axes if _hit_terms(early, _AXES[axis]["evidence"])]
     if topic_axes and not covered_topic_axes:
         missing.append("question_topic")
 
@@ -272,6 +346,48 @@ def _frontloaded_result(text: str, required_axes: set[str]) -> dict:
         "missing": missing,
         "window_chars": _FRONTLOAD_CHARS,
         "covered_topic_axes": covered_topic_axes,
+    }
+
+
+_PHYSICAL_FRONTLOAD_PAGES = 3  # 고객이 체감하는 '초반' = 물리 첫 3페이지
+
+
+def _page_has_direct_answer(page_text: str, required_axes: set[str]) -> bool:
+    """물리 한 페이지가 직접 답변(결론 표지 + 질문 주제/시기 근거)을 담는지."""
+    if not _hit_terms(page_text, _FRONTLOAD_TERMS["decision"]):
+        return False
+    topic_axes = [a for a in required_axes if a not in {"timing", "action"}]
+    if any(_hit_terms(page_text, _AXES[axis]["evidence"]) for axis in topic_axes):
+        return True
+    if "timing" in required_axes and _hit_terms(page_text, _FRONTLOAD_TERMS["timing"]):
+        return True
+    # 주제/시기 축이 없으면 결론 표지만으로도 초반 답변으로 인정(과탐 방지).
+    return not topic_axes and "timing" not in required_axes
+
+
+def _physical_frontloaded_result(
+    page_texts: list[str] | None,
+    required_axes: set[str],
+    first_pages: int = _PHYSICAL_FRONTLOAD_PAGES,
+) -> dict:
+    """물리 페이지 기준 초반 답변 보조지표(보고용). char 기반 frontloaded_answer 와 별개.
+
+    표지/목차가 물리 p1~p3을 차지해 고객 체감 '초반'에 답변이 없을 때를 드러낸다.
+    concern/required_axes 가 있을 때만 평가하며, 게이트(clean/gate_pass)는 바꾸지 않고
+    warning 으로만 보고한다(false-pass 가시화 — 게이트 완화·과차단 아님).
+    """
+    if not required_axes or not page_texts:
+        return {"required": False, "ok": True, "first_pages": first_pages, "answer_page": None}
+    answer_page = None
+    for idx, page_text in enumerate(page_texts, start=1):
+        if _page_has_direct_answer(page_text or "", required_axes):
+            answer_page = idx
+            break
+    return {
+        "required": True,
+        "ok": answer_page is not None and answer_page <= first_pages,
+        "first_pages": first_pages,
+        "answer_page": answer_page,
     }
 
 
@@ -315,6 +431,21 @@ def _guarantee_hits(text: str) -> list[dict]:
             hits.append({"match": m.group(0), "why": why, "pos": m.start()})
             break
     return hits
+
+
+def guarantee_lint(text: str) -> list[dict]:
+    """compose 단계용 보장형 가드 헬퍼(builder/gunghap 가 cand/retry 에 붙임).
+
+    결과 보장처럼 읽히는 표현(absolute_guarantee 계열)을 최종 납품 게이트 전에
+    compose 단계에서 잡아 재작성/폴백시키기 위한 public 헬퍼. 기준은 analyze() 가
+    쓰는 _GUARANTEE_PATTERNS / _guarantee_hits 와 **동일**하다(같은 내부 함수에 위임 —
+    룰 완화·중복정의·analyze 동작 변경 없음). 배경: safe_lint 와 delivery_quality 의
+    보장형 탐지 범위가 달라, LLM 후보가 compose 가드는 통과하고 최종 PDF delivery
+    게이트에서만 BLOCKED 되던 갭(2026-06-30, Tier2 retry3)을 차단한다.
+    반환은 hit dict 리스트(빈 리스트=clean). dict 의 match 원문은 테스트에서만 쓰고
+    운영 보고에는 출력하지 않는다.
+    """
+    return _guarantee_hits(text or "")
 
 
 def _ziwei_result(text: str) -> dict:
@@ -366,8 +497,10 @@ def _finding_message(finding: dict) -> dict:
         "premium_pages": "납품 페이지 수가 상품 기준보다 적습니다.",
         "premium_text_chars": "납품 본문 글자 수가 상품 기준보다 적습니다.",
         "premium_low_density_pages": "본문 밀도가 낮은 페이지가 있습니다.",
+        "missing_customer_context": "고객 질문(고민)이 이 상품의 품질 검사까지 전달되지 않았습니다.",
         "missing_question_axes": "질문 축에 대한 답변 근거가 부족합니다.",
         "missing_frontloaded_answer": "초반부에 결론, 시기, 행동 기준이 충분히 앞서 나오지 않았습니다.",
+        "physical_frontloaded_answer": "물리 첫 3페이지(표지/목차 포함) 안에 직접 답변이 보이지 않습니다(검수 확인).",
         "missing_near_term_timing": "연애/재회 질문에 필요한 가까운 시기 기준이 부족합니다.",
         "missing_love_reunion_action": "연애/재회 질문에 필요한 행동 기준과 주의 기준이 부족합니다.",
         "repetitive_phrasing": "반복 표현이 기준을 넘었습니다.",
@@ -397,12 +530,19 @@ def analyze(
     premium: bool = False,
     concern: str | None = None,
     expected_context_terms: list[str] | None = None,
+    context_required: bool = False,
+    page_texts: list[str] | None = None,
 ) -> dict:
     """Return customer-delivery quality findings.
 
     The default non-premium mode reports findings but does not require premium
     length/ziwei/depth thresholds.  Callers that pass premium=True get a hard
     clean=False result when a paid-delivery requirement is missed.
+
+    context_required=True (integrated_full·궁합 계열 실제 납품 경로에서 verify 가 지정)
+    이면 고객 질문(concern/expected_context_terms)이 비어 있을 때 조용히 통과하지 않고
+    missing_customer_context 로 실패시킨다. 기본 False — 무고객 합성/단위 테스트 경로는
+    영향받지 않는다(질문축 검사가 의도적으로 스킵되는 경로 보존).
     """
 
     text = text or ""
@@ -410,6 +550,11 @@ def analyze(
     has_customer_context = bool((concern or "").strip() or expected_context_terms)
     failures: list[dict] = []
     warnings: list[dict] = []
+
+    if context_required and is_premium and not has_customer_context:
+        # 고객 질문 필수 상품인데 concern 이 delivery_quality 까지 도달하지 않음 =
+        # 질문축 검사가 no-op 된 상태. false-pass 방지(조용한 통과 금지).
+        failures.append({"rule": "missing_customer_context", "product": product})
 
     if is_premium:
         min_pages = _min_pages(product)
@@ -441,8 +586,7 @@ def analyze(
 
     required_axes = _required_axes(concern)
     coverage_hits = {
-        axis: _hit_terms(text, _AXES[axis]["evidence"])
-        for axis in sorted(required_axes)
+        axis: _hit_terms(text, _AXES[axis]["evidence"]) for axis in sorted(required_axes)
     }
     missing_axes = [axis for axis, hits in coverage_hits.items() if not hits]
     if missing_axes:
@@ -451,6 +595,14 @@ def analyze(
     frontloaded = _frontloaded_result(text, required_axes)
     if is_premium and not frontloaded["ok"]:
         failures.append({"rule": "missing_frontloaded_answer", "frontloaded": frontloaded})
+
+    # 물리 페이지 기준 초반 답변(보고용 warning — 게이트 미변경). 표지/목차가 물리 p1~p3을
+    # 차지해 고객 체감 초반에 답변이 없을 때를 드러낸다(char 기반 frontloaded 와 별개).
+    physical_frontloaded = _physical_frontloaded_result(page_texts, required_axes)
+    if is_premium and physical_frontloaded["required"] and not physical_frontloaded["ok"]:
+        warnings.append(
+            {"rule": "physical_frontloaded_answer", "physical_frontloaded": physical_frontloaded}
+        )
 
     near_term_timing = _near_term_timing_result(text, required_axes)
     if is_premium and not near_term_timing["ok"]:
@@ -489,17 +641,9 @@ def analyze(
     if is_premium and not context_provenance["ok"]:
         failures.append({"rule": "unbacked_context_terms", "context": context_provenance})
 
-    context_hits = {
-        term: text.count(term)
-        for term in expected_context_terms or []
-        if term
-    }
+    context_hits = {term: text.count(term) for term in expected_context_terms or [] if term}
     missing_context = [term for term, count in context_hits.items() if count == 0]
-    overused_context = {
-        term: count
-        for term, count in context_hits.items()
-        if count > 3
-    }
+    overused_context = {term: count for term, count in context_hits.items() if count > 3}
     if missing_context:
         failures.append({"rule": "missing_expected_context", "terms": missing_context})
     if overused_context:
@@ -524,6 +668,7 @@ def analyze(
         "coverage_hits": coverage_hits,
         "missing_axes": missing_axes,
         "frontloaded_answer": frontloaded,
+        "physical_frontloaded_answer": physical_frontloaded,
         "near_term_timing": near_term_timing,
         "love_action": love_action,
         "love_myeongni": love_myeongni,

@@ -369,3 +369,11 @@ def test_concern_raw_text_not_injected_into_body():
     assert "甲寅" not in consult.final_text  # 차트에 없는 간지 미주입
     assert "100%" not in consult.final_text and "반드시" not in consult.final_text
     assert rep.guard.clean is True  # 카테고리(전반) 기반 안전 템플릿만
+
+
+def test_compose_system_prompt_bans_section_preview():
+    # P3: compose 프롬프트가 문서 진행/섹션 예고 메타 발화를 명시적으로 금지한다(belt).
+    sysmsg = llm_sections._COMPOSE_SYSTEM
+    assert "다음 장에서는" in sysmsg
+    assert "예고" in sysmsg
+    assert "완결된 풀이" in sysmsg

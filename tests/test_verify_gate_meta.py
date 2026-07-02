@@ -106,6 +106,26 @@ def test_toc_customer_framing_is_not_body_quality_failure(monkeypatch):
     assert result["gate_pass"] is True, result
 
 
+def test_transition_meta_on_body_page_fails_gate(monkeypatch):
+    # P2: 본문 페이지의 문서 진행/섹션 예고 메타 발화가 customer_meta 게이트로 잡혀 gate_pass=False.
+    body = "자미두수 명궁 이야기도 바로 이어집니다. " + (_CLEAN_SENTENCE * 24)
+    result = _verify_text(monkeypatch, body)
+    assert result["customer_meta_clean"] is False
+    assert any(h["rule"] == "transition_section_preview" for h in result["ai_meta_hits"])
+    assert result["gate_pass"] is False
+
+
+def test_life_flow_continuation_keeps_gate_clean(monkeypatch):
+    # 오탐 방지: 생활 흐름의 '이어집니다'는 게이트를 깨지 않는다.
+    body = "이 관계가 오래 이어지려면 확인의 속도를 맞춰야 합니다. 일이 이어집니다. " + (
+        _CLEAN_SENTENCE * 24
+    )
+    result = _verify_text(monkeypatch, body)
+    assert result["customer_meta_clean"] is True, result["ai_meta_hits"]
+    assert not any(h["rule"] == "transition_section_preview" for h in result["ai_meta_hits"])
+    assert result["gate_pass"] is True, result
+
+
 def test_hsemantic_review_never_outputs_ready():
     result = hsemantic_review.review_text(_CLEAN_SENTENCE * 4)
     assert result["semantic_review_status"] == "REVIEW_REQUIRED"

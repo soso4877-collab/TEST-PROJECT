@@ -18,6 +18,8 @@ from .calc import engine
 from .calc import partner as calc_partner
 from .content import (
     client_tone_lint,
+    customer_meta_lint,
+    delivery_quality,
     factcheck,
     masking,
     postprocess,
@@ -397,6 +399,9 @@ _GH_SYSTEM = (
     "[말투] '~예요/~해요'와 '~합니다'를 자연스럽게 섞는다. '당신' 금지.\n"
     "[문체 잔재 금지] '고객님', '이 글은', '이 문서는', '이 리포트는' 같은 호명/문서 자기소개 표현 금지.\n"
     "[결론 표지 금지] '종합하면', '결론적으로', '핵심은 다음과 같습니다' 같은 공식적 결론 표지 금지.\n"
+    "[문서 진행/섹션 예고 금지] '이야기가(도) 이어집니다', '다음 장에서는', '다음으로 …을 살펴보겠습니다', "
+    "'이어서 …을 보겠습니다', '이 풀이는 다음 순서로', '자미두수 명궁 이야기도 바로 이어집니다' 같은 "
+    "섹션 예고·다음 파트 안내·작성자 진행 표현 금지. 각 대목은 그 자체로 완결된 풀이여야 한다.\n"
     "[호칭] 표지·근거표만 전체 이름. 본문은 각 사람 첫 소개에서만 '김태수 씨/김태성 씨/장순조 씨'처럼 "
     "성 포함 1회 쓰고, 이후로는 '태수 씨/태성 씨/순조 씨'로 부른다. 둘씩 볼 때는 '태수와 태성/태수와 순조/"
     "태성과 순조'. '김태수는·김태성은·장순조는'처럼 성 포함 전체 이름+조사를 반복하지 마라.\n"
@@ -1017,6 +1022,10 @@ def _compose(
         + (  # 신강약 group/role 오서술(H1.5.3.2)
             client_tone_lint.singang_role_lint(cand, singang_specs) if singang_specs else []
         )
+        + delivery_quality.guarantee_lint(
+            cand
+        )  # 보장형(최종 게이트 갭 차단, relationship/gunghap/business 공통)
+        + customer_meta_lint.lint(cand)  # 문서 진행/섹션 예고 메타 발화(P3)
         + factcheck.check_with_allow(cand, allow)
     )
     if bad:

@@ -277,6 +277,47 @@ def test_compose_does_not_use_llm_without_explicit_flag(monkeypatch):
     assert out == "근거 슬롯"
 
 
+def test_compose_falls_back_on_absolute_guarantee(monkeypatch):
+    # retry3 갭: LLM이 보장형('무조건'·'결혼합니다')을 내면 delivery_quality.guarantee_lint 가
+    # compose 단계에서 잡아 룰 슬롯 폴백(최종 PDF delivery 게이트에서만 BLOCKED 되던 갭 차단).
+    _fake_anthropic(monkeypatch, "두 분은 무조건 잘 맞고 곧 결혼합니다.")
+    out = g._compose(
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+    )
+    assert "무조건" not in out and "결혼합니다" not in out and out == "근거 슬롯"
+
+
+def test_compose_falls_back_on_percentage_guarantee(monkeypatch):
+    # '100%' 보장형도 compose 단계에서 폴백.
+    _fake_anthropic(monkeypatch, "두 분의 사업 궁합은 100% 성공합니다.")
+    out = g._compose(
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+    )
+    assert "100%" not in out and out == "근거 슬롯"
+
+
+def test_compose_falls_back_on_transition_section_preview(monkeypatch):
+    # P3: LLM이 문서 진행/섹션 예고 메타를 내면 customer_meta_lint 가 compose 단계(bad 목록)에서
+    # 잡아 룰 슬롯 폴백(최종 게이트 도달 전 사전 차단).
+    _fake_anthropic(
+        monkeypatch, "자미두수 명궁 이야기도 바로 이어집니다. 태수 씨는 차분히 확인합니다."
+    )
+    out = g._compose(
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+    )
+    assert out == "근거 슬롯"
+
+
+def test_compose_keeps_life_flow_continuation(monkeypatch):
+    # 오탐 방지: 생활 흐름의 '이어지도록'은 compose 가드를 통과(폴백 아님).
+    _fake_anthropic(monkeypatch, "흐름이 이어지도록 확인의 속도를 맞추면 좋아요.")
+    out = g._compose(
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+    )
+    assert out != "근거 슬롯"
+    assert "이어지도록" in out
+
+
 def test_relationship_mode_uses_sajudoryeong_gate_and_unknown_time(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     captured = {}
@@ -400,7 +441,9 @@ def test_relationship_delivery_gate_blocks_llm_before_api(monkeypatch):
 
     import sys as _sys
 
-    _sys.modules["anthropic"].Anthropic = lambda *a, **k: types.SimpleNamespace(messages=_BoomMessages())
+    _sys.modules["anthropic"].Anthropic = lambda *a, **k: types.SimpleNamespace(
+        messages=_BoomMessages()
+    )
 
     with pytest.raises(delivery_gate.DeliveryGateError) as ei:
         g._compose(

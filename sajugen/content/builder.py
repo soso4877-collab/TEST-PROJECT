@@ -14,6 +14,8 @@ from ..input import partner as input_partner
 from . import (
     client_tone_lint,
     consistency,
+    customer_meta_lint,
+    delivery_quality,
     factcheck,
     llm_polish,
     llm_sections,
@@ -197,8 +199,10 @@ def build_report(
     _id_spec = personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
 
     # 목차(toc): 보이는 챕터 제목을 나열(노동착시·호기심격차·책 권위, docs/13). 빌더가 생성.
+    # 리드는 문서 진행/섹션 예고 메타("…다음 순서로 이어집니다")가 아니라 중립 헤딩만 둔다
+    # (P4, 2026-07-01 — transition_section_preview 게이트에 걸리는 작성자 진행 안내 제거).
     visible_titles = [t for s, t, _ in SECTION_SPECS if s not in drop and s not in ("cover", "toc")]
-    toc_text = "이 풀이는 다음 순서로 이어집니다.\n" + "\n".join(visible_titles)
+    toc_text = "차례\n" + "\n".join(visible_titles)
 
     # 챕터별 룰 골격 텍스트 + 룰 가드 결과 선계산
     rule_texts: dict[str, str] = {}
@@ -306,6 +310,8 @@ def build_report(
                         + client_tone_lint.identity_role_lint(  # 일간 role 오서술(H1.5.3)
                             cand, _id_spec[0], _id_spec[1], _id_spec[2]
                         )
+                        + delivery_quality.guarantee_lint(cand)  # 보장형(최종 게이트 갭 차단)
+                        + customer_meta_lint.lint(cand)  # 문서 진행/섹션 예고 메타 발화(P3)
                     )
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
@@ -338,6 +344,8 @@ def build_report(
                             + client_tone_lint.identity_role_lint(
                                 retry, _id_spec[0], _id_spec[1], _id_spec[2]
                             )
+                            + delivery_quality.guarantee_lint(retry)  # 보장형(재작성도 검사)
+                            + customer_meta_lint.lint(retry)  # 문서 진행/섹션 예고 메타(재작성도)
                         )
                         rfv = factcheck.check(retry, saju, partner_gz)
                         if not rsv and not rfv:

@@ -178,3 +178,14 @@ def test_render_pdf_requires_explicit_brand_before_pdf_generation(monkeypatch, b
         render_pdf.render_pdf(report, saju, "should_not_be_created.pdf", brand=brand)
 
     assert makedirs_calls == []
+
+
+def test_relationship_system_prompt_bans_section_preview():
+    # relationship 프롬프트 belt: 문서 진행/섹션 예고 메타 발화 금지가 SYSTEM 에 명시돼야 함
+    # (P3 가드는 customer_meta_lint 가 커버, 이 belt 는 프롬프트 레벨 보조 정렬).
+    from sajugen.relationship import context
+
+    sysmsg = context.SYSTEM
+    assert "다음 장에서는" in sysmsg
+    assert "이어집니다" in sysmsg
+    assert "완결된 풀이" in sysmsg

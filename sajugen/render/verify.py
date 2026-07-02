@@ -112,7 +112,8 @@ def _paged_lint_hits(
             safe = {
                 k: v
                 for k, v in hit.items()
-                if k in {"type", "rule", "count", "severity", "allowed", "role", "expected", "actual"}
+                if k
+                in {"type", "rule", "count", "severity", "allowed", "role", "expected", "actual"}
             }
             safe["page"] = page
             out.append(safe)
@@ -325,9 +326,7 @@ def verify(
     r["ai_meta_hits_count"] = sum(int(h.get("count", 1)) for h in ai_meta_hits)
     r["customer_meta_clean"] = not ai_meta_hits
     r["placeholder_residue_hits"] = placeholder_hits
-    r["placeholder_residue_hits_count"] = sum(
-        int(h.get("count", 1)) for h in placeholder_hits
-    )
+    r["placeholder_residue_hits_count"] = sum(int(h.get("count", 1)) for h in placeholder_hits)
     r["placeholder_residue_clean"] = _placeholder_residue_hits_clean(
         placeholder_hits, product=product
     )
@@ -339,15 +338,15 @@ def verify(
     )
     honorific_hits = _paged_lint_hits(
         body_page_items,
-        lambda page_text: _ct.honorific_consistency_lint(page_text, honorific or role_perspective or []),
+        lambda page_text: _ct.honorific_consistency_lint(
+            page_text, honorific or role_perspective or []
+        ),
     )
     r["role_perspective_hits"] = role_hits
     r["role_perspective_hits_count"] = sum(int(h.get("count", 1)) for h in role_hits)
     r["role_perspective_clean"] = not role_hits
     r["honorific_consistency_hits"] = honorific_hits
-    r["honorific_consistency_hits_count"] = sum(
-        int(h.get("count", 1)) for h in honorific_hits
-    )
+    r["honorific_consistency_hits_count"] = sum(int(h.get("count", 1)) for h in honorific_hits)
     r["honorific_consistency_clean"] = not honorific_hits
     r["name_policy_clean"] = True
     r["identity_role_clean"] = True
@@ -382,6 +381,11 @@ def verify(
         premium=premium,
         concern=concern,
         expected_context_terms=expected_context_terms,
+        # integrated_full·궁합 계열은 고객 질문 필수 → concern 부재 시 조용히 통과 금지(P1).
+        context_required=delivery_quality.context_required_for(product),
+        # 물리 페이지 기준 초반 답변 보조지표(P5, 보고용 warning) — 표지/목차가 물리 p1~p3을
+        # 차지해 초반 답변이 없을 때를 드러낸다(게이트 미변경).
+        page_texts=pages_text,
     )
     r["delivery_quality"] = dq
     r["delivery_quality_clean"] = dq["clean"]

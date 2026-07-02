@@ -128,6 +128,14 @@ def _regen_pdf(profile: dict, python: str) -> dict:
     return {"returncode": r.returncode}
 
 
+def _profile_concern(profile: dict) -> str | None:
+    """고객 질문(고민) 정규화 — integrated/궁합 프로파일은 고민을 `situation` 필드로 담고
+    personal 은 `concern` 필드로 담는다(integrated.py 의 concern=situation 매핑과 일치).
+    hverify_pdf.verify_profile 은 `concern` 만 읽으므로, situation 을 concern 으로 정규화하지
+    않으면 delivery_quality 질문축 검사가 조용히 no-op 된다(2026-07-01 P1 배선 갭)."""
+    return profile.get("concern") or profile.get("situation")
+
+
 def run(profiles: list[str], args) -> dict:
     common = _load_common()
     python = common.get("python", "./.venv/Scripts/python.exe")
@@ -146,6 +154,9 @@ def run(profiles: list[str], args) -> dict:
     pdf_rendered = False
     for prof_path in profiles:
         prof = hverify_pdf.load_profile(prof_path)
+        # integrated/궁합 프로파일의 고민(situation)을 concern 으로 정규화 —
+        # verify_profile 이 concern 만 읽어 질문축 검사가 no-op 되던 갭 차단(P1).
+        prof["concern"] = _profile_concern(prof)
         regen_result = None
         if regen_ok and not retry_blocked:
             regen_result = _regen_pdf(prof, python)  # 승인 시에만(3중 잠금)

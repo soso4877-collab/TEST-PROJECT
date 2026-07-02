@@ -61,6 +61,23 @@ def _require_brand(brand: dict | None) -> dict:
     return brand
 
 
+# 표지(front-matter) 표시 문자열만 렌더 직전 semantic-clean 처리.
+# style_lint 가 ai_signature_punctuation 으로 잡는 가운뎃점('·')·em/en dash('—'·'–')가
+# page 1 표지에 남지 않게 한다. 원인: integrated/gunghap 의 input_civil=" · ".join(names)
+# 과 생시 미상 고지("생시 미상·추정")가 cover_sub 로 그대로 출력돼 full-PDF semantic 이
+# 실패하던 것(2026-06-30). 본문은 대상 아님 — builder/gunghap 후처리 경로가 따로 통제하고,
+# 여기서는 표지 표시 문자열만 정규화한다. 날짜 하이픈('-' U+002D)은 대상이 아니라 보존된다.
+_COVER_PUNCT_RX = re.compile(r"\s*[·—–]\s*")
+
+
+def _clean_cover_text(text: str | None) -> str:
+    if not text:
+        return text or ""
+    text = _COVER_PUNCT_RX.sub(", ", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
+
+
 def render_html(
     report,
     saju,
@@ -87,8 +104,10 @@ def render_html(
         page_margin_css=_PAGE_MARGIN_CSS,
         brand_title=brand_profile["cover_title"],
         brand_seal=brand_profile["seal"],
-        cover_name=(f"{name} 님" if name else ""),
-        cover_sub=(f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")),
+        cover_name=_clean_cover_text(f"{name} 님") if name else "",
+        cover_sub=_clean_cover_text(
+            f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")
+        ),
         sections=secs,
         chapter_breaks=chapter_breaks,
         body_font_size=body_font_size,

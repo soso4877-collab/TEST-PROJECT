@@ -36,6 +36,15 @@ def _args(**kw):
     return types.SimpleNamespace(**base)
 
 
+def test_profile_concern_normalizes_situation():
+    # P1: integrated/궁합 프로파일은 고민을 situation 으로 담는다 → concern 정규화(질문축 no-op 차단).
+    assert hrun._profile_concern({"concern": "직접 concern"}) == "직접 concern"
+    assert hrun._profile_concern({"situation": "상황 고민"}) == "상황 고민"
+    assert hrun._profile_concern({"concern": "", "situation": "상황"}) == "상황"
+    assert hrun._profile_concern({"concern": None, "situation": "상황"}) == "상황"
+    assert hrun._profile_concern({}) is None
+
+
 def test_regen_triple_lock(monkeypatch):
     monkeypatch.delenv("SAJUGEN_HARNESS_ALLOW_REGEN", raising=False)
     assert hrun._regen_allowed(_args(regen=False, allow_llm=False)) is False
@@ -177,9 +186,14 @@ def test_summary_redacts_pdf_name_and_hit_text():
                 "semantic_review_status": "FAILED",
                 "delivery_quality": {
                     "clean": False,
-                    "failures": [{"rule": "missing_question_axes", "axes": ["relationship_intent"]}],
+                    "failures": [
+                        {"rule": "missing_question_axes", "axes": ["relationship_intent"]}
+                    ],
                     "failure_messages": [
-                        {"rule": "missing_question_axes", "message": "질문 축에 대한 답변 근거가 부족합니다."}
+                        {
+                            "rule": "missing_question_axes",
+                            "message": "질문 축에 대한 답변 근거가 부족합니다.",
+                        }
                     ],
                     "warnings": [],
                     "warning_messages": [],

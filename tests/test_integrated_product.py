@@ -74,6 +74,9 @@ def _verify_fixture(monkeypatch, name: str) -> dict:
         names=data["people"],
         product="integrated_full",
         premium=True,
+        # context_required 상품(integrated_full)이므로 고객 질문이 있어야 통과 — 트리거 없는
+        # 합성 맥락으로 context 만 충족(질문축 커버 검사는 비활성, P1 회귀 보존).
+        concern="합성 상담 맥락 참고",
         role_perspective=specs,
         honorific=specs,
     )
@@ -88,9 +91,18 @@ def _patch_integrated_sources(monkeypatch):
         return SimpleNamespace(
             sections=[
                 SimpleNamespace(id="cover", title="표지", source_keys=[], final_text=""),
-                SimpleNamespace(id="nature", title="개인 합성", source_keys=["m"], final_text="DOC_A 님 개인 문안"),
-                SimpleNamespace(id="closing", title="마무리", source_keys=["m"], final_text="마무리"),
-                SimpleNamespace(id="colophon", title="글을 맺으며", source_keys=[], final_text="끝"),
+                SimpleNamespace(
+                    id="nature",
+                    title="개인 합성",
+                    source_keys=["m"],
+                    final_text="DOC_A 님 개인 문안",
+                ),
+                SimpleNamespace(
+                    id="closing", title="마무리", source_keys=["m"], final_text="마무리"
+                ),
+                SimpleNamespace(
+                    id="colophon", title="글을 맺으며", source_keys=[], final_text="끝"
+                ),
             ]
         )
 
@@ -209,6 +221,54 @@ def test_integrated_full_residue_fixture_fails_gate(monkeypatch):
     assert review["release_allowed"] is False
     assert "READY" not in str(review)
     assert "APPROVED" not in str(review)
+
+
+def _verify_integrated(monkeypatch, name: str, **verify_kwargs) -> dict:
+    data = _load(name)
+    monkeypatch.setattr(render_verify.fitz, "open", lambda _p: _FakeDoc(_expanded_pages(data)))
+    monkeypatch.setattr(
+        render_verify, "_verapdf_ua1", lambda _p: {"available": False, "note": "test"}
+    )
+    return render_verify.verify(
+        "synthetic-integrated.pdf",
+        ref_year=2026,
+        names=data["people"],
+        product="integrated_full",
+        premium=True,
+        **verify_kwargs,
+    )
+
+
+def test_integrated_full_without_concern_fails_missing_customer_context(monkeypatch):
+    # P1: integrated_full 인데 concern 미전달이면 조용히 통과하지 말고 실패로 드러나야 함.
+    r = _verify_integrated(monkeypatch, "clean.json")  # concern 없음
+    assert r["delivery_quality_clean"] is False
+    assert "missing_customer_context" in {f["rule"] for f in r["delivery_quality"]["failures"]}
+    assert r["delivery_quality"]["has_customer_context"] is False
+    assert r["gate_pass"] is False
+
+
+def test_integrated_full_with_concern_populates_axes_and_stores_fields(monkeypatch):
+    # P1: concern 이 delivery_quality 까지 도달하면 질문축이 산출되고 summary 필드가 저장됨.
+    concern = "도와주는 사람과 시기가 궁금하고 어떻게 준비할지 알고 싶습니다"
+    r = _verify_integrated(monkeypatch, "clean.json", concern=concern)
+    dq = r["delivery_quality"]
+    assert dq["has_customer_context"] is True
+    assert dq["required_axes"] != []
+    assert "missing_customer_context" not in {f["rule"] for f in dq["failures"]}
+    # 저장 회귀: 원인 추적용 필드가 delivery_quality 에 남는다(null 아님).
+    for key in (
+        "required_axes",
+        "has_customer_context",
+        "missing_axes",
+        "frontloaded_answer",
+        "near_term_timing",
+        "love_action",
+        "ziwei",
+    ):
+        assert key in dq, key
+    assert dq["frontloaded_answer"].get("ok") is not None
+    assert dq["ziwei"].get("ok") is not None
 
 
 def test_integrated_full_assembler_uses_native_sections_without_render(monkeypatch):
@@ -525,3 +585,31 @@ def test_integrated_full_non_low_density_failure_does_not_retry(monkeypatch):
         raise AssertionError("expected RuntimeError")
 
     assert len(render_calls) == 1
+
+
+def test_verify_stores_physical_frontloaded_field(monkeypatch):
+    # P5: verify 가 물리 페이지 기준 초반 답변 보조지표를 delivery_quality 에 저장(보고 보존).
+    concern = "도와주는 사람과 시기가 궁금하고 어떻게 준비할지 알고 싶습니다"
+    r = _verify_integrated(monkeypatch, "clean.json", concern=concern)
+    dq = r["delivery_quality"]
+    assert "physical_frontloaded_answer" in dq
+    pf = dq["physical_frontloaded_answer"]
+    assert pf["required"] is True
+    assert "first_pages" in pf and "answer_page" in pf
+    # 게이트 미변경: 이 보조지표는 warning 경로이며 gate_pass 를 좌우하지 않는다.
+    assert "physical_frontloaded_answer" not in {f["rule"] for f in dq["failures"]}
+
+
+def test_toc_lead_has_no_transition_meta(monkeypatch):
+    # P4: 목차 리드가 문서 진행/섹션 예고 메타("…다음 순서로 이어집니다")가 아니라 중립 헤딩이어야 함.
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from sajugen.calc import engine
+    from sajugen.content import builder, customer_meta_lint
+
+    saju = engine.build(2000, 1, 1, 12, 0, is_male=True, horoscope_date="2026-06-01")
+    rep = builder.build_report(saju, use_llm=False)
+    toc = next((s for s in rep.sections if s.id == "toc"), None)
+    assert toc is not None, "toc section missing"
+    assert "다음 순서로 이어집니다" not in toc.final_text
+    assert customer_meta_lint.is_clean(toc.final_text), customer_meta_lint.lint(toc.final_text)
+    assert "차례" in toc.final_text

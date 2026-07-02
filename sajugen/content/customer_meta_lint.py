@@ -15,9 +15,7 @@ from collections import Counter
 _RULES: list[tuple[str, re.Pattern[str]]] = [
     (
         "document_self_reference",
-        re.compile(
-            r"이\s*(?:글|문서|리포트)\s*은|고객용\s*문서|수신자|한\s*분께\s*드리는"
-        ),
+        re.compile(r"이\s*(?:글|문서|리포트)\s*은|고객용\s*문서|수신자|한\s*분께\s*드리는"),
     ),
     (
         "product_structure_label",
@@ -39,6 +37,21 @@ _RULES: list[tuple[str, re.Pattern[str]]] = [
         "formulaic_conclusion",
         re.compile(r"핵심은\s*다음과\s*같습니다|^\s*(?:종합하면|결론적으로)\s*[,，]?", re.M),
     ),
+    (
+        # 문서 진행/섹션 예고/다음 파트 안내 = 작성자 메타 발화(고객 풀이 내용 아님).
+        # 예: "자미두수 명궁 이야기도 바로 이어집니다"·"다음 장에서는 …보겠습니다"·
+        #     "이 풀이는 다음 순서로 이어집니다"·"관계 파트가 이어집니다".
+        # 원칙(오탐 방지): '이어집니다'·'이야기'·'명궁' 단독은 차단하지 않는다(생활 흐름
+        # "관계가 이어집니다"·"일이 이어집니다"·"흐름이 이어집니다"는 통과). 구조어(이야기/
+        # 파트/장/다음/이어서/앞서 등)와 진행 앵커(이어집니다/보겠습니다/살펴보겠습니다/
+        # 다룹니다)가 **함께** 쓰일 때만 FAIL 처리한다.
+        "transition_section_preview",
+        re.compile(
+            r"이야기[^.\n!?]{0,20}이어집니다"
+            r"|(?:파트|장에서는?)[^.\n!?]{0,20}(?:이어집니다|다룹니다|보겠습니다)"
+            r"|(?:다음|이어서|앞서|앞에서)[^.\n!?]{0,25}(?:이어집니다|살펴보겠습니다|보겠습니다|다룹니다)"
+        ),
+    ),
 ]
 
 
@@ -51,8 +64,7 @@ def lint(text: str) -> list[dict]:
         if matches:
             counts[rule] += len(matches)
     return [
-        {"type": "ai_meta", "rule": rule, "count": count}
-        for rule, count in sorted(counts.items())
+        {"type": "ai_meta", "rule": rule, "count": count} for rule, count in sorted(counts.items())
     ]
 
 
@@ -65,8 +77,5 @@ def summarize(hits: list[dict]) -> dict:
     return {
         "clean": total == 0,
         "total_count": total,
-        "rules": [
-            {"rule": h.get("rule"), "count": int(h.get("count", 1))}
-            for h in hits
-        ],
+        "rules": [{"rule": h.get("rule"), "count": int(h.get("count", 1))} for h in hits],
     }
