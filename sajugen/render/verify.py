@@ -300,6 +300,9 @@ def _layout_geometry_hits(
         # margin_asymmetry·content_overflow 모두 통과하던 사각. 기대 칼럼폭(BODY_MAXW_MM,
         # 중앙정렬)보다 관용치 이상 넓으면 인셋 상실로 검출(20mm 콘텐츠박스 고정이 아니라
         # (페이지폭-maxw)/2 파생과 정합 — pdf.py 와 단일 소스).
+        # [불변식 주의] col_width = 최우(x1) - 최좌(x0) 는 '모든 본문 요소가 .body(max-width) 안'일
+        # 때만 본문폭의 충실한 프록시다(실측 near20=0). 차트/디바이더를 .body 밖 풀블리드로 옮기면
+        # min_left 가 떨어져 col_width 가 부풀어 false-fire 할 수 있다 — 그 변경 시 본문블록 격리 필요.
         col_width_mm = (x1 - x0) / _PT_PER_MM
         if col_width_mm > _BODY_MAXW_MM + _BODY_INSET_TOL_MM:
             hits.append(

@@ -91,7 +91,9 @@
 >       정상→인셋 결함 0. 단일 소스 상수 monkeypatch 로 결함 주입.
 >     측정: 합성 실렌더 전 본문 페이지 블록 좌단 31.2mm(=기대 30.9mm) 군집, 차트/표도 .body 내부(near20=0)
 >       → 절대/폭 검사 false-fail 0 실증(min(b[0]) 격리 불필요 확인, advisor 지적 해소).
->     양방 회귀: layout 단위 3건 + 실렌더 1건. tests/ **483 passed**(479+4). veraPDF 신규 clause 0.
+>     양방 회귀: layout 단위 3건 + 실렌더 1건. tests/ **483 passed**(479+4).
+>     veraPDF 비악화 = 신규 템플릿 렌더 실측 failed_clauses=['7.1-3'](베이스라인, 테스트는 veraPDF 모의라
+>     별도 실측). [불변식] col_width 프록시는 '모든 본문요소 .body 안'(near20=0) 전제 — 풀블리드 이동 시 재검토(주석 명시).
 >     → **T3.2 전체(세로넘침+인셋상실+단일소스+실렌더회귀) 완료.**
 >   [Phase 3 T3.4 완료 2026-07-03, 커밋 `125414e`] tagged 게이트 항진 해소 — tagged=StructTreeRoot AND
 >     MarkInfo(기존 OR 은 harden 이 MarkInfo 항상 삽입해 항진). 정상 Chromium PDF 둘 다 보유(실측 3건).
