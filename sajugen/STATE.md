@@ -15,8 +15,18 @@
 >     예외 audit note·orders.delete reason 마스킹. [deviation] order_flow render_meta digest 교체는 미적용
 >     (orders DB=정당한 PII 저장소, hit text 제거로 본문 이미 빠짐 → digest 는 검수 신호만 약화, advisor 판단).
 >   실측: 착수 기준선 438 → Phase1 후 tests/ **442 passed / 3 skipped / 실패0**.
->   ★ 다음 세션 = Phase 2 (계산 정확도, calc/ — 골든 회귀 동반 필수). roadmap T2.1~T2.5. T2.1[P0-1] 자시
->     정책 JST_2300 구현(운영자 기결정)이 최우선·최고위험 — 골든 22건+자시경계 앵커 전수 GREEN 필수.
+>   [Phase 2 = 계산 정확도 — 착수·T2.1 측정 완료, calc 미수정 2026-07-03] T2.1[P0-1] 자시 정책 fork 를
+>     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
+>     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
+>     (2) **fork: iztro chinese_date 는 이미 익일(乙未)** — 로드맵 원안의 'iztro 당일 고정 + engine
+>     비교자 정정'은 틀린 전제. 현재 명리(sect2 버그 당일 甲午)↔자미(익일 乙未) 불일치로 자시 케이스가
+>     이미 CALC_MISMATCH 차단 중. **확정 설계**: myeongni.py:145·partner.py:120 에 `if ct.day_offset:
+>     ec.setSect(1)` 한 줄(day_offset 이 정책 반영값). **engine·ziwei·docs 무수정**(자미 이미 익일 →
+>     명리 익일 되면 자연 일치. day_ganzhi_civil 비교자 추가 금지=새 버그). 자시 골든은 익일로
+>     first-principles 재도출(code-match 금지), 비-자시 22건 영향0(day_offset=0). 상세 설계·신규 앵커·
+>     YAJASI 잔여 = handoff/audit-followup-roadmap.md T2.1 '측정 확정 설계' 블록.
+>   ★ 다음 세션 = Phase 2 T2.1 구현 (roadmap '측정 확정 설계'대로 setSect one-liner + 자시 골든 재도출
+>     + 불변식 앵커, 골든 22건+신규 앵커 전수 GREEN). 이어서 T2.2~T2.5. calc 수정=골든 회귀 동반 필수.
 >   [이전 완료] customer2 통합 PDF triage 품질게이트 P1~P5+belt(8012a20), 목차 1페이지화(95c9019),
 >     장마다 새 페이지+장꼬리 게이트(d0aa483). 아래는 그 상세 기록.
 >
