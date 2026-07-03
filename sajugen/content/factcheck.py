@@ -13,6 +13,9 @@ import re
 _GAN = set("甲乙丙丁戊己庚辛壬癸")
 _ZHI = set("子丑寅卯辰巳午未申酉戌亥")
 _GANZHI_RX = re.compile(r"[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]")
+# 연도 언급(YYYY년) — 허용 연도 집합(기준연도·세운·대운 시작연도·출생연도) 밖이면 할루시네이션
+# (LLM 이 '2035년에…' 처럼 근거 없는 연도 지어내는 것 하드 차단, T4.1/G-4). '년' 접미 필수(수량·번호 회피).
+_YEAR_RX = re.compile(r"(?:19|20)\d{2}(?=\s*년)")
 
 # 한글 간지 검사(2026-06-12 신설) — 본문 간지 표기가 한글 전용으로 바뀌어
 # 한자 검사만으로는 LLM 한글 간지 출력이 사각지대였다. 접미 문맥(일주·년·대운 등)
@@ -73,11 +76,30 @@ def allowed_tokens(saju, extra_ganzhi: frozenset[str] = frozenset()) -> dict:
     for p in saju.ziwei.palaces:
         for s in (*p.major_stars, *p.minor_stars, *p.adjective_stars):
             star_ko.add(s.name)
+    # 허용 연도(T4.1/G-4): 기준연도·세운·월운·대운 시작연도·출생연도. 본문이 언급할 수 있는
+    # 근거 있는 연도 전부. 이 집합 밖 연도 언급은 factcheck 하드 차단(근거 없는 미래연도 생성 방지).
+    years: set[int] = set()
+
+    def _add_year(v) -> None:
+        try:
+            years.add(int(str(v)[:4]))
+        except (TypeError, ValueError):
+            pass
+
+    _add_year(getattr(saju, "ref_year", None))
+    _add_year(getattr(saju, "input_civil", None))  # 출생연도(본문이 태어난 해를 짚을 수 있음)
+    for yr, _ in getattr(m, "seun", []):
+        _add_year(yr)
+    for yr, _ in getattr(m, "worun", []):
+        _add_year(yr)
+    for dd in m.daewoon:
+        _add_year(getattr(dd, "start_year", None))
     return {
         "ganzhi": gz,
         "ganzhi_ko": {k for k in (_gz_ko(g) for g in gz) if k},
         "ziwei_majors_in_chart": {s for s in star_ko if s in _ZIWEI_MAJORS},
         "all_star_ko": star_ko,
+        "allowed_years": years,
     }
 
 
@@ -88,6 +110,12 @@ def check_with_allow(text: str, allow: dict) -> list[dict]:
     (JSON 직렬화로 set 이 list 가 된 형태 포함)로 검사할 때 사용.
     기존 check() 는 이 함수에 위임 — 검사 로직은 단일 소스.
     """
+    allowed_years = set()
+    for y in allow.get("allowed_years", ()):  # JSON 왕복 시 list → 정수 집합으로 정규화
+        try:
+            allowed_years.add(int(y))
+        except (TypeError, ValueError):
+            pass
     allow = {
         "ganzhi": set(allow.get("ganzhi", ())),
         "ganzhi_ko": set(allow.get("ganzhi_ko", ())),
@@ -123,13 +151,32 @@ def check_with_allow(text: str, allow: dict) -> list[dict]:
                 }
             )
 
-    # 2) 자미 14주성: 텍스트에 언급된 주성은 이 명반에 실재해야 함
+    # 2) 자미 14주성: 텍스트에 언급된 주성은 이 명반에 실재해야 함.
+    #    [T4.1 실측 주의] 자미두수는 14주성을 모든 명반에 항상 전부 배치한다(실측 14/14) → 이 검사는
+    #    현재 오탐·정탐 모두 0인 사문(死文)이다(로드맵 G-4 의 '자미 오탐'도 자미=황제성 상시 존재라 무발생).
+    #    유지는 방어적(엔진이 주성 누락 버그를 내면 그때 발화) — 진짜 별 할루시네이션 가드는 주성 존재가
+    #    아니라 별-궁 귀속/보좌성 검사여야 하며, 그 재설계는 별도 후속(계산 데이터 동반 확장 시).
     chart_majors = allow["ziwei_majors_in_chart"]
     for star in _ZIWEI_MAJORS:
         if star in text and star not in chart_majors:
             out.append(
                 {"type": "ziwei_star", "token": star, "why": "이 명반에 없는 자미 주성 언급"}
             )
+
+    # 3) 연도 화이트리스트(T4.1/G-4): 허용 연도 밖 'YYYY년' 언급은 근거 없는 생성 → 차단.
+    #    allowed_years 미제공(구 스키마·saju 없는 재검증 경로 back-compat) 시 연도 검사 skip.
+    if allowed_years:
+        for m in _YEAR_RX.finditer(text):
+            yr = int(m.group(0))
+            if yr not in allowed_years:
+                out.append(
+                    {
+                        "type": "year",
+                        "token": m.group(0),
+                        "why": "허용 연도(기준·세운·대운 시작·출생) 밖 연도 언급",
+                        "pos": m.start(),
+                    }
+                )
     return out
 
 
