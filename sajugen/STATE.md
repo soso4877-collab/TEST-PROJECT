@@ -61,11 +61,20 @@
 >   [Phase 3 T3.2 부분 완료 2026-07-03, 커밋 `bd69f0f`] 기하 게이트 세로 넘침 검사 + skip 표기.
 >     verify.py: _PAGE_TB_MARGIN_MM=22, _layout_geometry_hits 세로 넘침(vertical_overflow) 추가,
 >     layout_geometry_skipped 표기. 세로넘침 양방 테스트. tests/ **471 passed**.
->   ★ 다음 = **Phase 3 T3.2 잔여**(B-2 미완) — (2)기대 좌단을 (페이지폭-maxw)/2 파생으로 단일소스화
->     (verify.py:267 content_left_mm=20mm 고정 → .body maxw 148mm 인셋 미반영, 칼럼 좌14mm 밀림 미탐;
->     단 좌우 비대칭 검사가 대부분 커버), (4)**실렌더 결함주입 회귀** — 좌쏠림 CSS 주입 렌더→FAIL/정상→PASS
->     ≥1건(현재 기하게이트 실PDF 검증 0, test_p4 정상본 clean 만 있음). 이어서 T3.3[B-1+G-5] 최종발급
->     게이트완전화·T3.4[D-1] tagged 항진해소·T3.5[B-4+B-5] 목차재넘침. 전 태스크 정상/결함 양방 회귀(완화 0).
+>   [Phase 3 T3.4 완료 2026-07-03, 커밋 `125414e`] tagged 게이트 항진 해소 — tagged=StructTreeRoot AND
+>     MarkInfo(기존 OR 은 harden 이 MarkInfo 항상 삽입해 항진). 정상 Chromium PDF 둘 다 보유(실측 3건).
+>     StructTree 유실→FAIL / 정상→PASS 양방 테스트. tests/ **472 passed**. (컨텍스트 극한으로 실렌더 불필요한
+>     T3.4 를 먼저 처리 — 순서 조정.)
+>   ★ Phase 3 남은 태스크(전부 신선한 컨텍스트 권장 — 실렌더/게이트 정밀):
+>     - **T3.2 잔여**[B-2]: (2)기대 좌단 (페이지폭-maxw)/2 파생 단일소스화(verify.py content_left_mm=20mm 고정
+>       → .body maxw 148mm 인셋 미반영; 좌우 비대칭 검사가 대부분 커버), (4)실렌더 결함주입 회귀(좌쏠림 CSS
+>       주입 렌더→FAIL) ≥1건.
+>     - **T3.3**[B-1+G-5]: 최종 발급 게이트 완전화 — order_flow.py final_render_fn 이 names/identity/singang/
+>       role_perspective/honorific 미전달로 5종 게이트 no-op → Report23 에서 복원해 verify 완전전달 + verify 에
+>       safe_lint·factcheck 재실행 편입 + admin approve needs_review 확인단계. E-3 DELIVERED 전이 verify 통과 요구.
+>     - **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단) + 목차 판정 이중기준 단일화. contains_known_ganzhi
+>       (B-8) 죽은 필드 편입/제거.
+>     전 태스크 정상/결함 양방 회귀(완화 0).
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
