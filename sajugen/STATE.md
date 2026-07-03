@@ -58,10 +58,14 @@
 >     '짧은 꼬리 시 행간 미세조정 변형'(하한 13.8pt 불변, 열화 발급 금지) — 로드맵 T3.1 근본보완 미구현.
 >     (2) 같은 content.json 무료 재렌더가 페이지 분할 흔들림(55↔51p 관찰) = Playwright 렌더 비결정 → 조판
 >     안정성 조사 후속(장꼬리 스필 재발과 연관).
->   ★ 다음 = **Phase 3 T3.2** [B-2] 기하 게이트 보강 + 실렌더 회귀. verify.py 기하게이트: (1)세로 넘침 검사
->     추가, (2)기대 좌단을 (페이지폭-maxw)/2 파생으로 단일소스화(현재 20mm 고정으로 .body maxw 인셋 미반영),
->     (3)fake doc skip 시 layout_geometry_skipped=True 표기. 실렌더 결함주입 회귀(좌쏠림 CSS→FAIL, 정상→PASS)
->     ≥1건(현재 기하게이트 실PDF 검증 0). 이어서 T3.3[B-1+G-5]·T3.4[D-1]·T3.5[B-4+B-5]. 양방 회귀 필수.
+>   [Phase 3 T3.2 부분 완료 2026-07-03, 커밋 `bd69f0f`] 기하 게이트 세로 넘침 검사 + skip 표기.
+>     verify.py: _PAGE_TB_MARGIN_MM=22, _layout_geometry_hits 세로 넘침(vertical_overflow) 추가,
+>     layout_geometry_skipped 표기. 세로넘침 양방 테스트. tests/ **471 passed**.
+>   ★ 다음 = **Phase 3 T3.2 잔여**(B-2 미완) — (2)기대 좌단을 (페이지폭-maxw)/2 파생으로 단일소스화
+>     (verify.py:267 content_left_mm=20mm 고정 → .body maxw 148mm 인셋 미반영, 칼럼 좌14mm 밀림 미탐;
+>     단 좌우 비대칭 검사가 대부분 커버), (4)**실렌더 결함주입 회귀** — 좌쏠림 CSS 주입 렌더→FAIL/정상→PASS
+>     ≥1건(현재 기하게이트 실PDF 검증 0, test_p4 정상본 clean 만 있음). 이어서 T3.3[B-1+G-5] 최종발급
+>     게이트완전화·T3.4[D-1] tagged 항진해소·T3.5[B-4+B-5] 목차재넘침. 전 태스크 정상/결함 양방 회귀(완화 0).
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
