@@ -22,8 +22,14 @@
 >     [영향 구간] 진태양시 23:00~24:00(시민시각 대략 23:32~24:00) 출생 = 일간부터 결과 변경 →
 >     기존 발송물 재검토는 운영자 판단(보고만). [YAJASI 잔여] YAJASI_SPLIT 자시(day_offset=0)는 명리 당일 vs
 >     자미 익일 불일치 가능 — 실운영 JST_2300 확정이라 우선순위 낮음, T2.x 후보(roadmap 기록).
->   ★ 다음 = Phase 2 T2.2 (절입 ±2분 관리자 확인 플래그, 절대규칙7 후단). 이어서 T2.3(KASI 3원 런타임)·
->     T2.4(iztro 0.3.5+연주경계)·T2.5(시진불명 자미금지). calc 수정=골든 회귀 동반 필수.
+>   [Phase 2 T2.2 완료 2026-07-03, 커밋 `b5ca872`] 절입 ±2분 관리자 확인 플래그(G-2, 절대규칙7 후단).
+>     solarterms.minutes_to_nearest_jie(출생 UTC vs 최근접 12節 차) → engine CrossCheck.near_term_boundary →
+>     pipeline GenResult → order_flow CalendarVerification 충전 + needs_review OR. insight 자동 반영.
+>     solar_term_time 에 lru_cache(순수함수·결정론) → 전체 스위트 ~410s→138s 단축(부수 개선). 골든 22건 불변.
+>     테스트 test_near_term_boundary 6건. tests/ **457 passed**.
+>   ★ 다음 = Phase 2 T2.3 (KASI 3원 교차 런타임 편입, G-1, 절대규칙7 전단 — kasi.crosscheck3_year 를
+>     engine/pipeline calc_consistent 에 편입, 캐시범위 밖은 kasi_out_of_range). 이어서 T2.4(iztro 0.3.5+
+>     연주경계)·T2.5(시진불명 자미금지). calc 수정=골든 회귀 동반 필수.
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
