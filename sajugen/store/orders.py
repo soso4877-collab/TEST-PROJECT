@@ -81,6 +81,10 @@ class OrderStore:
     def _init(self) -> None:
         # 검수 UI: 생성 스레드(쓰기)와 화면 폴링(읽기) 동시 접근 시 잠금 대기
         self._conn.execute("PRAGMA busy_timeout=5000")
+        # WAL: 쓰기 중에도 읽기 허용(생성 스레드 쓰기 + 화면 폴링 읽기 동시성 개선).
+        # synchronous=NORMAL: WAL 과 함께 안전(전원 손실 외 내구성 유지) — 내부 도구에 적정(T5.5/C-4).
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS orders (

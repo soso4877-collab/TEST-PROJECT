@@ -13,6 +13,9 @@ dependencies = [
     "playwright>=1.59",
     "pymupdf>=1.27",
     "fastapi>=0.136",
+    # starlette 1.0.0 는 TemplateResponse(request, name, ctx) 신형 시그니처 — admin UI 가
+    # 이에 의존. 상한 없이 두면 향후 파괴적 변경 시 /admin 렌더가 깨질 수 있어 핀(T5.5/C-2).
+    "starlette==1.0.0",
     "uvicorn>=0.47",
     "pydantic>=2.13",
     "instructor>=1.15",
