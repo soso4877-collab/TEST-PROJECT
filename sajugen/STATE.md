@@ -2,13 +2,14 @@
 
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
->   진행 상태: **Phase 1·2·3·4·5 완료**(T5.1·T5.2·T5.3·T5.4·T5.5·T5.6·T5.8·T5.9·T5.10). 로드맵(2026-07-03
->     전수감사 후속) **전 항목 소진**. ★ 남은 것 = **측정 1건만**:
->     - T5.7[D-2] veraPDF 7.1-3 귀속 측정(render_pdf 의 PyMuPDF 언더레이 적용 전 staging PDF 를 캡처해
->       veraPDF 로 비교 — Chromium vs 언더레이 귀속 판별, 측정만·코드/아키텍처 변경 없음·기능 무영향).
->     [완료] T5.3 content.json 메타(ref_date/premium/model/layout_variant, 하위호환, 커밋 74128b0),
->       T5.8 G-10 전부 커밋(작업트리 clean), T5.10 무효 max_retries 인자 없음(실측 — 의도적 재시도차단 벨트라
->       제거 대상 아님). 모델 업그레이드=톤 A/B 없이 금지.
+>   진행 상태: **Phase 1·2·3·4·5 전 항목 완료 — 2026-07-03 전수감사 후속 로드맵 완결.**
+>     T5.1~T5.10 전부 소진(T5.7 측정 포함). 코드 작업 없음, 로컬 clean·전부 push.
+>     [T5.7/D-2 측정 완료 2026-07-04] veraPDF 7.1-3 귀속 = **Chromium 태그드 구조**(실측): 언더레이 전
+>       순수 Chromium PDF clauses=['7.1-3','7.1-8'], 최종(underlay+harden)=['7.1-3']. 즉 (a) 7.1-3 은
+>       Chromium 원본에 이미 존재(PyMuPDF 한지 언더레이 무혐의), (b) harden 이 오히려 7.1-8 을 제거(순개선).
+>       → '아키텍처 변경 없음' 실측 근거 확보, D-2 종결. 코드/아키텍처 변경 없음(측정만).
+>     [완료 요약] T5.3 content.json 메타(74128b0), T5.8 G-10 전부 커밋, T5.10 무효 max_retries 없음(실측),
+>       T5.7 7.1-3 Chromium 귀속(실측). 모델 업그레이드=톤 A/B 없이 금지(불변).
 >   [Phase 4 T4.5 완료 2026-07-03, 커밋 `83467a2`] /generate 구형경로 PII 제거(E-1) + G-10 brand 필수검증.
 >     운영자 결정=최소 정리: 파일명 saju_<uuid12>.pdf(DOB 제거)·X-Saju-Bazi 헤더 제거(비-PII X-Gate/X-Pages
 >     유지)·경로 유지. G-10(brand 빈값 422 fail-closed)를 함께 커밋(운영자 결정). 회귀 2건. tests/ **501 passed**.
