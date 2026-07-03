@@ -2,10 +2,11 @@
 
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
->   진행 상태: **Phase 1·2·3 완료 · Phase 4 진행 중**(T4.1·T4.2·T4.3 완료). ★ 다음 작업 = **Phase 4 T4.4**
->     (윤달 15일 분할법 고지 자동 삽입 + 회귀; G-8, 절대규칙5). **먼저 현 경로에 고지가 정말 없는지 E2E
->     실측**(자미·출생지처럼 이미 있을 수 있음). 이후 T4.5(/generate 구형경로 DOB 파일명·헤더 제거 —
->     운영자 질문 동반). Phase 4 완료 기준 = 가드 변경마다 골든 문안 6케이스 clean 재확인 + 전체 pytest GREEN.
+>   진행 상태: **Phase 1·2·3 완료 · Phase 4 진행 중**(T4.1·T4.2·T4.3·T4.4 완료). ★ 다음 = **Phase 4 T4.5**
+>     [E-1, 운영자 결정 필요] /generate 구형경로 = 제거 vs 주문경로 통합 질문 후 처리. 즉시분: 파일명 DOB
+>     제거(saju_<ts>.pdf)·X-Saju-Bazi 헤더 제거. **주의: app.py 는 세션 전 G-10(brand fail-closed) 미커밋이
+>     번들돼 있어, T4.5 app.py 수정 시 G-10 커밋 방침(T5.8) 운영자 확인 동반 필요.** Phase 4 완료 기준 =
+>     가드 변경마다 골든 6케이스 clean + 전체 pytest GREEN.
 >   [Phase 4 T4.2 완료 2026-07-03, 커밋 `88c31b8`] safe_lint _OUTCOME 승진/창업/취업류 확장(G-7).
 >     결과 동사에 승진/창업/취업/개업(하|합) 추가 — '-합니다' 형 사각 보강('승진된다'는 이미 된다로 커버).
 >     C1 완화 원칙(부사 단독 허용, 부사+결과동사 결합 0~14자만 차단) 불변. 실측: 결과보장 4형 차단 +
@@ -15,6 +16,12 @@
 >       마스킹 방지(lookahead — '오전 7시 15분' 부분치환·다른시각 비치환). (1) [finding] 출생지=좌표만 입력
 >       (label 기본 '서울' 고정, 이름 미입력) → 마스킹할 출생지 이름 PII 부재, 로드맵 '출생지 문자열 치환'
 >       대상 없음. 실측: 마스킹4형·오마스킹4형·반케이스 회귀. tests/ **495 passed**(493+2).
+>   [Phase 4 T4.4 완료 2026-07-03, 커밋 `9186358`] 윤달 15일 분할법 산입 기준 고지 자동 삽입(G-8, 절대규칙5).
+>     E2E 확인: 현 경로(e2e_p8_leap)에 고지 부재 실측 → 신설(진짜 갭). is_leap 배선(unknown_time 미러):
+>     pipeline→builder→rules.build_all, cli·order_flow(gen_params+run_generation)에서 '음력 윤달생'만 전달.
+>     고지 위치=ziwei_summary 조건부 append(자미 표시 리포트에만). 실측: integrated/ziwei+leap present,
+>     myeongni+leap·non-leap absent, 전부 guard.clean. app.py /generate 는 미배선(G-10 번들 방지, T4.5 정리).
+>     회귀 4건. tests/ **499 passed**(495+4).
 >   [Phase 4 T4.1 완료 2026-07-03, 커밋 `f579f43`] factcheck 연도 화이트리스트(G-4).
 >     (1) 연도 화이트리스트: allowed_tokens.allowed_years(기준·세운·월운·대운시작·출생) + check_with_allow
 >       가 허용 밖 'YYYY년'(년 접미 필수) 하드차단. 미제공 시 skip(back-compat). 실측 골든 6케이스 clean·
