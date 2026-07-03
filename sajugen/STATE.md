@@ -27,9 +27,14 @@
 >     pipeline GenResult → order_flow CalendarVerification 충전 + needs_review OR. insight 자동 반영.
 >     solar_term_time 에 lru_cache(순수함수·결정론) → 전체 스위트 ~410s→138s 단축(부수 개선). 골든 22건 불변.
 >     테스트 test_near_term_boundary 6건. tests/ **457 passed**.
->   ★ 다음 = Phase 2 T2.3 (KASI 3원 교차 런타임 편입, G-1, 절대규칙7 전단 — kasi.crosscheck3_year 를
->     engine/pipeline calc_consistent 에 편입, 캐시범위 밖은 kasi_out_of_range). 이어서 T2.4(iztro 0.3.5+
->     연주경계)·T2.5(시진불명 자미금지). calc 수정=골든 회귀 동반 필수.
+>   [Phase 2 T2.3 완료 2026-07-03, 커밋 `a2e65dc`] KASI 3원 교차 런타임 편입(G-1, 절대규칙7 전단).
+>     kasi.year_kasi_check(year)[lru_cache] → engine CrossCheck.kasi_consistent/kasi_out_of_range →
+>     pipeline calc_consistent 편입 + reasons. 범위 내 미지 불일치=차단, 범위밖/무캐시=폴백(차단 아님),
+>     기지결함=비차단. 안전 실측: 범위 내 전 정상연도 all_kasi_ok=True → 오차단 0. 골든 22건 불변.
+>     테스트 test_kasi_runtime 5건(무캐시 CI skipif). tests/ **462 passed**.
+>   ★ 다음 = Phase 2 T2.4 (iztro-py 0.3.4→0.3.5 업그레이드[大限/童限 궁배정 버그 수정] + 연주경계 교차,
+>     F-1·F-2). 주의: 스택 버전 변경 = ziwei parity 100건 전수 재검(골든 전수 재검증 규칙). 이어서
+>     T2.5(시진불명 자미금지). calc/스택 수정=골든 회귀 동반 필수.
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
