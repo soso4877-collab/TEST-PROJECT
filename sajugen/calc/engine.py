@@ -10,6 +10,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from ..input import time_correction as tc
+from . import kasi
 from . import myeongni as mod_my
 from . import solarterms
 from . import ziwei as mod_zw
@@ -22,6 +23,8 @@ class CrossCheck(BaseModel):
     month_branch_ok: bool  # lunar ↔ Skyfield 월지
     hour_branch_conflict: bool  # P1 자시정책 ↔ lunar-python 시지
     near_term_boundary: bool = False  # 절입(월건/입춘) ±2분 knife-edge 출생 — 관리자 확인(T2.2)
+    kasi_consistent: bool = True  # KASI 3원 교차 일치(미지 불일치=False → 차단, T2.3)
+    kasi_out_of_range: bool = False  # KASI 캐시 범위 밖/부재 = 2원 폴백(차단 아님, 사실 기록)
     warnings: list[str]
 
 
@@ -86,6 +89,14 @@ def build(
     if near_term:
         warnings.append("절입 ±2분 근접 출생 — 월주/연주 경계 관리자 확인 필요")
 
+    # KASI 3원 교차 런타임 편입(T2.3/G-1, 절대규칙7 전단). 캐시 범위 내 미지 불일치면
+    # calc_consistent=False → 주문 차단. 범위 밖/부재는 2원 폴백(차단 아님, 사실만 기록).
+    kasi_consistent, kasi_oor = kasi.year_kasi_check(year)
+    if not kasi_consistent:
+        warnings.append("KASI 3원 교차 미지 불일치 — 절입 시각 재확인(주문 차단)")
+    elif kasi_oor:
+        warnings.append("KASI 절기 캐시 범위 밖(2원 검증) — kasi_out_of_range")
+
     return SajuResult(
         input_civil=ct.civil_local.strftime("%Y-%m-%d %H:%M"),
         true_solar=ct.true_solar.strftime("%Y-%m-%d %H:%M:%S"),
@@ -102,6 +113,8 @@ def build(
             month_branch_ok=my.month_branch_crosscheck_ok,
             hour_branch_conflict=my.hour_branch_conflict,
             near_term_boundary=near_term,
+            kasi_consistent=kasi_consistent,
+            kasi_out_of_range=kasi_oor,
             warnings=warnings,
         ),
     )

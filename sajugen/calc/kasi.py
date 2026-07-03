@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import functools
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -354,3 +355,24 @@ def crosscheck3_year(
     base["kasi_known_defects"] = known_defects
     base["kasi_unknown_mismatches"] = unknown_mismatches
     return base
+
+
+@functools.lru_cache(maxsize=None)
+def year_kasi_check(year: int) -> tuple[bool, bool]:
+    """런타임 calc_consistent 편입용 3원(KASI) 판정(T2.3/G-1, 절대규칙7 전단).
+
+    반환 (kasi_consistent, kasi_out_of_range):
+    - 캐시 범위 내(2000~2027)에서 미지 KASI 불일치가 있으면 (False, False) → 주문 차단 유발.
+      기지결함(KNOWN_KASI_TERM_DEFECTS)은 all_kasi_ok 에서 제외되므로 차단하지 않는다.
+    - 범위 밖/캐시 부재는 (True, True) 폴백 — KASI 미판정이므로 차단하지 않고 사실만 기록.
+    lru_cache 로 연도당 1회만 캐시를 열고(값만 캐싱) 즉시 닫아 스레드 공유 커넥션을 만들지 않는다."""
+    cache = KasiCache()
+    try:
+        if not cache.exists:
+            return (True, True)
+        res = crosscheck3_year(year, cache=cache)
+    finally:
+        cache.close()
+    if not res.get("kasi_available"):
+        return (True, True)
+    return (bool(res.get("all_kasi_ok", True)), False)
