@@ -79,3 +79,24 @@ def test_empty_geometry_inputs_return_clean():
     # 기하 미지원(fake doc) → 빈 입력 → 게이트 skip(clean).
     assert V._layout_geometry_hits(["표지", "본문" * 50], [], []) == []
     assert V._layout_geometry_hits([], [[], []], [_A4, _A4]) == []
+
+
+def test_vertical_overflow_is_flagged():
+    # 가로 대칭·정상이지만 블록이 하단 margin(22mm=62.4pt, content_bottom≈779.6pt) 밖으로 넘침(B-2).
+    # 기존엔 x(좌우)만 봐서 세로 방향 결함이 통과했다.
+    over_v = [
+        (88.0, 700.0 + i * 20, 505.0, 718.0 + i * 20) for i in range(6)
+    ]  # 마지막 y1=818>779.6
+    pages_text = _pages("본문 가" * 20)
+    hits = V._layout_geometry_hits(pages_text, [[], over_v], [_A4, _A4])
+    kinds = {h["kind"] for h in hits}
+    assert "vertical_overflow" in kinds, hits
+    assert "margin_asymmetry" not in kinds  # 가로는 대칭
+
+
+def test_vertical_within_margin_is_clean():
+    # 세로가 상/하 margin 안(정상) → vertical_overflow 없음(false fail 0).
+    ok_v = _blocks(88.0, 505.0)  # y 100~218, content 62.4~779.6 안
+    pages_text = _pages("본문 가" * 20)
+    hits = V._layout_geometry_hits(pages_text, [[], ok_v], [_A4, _A4])
+    assert all(h["kind"] != "vertical_overflow" for h in hits), hits

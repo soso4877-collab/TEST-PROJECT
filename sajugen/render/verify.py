@@ -211,6 +211,7 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
 # (b) 콘텐츠박스 밖 넘침. 표지·목차·부록·짧은/장식 페이지는 스코프 제외(오탐 방지).
 _PT_PER_MM = 72.0 / 25.4
 _PAGE_LR_MARGIN_MM = 20.0  # @page left/right (pdf._PAGE_MARGIN 과 동기 — 변경 시 함께 갱신)
+_PAGE_TB_MARGIN_MM = 22.0  # @page top/bottom (pdf._PAGE_MARGIN 과 동기) — 세로 넘침 검사(T3.2/B-2)
 _MARGIN_ASYMMETRY_MM = (
     10.0  # 좌우 여백 차 관용치(= 칼럼중심 5mm 오프셋). 중앙정렬≈0=통과, 쏠림 버그(≈22mm)=탐지
 )
@@ -285,6 +286,23 @@ def _layout_geometry_hits(
                     "kind": "content_overflow",
                     "left_mm": round(left_mm, 1),
                     "right_mm": round(right_mm, 1),
+                }
+            )
+        # 세로(상하) 넘침 — 블록 y 가 @page 상/하 margin 밖(상단 잘림·하단 오버플로) (B-2/T3.2).
+        # 기존엔 x(좌우)만 검사해 세로 방향 결함이 gate_pass=true 로 통과했다.
+        height = page_rects[idx][1]
+        y0 = min(b[1] for b in blocks)
+        y1 = max(b[3] for b in blocks)
+        content_bottom_edge_mm = height / _PT_PER_MM - _PAGE_TB_MARGIN_MM
+        if (y0 / _PT_PER_MM) < _PAGE_TB_MARGIN_MM - _OVERFLOW_EPS_MM or (
+            y1 / _PT_PER_MM
+        ) > content_bottom_edge_mm + _OVERFLOW_EPS_MM:
+            hits.append(
+                {
+                    "page": page,
+                    "kind": "vertical_overflow",
+                    "top_mm": round(y0 / _PT_PER_MM, 1),
+                    "bottom_mm": round((height - y1) / _PT_PER_MM, 1),
                 }
             )
     return hits
@@ -509,6 +527,8 @@ def verify(
 
     # 레이아웃 기하 게이트(2026-07-02) — 좌우 여백 비대칭·콘텐츠 넘침(텍스트 게이트가 못 잡는 시각 결함).
     geom_hits = _layout_geometry_hits(pages_text, pages_blocks, page_rects)
+    # fake doc/블록 미지원 = 기하 검사 skip(clean 과 구분). 실 PDF 는 항상 검사됨(B-2/T3.2).
+    r["layout_geometry_skipped"] = not (pages_blocks and page_rects)
     r["layout_geometry_hits"] = geom_hits[:20]
     r["layout_geometry_hits_count"] = len(geom_hits)
     r["layout_geometry_clean"] = not geom_hits
