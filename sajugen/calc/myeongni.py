@@ -143,6 +143,12 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
         ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second if ts.second else 0
     )
     ec = solar.getLunar().getEightChar()
+    # 자시 정책(ZasiPolicy) 반영(T2.1/P0-1): ct.day_offset=1 (JST_2300 = 진태양시 23시부터 子시
+    # → 일주 익일)이면 setSect(1) 로 일주만 익일 전환한다. lunar-python setSect(1) 은 일주만
+    # 바꾸고 시/월/연주·대운(getYun)은 보존한다(실측). day_offset 이 이미 정책값이라(JST=23시+ →1,
+    # YAJASI=조자시만 1) 이 분기가 정책을 정확히 수행 — 하드코딩 아님(calc.md·절대규칙6).
+    if ct.day_offset:
+        ec.setSect(1)
 
     pillars = {w: _pillar(ec, w) for w in ("Year", "Month", "Day", "Time")}
 

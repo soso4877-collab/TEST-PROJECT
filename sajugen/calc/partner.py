@@ -120,6 +120,9 @@ def partner_pillars(
     ec = (
         Solar.fromYmdHms(ts.year, ts.month, ts.day, ts.hour, ts.minute, 0).getLunar().getEightChar()
     )
+    # 자시 정책 반영(T2.1/P0-1, myeongni 와 동일): day_offset=1 이면 일주만 익일 전환.
+    if ct.day_offset:
+        ec.setSect(1)
 
     def _p(who: str) -> PartnerPillar:
         g = getattr(ec, f"get{who}")()
