@@ -2,22 +2,19 @@
 
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
->   진행 상태: **Phase 1·2·3 전체 완료**. ★ 다음 작업 = **Phase 4 T4.1**(가드 커버리지/문안, 검수 동반).
->     Phase 4 착수 절차: 이 문서 Phase 4 절 + roadmap T4.x 정독 → 가드 변경 후 골든 문안 6케이스 clean
->     재확인(docs/06 계약 — 착수 시 이 하네스부터 위치·실행 확인) + 전체 pytest GREEN.
->   [T4.1 오리엔테이션 실측 2026-07-03 — 미구현, 로드맵 원안 부분 정정]:
->     (1) **'자미' 주성 오탐 = 실측상 무발생**: 자미(紫微)는 황제성이라 모든 명반에 존재 → '자미두수'
->       언급이 factcheck 자미 별 검사를 오탐시키지 않음(4케이스 자미 항상 in chart). 로드맵 '자미두수/
->       자미성 구분' 문맥경계 추가는 불필요.
->     (2) **ziwei_star 검사(factcheck.py:128)는 사실상 사문**: 14주성이 모든 명반에 항상 전부 배치
->       (실측 14/14, 4케이스) → `star not in chart_majors` 절대 참 안 됨 → 오탐·정탐 모두 0. 진짜 별
->       할루시네이션 가드는 주성 존재가 아니라 보좌성/궁 귀속(별-궁 배정 오류) 검사여야 함 → B-8식
->       제거/재설계 결정 필요(T4.1에 편입).
->     (3) **연도 화이트리스트가 T4.1 실질**: factcheck 는 현재 연도 미검사 → 허용연도(ref_year·세운·대운
->       시작연도 파생) 밖 연도(예 LLM '2035년') 하드차단 신설. allowed_tokens 에 allowed_years 추가 +
->       연도 추출·대조 + 양방 테스트 + 골든 문안 6케이스 clean. (신선 컨텍스트 권장 — 새 가드+골든 검증.)
->   기준선: `tests/ 487 passed / 3 skipped`, 골든 22건·parity 100건 불변·오차단 0·veraPDF ['7.1-3'] 비악화(실측).
->     HEAD=커밋 6aa6f86(로컬, push 안 함). 브랜치 codex/gunghap-relationship-quality.
+>   진행 상태: **Phase 1·2·3 완료 · Phase 4 진행 중**(T4.1 완료). ★ 다음 작업 = **Phase 4 T4.2**(safe_lint
+>     _OUTCOME 확장 — 승진/창업/합격류; C1 완화 원칙=부사 단독 허용 불변). 이후 T4.3(masking 출생지·시각
+>     표현 확장)·T4.4(윤달 15일분할 고지 자동삽입, 먼저 현 경로 고지 유무 E2E 확인)·T4.5(/generate 구형경로
+>     DOB 파일명·헤더 제거 — 운영자 질문 동반). Phase 4 완료 기준 = 가드 변경마다 골든 문안 6케이스 clean
+>     재확인 + 전체 pytest GREEN.
+>   [Phase 4 T4.1 완료 2026-07-03, 커밋 `f579f43`] factcheck 연도 화이트리스트(G-4).
+>     (1) 연도 화이트리스트: allowed_tokens.allowed_years(기준·세운·월운·대운시작·출생) + check_with_allow
+>       가 허용 밖 'YYYY년'(년 접미 필수) 하드차단. 미제공 시 skip(back-compat). 실측 골든 6케이스 clean·
+>       연도오탐0, 결함 2035 차단.
+>     (2) [실측 정정] '자미' 오탐 무발생·ziwei_star 검사 사문(14주성 상시 14/14 배치) — 문맥경계 추가 불필요,
+>       주석으로 사문 명시(진짜 별 가드=별-궁 귀속 검사, 후속 후보). tests/ **493 passed**(487+6).
+>   기준선: `tests/ 493 passed / 3 skipped`, 골든 22건·parity 100건 불변·오차단 0·veraPDF ['7.1-3'] 비악화.
+>     HEAD=커밋 f579f43(로컬, push 안 함). 브랜치 codex/gunghap-relationship-quality.
 >   [환경 주의] iztro-py>=0.3.5 필요 — 이 .venv 만 설치됨. 새 환경/CI 는 `pip install -e .` 또는 재설치.
 >   [미결·운영자 판단] (1)T2.1 영향구간=진태양시 23~24시 출생 기존 발송물 재검토, (2)tmp/ PII 임시파일
 >     수동 삭제(rm deny), (3)app.py·scripts/dump_reading.py 미커밋=세션 전 G-10 무관(커밋 방침 T5.8 확인 대기).
