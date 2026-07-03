@@ -131,7 +131,9 @@
   {% if state == "DRAFTED" %}
   <form method="post" action="/admin/orders/{{ order_id }}/review"><button type="submit">검수 시작</button></form>
   {% elif state == "IN_REVIEW" %}
-  <form method="post" action="/admin/orders/{{ order_id }}/approve"><button type="submit">승인</button></form>
+  <form method="post" action="/admin/orders/{{ order_id }}/approve">
+    {% if flags.needs_review %}<label><input type="checkbox" name="confirm" value="1"> 검수 필요 확인 후 승인</label>{% endif %}
+    <button type="submit">승인</button></form>
   <form method="post" action="/admin/orders/{{ order_id }}/reject">
     <input name="note" placeholder="반려 사유" required>
     <button type="submit">반려 (드래프트로 회귀)</button>

@@ -18,7 +18,8 @@ from dataclasses import dataclass
 
 from . import config as cfg
 from . import pipeline
-from .content import factcheck, masking, safe_lint
+from .calc import engine
+from .content import builder, factcheck, masking, safe_lint
 from .content.sections_schema import Report23
 from .input import normalize as norm
 from .input import time_correction as tc
@@ -308,30 +309,94 @@ def edit_section(
 def final_render_fn(report: UnifiedReport) -> str:
     """issue_final_pdf 에 넘기는 render_fn — 저장된 본문(검수 수정 반영)을 항상
     재렌더하고 verify 게이트를 통과해야 경로를 반환. 실패 시 예외 →
-    issue_final_pdf 가 DELIVERED 로 전이하지 않는다(게이트 비우회)."""
+    issue_final_pdf 가 DELIVERED 로 전이하지 않는다(게이트 비우회).
+
+    T3.3(B-1+G-5) 최종 발급 게이트 완전화:
+    - 그동안 이 최종 재검증이 verify 에 이름·일간 스펙(names/identity)을 전달하지 않아
+      해당 게이트가 no-op 였다. draft 시점(pipeline.generate)과 동일하게 gen_params 로
+      saju 를 재계산(추가 재렌더 대비 무시할 계산량 — 직렬화 드리프트 0)해 identity/names 를
+      복원하고, draft verify 와 동일한 인자(ref_year/ref_date/names/identity)로 최종 게이트를
+      건다. singang/role_perspective/honorific 은 다인(궁합) 전용 게이트라 개인 리포트
+      경로(order_flow)에는 해당 없음(None) — 5종 중 개인 경로 실공백은 identity+names 2종.
+    - 안전(§12)·사실(factcheck) 재검증 벨트: 최종 비우회 게이트에 안전·사실 검증이 부재해
+      검수 수정분이 재검증 없이 발급될 여지가 있었다. Report23 영속 본문·allow_tokens 로
+      섹션별 재검증(edit_section 과 동일 함수). 위반은 카운트만 노출(본문 미노출, T1.3/PII).
+    """
     if not report.content:
         raise RuntimeError(f"본문 없음(생성 미완료): {report.order_id}")
     r23 = Report23.model_validate(report.content)
     meta = report.render_meta
     p = meta.get("gen_params", {})
     bp = cfg.brand(_required_brand_name(p.get("brand")))
+
+    # 안전·사실 재검증 벨트(렌더 전 빠른 차단) — 검수 수정 본문 포함 전 섹션 재검증.
+    # match(본문 조각)는 노출하지 않고 카운트만 집계(절대규칙 17 / T1.3).
+    belt_safe = 0
+    belt_fact = 0
+    for sec in r23.sections:
+        txt = (getattr(sec, "final_text", "") or "").strip()
+        if not txt:
+            continue
+        belt_safe += len(safe_lint.lint(txt))
+        belt_fact += len(factcheck.check_with_allow(txt, r23.allow_tokens))
+    if belt_safe or belt_fact:
+        raise RuntimeError(
+            f"최종 안전·사실 재검증 실패(safe_lint={belt_safe}, factcheck={belt_fact})"
+        )
+
+    # draft 와 동일 스펙 복원 — saju 재계산(정책 매핑·horoscope→ref_year 를 pipeline 과 일치).
+    name = p.get("name") or None
+    horoscope = p.get("horoscope") or ""
+    ref_year = None
+    if horoscope:
+        try:
+            ref_year = int(str(horoscope)[:4])
+        except Exception:
+            ref_year = None
+    identity = None
+    names = None
+    try:
+        saju = engine.build(
+            int(p["year"]),
+            int(p["month"]),
+            int(p["day"]),
+            int(p["hour"]),
+            int(p["minute"]),
+            is_male=bool(p.get("is_male")),
+            longitude=p.get("longitude", tc.SEOUL_LON),
+            latitude=p.get("latitude", tc.SEOUL_LAT),
+            policy=(tc.ZasiPolicy.YAJASI_SPLIT if p.get("yajasi") else tc.ZasiPolicy.JST_2300),
+            horoscope_date=horoscope or None,
+        )
+        identity = builder.personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
+        names = [name] if name else None
+    except Exception as e:
+        # 스펙 재계산 실패 시 게이트를 우회하지 않는다 — 최종 발급 차단(재현 불가는 발급 금지).
+        raise RuntimeError(f"최종 스펙 재계산 실패({type(e).__name__})") from e
+
     pdf_path = render_pdf.render_pdf(
         r23,
         _CoverMeta(input_civil=str(meta.get("input_civil", ""))),
         out_name=f"final_{report.order_id}.pdf",
         age=meta.get("age"),
-        name=p.get("name") or None,
+        name=name,
         unknown_time=bool(p.get("unknown_time")),
         brand=bp,
     )
     v = render_verify.verify(
         pdf_path,
+        ref_year=ref_year,
+        names=names,
+        identity=identity,
         product=p.get("product"),
         concern=p.get("concern") or None,
+        ref_date=horoscope or None,
     )
     if not v.get("gate_pass"):
+        # 불리언 clean 플래그만 노출(hit 본문 미포함 — B-3/PII).
         raise RuntimeError(
             f"최종 렌더 게이트 실패(text={v.get('text_chars')}, tagged={v.get('tagged')}, "
-            f"fonts={v.get('fonts_embedded')})"
+            f"fonts={v.get('fonts_embedded')}, name={v.get('name_policy_clean')}, "
+            f"identity={v.get('identity_role_clean')})"
         )
     return pdf_path

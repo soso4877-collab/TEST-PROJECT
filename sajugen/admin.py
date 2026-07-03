@@ -192,7 +192,27 @@ def start_review(order_id: str):
 
 
 @router.post("/orders/{order_id}/approve")
-def approve(order_id: str):
+def approve(request: Request, order_id: str, confirm: str = Form("")):
+    """관리자 승인 — needs_review(절입 근접·게이트 미클린 등) 주문은 확인(confirm)
+    없이는 409(T3.3/G-5). 검수 신호를 무시한 원클릭 승인을 물리 차단(우회 아님 —
+    확인 파라미터로 명시 컨펌만 요구)."""
+    st = _store()
+    try:
+        try:
+            report = st.get_report(order_id)
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"주문 없음: {order_id}")
+        needs_review = bool(getattr(report.safety_flags, "needs_review", False))
+    finally:
+        st.close()
+    if needs_review and not confirm.strip():
+        return _detail_response(
+            request,
+            order_id,
+            status_code=409,
+            action_error="검수 필요 주문입니다(절입 근접 또는 게이트 미클린). "
+            "확인란을 체크한 뒤 승인하세요.",
+        )
     _transition_or_409(order_id, OrderState.APPROVED, note="관리자 승인")
     return RedirectResponse(f"/admin/orders/{order_id}", status_code=303)
 

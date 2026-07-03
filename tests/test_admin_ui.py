@@ -316,6 +316,40 @@ def test_guard_unclean_marks_needs_review(client, db_path, fake_gen):
     assert "검수 필요" in page.text and "콘텐츠 가드 미통과" in page.text
 
 
+def test_approve_needs_review_requires_confirm(client, db_path, fake_gen):
+    # T3.3/G-5: needs_review 주문은 confirm 없이 승인 불가(409), confirm 시 승인(200).
+    bad_guard = {
+        "safe_lint_total": 1,
+        "factcheck_total": 0,
+        "grounding_ok": True,
+        "polished_sections": 0,
+        "fallback_sections": 2,
+        "clean": False,
+    }
+    fake_gen(ok=False, reasons=["콘텐츠 가드 미통과(§12=1)"], guard=bad_guard)
+    oid = _intake(client)
+    _to_in_review(client, oid)
+    st = OrderStore(db_path)
+    assert st.get_report(oid).safety_flags.needs_review is True
+    # confirm 없이 → 409, 상태 IN_REVIEW 유지(원클릭 승인 차단)
+    assert client.post(f"/admin/orders/{oid}/approve").status_code == 409
+    assert st.get_state(oid) == OrderState.IN_REVIEW
+    # confirm 체크 → 승인
+    assert client.post(f"/admin/orders/{oid}/approve", data={"confirm": "1"}).status_code == 200
+    assert st.get_state(oid) == OrderState.APPROVED
+    st.close()
+
+
+def test_approve_clean_order_needs_no_confirm(client, db_path, fake_gen):
+    # 오탐 0: needs_review 아닌 정상 주문은 confirm 없이도 그대로 승인.
+    oid = _intake(client)
+    _to_in_review(client, oid)
+    assert client.post(f"/admin/orders/{oid}/approve").status_code == 200
+    st = OrderStore(db_path)
+    assert st.get_state(oid) == OrderState.APPROVED
+    st.close()
+
+
 # ─────────────────── 8. 목록 필터 ───────────────────
 
 

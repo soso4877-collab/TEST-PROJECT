@@ -583,13 +583,30 @@ def test_final_render_passes_order_product_and_concern_to_pdf_verify(monkeypatch
             "allow_tokens": {},
         },
         render_meta={
+            # T3.3: 최종 재검증이 gen_params 로 saju 를 재계산하므로 실주문과 동일하게
+            # 생년월일 파라미터가 채워져 있어야 한다(create_order 가 항상 채움).
             "gen_params": {
+                "year": 2000,
+                "month": 1,
+                "day": 1,
+                "hour": 12,
+                "minute": 0,
+                "is_male": False,
+                "name": "",
                 "product": "integrated",
                 "concern": "재회 시기",
                 "brand": "default",
+                "unknown_time": False,
             },
             "input_civil": "2000-01-01 12:00",
         },
+    )
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        order_flow.engine,
+        "build",
+        lambda *a, **k: SimpleNamespace(myeongni=SimpleNamespace(day_master="庚")),
     )
     monkeypatch.setattr(order_flow.render_pdf, "render_pdf", lambda *a, **k: "final.pdf")
     monkeypatch.setattr(order_flow.render_verify, "verify", fake_verify)
