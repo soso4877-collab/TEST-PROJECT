@@ -29,6 +29,8 @@ _FONT_DIR = "file:///" + os.path.join(_DIR, "fonts").replace("\\", "/")
 # verify 기하 게이트가 같은 상수를 쓴다(render.md: 반드시 동기화).
 _PAGE_MARGIN = {k: f"{v:g}mm" for k, v in layout.PAGE_MARGIN_MM.items()}
 _BODY_MAXW_MM = layout.BODY_MAXW_MM
+# 목차 단일 열 최대 행수(실측 14행/페이지, 2026-07-03). 초과 시 2단 목차로 전환(T3.5a).
+_TOC_SINGLE_COL_MAX = 14
 # 한지 배경(낙관 합성, assets/make_assets.py 산출). CSS 캔버스 배경은 Chromium
 # print에서 마진 영역·마지막 페이지가 칠해지지 않는 것을 실측(2026-06-12)
 # → PyMuPDF 언더레이(전 페이지·XObject 1회 임베드)로 풀블리드 적용.
@@ -99,12 +101,16 @@ def render_html(
         {"id": s.id, "title": s.title, "paragraphs": _split_paragraphs(s.final_text)}
         for s in report.sections
     ]
+    # 목차 재넘침 방어(T3.5a): 목차 행(표지·목차 제외)이 단일 열 용량(_TOC_SINGLE_COL_MAX,
+    # 실측 14행/페이지)을 넘으면 2단 목차로 전환해 1페이지 유지(행 크기 보존, 운영자 결정).
+    toc_row_count = sum(1 for s in secs if s["id"] not in ("cover", "toc"))
     tmpl = _env.get_template("report.html.j2")
     return tmpl.render(
         title="사주풀이 결과지",
         font_dir=_FONT_DIR,
         page_margin_css=_PAGE_MARGIN_CSS,
         body_maxw_mm=f"{_BODY_MAXW_MM:g}",
+        toc_two_col=toc_row_count > _TOC_SINGLE_COL_MAX,
         brand_title=brand_profile["cover_title"],
         brand_seal=brand_profile["seal"],
         cover_name=_clean_cover_text(f"{name} 님") if name else "",

@@ -75,6 +75,13 @@
   .toc-dash{flex:0 0 16mm;border-bottom:1px solid #8d8268;height:0}
   .toc-name{font-size:1.06em;color:var(--ink);letter-spacing:.04em;
     word-break:keep-all;overflow-wrap:normal;line-break:strict}
+  /* 장 다수(실측: 단일 열은 14행까지 1페이지) 시 2단 목차 — 행 크기 보존하며 1페이지 유지(T3.5a).
+     좌우 2열이라 22행=11행/단으로 여유. 행이 열 경계에서 잘리지 않게 break-inside:avoid. */
+  .toc-list.toc-2col{column-count:2;column-gap:10mm;max-width:168mm;margin:0 auto}
+  /* 좁아진 열 폭에서 장 제목이 줄바꿈돼 행이 커지지 않도록 장번호·대시·간격을 조인다. */
+  .toc-2col .toc-row{max-width:none;margin:0;break-inside:avoid;gap:var(--s2)}
+  .toc-2col .toc-no{min-width:4.2em;letter-spacing:.12em}
+  .toc-2col .toc-dash{flex:0 0 7mm}
 
   /* 챕터 = 한 장(章). 새 페이지에서 시작, 제N장 라벨 + 제목(=h2 아웃라인 소스) + 가는 룰. */
   section.chapter{page-break-before:{% if chapter_breaks %}always{% else %}auto{% endif %};page-break-inside:auto}
@@ -117,10 +124,12 @@
 <div class="toc">
   <div class="toc-head">목차</div>
   <div class="toc-rule"></div>
+  <div class="toc-list{% if toc_two_col %} toc-2col{% endif %}">
   {% set ns = namespace(n=0) %}
   {% for s in sections %}{% if s.id not in ['cover','toc'] %}{% set ns.n = ns.n + 1 %}
   <div class="toc-row"><span class="toc-no">{% if s.id == 'appendix_terms' %}부록{% elif s.id == 'colophon' %}끝으로{% else %}제 {{ ns.n }} 장{% endif %}</span><span class="toc-dash"></span><span class="toc-name">{{ s.title.replace('부록 — ', '') if s.id == 'appendix_terms' else s.title }}</span></div>
   {% endif %}{% endfor %}
+  </div>
 </div>
 
 {% set cs = namespace(n=0) %}

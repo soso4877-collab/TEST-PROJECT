@@ -86,10 +86,10 @@ def test_chapter_regex_matches_two_digit_spaced_number():
 
 def test_is_toc_page_single_source():
     # T3.5/B-5: 목차 판정 단일 기준(_customer_body_page_items·_low_density·_orphan 공통).
-    # '목차' 단어 + 상한(400) 미만이면 목차 페이지.
+    # '목차' 단어 + 상한(_TOC_MAX_CHARS=520, 2단 목차 수용) 미만이면 목차 페이지.
     assert v._is_toc_page("목차\n제 1 장 사주의 큰 그림")
-    assert v._is_toc_page("목차 " + "가" * 300)  # <400 → 목차
-    assert not v._is_toc_page("목차 " + "가" * 500)  # 상한 이상 → 본문(목차 오분류 방지)
+    assert v._is_toc_page("목차 " + "가" * 400)  # <520 → 목차(2단 목차 크기)
+    assert not v._is_toc_page("목차 " + "가" * 600)  # 상한 이상 → 본문(목차 오분류 방지)
     assert not v._is_toc_page("본문 페이지에는 그 단어가 없습니다.")  # 미포함
 
 
@@ -255,3 +255,73 @@ def test_real_render_inset_loss_fails_gate(monkeypatch):
     kinds = {h["kind"] for h in r_bad["layout_geometry_hits"]}
     assert "body_inset_lost" in kinds, r_bad["layout_geometry_hits"]
     assert r_bad["gate_pass"] is False
+
+
+# ───────────────── T3.5(a): 목차 재넘침 방어(2단 목차) ─────────────────
+_T35_TITLES = [
+    "사주의 큰 그림",
+    "타고난 기질과 성향의 결",
+    "오행의 균형",
+    "십성의 무늬",
+    "신강약의 결",
+    "격국과 용신 풀이",
+    "대운의 흐름",
+    "올해의 운",
+    "관계와 인연의 결",
+    "재물의 결",
+    "직업과 방향",
+    "건강 관리의 결",
+    "가족 인연",
+    "이동과 변화의 시기",
+    "학업과 성취",
+    "심리 기질",
+    "길신과 흉살",
+    "시기 선택",
+    "마음 다스리기",
+    "선택의 길",
+    "맺음 방향",
+    "덧붙이는 말",
+]
+
+
+def test_toc_two_column_keeps_22_chapters_one_page():
+    # 실측: 단일 열 목차는 14행/페이지라 15장부터 2페이지로 넘쳐 희소 목차 페이지가 생겼다.
+    # 장 22개 → 2단 목차로 1페이지 유지(표지 p1·목차 p2·첫 장 p3). 목차 오버플로 페이지가
+    # 본문으로 오분류돼 기하·저밀도 게이트를 깨지 않는지 함께 확인(회귀).
+    body = "이 장은 충분한 분량의 본문입니다. " * 30
+    secs = [_sn(f"s{i}", _T35_TITLES[i], body) for i in range(22)]
+    path = _render_sections(secs, "test_t35_22ch.pdf")
+    import fitz
+
+    doc = fitz.open(path)
+    pages = [doc.load_page(i).get_text() for i in range(doc.page_count)]
+    doc.close()
+    assert v._is_toc_page(pages[1]), len(pages[1].strip())  # 목차는 p2 하나(<상한)
+    first_body = next(i for i, t in enumerate(pages) if "충분한 분량" in t and i >= 1)
+    assert first_body == 2, first_body  # index 0 표지·1 목차·2 첫 장 → 목차 1페이지
+    r = v.verify(path)
+    assert r["layout_geometry_clean"] is True, r["layout_geometry_hits"]
+    assert r.get("low_density_pages") == [], r.get("low_density_pages")
+
+
+def test_toc_two_column_threshold_boundary():
+    # 임계(_TOC_SINGLE_COL_MAX=14): 이하 단일 열(기존 동작 보존), 초과 2단 목차.
+    from types import SimpleNamespace
+
+    from sajugen import config as cfg
+
+    def _html(n):
+        secs = [
+            SimpleNamespace(id=f"s{i}", title=f"장 제목 {i}", final_text="본문 문장. " * 20)
+            for i in range(n)
+        ]
+        return render_pdf.render_html(
+            SimpleNamespace(sections=secs),
+            SimpleNamespace(input_civil="테스트"),
+            name="",
+            brand=dict(cfg.brand("seodam")),
+        )
+
+    # 'toc-2col' 은 <style> 안 CSS 정의(.toc-2col ...)에도 있으므로 적용된 클래스 문자열로 판정.
+    assert 'class="toc-list toc-2col"' not in _html(14)  # 임계 이하 = 단일 열
+    assert 'class="toc-list toc-2col"' in _html(15)  # 초과 = 2단
