@@ -2,14 +2,14 @@
 
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
->   진행 상태: **Phase 1 완료 · Phase 2 완료 · Phase 3 진행 중**(T3.1 완료 · T3.2 부분 · T3.4 완료).
->   ★ 다음 작업 = Phase 3 남은 것 3개(신선한 컨텍스트 권장 — 실렌더/게이트 정밀):
->     - **T3.3**[B-1+G-5] 최종 발급 게이트 완전화(order_flow final_render_fn spec 복원 + safe_lint/factcheck 편입).
+>   진행 상태: **Phase 1 완료 · Phase 2 완료 · Phase 3 진행 중**(T3.1 완료 · T3.2 부분 · T3.3 완료 · T3.4 완료).
+>   ★ 다음 작업 = Phase 3 남은 것 2개(신선한 컨텍스트 권장 — 실렌더/게이트 정밀):
 >     - **T3.2 잔여**[B-2] 실렌더 결함주입 회귀(좌쏠림 CSS→FAIL) + 좌단 단일소스화.
->     - **T3.5**[B-4+B-5] 목차 재넘침 방어 + 목차 판정 단일화.
+>     - **T3.5**[B-4+B-5] 목차 재넘침 방어 + 목차 판정 단일화 + 죽은 필드(contains_known_ganzhi·
+>       role_perspective·honorific) 편입/제거 결정(B-8).
 >     각 상세 설계 = 아래 'Phase 3' 블록 + roadmap 해당 태스크. 전 태스크 정상/결함 양방 회귀(완화 0).
->   기준선: `tests/ 472 passed / 3 skipped`, 골든 22건·parity 100건 불변·오차단 0. HEAD=origin(전부 push).
->     브랜치 codex/gunghap-relationship-quality. 최신 커밋 `69607b9`.
+>   기준선: `tests/ 479 passed / 3 skipped`(472+7), 골든 22건·parity 100건 불변·오차단 0. HEAD=커밋 c4cfeb5(로컬, push 안 함).
+>     브랜치 codex/gunghap-relationship-quality. 최신 커밋 `c4cfeb5`.
 >   [환경 주의] iztro-py>=0.3.5 필요 — 이 .venv 만 설치됨. 새 환경/CI 는 `pip install -e .` 또는 재설치.
 >   [미결·운영자 판단] (1)T2.1 영향구간=진태양시 23~24시 출생 기존 발송물 재검토, (2)tmp/ PII 임시파일
 >     수동 삭제(rm deny), (3)app.py·scripts/dump_reading.py 미커밋=세션 전 G-10 무관(커밋 방침 T5.8 확인 대기).
@@ -82,15 +82,33 @@
 >     MarkInfo(기존 OR 은 harden 이 MarkInfo 항상 삽입해 항진). 정상 Chromium PDF 둘 다 보유(실측 3건).
 >     StructTree 유실→FAIL / 정상→PASS 양방 테스트. tests/ **472 passed**. (컨텍스트 극한으로 실렌더 불필요한
 >     T3.4 를 먼저 처리 — 순서 조정.)
+>   [Phase 3 T3.3 완료 2026-07-03, 커밋 `c4cfeb5`] 최종 발급 게이트 완전화(B-1+G-5).
+>     - order_flow.final_render_fn 이 verify 에 이름·일간 스펙 미전달로 name_policy/identity_role 게이트가
+>       최종 발급에서 no-op 였다. gen_params 로 saju 재계산(engine.build) → personal_identity_spec →
+>       draft(pipeline.generate)와 동일 인자(ref_year/ref_date/names/identity)로 verify 호출.
+>       **재계산 무드리프트 근거**: create_order 가 정규화 양력 y/m/d 를 gen_params 에 영속 + engine.build
+>       결정론 → 재계산 day_master 는 본문 빌드 시점과 바이트 동일(스펙/본문 드리프트 불가).
+>     - **[스펙 정정, advisor]** singang=궁합 전용(gunghap 이 넘김). **role_perspective/honorific 은 어떤
+>       호출자도(궁합 포함) 안 넘기는 죽은 verify 파라미터** — 궁합은 호칭을 텍스트 정규화로 강제(verify
+>       파라미터 미사용). 개인 경로 None 은 정답(단일 호명·관계역할 없음). 죽은 두 파라미터 편입/제거 결정은
+>       T3.5/B-8 소관(여기서 복원 대상 아님). 로드맵 원안의 '5종 no-op'은 부정확 — 개인 경로 실공백=2종(identity+names).
+>     - **[deviation]** safe_lint·factcheck 재검증 벨트를 verify() 내부가 아니라 final_render_fn 에서 r23
+>       섹션(edit_section 과 동일 함수·allow_tokens)에 실행 — verify 는 PDF 추출텍스트(한자정리 등으로 원문과
+>       상이) 기반이라 섹션 final_text 재검증이 드리프트 0. 위반 시 카운트만(match 본문 미노출, T1.3/PII) → 발급 차단.
+>     - admin approve: needs_review 주문은 confirm 없이 409(원클릭 승인 물리 차단), 정상 주문 오탐 0.
+>     - **[E-3 확인]** issue_final_pdf 는 render_fn 반환 시에만 DELIVERED 전이, final_render_fn 은 벨트·게이트
+>       실패 시 예외 → DELIVERED 는 이미 verify 통과 요구. 중복 store 게이트 미신설(advisor 판정).
+>     - **[의도적 픽스처 변경]** test_delivery_quality 최종렌더 테스트 gen_params 에 생년월일 파라미터 추가
+>       (실주문은 create_order 가 항상 채움) + engine.build 스텁.
+>     측정: 클린 개인 빌드 3종(integrated/myeongni/ziwei) 전 섹션 safe/fact 위반 0(벨트 false-fail 0).
+>     양방 회귀: test_final_render_gate 5건(벨트 safe/fact 차단·PII-free·verify 실패 차단·스펙 복원) +
+>     test_admin_ui approve confirm 409/200 2건. tests/ **479 passed / 3 skipped**(472+7, 회귀 0).
 >   ★ Phase 3 남은 태스크(전부 신선한 컨텍스트 권장 — 실렌더/게이트 정밀):
 >     - **T3.2 잔여**[B-2]: (2)기대 좌단 (페이지폭-maxw)/2 파생 단일소스화(verify.py content_left_mm=20mm 고정
 >       → .body maxw 148mm 인셋 미반영; 좌우 비대칭 검사가 대부분 커버), (4)실렌더 결함주입 회귀(좌쏠림 CSS
 >       주입 렌더→FAIL) ≥1건.
->     - **T3.3**[B-1+G-5]: 최종 발급 게이트 완전화 — order_flow.py final_render_fn 이 names/identity/singang/
->       role_perspective/honorific 미전달로 5종 게이트 no-op → Report23 에서 복원해 verify 완전전달 + verify 에
->       safe_lint·factcheck 재실행 편입 + admin approve needs_review 확인단계. E-3 DELIVERED 전이 verify 통과 요구.
->     - **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단) + 목차 판정 이중기준 단일화. contains_known_ganzhi
->       (B-8) 죽은 필드 편입/제거.
+>     - **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단) + 목차 판정 이중기준 단일화. 죽은 필드 결정
+>       (B-8): contains_known_ganzhi + verify 미사용 파라미터 role_perspective·honorific(T3.3 확인) 편입/제거.
 >     전 태스크 정상/결함 양방 회귀(완화 0).
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
