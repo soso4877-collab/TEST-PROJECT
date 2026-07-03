@@ -387,7 +387,10 @@ def verify(
     embedded = any(f[3] for f in fonts)  # f[3]=embedded fontname
     toc = doc.get_toc()
     cat = doc.xref_object(doc.pdf_catalog())
-    tagged = ("/StructTreeRoot" in cat) or ("/MarkInfo" in cat)
+    # tagged = StructTreeRoot AND MarkInfo (D-1/T3.4). 기존 OR 은 harden_pdf_ua 가 MarkInfo 를
+    # 항상 넣어 StructTree 유실 시에도 True 로 항진하던 항등식이었다 — 구조트리 유실 회귀를 못
+    # 잡음. StructTreeRoot 존재를 AND 로 요구(정상 Chromium PDF 는 둘 다 보유 — 실측 확인).
+    tagged = ("/StructTreeRoot" in cat) and ("/MarkInfo" in cat)
 
     r = {
         "pages": doc.page_count,

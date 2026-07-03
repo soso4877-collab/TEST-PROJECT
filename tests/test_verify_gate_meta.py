@@ -83,6 +83,24 @@ def test_normal_customer_copy_keeps_new_gates_clean(monkeypatch):
     assert result["placeholder_residue_clean"] is True, result["placeholder_residue_hits"]
     assert result["style_clean"] is True, result["semantic_style_hits"]
     assert result["gate_pass"] is True, result
+    assert result["tagged"] is True  # StructTreeRoot + MarkInfo 둘 다(정상) → false fail 0
+
+
+def test_tagged_gate_fails_when_structtree_missing(monkeypatch):
+    # D-1/T3.4: catalog 에 MarkInfo 만 있고 StructTreeRoot 유실 시 tagged=False → gate 차단.
+    # 기존 OR 은 harden 이 MarkInfo 를 항상 넣어 항진(구조트리 유실을 못 잡던 항등식)이었다.
+    class _NoStruct(_FakeDoc):
+        def xref_object(self, _xref):
+            return "<< /MarkInfo << /Marked true >> >>"  # StructTreeRoot 없음
+
+    pages = ["표지", _CLEAN_SENTENCE * 24, _CLEAN_SENTENCE * 24]
+    monkeypatch.setattr(verify_pdf.fitz, "open", lambda _path: _NoStruct(pages))
+    monkeypatch.setattr(
+        verify_pdf, "_verapdf_ua1", lambda _path: {"available": False, "note": "test"}
+    )
+    r = verify_pdf.verify("synthetic.pdf")
+    assert r["tagged"] is False
+    assert r["gate_pass"] is False
 
 
 def test_toc_customer_framing_is_not_body_quality_failure(monkeypatch):
