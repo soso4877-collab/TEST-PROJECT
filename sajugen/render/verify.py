@@ -39,7 +39,9 @@ def markdown_artifacts(text: str) -> list[str]:
 # orphan(widow) page 검출 — 섹션 말미 짧은 문장이 단독 페이지로 넘어간 경우('있습니다.' p25).
 _ORPHAN_MIN = 40  # 본문 페이지 최소 글자수(이하 & 예외 아니면 orphan 후보)
 _ORPHAN_SKIP = ("목차", "용어 풀이", "글을 맺으며")
-_CHAPTER_RX = re.compile(r"제\s*\d+\s*장")
+# 두 자리 장(제10장~)은 .cnum letter-spacing 으로 "제 1 0 장"처럼 숫자 사이 공백이 추출된다
+# (A-4). \d(?:\s*\d)* 로 자리 사이 공백을 허용 — 문서 후반 장 인식이 비게 되던 사각 복원.
+_CHAPTER_RX = re.compile(r"제\s*\d(?:\s*\d)*\s*장")
 
 
 def _orphan_pages(pages_text: list[str]) -> list[dict]:
@@ -164,7 +166,7 @@ def _placeholder_residue_hits_clean(hits: list[dict], product: str | None = None
     return not any(h.get("severity") == "hard" for h in hits)
 
 
-_CHAPTER_HEAD_RX = re.compile(r"^\s*제\s*\d+\s*장")
+_CHAPTER_HEAD_RX = re.compile(r"^\s*제\s*\d(?:\s*\d)*\s*장")  # 두 자리 장 공백 추출 대응(A-4)
 
 
 def _starts_new_chapter(page_text: str) -> bool:

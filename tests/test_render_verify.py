@@ -60,6 +60,17 @@ def test_low_density_keeps_short_page_before_colophon():
     assert [h["page"] for h in hits] == [3], hits
 
 
+def test_chapter_regex_matches_two_digit_spaced_number():
+    # A-4: 두 자리 장(제10장~)은 .cnum letter-spacing 으로 "제 1 0 장"처럼 숫자 사이 공백이
+    # 추출된다. 이걸 못 잡으면 문서 후반(10장 이후)에서 장 인식이 비어 게이트가 비일관해진다.
+    assert v._starts_new_chapter("제 1 0 장 어쩌구")
+    assert v._starts_new_chapter("제 1 7 장 본문")
+    assert v._CHAPTER_RX.search("제 1 0 장")
+    # 한 자리 장·연속 표기도 계속 매칭(회귀 보증)
+    assert v._starts_new_chapter("제 3 장 본문")
+    assert v._CHAPTER_RX.search("제 17 장")
+
+
 def test_split_paragraphs_merges_short_tail():
     # '있습니다.' 같은 짧은 마지막 단락은 직전 단락에 합쳐 단독 페이지화 방지
     text = "앞 단락은 충분히 깁니다. 흐름을 이어 갑니다.\n\n있습니다."
