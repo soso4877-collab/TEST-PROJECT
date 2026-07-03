@@ -41,10 +41,15 @@
 >     engine CrossCheck.year_branch_ok + pipeline calc_consistent 편입(월지와 대칭 차단). 실측 정상·경계
 >     전 케이스 일치 → 오차단 0. 테스트 test_year_boundary 3건(2000-02-04 卯/02-05 辰). tests/ **467 passed**.
 >     → **T2.4 전체(F-1 iztro0.3.5 + F-2 연주경계) 완료.**
->   ★ 다음 = Phase 2 **T2.5** (시진불명 시 자미 생성 금지, G-3, 절대규칙8). 먼저 실측: unknown_time 주문에서
->     자미 섹션이 실제 렌더되는지 E2E 확인(ziwei.py:78-87 unknown_time 가드 부재 확정, builder 드롭 미검증).
->     렌더되면 ziwei 산출 억제 + builder 섹션 드롭 + 명리 단독 강등 고지(rules 는 이미 삽입). test_p8
->     시진불명 케이스에 자미 부재 단언 추가. Phase 2 마지막 태스크.
+>   [Phase 2 T2.5 완료 2026-07-03, 커밋 `a3cc820`] 시진불명 자미 생성 금지(G-3, 절대규칙8). 실측으로
+>     unknown_time 에도 자미 섹션 렌더 확인(부록C 미검증 해소) → builder 가 unknown_time 시 자미 전용 섹션
+>     (ziwei·together) 드롭 = 명리 단독 강등. test_p8 자미 부재 단언 추가. tests/ 467 passed.
+>     (engine ziwei 계산 억제는 낭비절감 백로그 — 섹션 드롭으로 규칙8 문안 이행은 완료.)
+>   ★★ **Phase 2(계산 정확도) 전체 완료**: T2.1 자시정책·T2.2 절입플래그·T2.3 KASI3원·T2.4 iztro0.3.5+연주경계·
+>     T2.5 시진불명자미금지. 골든 22건·parity 100건 불변, 오차단 0.
+>   ★ 다음 = **Phase 3 (게이트 실효성, roadmap T3.1~T3.5)**. 완화 0 — 전 태스크 정상/결함 양방 테스트.
+>     T3.1[A-2+A-4] 저밀도 장꼬리 사각(제N장 두자리 정규식 + 글자수하한)·T3.2[B-2] 기하게이트+실렌더회귀·
+>     T3.3[B-1+G-5] 최종발급 게이트완전화·T3.4[D-1] tagged 항진해소·T3.5[B-4+B-5] 목차재넘침. 게이트=양방 회귀.
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
