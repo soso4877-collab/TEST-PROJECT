@@ -36,11 +36,15 @@
 >     버그 수정). pyproject 핀 >=0.3.5. ziwei.build horoscope except pass → logging.warning(조용한 오류
 >     삼킴 제거). parity 100건 구조 불일치 0 유지 + decadal 골든 앵커 2건. tests/ **464 passed**.
 >     [주의] 0.3.5 설치는 .venv(gitignore) — 새 환경/CI 는 `pip install -e .` 또는 iztro-py>=0.3.5 재설치 필요.
->   ★ 다음 = Phase 2 **T2.4 F-2** (연주경계 교차, 미완). myeongni.py:183-187 은 현재 월지만 Skyfield 교차 —
->     연간지(입춘 315° 기준) 교차 항목 추가. 설계: 출생 ct.utc 가 그 해 입춘(solarterms.solar_term_time
->     (year,315)) 이후면 연주=당년寅시작, 전이면 전년 — lunar 연지(pillars['Year'].zhi)와 비교해
->     year_branch_crosscheck_ok. 검증: 연주경계 골든 2000-02-04(입춘 전)/02-05(입춘 후) + 골든 22건 GREEN.
->     이어서 T2.5(시진불명 자미금지). calc 수정=골든 회귀 동반 필수.
+>   [Phase 2 T2.4 F-2 완료 2026-07-03, 커밋 `f800dd3`] 연주 입춘 경계 lunar↔Skyfield 교차. myeongni 에
+>     연간지 교차(출생 utc 가 입춘 315° 이후면 명리연도=year, 전이면 year-1 → 60갑자 연지 vs lunar) 추가,
+>     engine CrossCheck.year_branch_ok + pipeline calc_consistent 편입(월지와 대칭 차단). 실측 정상·경계
+>     전 케이스 일치 → 오차단 0. 테스트 test_year_boundary 3건(2000-02-04 卯/02-05 辰). tests/ **467 passed**.
+>     → **T2.4 전체(F-1 iztro0.3.5 + F-2 연주경계) 완료.**
+>   ★ 다음 = Phase 2 **T2.5** (시진불명 시 자미 생성 금지, G-3, 절대규칙8). 먼저 실측: unknown_time 주문에서
+>     자미 섹션이 실제 렌더되는지 E2E 확인(ziwei.py:78-87 unknown_time 가드 부재 확정, builder 드롭 미검증).
+>     렌더되면 ziwei 산출 억제 + builder 섹션 드롭 + 명리 단독 강등 고지(rules 는 이미 삽입). test_p8
+>     시진불명 케이스에 자미 부재 단언 추가. Phase 2 마지막 태스크.
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
