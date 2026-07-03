@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # 프로젝트 루트 = sajugen 패키지 위치
 
 from sajugen import pipeline  # noqa: E402,F401  (.env 로드 — ANTHROPIC_API_KEY)
+from sajugen import config as cfg  # noqa: E402
 from sajugen.calc import engine  # noqa: E402
 from sajugen.content import builder  # noqa: E402
 from sajugen.render import pdf as render_pdf  # noqa: E402
@@ -51,7 +52,7 @@ with open(out_md, "w", encoding="utf-8") as f:
 
 # 2) 실제 PDF
 age = int(HOROSCOPE[:4]) - Y
-pdf_path = render_pdf.render_pdf(rep, saju, "reading_preview.pdf", age=age)
+pdf_path = render_pdf.render_pdf(rep, saju, "reading_preview.pdf", age=age, brand=cfg.brand("sajudoryeong"))
 
 print("TEXT:", out_md)
 print("PDF :", pdf_path)
