@@ -43,8 +43,10 @@
 >   기준선: `tests/ 493 passed / 3 skipped`, 골든 22건·parity 100건 불변·오차단 0·veraPDF ['7.1-3'] 비악화.
 >     HEAD=커밋 f579f43(로컬, push 안 함). 브랜치 codex/gunghap-relationship-quality.
 >   [환경 주의] iztro-py>=0.3.5 필요 — 이 .venv 만 설치됨. 새 환경/CI 는 `pip install -e .` 또는 재설치.
->   [미결·운영자 판단] (1)T2.1 영향구간=진태양시 23~24시 출생 기존 발송물 재검토, (2)tmp/ PII 임시파일
->     수동 삭제(rm deny), (3)app.py·scripts/dump_reading.py 미커밋=세션 전 G-10 무관(커밋 방침 T5.8 확인 대기).
+>   [미결·운영자 판단] (1)T2.1 영향구간=진태양시 23~24시 출생 기존 발송물 재검토 — **식별 도구 제공**
+>     `./.venv/Scripts/python.exe scripts/scan_zasi_affected.py --db data/orders.sqlite`(day_offset=1 주문
+>     order_id/state 만 출력, PII 없음; 재렌더/재발송은 운영자 승인). (2)tmp/ PII 임시파일 수동 삭제(rm deny).
+>     (3)G-10 전부 커밋 완료(app.py T4.5·dump_reading 운영자 지시).
 >   [작업 규율] calc/게이트 수정=골든 회귀 동반+양방 테스트. 검증(실측)값으로만 보고. 고객 PII 채팅 비출력.
 >     테스트=`./.venv/Scripts/python.exe -m pytest tests/ -q`. push 는 운영자 지시 시만.
 > =====================================================
