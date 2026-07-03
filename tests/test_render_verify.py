@@ -35,16 +35,29 @@ def test_orphan_detector_excludes_chapter_and_appendix():
 
 
 def test_low_density_excludes_chapter_tail():
-    # 장마다 새 페이지(chapter_breaks=True)에서 긴 장의 짧은 조판 꼬리(다음 페이지가
-    # 새 장 시작)는 콘텐츠 부족이 아니라 정상 조판 → 저밀도에서 제외.
+    # 장마다 새 페이지(chapter_breaks=True)에서 긴 장의 정상 조판 꼬리(다음 페이지가 새 장 +
+    # 하한 이상 분량)는 콘텐츠 부족이 아니라 정상 조판 → 저밀도에서 제외.
     pages = [
         "표지",
         "제 1 장 본문 " + "가" * 200,  # 긴 장 본문(정상)
-        "이 장의 마지막 몇 줄만 넘어온 짧은 꼬리입니다.",  # <120, 다음이 새 장
+        "가" * 95,  # <120 이나 하한(90) 이상 정상 조판 꼬리, 다음이 새 장 → 면제
         "제 2 장 " + "나" * 200,  # 새 장 시작
         "글을 맺으며",  # 마지막(제외)
     ]
     assert v._low_density_pages(pages) == [], v._low_density_pages(pages)
+
+
+def test_chapter_tail_below_min_is_flagged():
+    # A-2: 다음이 새 장이어도 꼬리가 하한(_CHAPTER_TAIL_MIN=90) 미만이면 흘러넘침 결함으로 hit.
+    # 하한 이상은 정상 조판 꼬리로 면제 — 3중 사각(_ORPHAN_MIN 40~120 장꼬리)이 41~89 로 축소됨을 증명.
+    def _tail_hits(chars):
+        pages = ["표지", "제 1 장 " + "가" * 200, "나" * chars, "제 2 장 " + "다" * 200, "맺음"]
+        return [h["page"] for h in v._low_density_pages(pages)]
+
+    for c in (41, 67, 89):  # 하한 미만 → 저밀도 hit(page 3) — 흘러넘침 결함
+        assert _tail_hits(c) == [3], (c, _tail_hits(c))
+    for c in (90, 119):  # 하한 이상 → 면제(정상 조판 꼬리)
+        assert _tail_hits(c) == [], (c, _tail_hits(c))
 
 
 def test_low_density_keeps_short_page_before_colophon():

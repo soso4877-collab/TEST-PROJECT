@@ -65,6 +65,10 @@ def _orphan_pages(pages_text: list[str]) -> list[dict]:
 # H1.5 본문/부록 구역 분리 — 용어 풀이 부록은 전문용어 허용 구역.
 _APPENDIX_MARK = "본문에 나온"  # 용어 풀이(부록) 도입부 고유 문구
 _LOW_DENSITY_MIN = 120  # 본문 페이지 글자수 이 미만이면 저밀도 후보(보고)
+# 장꼬리(다음이 새 장) 면제 하한(A-2). 장 끝 정상 조판 꼬리는 최소 ~3줄(90자) 이상이라
+# 본다. 이 미만이면 다음이 새 장이어도 '흘러넘침 결함'(하단 대부분 빈 페이지)으로 저밀도 hit
+# 유지. _ORPHAN_MIN(40)~_LOW_DENSITY_MIN(120) 사이 장꼬리 사각을 41~89 로 좁힌다(완화 아님).
+_CHAPTER_TAIL_MIN = 90
 
 
 def _split_body_appendix(pages_text: list[str]) -> tuple[str, str]:
@@ -191,8 +195,9 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
             continue
         if any(k in s for k in ("목차", "용어 풀이", _APPENDIX_MARK, "글을 맺으며")):
             continue
-        if i + 1 < n and _starts_new_chapter(pages_text[i + 1]):
-            # 다음이 새 장 → 이 짧은 페이지는 긴 장의 정상 조판 꼬리(콘텐츠 부족 아님).
+        if i + 1 < n and _starts_new_chapter(pages_text[i + 1]) and len(s) >= _CHAPTER_TAIL_MIN:
+            # 다음이 새 장 + 꼬리가 정상 조판 분량(>= _CHAPTER_TAIL_MIN) → 면제(콘텐츠 부족 아님).
+            # 하한 미만이면 다음이 새 장이어도 흘러넘침 결함으로 저밀도 hit 유지(A-2, 사각 축소).
             continue
         # 본문 스니펫(text) 비포함 — 외부 표면 노출 방지(T1.3/A-3). page/chars 메타만.
         out.append({"page": i + 1, "chars": len(s)})
