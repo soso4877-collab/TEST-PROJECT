@@ -2,11 +2,15 @@
 
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
->   진행 상태: **Phase 1·2·3 완료 · Phase 4 진행 중**(T4.1·T4.2·T4.3·T4.4 완료). ★ 다음 = **Phase 4 T4.5**
->     [E-1, 운영자 결정 필요] /generate 구형경로 = 제거 vs 주문경로 통합 질문 후 처리. 즉시분: 파일명 DOB
->     제거(saju_<ts>.pdf)·X-Saju-Bazi 헤더 제거. **주의: app.py 는 세션 전 G-10(brand fail-closed) 미커밋이
->     번들돼 있어, T4.5 app.py 수정 시 G-10 커밋 방침(T5.8) 운영자 확인 동반 필요.** Phase 4 완료 기준 =
->     가드 변경마다 골든 6케이스 clean + 전체 pytest GREEN.
+>   진행 상태: **Phase 1·2·3·4 전체 완료**. ★ 다음 작업 = **Phase 5**(운영/관측/유지보수 저위험 일괄 —
+>     T5.1~T5.10). 주요: T5.1(conftest autouse 로 ANTHROPIC_API_KEY 삭제·실호출 opt-in 마커), T5.2(hsummary
+>     regen_stderr_tail 화이트리스트), T5.4(classify max_tokens·Mode.TOOLS), T5.5(requirements 핀·SQLite WAL),
+>     T5.6(solarterms 폴백 경보·de440s 범위 가드), T5.9(테스트 공백 보충). T5.8(G-10)=app.py brand 는 T4.5 에
+>     함께 커밋 완료, scripts/dump_reading.py 만 미커밋 잔여(운영자 방침 확인). Phase 5 완료 기준 = 전체 pytest GREEN.
+>   [Phase 4 T4.5 완료 2026-07-03, 커밋 `83467a2`] /generate 구형경로 PII 제거(E-1) + G-10 brand 필수검증.
+>     운영자 결정=최소 정리: 파일명 saju_<uuid12>.pdf(DOB 제거)·X-Saju-Bazi 헤더 제거(비-PII X-Gate/X-Pages
+>     유지)·경로 유지. G-10(brand 빈값 422 fail-closed)를 함께 커밋(운영자 결정). 회귀 2건. tests/ **501 passed**.
+>     [잔여] scripts/dump_reading.py G-10 미커밋(별건).
 >   [Phase 4 T4.2 완료 2026-07-03, 커밋 `88c31b8`] safe_lint _OUTCOME 승진/창업/취업류 확장(G-7).
 >     결과 동사에 승진/창업/취업/개업(하|합) 추가 — '-합니다' 형 사각 보강('승진된다'는 이미 된다로 커버).
 >     C1 완화 원칙(부사 단독 허용, 부사+결과동사 결합 0~14자만 차단) 불변. 실측: 결과보장 4형 차단 +
