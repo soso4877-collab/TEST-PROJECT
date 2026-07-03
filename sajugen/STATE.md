@@ -1,6 +1,25 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ★ 활성 워크플로우 (2026-07-02 갱신, 압축 재개용 — 이 줄 먼저):
+> ★ 활성 워크플로우 (2026-07-03 갱신 — 감사 후속 수정 로드맵 실행 중, 이 줄 먼저):
+>   전수 감사(2026-07-03) 후속 수정 로드맵 = `handoff/audit-followup-roadmap.md` (구현 source of truth).
+>   프로토콜: 한 세션 = 한 Phase. Phase 1~5 순차. push 는 운영자 지시 시만.
+>   [Phase 1 = PII/유출 봉쇄 — 완료 2026-07-03] 3커밋(브랜치 codex/gunghap-relationship-quality, push 안 함):
+>   - T1.1 [A-1] `f4766bd`: .gitignore 에 tmp/·synthetic-tmp/·*.content.json 추가(고객 content.json·
+>     렌더물 커밋 유출 차단). 추적 PII 파일 0(히스토리 노출 없음). 실제 tmp/ 파일은 rm deny 로 운영자가
+>     `! rm -rf synthetic-tmp && find tmp -mindepth 1 -not -name audit_brief.md -exec rm -rf {} +` 수동 파기(운영자 '전부 삭제' 선택).
+>   - T1.2 [P0-2] `bce6c27`: 표지(cover) polish 경로로 생년월일 원본이 API 전송되던 결함 차단.
+>     builder polish/compose 분기에 cover 명시 제외 + llm_polish 에 mask_civil 방어겹 + masking.mask_birth_in_text
+>     헬퍼 추출. 테스트=LLM 아웃바운드(polish+compose) 전수 스캔 생년월일 0건.
+>   - T1.3 [A-3·B-3·E-2] `afdce39`: verify _orphan/_low_density hit 의 본문 스니펫(text) 제거(근본) +
+>     hverify delivery_quality 를 rule/메타 화이트리스트만 forward(hsummary 계약 정합) + order_flow 생성
+>     예외 audit note·orders.delete reason 마스킹. [deviation] order_flow render_meta digest 교체는 미적용
+>     (orders DB=정당한 PII 저장소, hit text 제거로 본문 이미 빠짐 → digest 는 검수 신호만 약화, advisor 판단).
+>   실측: 착수 기준선 438 → Phase1 후 tests/ **442 passed / 3 skipped / 실패0**.
+>   ★ 다음 세션 = Phase 2 (계산 정확도, calc/ — 골든 회귀 동반 필수). roadmap T2.1~T2.5. T2.1[P0-1] 자시
+>     정책 JST_2300 구현(운영자 기결정)이 최우선·최고위험 — 골든 22건+자시경계 앵커 전수 GREEN 필수.
+>   [이전 완료] customer2 통합 PDF triage 품질게이트 P1~P5+belt(8012a20), 목차 1페이지화(95c9019),
+>     장마다 새 페이지+장꼬리 게이트(d0aa483). 아래는 그 상세 기록.
+>
 >   customer2 통합 PDF(integrated_full) triage 후속 품질 게이트 보강 P1~P5 + relationship belt = 완료·커밋.
 >   커밋: `8012a20` feat(sajugen): 납품 문안 품질 게이트 보강 (브랜치 codex/gunghap-relationship-quality, push 안 함).
 >   - P1 concern 배선(situation→concern 정규화·context_required·missing_customer_context)
