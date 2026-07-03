@@ -32,9 +32,15 @@
 >     pipeline calc_consistent 편입 + reasons. 범위 내 미지 불일치=차단, 범위밖/무캐시=폴백(차단 아님),
 >     기지결함=비차단. 안전 실측: 범위 내 전 정상연도 all_kasi_ok=True → 오차단 0. 골든 22건 불변.
 >     테스트 test_kasi_runtime 5건(무캐시 CI skipif). tests/ **462 passed**.
->   ★ 다음 = Phase 2 T2.4 (iztro-py 0.3.4→0.3.5 업그레이드[大限/童限 궁배정 버그 수정] + 연주경계 교차,
->     F-1·F-2). 주의: 스택 버전 변경 = ziwei parity 100건 전수 재검(골든 전수 재검증 규칙). 이어서
->     T2.5(시진불명 자미금지). calc/스택 수정=골든 회귀 동반 필수.
+>   [Phase 2 T2.4 F-1 완료 2026-07-03, 커밋 `228e0c4`] iztro-py 0.3.4→0.3.5 업그레이드(大限/童限 궁배정
+>     버그 수정). pyproject 핀 >=0.3.5. ziwei.build horoscope except pass → logging.warning(조용한 오류
+>     삼킴 제거). parity 100건 구조 불일치 0 유지 + decadal 골든 앵커 2건. tests/ **464 passed**.
+>     [주의] 0.3.5 설치는 .venv(gitignore) — 새 환경/CI 는 `pip install -e .` 또는 iztro-py>=0.3.5 재설치 필요.
+>   ★ 다음 = Phase 2 **T2.4 F-2** (연주경계 교차, 미완). myeongni.py:183-187 은 현재 월지만 Skyfield 교차 —
+>     연간지(입춘 315° 기준) 교차 항목 추가. 설계: 출생 ct.utc 가 그 해 입춘(solarterms.solar_term_time
+>     (year,315)) 이후면 연주=당년寅시작, 전이면 전년 — lunar 연지(pillars['Year'].zhi)와 비교해
+>     year_branch_crosscheck_ok. 검증: 연주경계 골든 2000-02-04(입춘 전)/02-05(입춘 후) + 골든 22건 GREEN.
+>     이어서 T2.5(시진불명 자미금지). calc 수정=골든 회귀 동반 필수.
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
