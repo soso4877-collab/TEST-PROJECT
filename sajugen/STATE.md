@@ -2,14 +2,14 @@
 
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
->   진행 상태: **Phase 1 완료 · Phase 2 완료 · Phase 3 진행 중**(T3.1 완료 · T3.2 부분 · T3.3 완료 · T3.4 완료).
->   ★ 다음 작업 = Phase 3 남은 것 2개(신선한 컨텍스트 권장 — 실렌더/게이트 정밀):
->     - **T3.2 잔여**[B-2] 실렌더 결함주입 회귀(좌쏠림 CSS→FAIL) + 좌단 단일소스화.
->     - **T3.5**[B-4+B-5] 목차 재넘침 방어 + 목차 판정 단일화 + 죽은 필드(contains_known_ganzhi·
->       role_perspective·honorific) 편입/제거 결정(B-8).
->     각 상세 설계 = 아래 'Phase 3' 블록 + roadmap 해당 태스크. 전 태스크 정상/결함 양방 회귀(완화 0).
->   기준선: `tests/ 479 passed / 3 skipped`(472+7), 골든 22건·parity 100건 불변·오차단 0. HEAD=커밋 c4cfeb5(로컬, push 안 함).
->     브랜치 codex/gunghap-relationship-quality. 최신 커밋 `c4cfeb5`.
+>   진행 상태: **Phase 1 완료 · Phase 2 완료 · Phase 3 진행 중**(T3.1·T3.2·T3.3·T3.4 완료, **T3.5만 남음**).
+>   ★ 다음 작업 = Phase 3 마지막 **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단, 장 22개 합성
+>       케이스로 1페이지 유지 증명) + 목차 판정 이중기준(_customer_body_page_items <400자 vs _low_density
+>       "목차" 포함) 단일 헬퍼 통일 + 죽은 필드 결정(B-8): contains_known_ganzhi + verify 미사용 파라미터
+>       role_perspective·honorific(T3.3 확인) 편입/제거. 정상/결함 양방 회귀(완화 0).
+>     상세 = 아래 'Phase 3' 블록 + roadmap T3.5.
+>   기준선: `tests/ 483 passed / 3 skipped`(479+4), 골든 22건·parity 100건 불변·오차단 0·veraPDF 신규 clause 0.
+>     HEAD=커밋 7e93c24(로컬, push 안 함). 브랜치 codex/gunghap-relationship-quality.
 >   [환경 주의] iztro-py>=0.3.5 필요 — 이 .venv 만 설치됨. 새 환경/CI 는 `pip install -e .` 또는 재설치.
 >   [미결·운영자 판단] (1)T2.1 영향구간=진태양시 23~24시 출생 기존 발송물 재검토, (2)tmp/ PII 임시파일
 >     수동 삭제(rm deny), (3)app.py·scripts/dump_reading.py 미커밋=세션 전 G-10 무관(커밋 방침 T5.8 확인 대기).
@@ -78,6 +78,21 @@
 >   [Phase 3 T3.2 부분 완료 2026-07-03, 커밋 `bd69f0f`] 기하 게이트 세로 넘침 검사 + skip 표기.
 >     verify.py: _PAGE_TB_MARGIN_MM=22, _layout_geometry_hits 세로 넘침(vertical_overflow) 추가,
 >     layout_geometry_skipped 표기. 세로넘침 양방 테스트. tests/ **471 passed**.
+>   [Phase 3 T3.2 잔여 완료 2026-07-03, 커밋 `7e93c24`] 인셋 상실 검출 + 실렌더 회귀(B-2).
+>     - **사각**: 본문 .body max-width(인셋) 상실 시 콘텐츠박스를 대칭 채움(20/20) → margin_asymmetry 는
+>       좌우 대칭이라 구조상 못 잡고 content_overflow 는 콘텐츠박스 안이라 통과(advisor 규명: 로드맵 원안의
+>       '좌쏠림 주입'은 이미 asymmetry 가 잡아 (2) 증명 불가 — 주입 결함은 '대칭 넓힘'이어야 함).
+>     - **단일 소스**: render/layout.py 신설(PAGE_MARGIN_MM·BODY_MAXW_MM). pdf.py·verify 공용, 템플릿
+>       --maxw 를 body_maxw_mm 주입(page_margin_css 선례)으로 전환. 148mm 불변(렌더 무변, 순수상수라 verify
+>       임포트에 Playwright 미유입).
+>     - **body_inset_lost**: 칼럼폭(x1-x0) > BODY_MAXW_MM(148)+10mm(인셋 상실≈170mm)이면 hit. content_overflow
+>       (20mm 콘텐츠박스)는 불변 — 새 kind 추가만(완화 0). 좌쏠림은 여전히 margin_asymmetry(폭≈148)로 분리.
+>     - **실렌더 회귀**(실 PDF 기하 테스트 최초): max-width 무효화 주입 렌더→body_inset_lost→gate_pass=False /
+>       정상→인셋 결함 0. 단일 소스 상수 monkeypatch 로 결함 주입.
+>     측정: 합성 실렌더 전 본문 페이지 블록 좌단 31.2mm(=기대 30.9mm) 군집, 차트/표도 .body 내부(near20=0)
+>       → 절대/폭 검사 false-fail 0 실증(min(b[0]) 격리 불필요 확인, advisor 지적 해소).
+>     양방 회귀: layout 단위 3건 + 실렌더 1건. tests/ **483 passed**(479+4). veraPDF 신규 clause 0.
+>     → **T3.2 전체(세로넘침+인셋상실+단일소스+실렌더회귀) 완료.**
 >   [Phase 3 T3.4 완료 2026-07-03, 커밋 `125414e`] tagged 게이트 항진 해소 — tagged=StructTreeRoot AND
 >     MarkInfo(기존 OR 은 harden 이 MarkInfo 항상 삽입해 항진). 정상 Chromium PDF 둘 다 보유(실측 3건).
 >     StructTree 유실→FAIL / 정상→PASS 양방 테스트. tests/ **472 passed**. (컨텍스트 극한으로 실렌더 불필요한
@@ -103,13 +118,11 @@
 >     측정: 클린 개인 빌드 3종(integrated/myeongni/ziwei) 전 섹션 safe/fact 위반 0(벨트 false-fail 0).
 >     양방 회귀: test_final_render_gate 5건(벨트 safe/fact 차단·PII-free·verify 실패 차단·스펙 복원) +
 >     test_admin_ui approve confirm 409/200 2건. tests/ **479 passed / 3 skipped**(472+7, 회귀 0).
->   ★ Phase 3 남은 태스크(전부 신선한 컨텍스트 권장 — 실렌더/게이트 정밀):
->     - **T3.2 잔여**[B-2]: (2)기대 좌단 (페이지폭-maxw)/2 파생 단일소스화(verify.py content_left_mm=20mm 고정
->       → .body maxw 148mm 인셋 미반영; 좌우 비대칭 검사가 대부분 커버), (4)실렌더 결함주입 회귀(좌쏠림 CSS
->       주입 렌더→FAIL) ≥1건.
->     - **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단) + 목차 판정 이중기준 단일화. 죽은 필드 결정
->       (B-8): contains_known_ganzhi + verify 미사용 파라미터 role_perspective·honorific(T3.3 확인) 편입/제거.
->     전 태스크 정상/결함 양방 회귀(완화 0).
+>   ★ Phase 3 남은 태스크(1개 — 신선한 컨텍스트 권장):
+>     - **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단, 장 22개 합성 케이스로 1페이지 유지 증명) +
+>       목차 판정 이중기준(_customer_body_page_items <400자 vs _low_density "목차" 포함) 단일 헬퍼 통일 +
+>       죽은 필드 결정(B-8): contains_known_ganzhi + verify 미사용 파라미터 role_perspective·honorific
+>       (T3.3 확인) 편입/제거. 정상/결함 양방 회귀(완화 0).
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).
