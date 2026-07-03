@@ -1,0 +1,56 @@
+# -*- coding: utf-8 -*-
+"""T4.5/E-1: /generate 구형경로 PII 제거 — 다운로드 파일명에 생년월일 미포함 +
+X-Saju-Bazi(사주팔자) 응답 헤더 제거. 비-PII 헤더(X-Gate/X-Pages)는 유지."""
+
+import re
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from sajugen import app as app_mod  # noqa: E402
+from sajugen.pipeline import GenResult  # noqa: E402
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    # generate 를 대체 — out_name(app.py 가 정한 파일명)을 그대로 pdf_path 로 반영해
+    # FileResponse 다운로드 파일명이 app.py 의 out_name 규칙을 타게 한다(Playwright 무실행).
+    def _fake_generate(*_a, out_name="saju.pdf", **_k):
+        p = tmp_path / out_name
+        p.write_bytes(b"%PDF-1.7 fake")
+        return GenResult(
+            pdf_path=str(p),
+            ok=True,
+            reasons=[],
+            verify={"gate_pass": True, "pages": 10, "text_chars": 2000, "tagged": True},
+            guard={"clean": True},
+            bazi="庚午 辛巳 庚午 癸未",
+        )
+
+    monkeypatch.setattr(app_mod, "generate", _fake_generate)
+    return TestClient(app_mod.app)
+
+
+_FORM = {"birth": "1990-05-20 14:30", "name": "홍길동", "gender": "male", "brand": "seodam"}
+
+
+def test_generate_filename_has_no_birthdate(client):
+    r = client.post("/generate", data=_FORM)
+    assert r.status_code == 200
+    cd = r.headers.get("content-disposition", "")
+    # 생년월일 파생 문자열(YYYYMMDD·연도·시각) 미포함
+    assert "19900520" not in cd and "1990" not in cd and "1430" not in cd, cd
+    assert re.search(r"saju_[0-9a-f]{12}\.pdf", cd), cd  # 비-DOB 무작위 파일명
+
+
+def test_generate_removes_bazi_header_keeps_nonpii(client):
+    r = client.post("/generate", data=_FORM)
+    assert r.status_code == 200
+    assert "X-Saju-Bazi" not in r.headers  # 사주팔자 헤더 제거
+    assert r.headers.get("X-Gate") == "PASS"  # 비-PII 헤더는 유지
+    assert r.headers.get("X-Pages") == "10"

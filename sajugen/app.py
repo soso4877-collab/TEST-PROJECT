@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import uuid
 from urllib.parse import quote
 
 from fastapi import FastAPI, Form
@@ -80,6 +81,11 @@ def gen(
 
     is_male = gender.strip().lower() in ("male", "m", "남", "남자")
     policy = tc.ZasiPolicy.YAJASI_SPLIT if yajasi else tc.ZasiPolicy.JST_2300
+    brand_name = brand.strip()
+    if not brand_name:
+        return JSONResponse(
+            status_code=422, content={"ok": False, "reasons": ["brand is required"]}
+        )
 
     r = generate(
         y,
@@ -93,12 +99,13 @@ def gen(
         policy=policy,
         horoscope_date=horoscope or None,
         use_llm=llm,
-        out_name=f"saju_{y}{mo:02d}{da:02d}_{hh:02d}{mi:02d}.pdf",
+        # 파일명에 생년월일 비노출(T4.5/E-1) — 다운로드 파일명·디스크명 PII 제거.
+        out_name=f"saju_{uuid.uuid4().hex[:12]}.pdf",
         name=name or None,
         unknown_time=unknown_time,
         product=product,
         concern=concern or None,
-        brand=brand or None,
+        brand=brand_name,
     )
 
     if not r.ok:
@@ -110,8 +117,8 @@ def gen(
                 "warnings": norm_warnings + r.crosscheck_warnings,
             },
         )
+    # X-Saju-Bazi(사주팔자) 헤더 제거(T4.5/E-1) — 응답 헤더로 파생 PII 노출 차단.
     headers = {
-        "X-Saju-Bazi": quote(r.bazi),
         "X-Gate": "PASS",
         "X-Pages": str(r.verify["pages"]),
     }
