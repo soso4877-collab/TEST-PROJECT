@@ -13,9 +13,12 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from typing import Protocol, runtime_checkable
+
+_log = logging.getLogger(__name__)
 
 from sajugen import config as cfg
 
@@ -301,18 +304,24 @@ class AnthropicBackend:
             class _Cat(BaseModel):
                 category: QuestionCategory
 
-            client = instructor.from_anthropic(anthropic.Anthropic(max_retries=0))
+            # T5.4/C-1: 도구(tool-call) 모드 명시(instructor 버전 기본값 모호성 제거).
+            client = instructor.from_anthropic(
+                anthropic.Anthropic(max_retries=0), mode=instructor.Mode.ANTHROPIC_TOOLS
+            )
             res = client.messages.create(
                 model=cfg.llm_model("classify"),  # 분류=저비용
-                max_tokens=20,
+                # T5.4: 20 은 도구 JSON(카테고리 enum 래핑) 절단→IncompleteOutput→불필요 폴백
+                # 위험 → 256 여유(출력 상한, 실제 사용분만 과금).
+                max_tokens=256,
                 max_retries=0,
                 system=_CLASSIFY_SYSTEM,
                 messages=[{"role": "user", "content": concern.strip()}],
                 response_model=_Cat,
             )
             return res.category
-        except Exception:
-            return _rule_classify(concern)  # 어떤 실패든 룰 폴백
+        except Exception as e:  # 어떤 실패든 룰 폴백 — 폴백 발생을 관측 가능하게 로깅(T5.4)
+            _log.warning("classify LLM 실패 → 룰 폴백: %s", type(e).__name__)
+            return _rule_classify(concern)
 
     def polish(self, rule_text: str, title: str) -> str:
         # 구간5 재윤문 — 기존 검증된 구현 재사용(무키/실패 시 원문 폴백 내장)
