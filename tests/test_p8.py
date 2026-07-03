@@ -95,3 +95,9 @@ def test_e2e_unknown_time():
     text = "".join(doc.load_page(i).get_text() for i in range(doc.page_count))
     doc.close()
     assert "추정" in text, "시진 불명 고지(추정) 누락"
+    # 절대규칙8(T2.5/G-3): 시진 불명이면 자미 생성 금지 — 자미 전용 섹션이 렌더되지 않아야 한다
+    # (추정 정오 기반 명반이 고객 문안에 들어가면 안 됨). 명리 단독 강등.
+    assert "자미두수로 본 삶의 구조" not in text, (
+        "시진불명인데 자미두수 섹션 렌더됨(절대규칙8 위반)"
+    )
+    assert "두 체계를 함께 읽으며" not in text, "시진불명인데 명리x자미 교차 섹션 렌더됨"

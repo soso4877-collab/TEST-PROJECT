@@ -193,7 +193,12 @@ def build_report(
         concern_text=concern,
         closing_sign=closing_sign,
     )
-    drop = _PRODUCT_DROP.get(product, set())
+    drop = set(_PRODUCT_DROP.get(product, set()))
+    if unknown_time:
+        # 절대규칙8: 시진 불명 시 자미 생성 금지 — 자미 전용 섹션(자미두수 명반·두 체계 교차)을
+        # 생략하고 명리 단독으로 강등한다(myeongni 상품과 동일 드롭). 추정 시각(정오) 기반 명반이
+        # 고객 문안에 들어가지 않게 한다. rules 는 이미 '시주 추정' 고지를 삽입(T2.5/G-3).
+        drop |= {"ziwei", "together"}
     sections: list[Section] = []
     safe_total = fact_total = polished_n = fallback_n = 0
     _id_spec = personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
