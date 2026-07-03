@@ -31,14 +31,22 @@ def available() -> bool:
         return False
 
 
-def polish(rule_text: str, title: str) -> str:
-    """가용 시 윤문 텍스트, 아니면 rule_text 그대로(폴백)."""
+def polish(rule_text: str, title: str, *, mask_civil: str | None = None) -> str:
+    """가용 시 윤문 텍스트, 아니면 rule_text 그대로(폴백).
+
+    mask_civil 이 주어지면 API 전송 전 생년월일시 표기를 결정론 마스킹(절대규칙 17
+    방어겹). 표지 등 정형 섹션은 builder 가 애초에 polish 대상에서 제외하지만, 어떤
+    섹션이든 원문 생년월일이 API 로 새지 않도록 이중으로 막는다."""
     if not available():
         return rule_text
     try:
         import anthropic
         import instructor
         from pydantic import BaseModel
+
+        from . import masking
+
+        safe_text = masking.mask_birth_in_text(rule_text, mask_civil) if mask_civil else rule_text
 
         class Polished(BaseModel):
             text: str
@@ -50,7 +58,7 @@ def polish(rule_text: str, title: str) -> str:
             max_tokens=2000,
             max_retries=0,
             system=_SYSTEM,
-            messages=[{"role": "user", "content": f"[섹션:{title}]\n원문:\n{rule_text}"}],
+            messages=[{"role": "user", "content": f"[섹션:{title}]\n원문:\n{safe_text}"}],
             response_model=Polished,
         )
         return res.text.strip() or rule_text

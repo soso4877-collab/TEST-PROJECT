@@ -134,7 +134,9 @@ def test_llm_fallback_when_polish_hallucinates(monkeypatch):
     # 룰 백엔드로 강등 — 실제 Anthropic compose 호출(과금·비결정·137초) 차단.
     # polish mock 만으로 폴백 의도는 그대로 검증된다(형제 test_llm_sections 와 동일 패턴).
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setattr(llm_polish, "polish", lambda rt, title: rt + " 추가로 甲寅 대운이 옵니다.")
+    monkeypatch.setattr(
+        llm_polish, "polish", lambda rt, title, **_kw: rt + " 추가로 甲寅 대운이 옵니다."
+    )
     r = builder.build_report(_SAJU, use_llm=True)
     # 폴백 발생, 최종 텍스트엔 환각 간지 없음, 전체 여전히 clean
     assert r.guard.fallback_sections >= 1

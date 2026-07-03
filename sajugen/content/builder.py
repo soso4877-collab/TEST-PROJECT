@@ -272,12 +272,17 @@ def build_report(
         applied_violations = list(rule_violations)
 
         # 정적 챕터(목차·부록·판권)는 LLM 미적용 — 참고/법적 문안 그대로 유지(룰 원문).
-        if use_llm and not rule_violations and sid not in _STATIC_OK:
+        # cover 제외(P0-2/T1.2): 표지 룰 텍스트에 생년월일시(입력) 원문이 들어 있어 polish
+        # 로 넘기면 API 전송된다(절대규칙 17 위반). 표지는 정형 메타라 윤문 이득도 0 → 룰 원문 사용.
+        if use_llm and not rule_violations and sid not in _STATIC_OK and sid != "cover":
             # 해석 챕터 = 병렬 생성분(compose), 그 외 = 윤문(polish). 무키/룰백엔드면 변화 없음.
             if sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
                 cand = cand_map.get(sid, rule_text)
             else:
-                cand = llm_polish.polish(rule_text, title)
+                # mask_civil: 만약 다른 섹션에 생년월일이 섞여도 전송 전 마스킹(방어겹).
+                cand = llm_polish.polish(
+                    rule_text, title, mask_civil=getattr(saju, "input_civil", None)
+                )
             llm_changed = bool(cand) and cand != rule_text  # 정규화 '이전'에 판정
             if cand and llm_changed:
                 cand = _strip_artifacts(cand)  # 섹션 제목 누출 등 메타 제거
