@@ -122,6 +122,8 @@ def create_order(
                 "product": product,
                 "concern": concern or "",
                 "brand": _required_brand_name(brand),
+                # 윤달 고지(자미 15일 분할법, 절대규칙5) — 음력 윤달생만(T4.4)
+                "is_leap": bool(leap and lunar),
             },
             "normalize_warnings": warnings,
         },
@@ -172,6 +174,7 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                 product=p.get("product", "integrated"),
                 concern=p.get("concern") or None,
                 brand=_required_brand_name(p.get("brand")),
+                is_leap=bool(p.get("is_leap")),
             )
         except Exception as e:  # 생성 실패 — 상태는 그대로(재시도 가능), 감사만 기록
             # 예외 문자열에 생년월일이 섞여 audit_log(영속)에 남지 않도록 마스킹(T1.3/E-2).

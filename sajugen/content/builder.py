@@ -97,6 +97,7 @@ def build_report(
     product: str = "integrated",
     concern: str | None = None,
     closing_sign: str | None = None,
+    is_leap: bool = False,
 ) -> Report23:
     # 기준 연도 방어(2026-06-12 버그: ref_year 미전달 시 골격이 seun 첫 해(과거)를
     # '기준 해'로 폴백 → LLM이 "지금은 2025년" 오서술). 우선순위:
@@ -192,6 +193,7 @@ def build_report(
         concern_category=category.value,
         concern_text=concern,
         closing_sign=closing_sign,
+        is_leap=is_leap,
     )
     drop = set(_PRODUCT_DROP.get(product, set()))
     if unknown_time:

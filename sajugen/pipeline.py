@@ -61,6 +61,7 @@ def generate(
     product: str = "integrated",
     concern: str | None = None,
     brand: str | None = None,
+    is_leap: bool = False,
 ) -> GenResult:
     saju = engine.build(
         year,
@@ -100,6 +101,7 @@ def generate(
         product=product,
         concern=concern,
         closing_sign=bp.get("closing_sign"),
+        is_leap=is_leap,
     )
     pdf_path = render_pdf.render_pdf(
         report, saju, out_name, age=age, name=name, unknown_time=unknown_time, brand=bp

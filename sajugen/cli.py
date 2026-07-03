@@ -29,7 +29,8 @@ def gen(
     concern: str = typer.Option(None, help="고객 고민/질문(선택). 분류 -> 맞춤 안내 섹션"),
     product: str = typer.Option("integrated", help="상품: integrated|myeongni|ziwei"),
     brand: str = typer.Option(
-        "sajudoryeong", help="브랜드: 프리셋 키(sajudoryeong/seodam/default) 또는 임의 문구(그 문구로 표기)"
+        "sajudoryeong",
+        help="브랜드: 프리셋 키(sajudoryeong/seodam/default) 또는 임의 문구(그 문구로 표기)",
     ),
     out: str = typer.Option("saju_report.pdf", help="출력 파일명"),
 ) -> None:
@@ -71,6 +72,7 @@ def gen(
         product=product,
         concern=concern,
         brand=brand,
+        is_leap=bool(leap and lunar),  # 윤달 고지(자미 15일 분할법)는 음력 윤달생만
     )
 
     typer.echo(f"사주팔자: {r.bazi}")

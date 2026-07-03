@@ -689,35 +689,51 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
 
     if has_house:
         topics.append("집과 이사")
-        detail_parts.append("집은 마음이 끌리는 곳보다 생활 거리와 실제 버틸 힘을 먼저 보아야 합니다.")
+        detail_parts.append(
+            "집은 마음이 끌리는 곳보다 생활 거리와 실제 버틸 힘을 먼저 보아야 합니다."
+        )
     if has_region:
         topics.append("김포와 계양 같은 지역 비교")
-        detail_parts.append("지역은 이름보다 낮과 저녁의 동선, 병원과 장보기, 주변 사람의 도움을 같이 확인해야 합니다.")
+        detail_parts.append(
+            "지역은 이름보다 낮과 저녁의 동선, 병원과 장보기, 주변 사람의 도움을 같이 확인해야 합니다."
+        )
     if has_group:
         label = "청마로타리클럽 창립" if ("청마" in text and "로타리" in text) else "모임 창립"
         topics.append(label)
         detail_parts.append("모임 창립은 역할과 돈 관리를 작게 나누어 시작해야 오래 갑니다.")
     if has_helper:
         topics.append("도움을 주겠다는 사람의 신뢰")
-        detail_parts.append("사람의 호의는 받되 큰돈과 명의, 계약 판단은 직접 확인하는 선을 두어야 합니다.")
+        detail_parts.append(
+            "사람의 호의는 받되 큰돈과 명의, 계약 판단은 직접 확인하는 선을 두어야 합니다."
+        )
     if has_contract:
         topics.append("계약과 돈의 확인")
         detail_parts.append("계약은 말보다 서류, 가격, 잔금, 명의를 먼저 보아야 손해를 줄입니다.")
     if has_land_asset and "땅과 자산" not in topics:
         topics.append("땅과 자산")
-        detail_parts.append("땅과 자산은 값이 오르는 말보다 개발 계획, 세금, 명의, 현금화 시점을 함께 보아야 합니다.")
+        detail_parts.append(
+            "땅과 자산은 값이 오르는 말보다 개발 계획, 세금, 명의, 현금화 시점을 함께 보아야 합니다."
+        )
     if has_children:
         topics.append("자식복")
-        detail_parts.append("자식복은 자식이 잘되는지보다 서로 의지가 되는 거리와 간섭을 줄이는 방식을 함께 보아야 합니다.")
+        detail_parts.append(
+            "자식복은 자식이 잘되는지보다 서로 의지가 되는 거리와 간섭을 줄이는 방식을 함께 보아야 합니다."
+        )
     if has_danger:
         topics.append("위험한 시점")
-        detail_parts.append("위험한 시점은 큰돈, 보증, 명의 이전, 무리한 확장을 한꺼번에 겹치지 않게 나누어 보는 것이 핵심입니다.")
+        detail_parts.append(
+            "위험한 시점은 큰돈, 보증, 명의 이전, 무리한 확장을 한꺼번에 겹치지 않게 나누어 보는 것이 핵심입니다."
+        )
     if has_work and not has_group:
         topics.append("직업과 역할 변화")
-        detail_parts.append("이직과 일의 변화는 지금 당장 옮기는 결론보다 맡을 역할과 오래 버틸 조건을 먼저 보아야 합니다.")
+        detail_parts.append(
+            "이직과 일의 변화는 지금 당장 옮기는 결론보다 맡을 역할과 오래 버틸 조건을 먼저 보아야 합니다."
+        )
     if has_income:
         topics.append("수입과 지출의 흐름")
-        detail_parts.append("수입은 들어오는 돈만 보지 말고 새는 돈과 고정 지출을 함께 줄여야 남습니다.")
+        detail_parts.append(
+            "수입은 들어오는 돈만 보지 말고 새는 돈과 고정 지출을 함께 줄여야 남습니다."
+        )
 
     return {"topics": topics, "detail": " ".join(detail_parts)}
 
@@ -866,6 +882,7 @@ def build_all(
     concern_category: str | None = None,
     concern_text: str | None = None,
     closing_sign: str | None = None,
+    is_leap: bool = False,
 ) -> dict[str, str]:
     m, z, x = saju.myeongni, saju.ziwei, saju.crosscheck
     # 호명 = 성 제외('김수하'→'수하님'), '당신' 금지(운영자 지시 2026-06-12).
@@ -1363,6 +1380,14 @@ def build_all(
             if sp is bp or z.soul_palace == z.body_palace
             else ""
         )
+        + (
+            # 윤달 산입 기준 고지(절대규칙 5) — 자미두수 15일 분할법. 자미 섹션에만 넣어
+            # 실제로 이 기준이 적용된 리포트에서만 고지된다(명리 단독/시진불명은 자미 미표시).
+            " 신청하신 생일이 윤달이라, 자미두수 명반은 15일 분할법으로 산입했습니다"
+            "(음력 1~15일생은 그 달, 16일 이후는 다음 달을 기준으로 봅니다)."
+            if is_leap
+            else ""
+        )
     )
 
     key_para = []
@@ -1505,9 +1530,7 @@ def build_all(
     _cc = concern_category or "전반"
     _domain = _CONSULT_DOMAIN.get(_cc, _CONSULT_DOMAIN["전반"])
     _near_label = (
-        f"{ref_year}년 하반기부터 {ref_year + 1}년 상반기까지"
-        if ref_year
-        else "앞으로 1년 안"
+        f"{ref_year}년 하반기부터 {ref_year + 1}년 상반기까지" if ref_year else "앞으로 1년 안"
     )
     _ctx = _consult_context(concern_text)
     _ctx_topics = list(_ctx["topics"])
@@ -1516,7 +1539,9 @@ def build_all(
     _love_focus_kind = _love_focus(concern_text)
     T["concern_snapshot"] = ""
     if _cc == "연애":
-        T["concern_snapshot"] = _love_snapshot_text(_love_focus_kind, _near_label, _love_detail, nm_pfx)
+        T["concern_snapshot"] = _love_snapshot_text(
+            _love_focus_kind, _near_label, _love_detail, nm_pfx
+        )
     elif _ctx_topics:
         _snapshot_label = _concern_snapshot_label(_ctx_topics)
         T["concern_snapshot"] = (
