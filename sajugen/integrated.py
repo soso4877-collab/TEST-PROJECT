@@ -282,18 +282,30 @@ def _save_integrated_content(
     brand: str,
     out_name: str,
     out_dir: str | Path | None,
+    ref_date: str | None = None,
+    premium: bool = True,
+    model: str | None = None,
+    layout_variant: dict | None = None,
 ) -> str:
     """compose 결과(본문 sections + 렌더/검증 파라미터)를 JSON 으로 영속.
 
     레이아웃/템플릿만 바꿔 재렌더할 때 재compose(LLM 과금) 없이 이 파일로 재렌더한다
     (2026-07-02). 고객 PII(이름·상황·본문)를 포함하므로 gitignore 대상 render/out 에만
-    저장하고 채팅/커밋에 노출하지 않는다."""
+    저장하고 채팅/커밋에 노출하지 않는다.
+
+    T5.3/B-6·B-7: 재렌더 재현성·이력 메타(ref_date·premium·model·layout_variant)를 스키마에
+    추가한다. 읽기 측은 전부 하위호환 기본값을 쓰므로 이 필드 없는 구 파일도 그대로 로드된다."""
     identity = result["identity"]
     bundle = {
         "product": PRODUCT,
         "receiver": result["receiver"],
         "names": [p["name"] for p in result["people"]],
         "ref_year": ref_year,
+        # T5.3: 검증 기준일·프리미엄·작성 모델·확정 레이아웃 변형(재현성/이력).
+        "ref_date": ref_date or f"{ref_year}-06-13",
+        "premium": bool(premium),
+        "model": model or "rule",
+        "layout_variant": layout_variant,  # 렌더 후 확정 변형(초기 저장 시 None)
         "situation": situation,
         "brand": brand,
         "role_perspective": result["role_perspective"],
@@ -426,6 +438,11 @@ def render_integrated_from_content(
         "verify": verify_result,
         "layout_attempts": attempts,
         "content_path": str(content_path),
+        # T5.3 provenance — 구 content.json(필드 없음)은 하위호환 기본값으로 로드.
+        "ref_date": data.get("ref_date", f"{data.get('ref_year', 2026)}-06-13"),
+        "premium": data.get("premium", True),
+        "model": data.get("model", "rule"),
+        "layout_variant": data.get("layout_variant"),
     }
 
 
@@ -500,15 +517,19 @@ def build_integrated_full(
         return result
 
     # 재compose 없이 재렌더할 수 있도록 compose 결과를 영속(2026-07-02) — 레이아웃/템플릿 변경이
-    # API 과금(재compose)을 강제하지 않게 한다.
-    _save_integrated_content(
-        result,
+    # API 과금(재compose)을 강제하지 않게 한다. 렌더 전에 먼저 저장(렌더 실패해도 재compose 방지).
+    model = cfg.llm_model("compose") if use_llm else "rule"
+    _save_kwargs = dict(
         situation=situation,
         ref_year=ref_year,
         brand=brand,
         out_name=out_name,
         out_dir=out_dir,
+        ref_date=f"{ref_year}-06-13",
+        premium=True,
+        model=model,
     )
+    _save_integrated_content(result, **_save_kwargs)
     pdf_path, verify_result, attempts = _render_integrated(
         report,
         names=names,
@@ -524,6 +545,17 @@ def build_integrated_full(
     result["layout_attempts"] = attempts
     result["pdf_path"] = pdf_path
     result["verify"] = verify_result
+    # 확정 레이아웃 변형을 content.json 이력에 반영해 재저장(재현성, T5.3) — 게이트 통과분만.
+    won = next((a for a in reversed(attempts) if a.get("gate_pass")), None)
+    if won is not None:
+        _save_integrated_content(
+            result,
+            **_save_kwargs,
+            layout_variant={
+                "body_font_size": won.get("body_font_size"),
+                "body_line_height": won.get("body_line_height"),
+            },
+        )
     return result
 
 
