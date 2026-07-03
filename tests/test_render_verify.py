@@ -210,3 +210,27 @@ def test_verify_singang_backcompat_no_spec():
     path = _render_sections(secs, "test_h1532_backcompat.pdf")
     r = v.verify(path)  # singang 미전달
     assert r["singang_role_clean"] is True
+
+
+# ───────────────── T3.2/B-2: 실렌더 결함주입 회귀(기하 게이트) ─────────────────
+def test_real_render_inset_loss_fails_gate(monkeypatch):
+    # 실 PDF 로 기하 게이트를 검증하는 첫 회귀(그동안 합성 fake doc 만 존재).
+    # .body 인셋(max-width) 무효화 → 본문이 콘텐츠박스를 대칭으로 채움(20/20) → body_inset_lost
+    # → gate_pass=False. 좌우 여백은 대칭이라 margin_asymmetry 로는 못 잡던 사각이다.
+    long_body = "이 사람은 생활의 속도를 고르게 잡고 하루를 차분히 이어 갑니다. " * 40
+    secs = [_sn("a", "결", long_body), _sn("b", "흐름", long_body)]
+
+    # 정상 렌더 → 인셋 결함 0(false fail 0).
+    ok_path = _render_sections(secs, "test_t32_ok.pdf")
+    r_ok = v.verify(ok_path)
+    assert all(h["kind"] != "body_inset_lost" for h in r_ok["layout_geometry_hits"]), r_ok[
+        "layout_geometry_hits"
+    ]
+
+    # 결함 주입 — 단일 소스 상수(pdf._BODY_MAXW_MM)를 페이지폭 이상으로 올려 max-width 무효화.
+    monkeypatch.setattr(render_pdf, "_BODY_MAXW_MM", 999.0)
+    bad_path = _render_sections(secs, "test_t32_inset_lost.pdf")
+    r_bad = v.verify(bad_path)
+    kinds = {h["kind"] for h in r_bad["layout_geometry_hits"]}
+    assert "body_inset_lost" in kinds, r_bad["layout_geometry_hits"]
+    assert r_bad["gate_pass"] is False

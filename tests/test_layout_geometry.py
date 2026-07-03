@@ -100,3 +100,39 @@ def test_vertical_within_margin_is_clean():
     pages_text = _pages("본문 가" * 20)
     hits = V._layout_geometry_hits(pages_text, [[], ok_v], [_A4, _A4])
     assert all(h["kind"] != "vertical_overflow" for h in hits), hits
+
+
+def test_body_inset_lost_symmetric_widen_is_flagged():
+    # T3.2(2): 대칭 인셋 상실(.body max-width 무효 → 콘텐츠박스 20/20 채움). 좌우 여백은
+    # 대칭이라 margin_asymmetry 가 구조상 못 잡는 사각 — 칼럼폭(≈170mm)으로 body_inset_lost 검출.
+    # x0=56.7pt(좌20mm), x1=538.3pt(우20mm) → 폭 ≈170mm > 임계 158mm.
+    inset = _blocks(56.7, 538.3)
+    hits = V._layout_geometry_hits(_pages("본문 가" * 20), [[], inset], [_A4, _A4])
+    kinds = {h["kind"] for h in hits}
+    assert "body_inset_lost" in kinds, hits
+    assert "margin_asymmetry" not in kinds  # 대칭이므로 비대칭 아님(이걸 못 잡던 사각)
+    # PII-free: 폭 수치만.
+    assert all(
+        set(h) <= {"page", "kind", "width_mm", "maxw_mm"}
+        for h in hits
+        if h["kind"] == "body_inset_lost"
+    )
+
+
+def test_centered_body_width_is_not_inset_lost():
+    # 정상 중앙정렬 칼럼(폭 ≈147mm ≈ maxw 148) → body_inset_lost 없음(false fail 0).
+    sym = _blocks(88.0, 505.0)
+    hits = V._layout_geometry_hits(
+        _pages("본문 가" * 20, "본문 나" * 20), [[], sym, sym], [_A4, _A4, _A4]
+    )
+    assert all(h["kind"] != "body_inset_lost" for h in hits), hits
+
+
+def test_left_pin_is_asymmetry_not_inset_lost():
+    # 좌쏠림(20/42)은 칼럼폭이 여전히 maxw(≈148) → body_inset_lost 아님, margin_asymmetry 로 잡힘.
+    # 두 결함 종류가 겹치지 않고 분리됨을 확인(인셋 상실 vs 쏠림).
+    asym = _blocks(57.0, 474.0)  # 폭 (474-57)/_PT ≈147mm, 좌20/우42
+    hits = V._layout_geometry_hits(_pages("본문 가" * 20), [[], asym], [_A4, _A4])
+    kinds = {h["kind"] for h in hits}
+    assert "margin_asymmetry" in kinds, hits
+    assert "body_inset_lost" not in kinds, hits

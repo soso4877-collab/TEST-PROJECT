@@ -15,6 +15,8 @@ from collections import Counter
 
 import fitz
 
+from . import layout
+
 MIN_TEXT_CHARS = 1500  # 통이미지면 ~0 → 이 기준으로 결함 차단
 
 # 렌더 후 마크다운 누출 탐지(궁합 PDF '---'·'**' 본문 인쇄 실사고 2026-06-14).
@@ -210,12 +212,18 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
 # 차이에 취약하므로 결정론적 bbox 기하를 쓴다. 검출: (a) 좌우 여백 비대칭(칼럼 쏠림),
 # (b) 콘텐츠박스 밖 넘침. 표지·목차·부록·짧은/장식 페이지는 스코프 제외(오탐 방지).
 _PT_PER_MM = 72.0 / 25.4
-_PAGE_LR_MARGIN_MM = 20.0  # @page left/right (pdf._PAGE_MARGIN 과 동기 — 변경 시 함께 갱신)
-_PAGE_TB_MARGIN_MM = 22.0  # @page top/bottom (pdf._PAGE_MARGIN 과 동기) — 세로 넘침 검사(T3.2/B-2)
+# 레이아웃 상수 단일 소스(render/layout.py) — pdf.py @page·본문폭과 동일 값 참조(T3.2/B-2).
+_PAGE_LR_MARGIN_MM = layout.PAGE_MARGIN_MM["left"]  # @page left/right
+_PAGE_TB_MARGIN_MM = layout.PAGE_MARGIN_MM["top"]  # @page top/bottom — 세로 넘침 검사
+_BODY_MAXW_MM = layout.BODY_MAXW_MM  # .body max-width — 기대 칼럼폭·좌단 파생 기준
 _MARGIN_ASYMMETRY_MM = (
     10.0  # 좌우 여백 차 관용치(= 칼럼중심 5mm 오프셋). 중앙정렬≈0=통과, 쏠림 버그(≈22mm)=탐지
 )
 _OVERFLOW_EPS_MM = 3.0  # 콘텐츠박스 경계 넘침 허용 epsilon
+# 본문 칼럼폭이 기대폭(BODY_MAXW_MM)보다 이만큼 넓으면 인셋 상실(max-width 무효) = 대칭 넓힘.
+# margin_asymmetry 는 대칭 결함을 구조상 못 잡는다(좌우 여백 동일) → 칼럼폭으로 검출.
+# 실측: 정상 중앙정렬 칼럼폭 ≈147.5mm, 인셋 상실 시 콘텐츠박스 채움 ≈170mm → 관용치 10mm(임계 158mm)로 분리.
+_BODY_INSET_TOL_MM = 10.0
 _GEOM_MIN_BLOCKS = 6  # 본문형 페이지 최소 텍스트 블록(표지/짧은/장식 페이지 오탐 제외)
 
 
@@ -286,6 +294,20 @@ def _layout_geometry_hits(
                     "kind": "content_overflow",
                     "left_mm": round(left_mm, 1),
                     "right_mm": round(right_mm, 1),
+                }
+            )
+        # 본문 인셋(max-width) 상실 = 대칭 넓힘 — 좌우 여백은 그대로 대칭이라(예 20/20)
+        # margin_asymmetry·content_overflow 모두 통과하던 사각. 기대 칼럼폭(BODY_MAXW_MM,
+        # 중앙정렬)보다 관용치 이상 넓으면 인셋 상실로 검출(20mm 콘텐츠박스 고정이 아니라
+        # (페이지폭-maxw)/2 파생과 정합 — pdf.py 와 단일 소스).
+        col_width_mm = (x1 - x0) / _PT_PER_MM
+        if col_width_mm > _BODY_MAXW_MM + _BODY_INSET_TOL_MM:
+            hits.append(
+                {
+                    "page": page,
+                    "kind": "body_inset_lost",
+                    "width_mm": round(col_width_mm, 1),
+                    "maxw_mm": round(_BODY_MAXW_MM, 1),
                 }
             )
         # 세로(상하) 넘침 — 블록 y 가 @page 상/하 margin 밖(상단 잘림·하단 오버플로) (B-2/T3.2).

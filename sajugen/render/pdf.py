@@ -18,15 +18,17 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from playwright.sync_api import sync_playwright
 
 from . import charts
+from . import layout
 
 _DIR = os.path.dirname(__file__)
 _OUT = os.path.join(_DIR, "out")
 # 번들 폰트(SIL OFL) 디렉터리 → @font-face file:/// 절대경로. Chromium 이
 # PDF 생성 시 사용 글리프만 서브셋 임베드(PDF/UA 7.1-3 개선·결정론).
 _FONT_DIR = "file:///" + os.path.join(_DIR, "fonts").replace("\\", "/")
-# 페이지 마진 단일 소스 — @page CSS(Jinja 주입)와 pg.pdf margin이 같은 상수를 쓴다
-# (render.md: 둘은 반드시 동기화).
-_PAGE_MARGIN = {"top": "22mm", "bottom": "22mm", "left": "20mm", "right": "20mm"}
+# 페이지 마진·본문폭 단일 소스(render/layout.py) — @page CSS(Jinja 주입)·pg.pdf margin·
+# verify 기하 게이트가 같은 상수를 쓴다(render.md: 반드시 동기화).
+_PAGE_MARGIN = {k: f"{v:g}mm" for k, v in layout.PAGE_MARGIN_MM.items()}
+_BODY_MAXW_MM = layout.BODY_MAXW_MM
 # 한지 배경(낙관 합성, assets/make_assets.py 산출). CSS 캔버스 배경은 Chromium
 # print에서 마진 영역·마지막 페이지가 칠해지지 않는 것을 실측(2026-06-12)
 # → PyMuPDF 언더레이(전 페이지·XObject 1회 임베드)로 풀블리드 적용.
@@ -102,6 +104,7 @@ def render_html(
         title="사주풀이 결과지",
         font_dir=_FONT_DIR,
         page_margin_css=_PAGE_MARGIN_CSS,
+        body_maxw_mm=f"{_BODY_MAXW_MM:g}",
         brand_title=brand_profile["cover_title"],
         brand_seal=brand_profile["seal"],
         cover_name=_clean_cover_text(f"{name} 님") if name else "",

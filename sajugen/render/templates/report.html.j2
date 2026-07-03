@@ -32,7 +32,7 @@
     --lh-tight:1.32;
     --ls:0;
     --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;
-    --maxw:148mm}
+    --maxw:{{ body_maxw_mm | default('148') }}mm}
   *{box-sizing:border-box}
   @page{size:A4;margin:{{ page_margin_css }}}
   /* 배경은 PDF 후처리 언더레이(한지 텍스처) — 여기서 칠하면 텍스처를 가린다 */
