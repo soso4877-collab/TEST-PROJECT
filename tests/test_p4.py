@@ -52,9 +52,16 @@ def test_fonts_embedded_and_tagged(rendered_pdf):
 
 
 def test_selectable_known_facts_end_to_end(rendered_pdf):
-    # 계산된 간지가 PDF에서 '선택 가능한 텍스트'로 추출되는지(종단 증명)
-    _, v, _, _ = rendered_pdf
-    assert v["contains_known_ganzhi"] is True
+    # 계산된 간지가 PDF에서 '선택 가능한 텍스트'로 추출되는지(종단 증명).
+    # (구 verify.contains_known_ganzhi 필드 = P4 고정샘플 己卯/戊午 센티넬이라 B-8 로 제거 —
+    #  일반 리포트엔 무의미했음. 이 P4 스모크 체크만 인라인 유지. 일반 간지-존재 게이트는 T4.1 후보.)
+    import fitz
+
+    pdf, _, _, _ = rendered_pdf
+    doc = fitz.open(pdf)
+    text = "".join(doc.load_page(i).get_text() for i in range(doc.page_count))
+    doc.close()
+    assert any(t in text for t in ("己卯", "戊午", "기묘", "무오")), "계산 간지 텍스트 미추출"
 
 
 def test_render_gate_pass(rendered_pdf):

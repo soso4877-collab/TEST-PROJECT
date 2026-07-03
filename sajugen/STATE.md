@@ -3,10 +3,12 @@
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
 >   진행 상태: **Phase 1 완료 · Phase 2 완료 · Phase 3 진행 중**(T3.1·T3.2·T3.3·T3.4 완료, **T3.5만 남음**).
->   ★ 다음 작업 = Phase 3 마지막 **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단, 장 22개 합성
->       케이스로 1페이지 유지 증명) + 목차 판정 이중기준(_customer_body_page_items <400자 vs _low_density
->       "목차" 포함) 단일 헬퍼 통일 + 죽은 필드 결정(B-8): contains_known_ganzhi + verify 미사용 파라미터
->       role_perspective·honorific(T3.3 확인) 편입/제거. 정상/결함 양방 회귀(완화 0).
+>   ★ 다음 작업 = Phase 3 마지막 **T3.5**[B-4+B-5] 남은 2건: (a) 목차 재넘침 방어(장>18 동적 축소/2단,
+>       장 22개 합성 케이스로 1페이지 유지 증명), (b) 목차 판정 이중기준(_customer_body_page_items <400자 vs
+>       _low_density "목차" 포함) 단일 헬퍼 통일. 정상/결함 양방 회귀(완화 0).
+>       [B-8 완료 커밋 예정] 죽은 필드 결정 소진: contains_known_ganzhi 제거(P4 센티넬, 게이트 아닌 보고필드
+>       라 완화 아님; P4 스모크는 test_p4 인라인화). role_perspective/honorific/singang 은 **죽은 필드 아님**
+>       (integrated_full 활성 게이트 — 위 T3.3 스펙 정정 참조). 일반 간지-존재 게이트는 T4.1 후보로 이월.
 >     상세 = 아래 'Phase 3' 블록 + roadmap T3.5.
 >   기준선: `tests/ 483 passed / 3 skipped`(479+4), 골든 22건·parity 100건 불변·오차단 0·veraPDF 신규 clause 0.
 >     HEAD=커밋 7e93c24(로컬, push 안 함). 브랜치 codex/gunghap-relationship-quality.
@@ -105,10 +107,13 @@
 >       draft(pipeline.generate)와 동일 인자(ref_year/ref_date/names/identity)로 verify 호출.
 >       **재계산 무드리프트 근거**: create_order 가 정규화 양력 y/m/d 를 gen_params 에 영속 + engine.build
 >       결정론 → 재계산 day_master 는 본문 빌드 시점과 바이트 동일(스펙/본문 드리프트 불가).
->     - **[스펙 정정, advisor]** singang=궁합 전용(gunghap 이 넘김). **role_perspective/honorific 은 어떤
->       호출자도(궁합 포함) 안 넘기는 죽은 verify 파라미터** — 궁합은 호칭을 텍스트 정규화로 강제(verify
->       파라미터 미사용). 개인 경로 None 은 정답(단일 호명·관계역할 없음). 죽은 두 파라미터 편입/제거 결정은
->       T3.5/B-8 소관(여기서 복원 대상 아님). 로드맵 원안의 '5종 no-op'은 부정확 — 개인 경로 실공백=2종(identity+names).
+>     - **[스펙 정정 — 2차 실측이 1차 정정을 뒤집음]** T3.3 당시 'role_perspective/honorific=아무도 안
+>       넘기는 죽은 파라미터, singang=궁합 전용' 기록은 **오류**였다(grep 이 gunghap+order_flow 만 봐
+>       integrated.py 누락). T3.5 B-8 착수 시 전수 grep 으로 정정: **integrated.py(integrated_full 상품)가
+>       role_perspective·honorific·singang 셋 다 verify 로 전달**(라인 359·364-365, role_perspective_specs
+>       파생), gunghap 은 singang(1209) + 호칭 텍스트정규화. 즉 셋 다 다인 상품의 **활성 게이트**(죽은 필드
+>       아님). 개인 경로 None 은 여전히 정답(단일 호명·관계역할·다인 신강 비교 없음). 개인 실공백=identity+names
+>       2종(결론 불변). **T3.3 코드 정상 — 문서만 정정**(advisor 판정: 롤백·재검증 불요).
 >     - **[deviation]** safe_lint·factcheck 재검증 벨트를 verify() 내부가 아니라 final_render_fn 에서 r23
 >       섹션(edit_section 과 동일 함수·allow_tokens)에 실행 — verify 는 PDF 추출텍스트(한자정리 등으로 원문과
 >       상이) 기반이라 섹션 final_text 재검증이 드리프트 0. 위반 시 카운트만(match 본문 미노출, T1.3/PII) → 발급 차단.
@@ -120,11 +125,16 @@
 >     측정: 클린 개인 빌드 3종(integrated/myeongni/ziwei) 전 섹션 safe/fact 위반 0(벨트 false-fail 0).
 >     양방 회귀: test_final_render_gate 5건(벨트 safe/fact 차단·PII-free·verify 실패 차단·스펙 복원) +
 >     test_admin_ui approve confirm 409/200 2건. tests/ **479 passed / 3 skipped**(472+7, 회귀 0).
->   ★ Phase 3 남은 태스크(1개 — 신선한 컨텍스트 권장):
->     - **T3.5**[B-4+B-5]: 목차 재넘침 방어(장>18 동적 축소/2단, 장 22개 합성 케이스로 1페이지 유지 증명) +
->       목차 판정 이중기준(_customer_body_page_items <400자 vs _low_density "목차" 포함) 단일 헬퍼 통일 +
->       죽은 필드 결정(B-8): contains_known_ganzhi + verify 미사용 파라미터 role_perspective·honorific
->       (T3.3 확인) 편입/제거. 정상/결함 양방 회귀(완화 0).
+>   [Phase 3 T3.5 B-8 완료 2026-07-03] 죽은 필드 결정 소진(advisor 판정): contains_known_ganzhi 제거
+>     (verify.py:428 P4 고정샘플 己卯/戊午 센티넬 — gate_pass 미편입 보고필드라 일반 리포트엔 무의미·오해
+>     소지. 게이트 아니라 제거=완화 아님). scripts/ 외부노출 0 확인. P4 종단 스모크는 test_p4 인라인화
+>     (추출텍스트에 계산 간지 존재 단언). 일반 '기대 간지 렌더' 게이트는 verify 에 계산 간지 전달 필요=신규
+>     스코프 → T4.1(factcheck 간지) 후보 이월. role_perspective/honorific/singang 은 **활성 게이트라 유지**
+>     (T3.3 스펙 정정 참조). order_flow.py 주석·STATE T3.3 노트 정정 동반.
+>   ★ Phase 3 남은 태스크(T3.5 잔여 — 신선한 컨텍스트 권장):
+>     - **T3.5**[B-4+B-5]: (a) 목차 재넘침 방어(장>18 동적 축소/2단, 장 22개 합성 케이스로 1페이지 유지 증명),
+>       (b) 목차 판정 이중기준(_customer_body_page_items <400자 vs _low_density "목차" 포함) 단일 헬퍼 통일.
+>       정상/결함 양방 회귀(완화 0).
 >   [Phase 2 T2.1 측정 기록(참고)] 자시 정책 fork 를
 >     실측 확정(calc 편집은 컨텍스트 안전 위해 새 세션으로 핸드오프 — advisor 판정). 측정 2건:
 >     (1) lunar-python setSect(1)=일주만 익일·시/월/연주 보존(23:18 → 甲午→乙未, 시주 丙子 불변).

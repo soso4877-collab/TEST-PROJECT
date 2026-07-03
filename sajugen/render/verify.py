@@ -424,8 +424,6 @@ def verify(
         "fonts_embedded": embedded,
         "outline_items": len(toc),
         "tagged": tagged,
-        # 풀이 재설계(2026-06-12)로 본문 간지 표기 = 한글 전용 — 한자/한글 모두 인정
-        "contains_known_ganzhi": any(t in text for t in ("己卯", "戊午", "기묘", "무오")),
     }
     md_hits = markdown_artifacts(text)
     r["markdown_hits"] = md_hits[:20]

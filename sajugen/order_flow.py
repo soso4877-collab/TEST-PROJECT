@@ -316,8 +316,9 @@ def final_render_fn(report: UnifiedReport) -> str:
       해당 게이트가 no-op 였다. draft 시점(pipeline.generate)과 동일하게 gen_params 로
       saju 를 재계산(추가 재렌더 대비 무시할 계산량 — 직렬화 드리프트 0)해 identity/names 를
       복원하고, draft verify 와 동일한 인자(ref_year/ref_date/names/identity)로 최종 게이트를
-      건다. singang/role_perspective/honorific 은 다인(궁합) 전용 게이트라 개인 리포트
-      경로(order_flow)에는 해당 없음(None) — 5종 중 개인 경로 실공백은 identity+names 2종.
+      건다. singang/role_perspective/honorific 은 다인 상품(integrated_full·gunghap) 전용
+      게이트다(integrated.py 가 셋 다 전달; gunghap 은 singang + 호칭 텍스트정규화). 개인 단독
+      리포트(order_flow)에는 의미가 없어 None — 개인 경로 실공백은 identity+names 2종.
     - 안전(§12)·사실(factcheck) 재검증 벨트: 최종 비우회 게이트에 안전·사실 검증이 부재해
       검수 수정분이 재검증 없이 발급될 여지가 있었다. Report23 영속 본문·allow_tokens 로
       섹션별 재검증(edit_section 과 동일 함수). 위반은 카운트만 노출(본문 미노출, T1.3/PII).
