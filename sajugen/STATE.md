@@ -1,5 +1,22 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
+>   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
+>   진행 상태: **Phase 1 완료 · Phase 2 완료 · Phase 3 진행 중**(T3.1 완료 · T3.2 부분 · T3.4 완료).
+>   ★ 다음 작업 = Phase 3 남은 것 3개(신선한 컨텍스트 권장 — 실렌더/게이트 정밀):
+>     - **T3.3**[B-1+G-5] 최종 발급 게이트 완전화(order_flow final_render_fn spec 복원 + safe_lint/factcheck 편입).
+>     - **T3.2 잔여**[B-2] 실렌더 결함주입 회귀(좌쏠림 CSS→FAIL) + 좌단 단일소스화.
+>     - **T3.5**[B-4+B-5] 목차 재넘침 방어 + 목차 판정 단일화.
+>     각 상세 설계 = 아래 'Phase 3' 블록 + roadmap 해당 태스크. 전 태스크 정상/결함 양방 회귀(완화 0).
+>   기준선: `tests/ 472 passed / 3 skipped`, 골든 22건·parity 100건 불변·오차단 0. HEAD=origin(전부 push).
+>     브랜치 codex/gunghap-relationship-quality. 최신 커밋 `69607b9`.
+>   [환경 주의] iztro-py>=0.3.5 필요 — 이 .venv 만 설치됨. 새 환경/CI 는 `pip install -e .` 또는 재설치.
+>   [미결·운영자 판단] (1)T2.1 영향구간=진태양시 23~24시 출생 기존 발송물 재검토, (2)tmp/ PII 임시파일
+>     수동 삭제(rm deny), (3)app.py·scripts/dump_reading.py 미커밋=세션 전 G-10 무관(커밋 방침 T5.8 확인 대기).
+>   [작업 규율] calc/게이트 수정=골든 회귀 동반+양방 테스트. 검증(실측)값으로만 보고. 고객 PII 채팅 비출력.
+>     테스트=`./.venv/Scripts/python.exe -m pytest tests/ -q`. push 는 운영자 지시 시만.
+> =====================================================
+
 > ★ 활성 워크플로우 (2026-07-03 갱신 — 감사 후속 수정 로드맵 실행 중, 이 줄 먼저):
 >   전수 감사(2026-07-03) 후속 수정 로드맵 = `handoff/audit-followup-roadmap.md` (구현 source of truth).
 >   프로토콜: 한 세션 = 한 Phase. Phase 1~5 순차. push 는 운영자 지시 시만.
