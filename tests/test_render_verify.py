@@ -84,6 +84,27 @@ def test_chapter_regex_matches_two_digit_spaced_number():
     assert v._CHAPTER_RX.search("제 17 장")
 
 
+def test_is_toc_page_single_source():
+    # T3.5/B-5: 목차 판정 단일 기준(_customer_body_page_items·_low_density·_orphan 공통).
+    # '목차' 단어 + 상한(400) 미만이면 목차 페이지.
+    assert v._is_toc_page("목차\n제 1 장 사주의 큰 그림")
+    assert v._is_toc_page("목차 " + "가" * 300)  # <400 → 목차
+    assert not v._is_toc_page("목차 " + "가" * 500)  # 상한 이상 → 본문(목차 오분류 방지)
+    assert not v._is_toc_page("본문 페이지에는 그 단어가 없습니다.")  # 미포함
+
+
+def test_toc_criterion_is_unified_across_scanners():
+    # 단일화 회귀: 짧은 목차 넘침 꼬리('목차' 포함, <120)는 세 스캐너 모두에서 목차로 제외.
+    # 저밀도·오펀 둘 다 넘침 목차를 콘텐츠 결함으로 오탐하지 않는다(behavior-preserving 확인).
+    toc_tail = "목차 이어짐 " + "제 5 장 관계의 결"  # '목차' 포함, 짧음
+    pages = ["표지", "제 1 장 " + "가" * 200, toc_tail, "제 2 장 " + "나" * 200, "글을 맺으며"]
+    assert v._low_density_pages(pages) == [], v._low_density_pages(pages)
+    assert v._orphan_pages(pages) == [], v._orphan_pages(pages)
+    # 본문 페이지(목차 미포함, <120)는 계속 저밀도로 잡힘(단일화가 게이트를 약화하지 않음)
+    pages2 = ["표지", "제 1 장 " + "가" * 200, "본문이 너무 짧게 끝납니다.", "글을 맺으며"]
+    assert [h["page"] for h in v._low_density_pages(pages2)] == [3]
+
+
 def test_split_paragraphs_merges_short_tail():
     # '있습니다.' 같은 짧은 마지막 단락은 직전 단락에 합쳐 단독 페이지화 방지
     text = "앞 단락은 충분히 깁니다. 흐름을 이어 갑니다.\n\n있습니다."

@@ -40,7 +40,19 @@ def markdown_artifacts(text: str) -> list[str]:
 
 # orphan(widow) page 검출 — 섹션 말미 짧은 문장이 단독 페이지로 넘어간 경우('있습니다.' p25).
 _ORPHAN_MIN = 40  # 본문 페이지 최소 글자수(이하 & 예외 아니면 orphan 후보)
-_ORPHAN_SKIP = ("목차", "용어 풀이", "글을 맺으며")
+_ORPHAN_SKIP = ("용어 풀이", "글을 맺으며")  # 목차 판정은 _is_toc_page 로 일원화(B-5)
+# 목차 페이지 판정 단일 기준(T3.5/B-5) — 세 스캐너(_customer_body_page_items·_low_density·
+# _orphan)가 같은 규칙을 쓴다. 기존엔 _customer_body_page_items 만 '<400자' 상한을 걸고
+# 나머지는 '목차' 단어만 봐 이중 기준이었다. 단일화: '목차' 단어 + 상한 미만(본문이 '목차'를
+# 언급하는 긴 페이지는 목차로 오분류하지 않음). _low_density(<120)·_orphan(<40)은 이미
+# 그 이상 짧을 때만 이 검사에 도달하므로 상한 400 적용은 동작 불변(순수 단일소스화, 완화 0).
+_TOC_MAX_CHARS = 400
+
+
+def _is_toc_page(text: str) -> bool:
+    return "목차" in text and len(text.strip()) < _TOC_MAX_CHARS
+
+
 # 두 자리 장(제10장~)은 .cnum letter-spacing 으로 "제 1 0 장"처럼 숫자 사이 공백이 추출된다
 # (A-4). \d(?:\s*\d)* 로 자리 사이 공백을 허용 — 문서 후반 장 인식이 비게 되던 사각 복원.
 _CHAPTER_RX = re.compile(r"제\s*\d(?:\s*\d)*\s*장")
@@ -56,7 +68,7 @@ def _orphan_pages(pages_text: list[str]) -> list[dict]:
             continue
         if len(s) >= _ORPHAN_MIN:
             continue
-        if _CHAPTER_RX.search(s) or any(k in s for k in _ORPHAN_SKIP):
+        if _CHAPTER_RX.search(s) or _is_toc_page(s) or any(k in s for k in _ORPHAN_SKIP):
             continue
         # 본문 스니펫(text) 비포함 — hit 이 로그/hverify json 등 외부 표면으로 흐를 때
         # 고객 문장 노출 방지(T1.3/A-3, docs/16 QI 원칙). page/chars 메타만.
@@ -101,7 +113,7 @@ def _customer_body_page_items(pages_text: list[str]) -> list[tuple[int, str]]:
     body: list[tuple[int, str]] = []
     for i, t in enumerate(pages_text):
         is_cover = i == 0
-        is_toc = "목차" in t and len(t.strip()) < 400
+        is_toc = _is_toc_page(t)
         is_appendix = i >= app_idx
         if not (is_cover or is_toc or is_appendix):
             body.append((i + 1, t))
@@ -195,7 +207,7 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
             continue
         if len(s) >= _LOW_DENSITY_MIN:
             continue
-        if any(k in s for k in ("목차", "용어 풀이", _APPENDIX_MARK, "글을 맺으며")):
+        if _is_toc_page(s) or any(k in s for k in ("용어 풀이", _APPENDIX_MARK, "글을 맺으며")):
             continue
         if i + 1 < n and _starts_new_chapter(pages_text[i + 1]) and len(s) >= _CHAPTER_TAIL_MIN:
             # 다음이 새 장 + 꼬리가 정상 조판 분량(>= _CHAPTER_TAIL_MIN) → 면제(콘텐츠 부족 아님).
