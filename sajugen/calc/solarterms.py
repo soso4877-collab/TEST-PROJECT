@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
 
 from skyfield.api import Loader
 
@@ -59,6 +60,7 @@ def _norm(diff: float) -> float:
     return (diff + 180.0) % 360.0 - 180.0
 
 
+@lru_cache(maxsize=None)
 def solar_term_time(year: int, target_lon: float) -> datetime:
     """해당 **그레고리력 연도(year) 안에서** 태양 황경이 target_lon(°)이 되는 UTC 시각.
 
@@ -114,3 +116,24 @@ def month_pillar_branch(dt_utc: datetime) -> tuple[str, str, datetime]:
     prev = [(t, jl) for t, jl in cands if t <= dt_utc.replace(tzinfo=None)][-1]
     jie_name = TERMS[prev[1]]
     return JIE_TO_MONTH_BRANCH[prev[1]], jie_name, prev[0]
+
+
+# 절입 근접 관리자 확인 플래그(T2.2/G-2, 절대규칙 7 후단). 절입 ±이 분 이내 출생은
+# 월주(月柱)·연주(입춘) 경계가 knife-edge라 계산 엔진이 합의해도 관리자 재확인이 필요.
+NEAR_TERM_TOL_MIN = 2.0
+
+
+def minutes_to_nearest_jie(dt_utc: datetime) -> float:
+    """dt_utc(출생 UTC=태양 위치 시점)와 가장 가까운 12節(월건 절입) 시각의 차(분).
+
+    절입 직후/직전 양쪽을 잡는다(입춘 경계 포함). 절입은 태양 겉보기 황경이 목표각이
+    되는 순간(UTC)이므로 출생 UTC 로 비교한다 — 진태양시 보정은 시계 표시일 뿐, 태양의
+    실제 위치는 UTC 시점으로 결정된다(월지 교차검증과 동일 축)."""
+    naive = dt_utc.replace(tzinfo=None)
+    y = naive.year
+    best = float("inf")
+    for yy in (y - 1, y, y + 1):
+        for jl in TWELVE_JIE:
+            t = solar_term_time(yy, jl)
+            best = min(best, abs((naive - t).total_seconds()) / 60.0)
+    return best

@@ -224,12 +224,16 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                     "reasons": list(r.reasons),
                     "crosscheck_warnings": list(r.crosscheck_warnings),
                 },
+                # 절입 ±2분 근접(T2.2/G-2) = 계산 검수 플래그 충전(관리자 화면 near_term_boundary)
+                "calendar_verification": report.calendar_verification.model_copy(
+                    update={"near_term_boundary": bool(r.near_term_boundary)}
+                ),
                 "safety_flags": SafetyFlags(
                     safe_lint_total=int(guard.get("safe_lint_total", 0)),
                     factcheck_total=int(guard.get("factcheck_total", 0)),
                     grounding_ok=bool(guard.get("grounding_ok", True)),
-                    # 게이트 실패·가드 미클린 = 검수 강화 표시(차단 아님 — 최종 발급이 재게이트)
-                    needs_review=not r.ok,
+                    # 게이트 실패·가드 미클린 또는 절입 근접 = 검수 강화 표시(차단 아님 — 최종 발급이 재게이트)
+                    needs_review=(not r.ok) or bool(r.near_term_boundary),
                 ),
             }
         )

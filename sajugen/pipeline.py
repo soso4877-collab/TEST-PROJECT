@@ -39,6 +39,7 @@ class GenResult:
     report: object | None = None  # Report23 (섹션 본문·가드·허용 토큰)
     calc_consistent: bool = True  # 명리↔자미·월지 교차 일치(절대규칙 7 — False 면 주문 차단)
     input_civil: str = ""  # 표지용 시민시각 문자열(최종 재렌더에 필요)
+    near_term_boundary: bool = False  # 절입 ±2분 knife-edge — needs_review 유발(차단 아님, T2.2)
 
 
 def generate(
@@ -143,4 +144,5 @@ def generate(
         report=report,
         calc_consistent=(saju.crosscheck.bazi_consistent and saju.crosscheck.month_branch_ok),
         input_civil=str(saju.input_civil),
+        near_term_boundary=saju.crosscheck.near_term_boundary,
     )

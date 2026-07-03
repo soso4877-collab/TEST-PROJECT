@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from ..input import time_correction as tc
 from . import myeongni as mod_my
+from . import solarterms
 from . import ziwei as mod_zw
 
 
@@ -20,6 +21,7 @@ class CrossCheck(BaseModel):
     bazi_ziwei: str
     month_branch_ok: bool  # lunar ↔ Skyfield 월지
     hour_branch_conflict: bool  # P1 자시정책 ↔ lunar-python 시지
+    near_term_boundary: bool = False  # 절입(월건/입춘) ±2분 knife-edge 출생 — 관리자 확인(T2.2)
     warnings: list[str]
 
 
@@ -78,6 +80,12 @@ def build(
             f"시지 P1정책({my.hour_branch_p1_policy})↔lunar({my.hour.zhi}) 불일치 — 자시 학설 차이(정책 선택 사항)"
         )
 
+    # 절입 ±2분 knife-edge 출생 = 관리자 확인 플래그(T2.2/G-2, 절대규칙 7 후단). 월주/연주
+    # 경계에 근접하면 두 엔진이 합의해도 절입 시각 미세차로 결과가 흔들릴 수 있어 재확인 대상.
+    near_term = solarterms.minutes_to_nearest_jie(ct.utc) <= solarterms.NEAR_TERM_TOL_MIN
+    if near_term:
+        warnings.append("절입 ±2분 근접 출생 — 월주/연주 경계 관리자 확인 필요")
+
     return SajuResult(
         input_civil=ct.civil_local.strftime("%Y-%m-%d %H:%M"),
         true_solar=ct.true_solar.strftime("%Y-%m-%d %H:%M:%S"),
@@ -93,6 +101,7 @@ def build(
             bazi_ziwei=bazi_zw,
             month_branch_ok=my.month_branch_crosscheck_ok,
             hour_branch_conflict=my.hour_branch_conflict,
+            near_term_boundary=near_term,
             warnings=warnings,
         ),
     )
