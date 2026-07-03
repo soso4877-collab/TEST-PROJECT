@@ -10,8 +10,25 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
+
+# regen stderr tail 의 생년월일·시각형 토큰 결정론 레닥션(T5.2/E-5) — hsummary 는 self_civil 이
+# 없어 정밀 마스킹 불가 → 날짜(YYYY-MM-DD/./ )·시각(HH:MM)·8자리 생일형을 보수적으로 가린다.
+_STDERR_PII_RX = re.compile(
+    r"\d{4}[-./]\d{2}[-./]\d{2}"
+    r"|(?<!\d)\d{2}:\d{2}(?!\d)"
+    r"|(?<![\d\-])(?:19|20)\d{6}(?![\d\-])"
+)
+
+
+def _redact_stderr_tail(tail: str | None, limit: int = 800) -> str | None:
+    """regen stderr tail — PII 토큰 레닥션 후 마지막 limit 자만(요약 표면 관측용, T5.2)."""
+    if not tail:
+        return None
+    return _STDERR_PII_RX.sub("[redacted]", str(tail)[-limit:])
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -139,6 +156,9 @@ def _redact_pdf(p: dict) -> dict:
     if p.get("delivery_quality"):
         out["delivery_quality"] = _summarize_delivery_quality(p["delivery_quality"])
     out["daewoon_current"] = p.get("daewoon_current")
+    # 재생성 실패 진단(T5.2/E-5) — PII 레닥션 통과분만 화이트리스트 포함(그동안 드롭되던 관측 갭).
+    if p.get("regen_stderr_tail"):
+        out["regen_stderr_tail"] = _redact_stderr_tail(p["regen_stderr_tail"])
     return out
 
 
@@ -184,8 +204,10 @@ def _summarize_delivery_quality(dq: dict) -> dict:
         "text_chars": dq.get("text_chars"),
         "required_axes": dq.get("required_axes"),
         "missing_axes": dq.get("missing_axes"),
-        "failures": dq.get("failure_messages") or [_delivery_finding(f) for f in dq.get("failures", [])],
-        "warnings": dq.get("warning_messages") or [_delivery_finding(w) for w in dq.get("warnings", [])],
+        "failures": dq.get("failure_messages")
+        or [_delivery_finding(f) for f in dq.get("failures", [])],
+        "warnings": dq.get("warning_messages")
+        or [_delivery_finding(w) for w in dq.get("warnings", [])],
     }
 
 
