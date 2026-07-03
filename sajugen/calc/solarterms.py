@@ -7,15 +7,24 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
 from skyfield.api import Loader
 
+_log = logging.getLogger(__name__)
+
 _loader = Loader(r"C:\Users\pc\test-project\sajugen\assets\ephemeris")
 _eph = _loader("de440s.bsp")
 _ts = _loader.timescale()
 _earth, _sun = _eph["earth"], _eph["sun"]
+
+# de440s.bsp 절기 계산 가능 연도 범위(실측 2026-07-03) — 연말 스캔이 year+1 초까지 보므로
+# 상한은 2149(2150 은 EphemerisRangeError), 하한은 1850(1849 는 연초 스캔 부족). 범위 밖은
+# 천체력 없어 계산 불가 → 명확한 ValueError(모호한 Skyfield EphemerisRangeError 대신, T5.6/F-4).
+_DE440S_MIN_YEAR = 1850
+_DE440S_MAX_YEAR = 2149
 
 # 24절기 황경(°)→이름. 절입(월건) 12節은 below TwelveJie.
 TERMS = {
@@ -68,6 +77,12 @@ def solar_term_time(year: int, target_lon: float) -> datetime:
     피하기 위해 연중 5일 간격 거친 스캔으로 부호변화 구간을 찾은 뒤 이분법 수렴.
     """
 
+    if not (_DE440S_MIN_YEAR <= year <= _DE440S_MAX_YEAR):
+        raise ValueError(
+            f"연도 {year} 는 천체력(de440s) 절기 계산 범위 "
+            f"{_DE440S_MIN_YEAR}~{_DE440S_MAX_YEAR} 밖입니다(계산 불가)"
+        )
+
     def f(dt: datetime) -> float:
         return _norm(_sun_eclon_deg(dt) - target_lon)
 
@@ -83,7 +98,13 @@ def solar_term_time(year: int, target_lon: float) -> datetime:
             bracket = (prev_dt, cur)
             break
         prev_dt, prev_v = cur, v
-    if bracket is None:  # 연초/연말 경계 보정
+    if bracket is None:  # 연초/연말 경계 보정 — 스캔이 부호변화를 못 찾은 이상 상황(경보화, T5.6)
+        _log.warning(
+            "solar_term_time: %d년 황경 %.0f° 브래킷 스캔 실패 → 연초(1/1~1/6) 폴백 "
+            "사용(반환값 부정확 가능, 절입 경계 확인 필요)",
+            year,
+            target_lon,
+        )
         bracket = (datetime(year, 1, 1), datetime(year, 1, 6))
 
     lo, hi = bracket
