@@ -54,7 +54,9 @@ def _orphan_pages(pages_text: list[str]) -> list[dict]:
             continue
         if _CHAPTER_RX.search(s) or any(k in s for k in _ORPHAN_SKIP):
             continue
-        out.append({"page": i + 1, "chars": len(s), "text": s[:30]})
+        # 본문 스니펫(text) 비포함 — hit 이 로그/hverify json 등 외부 표면으로 흐를 때
+        # 고객 문장 노출 방지(T1.3/A-3, docs/16 QI 원칙). page/chars 메타만.
+        out.append({"page": i + 1, "chars": len(s)})
     return out
 
 
@@ -190,7 +192,8 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
         if i + 1 < n and _starts_new_chapter(pages_text[i + 1]):
             # 다음이 새 장 → 이 짧은 페이지는 긴 장의 정상 조판 꼬리(콘텐츠 부족 아님).
             continue
-        out.append({"page": i + 1, "chars": len(s), "text": s[:40]})
+        # 본문 스니펫(text) 비포함 — 외부 표면 노출 방지(T1.3/A-3). page/chars 메타만.
+        out.append({"page": i + 1, "chars": len(s)})
     return out
 
 

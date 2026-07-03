@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 from . import config as cfg
 from . import pipeline
-from .content import factcheck, safe_lint
+from .content import factcheck, masking, safe_lint
 from .content.sections_schema import Report23
 from .input import normalize as norm
 from .input import time_correction as tc
@@ -46,6 +46,13 @@ class _CoverMeta:
     읽는다(render/pdf.py:77 실측). 의존이 늘면 이 클래스와 회귀 테스트를 함께 확장."""
 
     input_civil: str = ""
+
+
+def _required_brand_name(value: object) -> str:
+    name = str(value or "").strip()
+    if not name:
+        raise ValueError("brand is required")
+    return name
 
 
 # ───────────────── 접수(동기) ─────────────────
@@ -113,7 +120,7 @@ def create_order(
                 "unknown_time": unknown_time,
                 "product": product,
                 "concern": concern or "",
-                "brand": brand or "default",
+                "brand": _required_brand_name(brand),
             },
             "normalize_warnings": warnings,
         },
@@ -163,14 +170,19 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                 unknown_time=bool(p.get("unknown_time")),
                 product=p.get("product", "integrated"),
                 concern=p.get("concern") or None,
-                brand=p.get("brand") or None,
+                brand=_required_brand_name(p.get("brand")),
             )
         except Exception as e:  # 생성 실패 — 상태는 그대로(재시도 가능), 감사만 기록
-            st.add_audit(
-                order_id,
-                action="generation_error",
-                note=f"{type(e).__name__}: {str(e)[:200]}",
-            )
+            # 예외 문자열에 생년월일이 섞여 audit_log(영속)에 남지 않도록 마스킹(T1.3/E-2).
+            try:
+                civil = (
+                    f"{int(p['year'])}-{int(p['month']):02d}-{int(p['day']):02d} "
+                    f"{int(p['hour']):02d}:{int(p['minute']):02d}"
+                )
+            except Exception:
+                civil = None
+            note = masking.mask_birth_in_text(f"{type(e).__name__}: {str(e)}", civil)
+            st.add_audit(order_id, action="generation_error", note=note[:200])
             return
 
         if not r.calc_consistent:
@@ -298,7 +310,7 @@ def final_render_fn(report: UnifiedReport) -> str:
     r23 = Report23.model_validate(report.content)
     meta = report.render_meta
     p = meta.get("gen_params", {})
-    bp = cfg.brand(p.get("brand") or None)
+    bp = cfg.brand(_required_brand_name(p.get("brand")))
     pdf_path = render_pdf.render_pdf(
         r23,
         _CoverMeta(input_civil=str(meta.get("input_civil", ""))),

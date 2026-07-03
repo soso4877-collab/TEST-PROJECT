@@ -229,7 +229,31 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         val = _safe_hits(v.get(k) or [])
         out[k + "_count"] = len(v.get(k) or [])
         out[k] = val
-    out["delivery_quality"] = v.get("delivery_quality")
+    # delivery_quality 통째 forward 금지(T1.3/B-3): failures/warnings 내부에 본문 조각
+    # (guarantee match·repetition term·저밀도 스니펫)이 중첩돼 --json stdout/summary.json 으로
+    # 샐 수 있다. hsummary._delivery_finding 과 동일한 rule/메타 화이트리스트만 내보낸다.
+    _dq = v.get("delivery_quality") or {}
+
+    def _safe_finding(f: dict) -> dict:
+        o = {"rule": f.get("rule")}
+        for kk in ("value", "minimum", "axes"):
+            if kk in f:
+                o[kk] = f[kk]
+        if "pages" in f:
+            o["pages_count"] = len(f.get("pages") or [])
+        return o
+
+    out["delivery_quality"] = {
+        "clean": _dq.get("clean"),
+        "premium": _dq.get("premium"),
+        "product": _dq.get("product"),
+        "pages": _dq.get("pages"),
+        "text_chars": _dq.get("text_chars"),
+        "required_axes": _dq.get("required_axes"),
+        "missing_axes": _dq.get("missing_axes"),
+        "failures": [_safe_finding(f) for f in (_dq.get("failures") or [])],
+        "warnings": [_safe_finding(w) for w in (_dq.get("warnings") or [])],
+    }
     # 보조: 외래어 원시 substring(목록은 client_tone_lint.LOANWORDS 재사용 — 정규식 복붙 아님)
     import fitz
 

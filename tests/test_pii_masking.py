@@ -82,3 +82,13 @@ def test_cover_and_birthdate_never_sent_to_llm(monkeypatch):
     assert leaks == [], f"생년월일 전송 누출: {leaks}"
     # 표지(cover)는 어떤 LLM 경로에도 전달되지 않아야(제목에 '결과지' 포함으로 식별)
     assert all("결과지" not in t for _, t, _ in sent), "cover 가 LLM 경로에 노출됨"
+
+
+def test_audit_note_and_delete_reason_mask_birthdate():
+    # T1.3/E-2: audit note·delete reason 이 mask_birth_in_text 로 위임돼 생년월일이 남지 않음
+    civil = "1989-01-02 07:40"
+    note = masking.mask_birth_in_text("ValueError: bad birth 1989-01-02 07:40", civil)
+    assert not _DOB_RX.search(note), note
+    # civil 없이도 8자리 생일형 숫자는 보수적 마스킹(delete reason 경로)
+    assert not _DOB_RX.search(masking.mask_birth_in_text("파기 사유 19890102", None))
+    assert masking.mask_birth_in_text("", None) == ""

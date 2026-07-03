@@ -186,7 +186,12 @@ class OrderStore:
         (order_id·actor·사유·시각만 — reason에 개인정보 기재 금지). audit_log는 별도
         테이블이라 orders 행 삭제 후에도 파기 추적 기록은 보존된다."""
         cur = self.get_state(order_id)  # 존재 확인(없으면 KeyError)
-        self._audit(order_id, actor, "delete", cur, None, note=reason)
+        # docstring 권고를 코드로 강제(T1.3/E-2): reason 에 생년월일이 섞여도 audit 에 남지 않게 마스킹.
+        from ..content import masking
+
+        self._audit(
+            order_id, actor, "delete", cur, None, note=masking.mask_birth_in_text(reason, None)
+        )
         self._conn.execute("DELETE FROM orders WHERE order_id=?", (order_id,))
         self._conn.commit()
 
