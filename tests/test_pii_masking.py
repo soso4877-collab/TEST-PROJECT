@@ -84,6 +84,34 @@ def test_cover_and_birthdate_never_sent_to_llm(monkeypatch):
     assert all("결과지" not in t for _, t, _ in sent), "cover 가 LLM 경로에 노출됨"
 
 
+def test_mask_time_expressions_extended():
+    # T4.3/G-6: 12시간제(오전/오후 H시 M분·H시)·'H시반' 시각 표기도 마스킹.
+    civil = "1989-01-02 07:40"
+    for raw in (
+        "저는 07:40에 태어났어요",
+        "저는 7시 40분에 태어났어요",
+        "오전 7시 40분생입니다",
+        "오전 7시쯤 태어났다고 들었어요",  # 시(hour) 단독
+    ):
+        assert masking._MASK_T in masking.mask_birth_in_text(raw, civil), raw
+
+
+def test_mask_time_no_overmask():
+    # 과다 마스킹 금지: 출생시각(07:40)과 다른 시각·일반 숫자는 보존.
+    civil = "1989-01-02 07:40"
+    for raw in (
+        "오전 7시 15분에 회의가 있어요",  # 다른 분(부분 치환 금지)
+        "오후 3시에 약속이 있습니다",  # 다른 시
+        "7시반에 만나기로 했어요",  # 출생분=40이라 '반' 아님
+        "커피 7잔을 마셨어요",  # 시각 아님
+    ):
+        assert masking._MASK_T not in masking.mask_birth_in_text(raw, civil), raw
+    # 출생분이 30이면 '7시반'은 마스킹, '7시 15분'은 보존
+    c30 = "1990-05-20 07:30"
+    assert masking._MASK_T in masking.mask_birth_in_text("오전 7시반에 태어났어요", c30)
+    assert masking._MASK_T not in masking.mask_birth_in_text("오전 7시 15분 회의", c30)
+
+
 def test_audit_note_and_delete_reason_mask_birthdate():
     # T1.3/E-2: audit note·delete reason 이 mask_birth_in_text 로 위임돼 생년월일이 남지 않음
     civil = "1989-01-02 07:40"

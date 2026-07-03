@@ -41,8 +41,20 @@ def mask_birth_in_text(text: str, self_civil: str | None) -> str:
             for v in variants:
                 text = text.replace(v, _MASK)
             if hh and mi:
+                h, mm = int(hh), int(mi)
+                ap = "오전" if h < 12 else "오후"
+                h12 = h % 12 or 12
+                # 24시간제(기존) + 12시간제 정확 표기(오전 7시 40분) + 콜론형
                 text = text.replace(f"{hh}:{mi}", _MASK_T)
-                text = text.replace(f"{int(hh)}시 {int(mi)}분", _MASK_T)
+                text = text.replace(f"{h}시 {mm}분", _MASK_T)
+                text = text.replace(f"{ap} {h12}시 {mm}분", _MASK_T)
+                # T4.3/G-6: '7시반'(=30분)은 실제 분이 30일 때만(다른 분엔 오마스킹 금지)
+                if mm == 30:
+                    text = re.sub(rf"(?:{ap}\s*)?{h12}시\s*반", _MASK_T, text)
+                    text = re.sub(rf"(?<!\d){h}시\s*반", _MASK_T, text)
+                # T4.3/G-6: '오전 7시'(분 없는 시 단독) — 뒤에 숫자/반이 이어지면 다른 시각이므로
+                # 마스킹 금지('오전 7시 15분' 부분 치환 방지). 출생 시(hour) 단독 언급만 치환.
+                text = re.sub(rf"{ap}\s*{h12}시(?!\s*[\d반])", _MASK_T, text)
     # 남은 8자리 생년월일형 숫자 보수적 치환(연도 19/20 시작 8자리만)
     text = re.sub(r"(?<![\d\-])(19|20)\d{6}(?![\d\-])", _MASK, text)
     return text
