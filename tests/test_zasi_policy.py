@@ -74,3 +74,32 @@ def test_non_zasi_input_unaffected_by_policy():
     jst = engine.build(2000, 1, 1, 12, 0, is_male=True, policy=tc.ZasiPolicy.JST_2300).myeongni
     yaj = engine.build(2000, 1, 1, 12, 0, is_male=True, policy=tc.ZasiPolicy.YAJASI_SPLIT).myeongni
     assert jst.day.ganzhi == yaj.day.ganzhi == "戊午"  # 골든 2000-01-01 일주
+
+
+# ── 자시 축의 두 코드 경로 커버(만자시=setSect / 조자시=base 날짜) + 연속성·경계(advisor) ──
+# 자시 축(진태양시 23:00~01:00)은 하나의 일주여야 한다. 서울 보정(약 -32분) 기준:
+#   만자시 시민 6/11 23:50 → 진태양시 23:18(day_offset=1, setSect 경로) → 일주 6/12=乙未
+#   조자시 시민 6/12 01:20 → 진태양시 00:48(day_offset=0, base 날짜 경로) → 일주 6/12=乙未
+# 두 다른 메커니즘이 같은 일주에 도달해야 연속성이 성립(이중전진/미전진 결함 검출).
+_LATE_ZI = (1999, 6, 11, 23, 50)  # 진태양시 23:18
+_EARLY_ZI = (1999, 6, 12, 1, 20)  # 진태양시 00:48
+_BELOW_ZI = (1999, 6, 11, 23, 20)  # 진태양시 22:48 (자시 전)
+
+
+def test_early_zi_uses_base_date_without_setsect():
+    # 조자시: day_offset=0(setSect 미발동), 일주는 base Solar 날짜(6/12)에서 도출 = 乙未
+    m = engine.build(*_EARLY_ZI, is_male=True, policy=tc.ZasiPolicy.JST_2300).myeongni
+    assert m.day.ganzhi == "乙未", m.day.ganzhi
+
+
+def test_zi_continuity_across_2300_boundary():
+    # 만자시(setSect 경로)와 조자시(base 날짜 경로)가 같은 자시 축 → 동일 일주(연속성)
+    late = engine.build(*_LATE_ZI, is_male=True, policy=tc.ZasiPolicy.JST_2300).myeongni
+    early = engine.build(*_EARLY_ZI, is_male=True, policy=tc.ZasiPolicy.JST_2300).myeongni
+    assert late.day.ganzhi == early.day.ganzhi == "乙未"
+
+
+def test_just_below_zi_boundary_does_not_advance():
+    # 진태양시 22:48(자시 전) → day_offset=0 → 일주 미전진(당일 甲午). 경계 아래 오탐 방지.
+    m = engine.build(*_BELOW_ZI, is_male=True, policy=tc.ZasiPolicy.JST_2300).myeongni
+    assert m.day.ganzhi == "甲午", m.day.ganzhi
