@@ -6,7 +6,8 @@
 >     전수감사 후속) 핵심 전부 소진. ★ 남은 것 = **선택/측정/운영자 항목만**:
 >     - T5.3[B-6+B-7] content.json 스키마 메타(ref_date/premium/layout_variant/모델) 추가 — 하위호환 additive,
 >       기능 필요 시(신규 없음). T5.7[D-2] veraPDF 7.1-3 귀속 측정(언더레이 전/후 staging 비교, 측정만·코드무).
->       T5.8[G-10] scripts/dump_reading.py 미커밋 — 운영자 방침(app.py brand 는 T4.5 에 함께 커밋 완료).
+>       T5.8[G-10] **완료** — app.py brand(T4.5)·scripts/dump_reading.py brand 인자(운영자 지시) 커밋 완료.
+>         작업트리 clean(미커밋 0).
 >       T5.10[C-3] = **무효 max_retries 인자 없음 실측**(instructor create 의 max_retries=0 은 test_sdk_retry_policy
 >       가 단언하는 의도적 재시도차단 벨트, 제거 시 테스트 파괴 — 제거 대상 아님). 모델 업그레이드=톤 A/B 없이 금지.
 >   [Phase 4 T4.5 완료 2026-07-03, 커밋 `83467a2`] /generate 구형경로 PII 제거(E-1) + G-10 brand 필수검증.
