@@ -6,11 +6,15 @@
 
 from __future__ import annotations
 
+import logging
+
 import iztro_py
 from pydantic import BaseModel, Field
 
 from .. import config as _cfg
 from ..input.time_correction import CorrectedTime
+
+_log = logging.getLogger(__name__)
 
 _SIHUA = {"祿": "화록", "權": "화권", "科": "화과", "忌": "화기"}
 
@@ -118,8 +122,11 @@ def build(ct: CorrectedTime, *, is_male: bool, horoscope_date: str | None = None
             yearly = str(hd.get("yearly", {}).get("heavenly_stem", "")) + str(
                 hd.get("yearly", {}).get("earthly_branch", "")
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001
+            # 대한(大限)/유년 조회 실패를 조용히 삼키지 않는다(F-1). decadal/yearly 는 빈값을
+            # 유지하되 원인을 로그로 표면화(파생 연도만 — PII 없음). iztro-py 0.3.5 는 大限/童限
+            # 궁 배정 버그 수정본이라 이 경로가 조용히 잘못된 값을 반환하던 위험도 줄었다.
+            _log.warning("자미 horoscope(%s) 조회 실패: %s", horoscope_date, type(exc).__name__)
 
     return Ziwei(
         solar_date=str(a.solar_date),

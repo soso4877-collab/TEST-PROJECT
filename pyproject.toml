@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 # lunar-python 은 절대규칙 2에 따라 1.4.8 고정(이후 미릴리스, 알려진 이슈 자체 회귀로 커버).
 dependencies = [
     "lunar-python==1.4.8",
-    "iztro-py>=0.3.4",
+    "iztro-py>=0.3.5",  # 0.3.5 = 大限/童限 궁 배정 버그 수정본(T2.4/F-1)
     "skyfield>=1.54",
     "jinja2>=3.1",
     "playwright>=1.59",
