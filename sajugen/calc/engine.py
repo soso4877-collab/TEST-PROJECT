@@ -22,6 +22,7 @@ class CrossCheck(BaseModel):
     bazi_ziwei: str
     month_branch_ok: bool  # lunar ↔ Skyfield 월지
     hour_branch_conflict: bool  # P1 자시정책 ↔ lunar-python 시지
+    year_branch_ok: bool = True  # 입춘 기준 연지 lunar ↔ Skyfield (T2.4/F-2)
     near_term_boundary: bool = False  # 절입(월건/입춘) ±2분 knife-edge 출생 — 관리자 확인(T2.2)
     kasi_consistent: bool = True  # KASI 3원 교차 일치(미지 불일치=False → 차단, T2.3)
     kasi_out_of_range: bool = False  # KASI 캐시 범위 밖/부재 = 2원 폴백(차단 아님, 사실 기록)
@@ -78,6 +79,10 @@ def build(
         warnings.append(
             f"월지 lunar({my.month_branch_lunar})↔Skyfield({my.month_branch_skyfield}) 불일치"
         )
+    if not my.year_branch_crosscheck_ok:
+        warnings.append(
+            f"연지 lunar({my.year_branch_lunar})↔Skyfield({my.year_branch_skyfield}) 불일치 — 입춘 경계"
+        )
     if my.hour_branch_conflict:
         warnings.append(
             f"시지 P1정책({my.hour_branch_p1_policy})↔lunar({my.hour.zhi}) 불일치 — 자시 학설 차이(정책 선택 사항)"
@@ -111,6 +116,7 @@ def build(
             bazi_myeongni=bazi_my,
             bazi_ziwei=bazi_zw,
             month_branch_ok=my.month_branch_crosscheck_ok,
+            year_branch_ok=my.year_branch_crosscheck_ok,
             hour_branch_conflict=my.hour_branch_conflict,
             near_term_boundary=near_term,
             kasi_consistent=kasi_consistent,

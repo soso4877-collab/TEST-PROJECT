@@ -99,6 +99,9 @@ class Myeongni(BaseModel):
     month_branch_crosscheck_ok: bool
     month_branch_lunar: str
     month_branch_skyfield: str
+    year_branch_crosscheck_ok: bool = True  # 입춘 기준 연지 lunar↔Skyfield (F-2)
+    year_branch_lunar: str = ""
+    year_branch_skyfield: str = ""
     hour_branch_p1_policy: str  # P1 진태양시·자시정책 시지
     hour_branch_conflict: bool  # lunar-python 시지와 불일치 여부
     note: str = ""
@@ -192,6 +195,15 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
     lunar_month_zhi = pillars["Month"].zhi
     xcheck_ok = sky_branch == lunar_month_zhi
 
+    # 입춘(315°) 기준 연지 교차검증 (F-2) — 연주 경계(입춘 ±) 사각 해소. 기존엔 연주가
+    # lunar-python 단독 판정(#26 절기시각 이슈 미커버)이었다. 출생이 그 해 입춘 이후면 명리
+    # 연도=그레고리 utc.year, 전이면 year-1. 연지는 60갑자 순환((명리연도-4)%12).
+    ipchun = solarterms.solar_term_time(utc.year, 315)
+    sky_year = utc.year if utc >= ipchun else utc.year - 1
+    sky_year_zhi = "子丑寅卯辰巳午未申酉戌亥"[(sky_year - 4) % 12]
+    lunar_year_zhi = pillars["Year"].zhi
+    year_xcheck_ok = sky_year_zhi == lunar_year_zhi
+
     hour_conflict = ct.hour_branch != pillars["Time"].zhi
 
     # 심화 계산 (결정론; 세운/월운은 lunar-python 출력 노출)
@@ -234,6 +246,9 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
         month_branch_crosscheck_ok=xcheck_ok,
         month_branch_lunar=lunar_month_zhi,
         month_branch_skyfield=sky_branch,
+        year_branch_crosscheck_ok=year_xcheck_ok,
+        year_branch_lunar=lunar_year_zhi,
+        year_branch_skyfield=sky_year_zhi,
         hour_branch_p1_policy=ct.hour_branch,
         hour_branch_conflict=hour_conflict,
         note=("월지 lunar↔Skyfield 불일치 — 절입 경계 재검토 필요" if not xcheck_ok else ""),

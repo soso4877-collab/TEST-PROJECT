@@ -132,6 +132,8 @@ def generate(
         reasons.append("명리↔자미 사주팔자 불일치")
     if not saju.crosscheck.month_branch_ok:
         reasons.append("월지 lunar↔Skyfield 불일치")
+    if not saju.crosscheck.year_branch_ok:
+        reasons.append("연지 lunar↔Skyfield 불일치(입춘 경계)")
     if not saju.crosscheck.kasi_consistent:
         reasons.append("KASI 3원 교차 미지 불일치(절입 시각)")
 
@@ -147,6 +149,7 @@ def generate(
         calc_consistent=(
             saju.crosscheck.bazi_consistent
             and saju.crosscheck.month_branch_ok
+            and saju.crosscheck.year_branch_ok
             and saju.crosscheck.kasi_consistent
         ),
         input_civil=str(saju.input_civil),
