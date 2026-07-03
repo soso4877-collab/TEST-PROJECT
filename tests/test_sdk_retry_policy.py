@@ -49,12 +49,14 @@ def _install_instructor(monkeypatch, *, response=None, error: Exception | None =
                 raise error
             return response
 
-    def from_anthropic(client):
-        wrapped = types.SimpleNamespace(messages=_Messages(), raw_client=client)
+    def from_anthropic(client, mode=None):  # T5.4: classify 가 mode= 를 명시
+        wrapped = types.SimpleNamespace(messages=_Messages(), raw_client=client, mode=mode)
         wrapped_clients.append(wrapped)
         return wrapped
 
     fake.from_anthropic = from_anthropic
+    # T5.4: instructor.Mode.ANTHROPIC_TOOLS 참조 지원(classify 가 도구 모드 명시)
+    fake.Mode = types.SimpleNamespace(ANTHROPIC_TOOLS="anthropic_tools")
     monkeypatch.setitem(sys.modules, "instructor", fake)
     return wrapped_clients
 
