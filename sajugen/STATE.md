@@ -3,7 +3,10 @@
 > ===== 압축/새세션 재개 앵커 (2026-07-03 — 이 블록 먼저 읽기) =====
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
 >   진행 상태: **Phase 1·2·3·4·5 전 항목 완료 — 2026-07-03 전수감사 후속 로드맵 완결.**
->     T5.1~T5.10 전부 소진(T5.7 측정 포함). 코드 작업 없음, 로컬 clean·전부 push.
+>     T5.1~T5.10 전부 소진(T5.7 측정 포함). 로컬 clean·전부 push.
+>     [E2E 통합 검증 완료 2026-07-04, 커밋 71fd609] 접수→생성(실렌더)→검수→승인→발급(DELIVERED) 전 구간
+>       실경로 clean 통과 실측(gate_pass=True·needs_review=False) — Phase 3~5 변경이 함께 동작 확인.
+>       opt-in 테스트 test_order_lifecycle_e2e(SAJUGEN_RUN_E2E=1, 기본 스위트 제외 — T5.9 'E2E 정기 실행 방안').
 >     [T5.7/D-2 측정 완료 2026-07-04] veraPDF 7.1-3 귀속 = **Chromium 태그드 구조**(실측): 언더레이 전
 >       순수 Chromium PDF clauses=['7.1-3','7.1-8'], 최종(underlay+harden)=['7.1-3']. 즉 (a) 7.1-3 은
 >       Chromium 원본에 이미 존재(PyMuPDF 한지 언더레이 무혐의), (b) harden 이 오히려 7.1-8 을 제거(순개선).
