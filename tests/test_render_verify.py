@@ -73,6 +73,21 @@ def test_low_density_keeps_short_page_before_colophon():
     assert [h["page"] for h in hits] == [3], hits
 
 
+def test_toc_threshold_boundary_scopes_body_scanners():
+    # N1(2026-07-04 재감사 후속): _TOC_MAX_CHARS=520 경계 코너 고정.
+    # '목차' 단어가 든 페이지가 상한 미만이면 목차로 본문 스캐너에서 제외되고,
+    # 상한 이상이면 본문으로 포함되어야 한다(긴 본문의 '목차' 언급 오제외 방지).
+    # T3.5/B-5 에서 상한이 400→520 으로 넓어진 지점의 완화 감시 앵커.
+    def _body_pages(toc_chars):
+        toc = "목차 " + "가" * (toc_chars - 3)
+        assert len(toc) == toc_chars
+        pages = ["표지", toc, "제 1 장 " + "나" * 300]
+        return [p for p, _ in v._customer_body_page_items(pages)]
+
+    assert _body_pages(519) == [3], _body_pages(519)  # 상한 미만 → 목차 제외
+    assert _body_pages(521) == [2, 3], _body_pages(521)  # 상한 이상 → 본문 포함
+
+
 def test_chapter_regex_matches_two_digit_spaced_number():
     # A-4: 두 자리 장(제10장~)은 .cnum letter-spacing 으로 "제 1 0 장"처럼 숫자 사이 공백이
     # 추출된다. 이걸 못 잡으면 문서 후반(10장 이후)에서 장 인식이 비어 게이트가 비일관해진다.

@@ -149,6 +149,10 @@ def test_llm_sections_classify_instructor_client_disables_sdk_retries(monkeypatc
     assert len(wrapped) == 1
     assert len(wrapped[0].messages.calls) == 1
     assert wrapped[0].messages.calls[0]["kwargs"]["max_retries"] == 0
+    # N2(2026-07-04 재감사 후속): T5.4 의 값 자체를 고정 — 20 으로 회귀하면
+    # instructor TOOLS 래핑이 잘려 classify 가 조용히 항상 룰 폴백된다.
+    assert wrapped[0].messages.calls[0]["kwargs"]["max_tokens"] == 256
+    assert wrapped[0].mode == "anthropic_tools"
     assert out == QuestionCategory.LOVE
 
 
