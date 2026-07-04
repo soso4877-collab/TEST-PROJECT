@@ -121,14 +121,19 @@ def test_toc_criterion_is_unified_across_scanners():
 
 
 def test_split_paragraphs_merges_short_tail():
-    # '있습니다.' 같은 짧은 마지막 단락은 직전 단락에 합쳐 단독 페이지화 방지
+    # 짧은 마지막 단락은 직전 단락에 병합 — 단독 스필 페이지화 방지.
+    # 임계 90자(2026-07-04): 게이트 장꼬리 하한과 정합. 4줄 미만 독립 꼬리 단락은
+    # widows/orphans CSS 가 못 막아 2줄(≈50자) 스필 페이지가 되던 것(v4 실측 47·56자)의 근본 차단.
     text = "앞 단락은 충분히 깁니다. 흐름을 이어 갑니다.\n\n있습니다."
     paras = render_pdf._split_paragraphs(text)
     assert len(paras) == 1
     assert paras[0].endswith("있습니다.")
-    # 긴 마지막 단락은 그대로 분리 유지
-    text2 = "첫 단락입니다.\n\n두 번째 단락은 충분히 길어서 합쳐지지 않습니다."
-    assert len(render_pdf._split_paragraphs(text2)) == 2
+    # 89자(임계 미만) 마지막 단락도 병합 — 스필 부류 소멸 앵커
+    tail_89 = "가" * 89
+    assert len(render_pdf._split_paragraphs(f"앞 단락입니다.\n\n{tail_89}")) == 1
+    # 임계 초과(91자) 마지막 단락은 분리 유지(widows:4 가 4줄 이상을 보장하므로 스필 안전)
+    tail_91 = "나" * 91
+    assert len(render_pdf._split_paragraphs(f"앞 단락입니다.\n\n{tail_91}")) == 2
 
 
 def test_report_template_keeps_paragraph_tails_together():
