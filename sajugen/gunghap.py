@@ -309,14 +309,20 @@ def _pair_slot(a: dict, b: dict) -> str:
     pf = pair_facts(a, b)
     ha, hb = client_tone_lint.honor(a["name"]), client_tone_lint.honor(b["name"])
     bits = [f"{client_tone_lint.pair_label(a['name'], b['name'])}:"]
+    # 문구 주의: '십성으로'·'같은 방향으로 모이는 협업의 결'은 quality_lint
+    # internal_meta_label 금지어(고객 본문 내부 라벨 누출) — relationship 모드는
+    # relationship/context.py 순화를 거치지만 business 모드는 이 슬롯이 폴백 본문으로
+    # 그대로 나가므로 소스 자체를 고객 문장으로 유지한다(2026-07-05, h153 재생성 FAIL 실측).
     if pf.shishen_to_me:
-        bits.append(f"{ha} 기준 {hb}는 십성으로 {_SS_KO.get(pf.shishen_to_me, pf.shishen_to_me)}.")
+        bits.append(
+            f"{ha} 기준 {hb}는 관계 역할로 보면 {_SS_KO.get(pf.shishen_to_me, pf.shishen_to_me)}."
+        )
     if pf.gan_hap:
-        bits.append(f"일간 천간합({pf.gan_hap}) — 결이 묶이는 끌림.")
+        bits.append(f"일간 천간합({pf.gan_hap}), 결이 묶이는 끌림.")
     if pf.ilji_relation:
         bits.append(f"일지 {pf.ilji_relation}({_REL_KO.get(pf.ilji_relation, '')}) 관계.")
     if pf.ilji_banhap:
-        bits.append(f"일지 삼합 반합({pf.ilji_banhap}) — 같은 방향으로 모이는 협업의 결.")
+        bits.append(f"일지 삼합 반합({pf.ilji_banhap}), 같은 방향으로 모이는 관계의 결.")
     if pf.complements_elems_ko:
         bits.append(f"{hb}가 {ha}의 부족 오행({', '.join(pf.complements_elems_ko)})을 보완.")
     if len(bits) == 1:
@@ -424,12 +430,14 @@ _GH_SYSTEM = (
     "유리한지 구체적으로.\n"
 )
 
+# 제목에 em dash 금지 — verify 시맨틱 벨트 ai_signature_punctuation 이 페이지 텍스트
+# (제목 포함)를 검사한다(2026-07-05 h153 재생성 FAIL 실측: 장 제목의 '—' 4건이 하드 fail).
 _GH_SECTIONS = [
     ("overview", "세 사람, 그리고 지금의 자리"),
-    ("each", "각자의 결 — 성향과 맡을 자리"),
-    ("pairs", "둘씩 마주 보면 — 서로의 궁합"),
-    ("business", "사업으로 묶일 때 — 역할"),
-    ("timing", "언제 풀리는가 — 세 사람의 때"),
+    ("each", "각자의 결, 성향과 맡을 자리"),
+    ("pairs", "둘씩 마주 보면 보이는 궁합"),
+    ("business", "사업으로 묶일 때의 역할"),
+    ("timing", "언제 풀리는가, 세 사람의 때"),
 ]
 
 _GH_GUIDE = {

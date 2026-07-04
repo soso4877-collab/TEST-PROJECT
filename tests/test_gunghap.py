@@ -318,6 +318,38 @@ def test_compose_keeps_life_flow_continuation(monkeypatch):
     assert "이어지도록" in out
 
 
+def test_business_pair_slot_has_no_internal_meta_labels():
+    # 2026-07-05 h153 재생성 FAIL 실측: business 모드는 _pair_slot 이 폴백 본문으로 그대로
+    # 나가는데, 골격 문구('십성으로'·'같은 방향으로 모이는 협업의 결')가 quality_lint
+    # internal_meta_label 금지어에 등재된 뒤 골격이 동기화되지 않아 빌드가 하드 게이트에서
+    # 실패했다(감지 강화 시 생성 골격 동기화 누락). 골격 출력이 금지어 0 임을 고정.
+    from sajugen.content import quality_lint
+
+    a = g.person_facts("합성갑", (1990, 1, 1, 10, 0), ref_year=2026, is_male=True)
+    b = g.person_facts("합성을", (1991, 2, 2, 11, 0), ref_year=2026, is_male=False)
+    out = g._pair_slot(a, b)
+    hits = [h for h in quality_lint.lint(out, None) if h["type"] == "internal_meta_label"]
+    assert hits == [], hits
+    assert "—" not in out  # em dash(AI 시그니처) 소스 금지
+
+
+def test_quality_lint_still_flags_legacy_pair_slot_phrases():
+    # 가드 불변(완화 0) 앵커 — 구 골격 문구는 여전히 차단된다.
+    from sajugen.content import quality_lint
+
+    legacy = (
+        "갑 씨 기준 을 씨는 십성으로 정관. 일지 삼합 반합(화) — 같은 방향으로 모이는 협업의 결."
+    )
+    hits = [h for h in quality_lint.lint(legacy, None) if h["type"] == "internal_meta_label"]
+    assert len(hits) >= 2
+
+
+def test_business_section_titles_have_no_ai_signature_punctuation():
+    # 장 제목의 '—' 가 verify ai_signature_punctuation 하드 fail 을 만들던 것(4쪽 실측) 고정.
+    for _sid, title in g._GH_SECTIONS:
+        assert "—" not in title and "·" not in title, title
+
+
 def test_compose_prompt_carries_month_anchor(monkeypatch):
     # QI-2026-07-04-02 관계 경로 확장(생성 층): 궁합 compose 프롬프트에도 [기준 시점]
     # 연도·월 닻이 실린다(그동안 궁합 프롬프트에는 연도 닻조차 없었다 — 감지층만 존재).
