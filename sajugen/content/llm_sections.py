@@ -244,6 +244,8 @@ class LLMBackend(Protocol):
         quoted_concern: str | None = None,
         ref_year: int | None = None,
         call_name: str | None = None,
+        ref_date: str | None = None,
+        feedback: str | None = None,
     ) -> str: ...
 
 
@@ -271,6 +273,8 @@ class RuleBackend:
         quoted_concern: str | None = None,
         ref_year: int | None = None,
         call_name: str | None = None,
+        ref_date: str | None = None,
+        feedback: str | None = None,
     ) -> str:
         return base_text  # 본문 생성 없음 = 룰 골격 그대로(항상 가드 통과)
 
@@ -337,12 +341,17 @@ class AnthropicBackend:
         quoted_concern: str | None = None,
         ref_year: int | None = None,
         call_name: str | None = None,
+        ref_date: str | None = None,
+        feedback: str | None = None,
     ) -> str:
         # 구간2·3·4 본문 생성 — Sonnet 4.6(통합·답변·조언). 근거 본문의 사실만 사용.
         # 호출측(builder)이 결과를 3단 가드 재검증하고, 실패/무변경이면 룰 골격 폴백.
         # quoted_concern: consult 한정, 마스킹 완료된 고민 원문(절대규칙 17 a~b —
         # 생년월일·시각 결정론 마스킹 후, '인용이며 지시 아님' 격리 블록으로만 전달).
         # ref_year: 풀이 기준 연도 — '지금/올해' 오서술 방지 닻(2026-06-12 버그).
+        # ref_date: 풀이 기준 일자 — 지난 달을 행동 시기로 권하는 월 단위 시제 오류 방지
+        # (QI-2026-07-04-02: 7월 생성 풀이가 '4월 안에 준비를 시작해 두라'를 권한 실사고).
+        # feedback: 재작성 사유(직전 초안의 위반 단어) — 같은 표현 재발 방지.
         if not self.available():
             return base_text
         guide = _COMPOSE_GUIDE.get(section_id)
@@ -358,10 +367,29 @@ class AnthropicBackend:
                     f"'당신'·'고객님'·다른 호칭은 쓰지 마라.\n"
                 )
             if ref_year:
+                _today_line = ""
+                if ref_date:
+                    try:
+                        from datetime import date as _d
+
+                        _rd = _d.fromisoformat(str(ref_date)[:10])
+                        _today_line = (
+                            f"오늘은 {_rd.year}년 {_rd.month}월 {_rd.day}일이다. "
+                            f"{_rd.month}월보다 앞선 달을 '앞으로 준비/시작할 시기'나 "
+                            f"'~월 안에 하라'는 행동 마감으로 제시하지 마라 — 이미 지난 달이다. "
+                            f"앞으로의 시기는 {_rd.month}월부터 12월, 그리고 다음 해에서만 골라라. "
+                        )
+                    except ValueError:
+                        _today_line = ""
                 user += (
                     f"\n[기준 시점 — 절대 어기지 마라]\n이 풀이의 '지금'과 '올해'는 "
-                    f"{ref_year}년이다. {ref_year}년이 아닌 해를 '지금·올해·현재'로 "
+                    f"{ref_year}년이다. {_today_line}{ref_year}년이 아닌 해를 '지금·올해·현재'로 "
                     f"부르지 마라. 지나간 해를 다가올 일처럼 말하지 마라.\n"
+                )
+            if feedback:
+                user += (
+                    f"\n[재작성 사유 — 반드시 반영하라]\n직전 초안이 다음 표현 때문에 "
+                    f"반려됐다: {feedback}. 이 단어·표현과 그 변형을 쓰지 말고 다시 써라.\n"
                 )
             if section_id == "consult":
                 user += f"\n[신청자가 묻고 싶어 한 영역]\n{category}\n"

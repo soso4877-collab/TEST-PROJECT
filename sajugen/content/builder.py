@@ -98,6 +98,7 @@ def build_report(
     concern: str | None = None,
     closing_sign: str | None = None,
     is_leap: bool = False,
+    ref_date: str | None = None,
 ) -> Report23:
     # 기준 연도 방어(2026-06-12 버그: ref_year 미전달 시 골격이 seun 첫 해(과거)를
     # '기준 해'로 폴백 → LLM이 "지금은 2025년" 오서술). 우선순위:
@@ -270,6 +271,8 @@ def build_report(
                     quoted_concern=(masked_concern if sid == "consult" else None),
                     ref_year=ref_year,
                     call_name=_call,
+                    # 월 단위 시제 닻(QI-2026-07-04-02): 지난 달을 행동 시기로 권하지 않게.
+                    ref_date=ref_date,
                 )
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
@@ -333,7 +336,7 @@ def build_report(
                         csv
                         + style_lint.lint(cand)
                         + quality_lint.lint(cand, names=[name] if name else None)
-                        + temporal_lint.lint(cand, ref_year)
+                        + temporal_lint.lint(cand, ref_year, ref_date=ref_date)
                         + client_tone_lint.loanword_lint(cand)  # 외래어 hard-ban
                         + client_tone_lint.raw_calc_lint(cand)  # 날것 계산표현
                         + client_tone_lint.identity_role_lint(  # 일간 role 오서술(H1.5.3)
@@ -350,6 +353,11 @@ def build_report(
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
                 if (csv or cfv) and sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
+                    # 재작성 피드백(2026-07-04): 직전 초안의 위반 표현을 프롬프트로 전달 —
+                    # 사유 없이 재시도하면 같은 단어가 재발해 폴백률이 높았다(실측: '쯤' 2회 연속).
+                    _fb = ", ".join(
+                        sorted({str(v.get("match") or v.get("token") or "") for v in (csv + cfv)} - {""})[:5]
+                    )
                     retry = _strip_artifacts(
                         backend.compose(
                             section_id=sid,
@@ -359,6 +367,8 @@ def build_report(
                             quoted_concern=(masked_concern if sid == "consult" else None),
                             ref_year=ref_year,
                             call_name=rules.call_name(name),
+                            ref_date=ref_date,
+                            feedback=_fb or None,
                         )
                         or ""
                     )
@@ -373,7 +383,7 @@ def build_report(
                             safe_lint.lint(retry)
                             + style_lint.lint(retry)
                             + quality_lint.lint(retry, names=[name] if name else None)
-                            + temporal_lint.lint(retry, ref_year)
+                            + temporal_lint.lint(retry, ref_year, ref_date=ref_date)
                             + client_tone_lint.loanword_lint(retry)
                             + client_tone_lint.raw_calc_lint(retry)
                             + client_tone_lint.identity_role_lint(

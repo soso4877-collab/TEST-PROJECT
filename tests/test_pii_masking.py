@@ -56,7 +56,17 @@ def test_cover_and_birthdate_never_sent_to_llm(monkeypatch):
             return _rule_classify(concern)
 
         def compose(
-            self, *, section_id, title, category, base_text, quoted_concern, ref_year, call_name
+            self,
+            *,
+            section_id,
+            title,
+            category,
+            base_text,
+            quoted_concern,
+            ref_year,
+            call_name,
+            ref_date=None,
+            feedback=None,
         ):
             sent.append(("compose", title, base_text or ""))
             if quoted_concern:

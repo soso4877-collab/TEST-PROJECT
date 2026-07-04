@@ -102,6 +102,8 @@ def generate(
         concern=concern,
         closing_sign=bp.get("closing_sign"),
         is_leap=is_leap,
+        # 월 단위 시제 닻(QI-2026-07-04-02): compose·temporal 가드에 기준 일자 전달.
+        ref_date=horoscope_date,
     )
     # 개인 일간 role 게이트(H1.5.3) — 결정론 일간만 정답. 이름 정책은 개인 미적용(단일 호명).
     _id_spec = builder.personal_identity_spec(saju, name)
