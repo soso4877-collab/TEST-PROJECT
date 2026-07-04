@@ -13,7 +13,11 @@
   - 후속 실측 결함 2건 동시 수정: (a) 장 말미 <90자 독립 꼬리 단락의 스필 페이지(widows CSS 는 단락 내부 전용) → _ORPHAN_TAIL_MAX 14→90(게이트 하한 정합)으로 부류 소멸. (b) intro 윤문이 골격의 '신청 질문부터 먼저 답하면' 직답 문단을 확률적으로 유실 → intro 가이드 직답 유지 지시 + 챕터 단위 frontload 선검사(유실 시 골격 폴백).
 - 실측: v6 = gate PASS·월 시제 0·저밀도 0·직답 유지·커플어 0. 전체 pytest 539 passed / 4 skipped. 생성 반복 비용 실측 ~$3(v1~v6) — 각 실패가 실결함 1개씩을 노출·박멸(기하 오탐·저밀도 재과금·월 시제·스필·직답 유실).
 - 연결 커밋: b3cc880(월 시제+피드백)·3ceaae8(꼬리 병합)·e195dfd(직답 가드), 테스트 test_temporal_month·test_frontload_guard.
-- 남은 수동 검수: v6 육안 검수 후 발송. '또렷해지는' 변형형의 선치환표 추가는 백로그(가드가 잡고 있어 안전).
+- 후속 완료(2026-07-05, 사각 인접 2건 — 백로그 소화):
+  - 관계 경로 ref_date 배선(151ef23): 이 사고의 수정이 개인 경로(builder/pipeline)만 커버 — 궁합 compose 프롬프트에는 연도 닻조차 없었고 verify ref_date 는 3곳 하드코딩("{ref_year}-06-13"). [기준 시점] 닻을 llm_sections.temporal_anchor_block 으로 단일소스화해 gunghap._compose(프롬프트+temporal_lint)·build_gunghap·build_integrated_full(개인 장 build_report 포함)·재렌더(content.json 영속 소비)·CLI --ref-date 에 배선. 미지정 시 연중 6-13 기본(하위호환). 양방 6건(지난 달 권유 폴백/미래 달 통과 등). 운영 수칙: 실주문은 ref_date=생성 당일(docs/19 §11, ac371f6).
+  - '또렷해지는' 변형형 선치환(3e8407e): 개별 활용형 나열 대신 어간 캐치올('또렷'→'분명', '또렷이'만 특례) — 가드(style_lint 또렷[가-힣]*) 불변, 양방 2건. v6 폴백 원인 소멸.
+  - 전체 pytest 547 passed / 4 skipped / exit 0. main 37bbe12→ac371f6→9a486b3 전진.
+- 남은 수동 검수: v6 육안 검수 후 발송.
 
 ## 2026-07-04 추가: QI-2026-07-04-01 팬텀 파트너 — 개인 풀이에 존재하지 않는 상대의 궁합 서술 혼입
 
