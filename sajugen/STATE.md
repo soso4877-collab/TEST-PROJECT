@@ -15,6 +15,12 @@
 >     gunghap compose·llm_polish·classify 집계 배선, 빌드 CLI 3종 "LLM usage:" stdout 출력,
 >     hrun 파싱→summary regen_llm_usage + regen_returncode 화이트리스트 등재(그동안 드롭).
 >     테스트 9건. 다음 재생성부터 지출이 summary 에 남는다(과금액은 Console 대조).
+>   [v6 발송 준비 완료 2026-07-05 — 운영자 수동 발송만 남음] 운영자 육안 검수 완료 선언 접수.
+>     무결성: sha12 8e11002460d4·40p·729,832B·mtime 07-04 20:17(검수본=발송본, 무변경).
+>     재확인 벨트(읽기 전용) 전부 0: §12·월 시제(ref 07-04/07-05 양측)·customer_meta·markdown·
+>     '또렷'·em dash·AI 고지어. 발송 준비 리포트(APPROVED·release_allowed=true):
+>     handoff/reports/customer3-money-v6-release/pdf_review_report.md. 발송은 운영자 수동
+>     (절대규칙 16 — 자동 발송 없음), 발송 후 STATE 에 발송 완료 표기.
 >   [잔여 정리] sajugen/render/out/__probe_gunghap_business__.{pdf,html} 프로브 2파일
 >     수동 삭제 대상(gitignore 영역, rm 권한 정책으로 자동 삭제 불가).
 >   전체 pytest 562 passed / 4 skipped / exit 0 (기준선 553+신규 9).
