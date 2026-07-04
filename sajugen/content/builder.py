@@ -350,13 +350,32 @@ def build_report(
                             cand, strict_pair=not partner_text
                         )
                     )
+                    # 유료 직답 유지(QI-2026-07-04-02 후속, v5 실측 missing_frontloaded_answer):
+                    # intro 윤문이 골격의 '신청 질문부터 먼저 답하면' 직답 문단을 확률적으로
+                    # 유실 → 문서 초반 1800자 frontload 게이트 FAIL. 챕터 단위 선검사로
+                    # 유실 시 재작성/폴백(골격 intro = 직답 보존이라 폴백은 항상 통과).
+                    if sid == "intro" and concern:
+                        _axes = delivery_quality._required_axes(concern)
+                        _fl = delivery_quality._frontloaded_result(cand, _axes)
+                        if not _fl.get("ok", True):
+                            csv = csv + [
+                                {
+                                    "type": "frontload",
+                                    "match": "질문 직답 유실("
+                                    + ",".join(_fl.get("missing", []))
+                                    + ")",
+                                }
+                            ]
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
                 if (csv or cfv) and sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
                     # 재작성 피드백(2026-07-04): 직전 초안의 위반 표현을 프롬프트로 전달 —
                     # 사유 없이 재시도하면 같은 단어가 재발해 폴백률이 높았다(실측: '쯤' 2회 연속).
                     _fb = ", ".join(
-                        sorted({str(v.get("match") or v.get("token") or "") for v in (csv + cfv)} - {""})[:5]
+                        sorted(
+                            {str(v.get("match") or v.get("token") or "") for v in (csv + cfv)}
+                            - {""}
+                        )[:5]
                     )
                     retry = _strip_artifacts(
                         backend.compose(
@@ -396,6 +415,18 @@ def build_report(
                                 strict_pair=not partner_text,  # 커플 지칭(재작성도, F4)
                             )
                         )
+                        if sid == "intro" and concern:  # 직답 유지(재작성도)
+                            _axes_r = delivery_quality._required_axes(concern)
+                            _fl_r = delivery_quality._frontloaded_result(retry, _axes_r)
+                            if not _fl_r.get("ok", True):
+                                rsv = rsv + [
+                                    {
+                                        "type": "frontload",
+                                        "match": "질문 직답 유실("
+                                        + ",".join(_fl_r.get("missing", []))
+                                        + ")",
+                                    }
+                                ]
                         rfv = factcheck.check(retry, saju, partner_gz)
                         if not rsv and not rfv:
                             cand, csv, cfv = retry, rsv, rfv
