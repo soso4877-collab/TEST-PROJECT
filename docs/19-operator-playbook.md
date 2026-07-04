@@ -398,6 +398,13 @@ diff 를 한 문장으로 설명할 수 있는 작은 작업(오타, 문구 1줄
 - 전체 테스트: `./.venv/Scripts/python.exe -m pytest tests/ -q`
 - 하네스 검증: `./.venv/Scripts/python.exe scripts/hrun.py --profile harness/profiles/local/personal_h153.yml`
 - 백업: docs/18 §8 / 주문 삭제(파기): `python -m sajugen.delete_order <id> --yes`
+- **관계 상품(궁합·통합) 생성은 ref_date 에 생성 당일을 반드시 전달**(QI-2026-07-04-02 월 시제):
+  - 개인 경로는 `--horoscope`(기준일)가 곧 월 닻이라 기존대로. 관계 경로만 별도 전달 필요.
+  - 궁합 CLI: `python -m sajugen.gunghap --person ... --ref-date 2026-07-05` (오늘 날짜로)
+  - 코드 호출: `build_gunghap(..., ref_date="YYYY-MM-DD")` / `build_integrated_full(..., ref_date=...)`
+  - 미전달 시 연중 기본(6월 13일)으로 동작 — 6월 이후 주문은 "지난 달을 행동 시기로 권하는"
+    사각이 남는다(닻·가드가 이미 지난 1~5월만 차단). 잊었는지 확인: 산출 verify/summary 의
+    ref_date 가 주문 당일인지 본다.
 
 **배움의 원칙:** 튜토리얼을 따라만 하지 말고, 항상 내 프로젝트에 **튜토리얼과 다른 것 하나**를
 직접 추가해 본다 — 그 지점에서 진짜 배움(능동 조사)이 시작된다
