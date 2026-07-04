@@ -85,3 +85,64 @@ def test_summarize_has_counts_only():
     assert summary["clean"] is False
     assert summary["total_count"] >= 1
     assert "이 문서는" not in str(summary)
+
+
+# ---- 2026-07-05 운영자 발견(v6 1장): 골격의 작성자 작업 예고·빈 지시 등재 양방 ----
+
+_TASK_ANNOUNCE_FAIL = [
+    "사주를 한 장으로 압축해 보겠습니다.",  # 실사고 문장 그대로
+    "이제 현실에 적용해 보겠습니다.",
+    "겉과 속의 짜임도 함께 보겠습니다.",
+    "성격과 기질을 한데 모아 보겠습니다.",
+    "일주와 부처궁을 겹쳐서 보겠습니다.",
+]
+
+_TASK_ANNOUNCE_OK = [
+    "관계 영역은 일주와 부처궁을 겹쳐서 봅니다.",  # 관법 서술
+    "가까운 관계의 결을 중심으로 봅니다.",
+    "무리하지 않는지를 먼저 보세요.",  # 행동 권유
+    "사주를 펼쳐 놓고 보면 가장 먼저 눈에 들어오는 그림이 있습니다.",  # 교체 문구
+    "그 시기에는 흐름을 지켜보면 좋습니다.",
+]
+
+
+def test_writer_task_announcement_flags_narrator_voice():
+    # 실사고(v6 1장) 문형 = FAIL — 프롬프트에만 있던 규범(llm_sections '~보겠습니다 금지')의
+    # 게이트 승격. 룰 골격·LLM·관리자 수정분 모두에 적용된다.
+    for text in _TASK_ANNOUNCE_FAIL:
+        assert "writer_task_announcement" in _rules(text), text
+
+
+def test_writer_task_announcement_passes_consult_voice():
+    # 관법 서술('~으로 봅니다')·행동 권유('보세요')·교체 문구는 통과(오탐 0 앵커).
+    for text in _TASK_ANNOUNCE_OK:
+        assert "writer_task_announcement" not in _rules(text), text
+
+
+def test_formulaic_empty_instruction_two_way():
+    # 빈 지시 상투구 = FAIL / 구체 내용이 있는 지시·확인 문장은 통과.
+    assert "formulaic_empty_instruction" in _rules("조건, 사람, 시기를 차례대로 확인하세요.")
+    assert "formulaic_empty_instruction" in _rules("아래 항목을 순서대로 확인하면 됩니다.")
+    for text in (
+        "계약 조건이 실제로 갖춰졌는지 하나씩 짚은 뒤에 정하셔도 늦지 않습니다.",
+        "대화가 이어지는지, 혼자만 애쓰고 있지는 않은지를 보면 답이 드러납니다.",
+        "서류를 확인한 뒤 움직이는 편이 안전합니다.",
+    ):
+        assert "formulaic_empty_instruction" not in _rules(text), text
+
+
+def test_rule_skeleton_sections_pass_customer_meta_lint():
+    # 골격-게이트 동기화 앵커(근본원인 2층): 규범이 게이트에 등재될 때 룰 골격이 함께
+    # 동기화됐는지를 전 섹션 실빌드로 고정 — QI-2026-07-05 유형('금지어 등재 후 골격
+    # 미동기화')의 개인 리포트 재발을 구조적으로 차단한다.
+    from sajugen.calc import engine
+    from sajugen.content import rules
+
+    saju = engine.build(1989, 1, 2, 7, 40, is_male=False, horoscope_date="2026-06-01")
+    sections = rules.build_all(
+        saju, ref_year=2026, name="테스트", concern_category="재물",
+        concern_text="합성 고민 텍스트입니다.",
+    )
+    for sid, text in sections.items():
+        hits = lint.lint(text)
+        assert hits == [], (sid, hits)
