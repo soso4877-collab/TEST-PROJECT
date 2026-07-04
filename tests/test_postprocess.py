@@ -93,6 +93,29 @@ def test_style_safe_text_replaces_known_lint_triggers():
     assert pp.style_safe_text("") == ""  # 빈 입력 안전
 
 
+def test_style_safe_text_covers_conjugated_variants():
+    # 백로그 2026-07-05: '또렷해지는' 등 활용형이 표에 없어 정당 폴백으로 윤문이 유실됐다
+    # (실측: v6 시기재물 폴백 2 중 1). 어간 캐치올로 전 활용형 커버 — 치환 결과는
+    # style_lint(또렷[가-힣]*)에 걸리지 않아야 한다(선반영이지 완화가 아님).
+    from sajugen.content import style_lint
+
+    out = pp.style_safe_text(
+        "영역의 결이 또렷해지는 해입니다. 방향이 또렷해집니다. 흐름이 또렷이 보입니다."
+    )
+    assert "또렷" not in out
+    assert "분명해지는" in out and "분명해집니다" in out
+    assert "분명하게 보입니다" in out  # '또렷이' 특례('분명이' 오치환 방지)
+    assert not [h for h in style_lint.lint(out) if "또렷" in str(h)]
+
+
+def test_style_lint_still_flags_variant_forms():
+    # 가드 불변(완화 0) 앵커 — 선치환을 거치지 않은 변형형은 여전히 차단된다.
+    from sajugen.content import style_lint
+
+    hits = style_lint.lint("영역의 결이 또렷해지는 해입니다.")
+    assert any("또렷" in str(h) for h in hits)
+
+
 def test_builder_presubstitutes_repeat_words_before_guard(monkeypatch):
     # 개인 경로 이식 회귀: LLM 후보의 '또렷하게'가 가드 전 선치환되어 폴백 없이
     # 윤문이 보존된다(실측: CUSTOMER_3 frame 폴백의 재발 방지). lint 자체는 불변.
