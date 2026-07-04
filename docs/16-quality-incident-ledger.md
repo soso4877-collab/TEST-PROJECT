@@ -1,5 +1,23 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-04 추가: QI-2026-07-04-01 팬텀 파트너 — 개인 풀이에 존재하지 않는 상대의 궁합 서술 혼입
+
+- 증상: 궁합이 없는 개인(1인) 풀이에 궁합·관계 문구가 혼입(운영자 CUSTOMER_3 1회성 풀이에서 발견). 합성 재현 실측: 고민 원문의 사건 날짜("2020년 3월 5일에 이사")가 상대방 생일로 둔갑, 원문 동사 조각("이사한")이 이름으로 오인되어 "이사한님"(2020년생)의 명식·십성 관계 서술이 consult 에 통째로 주입됨.
+- 영향: 개인 상품의 신뢰 사고(내 풀이가 아닌 내용). 본인 생일 재언급·이력 날짜·맨 6자리 숫자가 전부 오탐면.
+- 원인(2층):
+  - (유입) builder.py 가 `find_partner_births(concern)` 호출 시 본인 생일 제외 가드 인자(self_solar/ref_year)를 미전달 — **가드도 데이터도 있었는데 배선만 누락**. 또한 파서가 인물 문맥 없는 날짜(사건·이력)도 전부 상대 생일로 채택.
+  - (감지) 커플 지칭("두 분/두 사람")을 잡는 게이트 룰이 없었고, verify `_placeholder_residue_hits_clean(hits, product)` 의 product 는 받고도 안 쓰는 dead parameter. "개인 상품 x 커플 언어 = FAIL" 테스트 0건.
+  - (패턴) "배선됐지만 소비 안 되는 파라미터" 3연속 사례(자시 day_offset P0-1 → 최종발급 verify spec B-1 → 이번 product). 파라미터를 만들면 소비처·분기 테스트까지가 한 단위라는 10-methodology A-5 의 실증.
+- 재발 방지(구현·검증 완료):
+  - F1 `partner.py _has_person_context`(인물 문맥 게이트: 관계어/역법 라벨/출생 접미 요구) + builder self_solar/ref_year 배선. 양방: 오탐 4형(사건·본인생일·맨6자리·이력) 미감지 + 정상 6형(관계어·생 접미·역법 라벨) 감지 유지(test_partner.py).
+  - F3 `couple_pair_reference` 룰 신설(candidate) + verify/builder 가 '1인 문서(파트너 부재)'에서 candidate→hard 승격(`partner_present` 배선: Report23 필드→pipeline/order_flow/hverify). 다인 상품·파트너 있는 개인 풀이는 기존 동작(오탐 0, 완화 0). 양방 test_couple_language.py 8건.
+  - F2 재회 전제 문구(붙잡기·예전 문제·재접촉)는 원문에 재회 토큰이 있을 때만 — 결혼운·새 만남 질문은 1인 관점 중립 문단(연애 답변 자체는 유지, 과수정 금지 앵커 포함).
+  - F4 compose 가드체인에 placeholder/커플 지칭 lint 부착(strict_pair = 파트너 부재).
+  - 부수 발견 수정: partner_block 골격이 운영 라벨 "신청자"(placeholder hard 금지어)를 7곳 사용 → "본인"으로 교정(파트너 포함 개인 풀이의 잠복 hard fail 해소).
+- 실측: 결함 입력 재현 → 수정 후 동일 입력 팬텀 0·strict 위반 0. 관련 스위트(couple/partner/p3/client_tone/verify_gate/delivery/gunghap/integrated 등) GREEN.
+- 연결 커밋/PR: (이 세션 fix/feat 커밋), 테스트 tests/test_couple_language.py·test_partner.py.
+- 남은 수동 검수: CUSTOMER_3 실 풀이 산출물은 위치 미상 — 재생성 필요 시 운영자가 입력 재제공(LLM compose 는 승인 후). 과거 파트너 미포함 개인 발송물 중 고민에 날짜가 든 건이 있으면 동일 증상 여부 육안 1회.
+
 ## 2026-07-02 추가: QI-2026-07-02-02 PDF 본문 좌우 비대칭 + 기하 검증 부재 + 레이아웃 재렌더 API 낭비
 
 - 증상: 운영자 육안 "PDF 레이아웃이 다 틀어져 있고, 이 오류가 수십 번 반복된다." 본문 칼럼이 좌 20mm/우 42mm 로 왼쪽 쏠림(전 본문 페이지 일관).

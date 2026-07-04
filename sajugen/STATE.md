@@ -1,6 +1,24 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-04 재감사·지침 개편 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-04 팬텀 파트너 QI 수정 — 이 블록 먼저 읽기) =====
+>   [QI-2026-07-04-01 팬텀 파트너 — 원인 규명·수정 완료] 운영자 발견: 궁합 없는 개인 풀이에
+>     궁합·관계 문구 혼입(CUSTOMER_3). 합성 재현으로 확정: 고민 원문의 사건 날짜가 상대 생일로,
+>     동사 조각("이사한")이 이름으로 둔갑 → "이사한님"(2020년생) 명식·관계 서술이 consult 주입.
+>     원인 2층 = (유입) find_partner_births 가드 인자 미배선+인물 문맥 미요구 / (감지) 커플 지칭
+>     룰 부재+verify product dead parameter. "배선됐지만 소비 안 되는 파라미터" 3연속 패턴.
+>   수정(F1~F5, 상세 docs/16 QI-2026-07-04-01):
+>     F1 인물 문맥 게이트(partner.py _has_person_context)+self_solar/ref_year 배선(builder).
+>     F3 couple_pair_reference 룰+partner_present 배선(Report23→verify/pipeline/order_flow/hverify)
+>       — 1인 문서에서만 candidate→hard 승격(다인 상품·파트너 개인 풀이 오탐 0, 완화 0).
+>     F2 재회 전제 문구는 원문 재회 토큰 시에만(중립 문단 신설, "짧은 안부" 밀도 유지).
+>     F4 compose 가드체인 placeholder/커플 지칭 부착(strict_pair=파트너 부재).
+>     부수: partner_block "신청자"(hard 금지어) 7곳→"본인"(잠복 hard fail 해소).
+>   실측: 결함 입력 재현→수정 후 팬텀 0·strict 위반 0. 전체 pytest **523 passed / 4 skipped /
+>     exit 0** (193.1s, 신규 10건 = test_couple_language 8 + test_partner 2). 골든 전수 GREEN.
+>   [운영자 참고] 과거 발송물 중 "고민에 날짜가 든 파트너 미포함 개인 풀이"가 있으면 동일 증상
+>     육안 1회 권장. CUSTOMER_3 재생성은 입력 재제공 시(LLM compose 는 승인 후).
+>
+> ===== 이전 앵커 (2026-07-04 재감사·지침 개편) =====
 >   [2026-07-04 구현 재감사 완료 — 판정: 로드맵 실행 검증됨] 감사 세션이 완료 보고를 회의적으로 재검증:
 >     전체 pytest 재실측 512 passed/4 skipped/exit 0(165.7s, 보고와 일치). P0-1 자시(23:50 프로브 일주
 >     익일 전환+정책 분기 실효)·P0-2 표지(builder cover 제외+mask 벨트)·A-1/A-2/A-3/A-4 전부 동일 프로브
