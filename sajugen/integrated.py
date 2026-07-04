@@ -17,7 +17,7 @@ import typer
 from . import config as cfg
 from . import gunghap
 from .calc import engine
-from .content import builder, client_tone_lint
+from .content import builder, client_tone_lint, postprocess
 from .render import pdf as render_pdf
 from .render import verify as render_verify
 
@@ -26,24 +26,10 @@ _LAYOUT_VARIANTS = (
     ("14.5pt", "1.8"),
     ("13.8pt", "1.68"),
 )
-_STYLE_REPLACEMENTS = (
-    ("또렷이", "분명하게"),
-    ("또렷하게", "분명하게"),
-    ("또렷한", "분명한"),
-    ("또렷합니다", "분명합니다"),
-    ("결을 따라 걷고", "흐름을 차분히 살피고"),
-    ("결을 따라 걷", "흐름을 차분히 살피"),
-)
-_QUALITY_PATTERN_REPLACEMENTS = (
-    (
-        re.compile(r"명궁은\s*명궁\s*[,，]\s*신궁은\s*명궁"),
-        "타고난 바탕과 실행 방향이 같은 축에 놓여",
-    ),
-    (
-        re.compile(r"명궁은\s*명궁(?=\s*[\(（\.,，。]|$)"),
-        "명궁은 타고난 바탕을 보는 자리",
-    ),
-)
+# 반복어 선치환 단일 소스 이전(2026-07-04): content/postprocess.style_safe_text 가 원본.
+# 개인 경로(builder)도 같은 치환을 쓰므로 경로별 드리프트 방지를 위해 여기서는 참조만.
+_STYLE_REPLACEMENTS = postprocess._STYLE_REPLACEMENTS
+_QUALITY_PATTERN_REPLACEMENTS = postprocess._QUALITY_PATTERN_REPLACEMENTS
 _LOW_DENSITY_ONLY_CLEAN_FLAGS = (
     "text_layer_ok",
     "fonts_embedded",
@@ -230,14 +216,9 @@ def _assemble_sections(personal_report, relationship_sections: list[object]) -> 
 
 
 def _integrated_style_safe_text(text: str) -> str:
-    """Remove known customer-body lint triggers in native integrated output only."""
+    """반복어 선치환 — content/postprocess.style_safe_text 단일 소스 위임(2026-07-04)."""
 
-    text = text or ""
-    for old, new in _STYLE_REPLACEMENTS:
-        text = text.replace(old, new)
-    for pattern, replacement in _QUALITY_PATTERN_REPLACEMENTS:
-        text = pattern.sub(replacement, text)
-    return text
+    return postprocess.style_safe_text(text)
 
 
 def _pii_free_verify_digest(verify_result: dict) -> dict:

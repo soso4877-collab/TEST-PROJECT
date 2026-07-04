@@ -30,6 +30,41 @@ _FORMULAIC_CORE_RX = re.compile(
 )
 
 
+# LLM 반복어·자미 오서술 결정론 선치환(2026-07-04 단일소스화 — integrated 에서 이전).
+# 근거: LLM 이 '또렷하게' 계열(QI-2026-06-24-03 AI 느낌 반복)과 '명궁은 명궁' 동어반복을
+# 산발적으로 생성 → style/quality lint 폴백으로 윤문이 유실됐다(실측: CUSTOMER_3 frame 폴백).
+# 기호 정규화 선반영(454faea)과 같은 원칙 — 가드 전 결정론 변환은 우회가 아니라 선반영이며,
+# style_lint 의 반복 상한·기타 반복어 검출은 그대로 유지된다(완화 0).
+_STYLE_REPLACEMENTS = (
+    ("또렷이", "분명하게"),
+    ("또렷하게", "분명하게"),
+    ("또렷한", "분명한"),
+    ("또렷합니다", "분명합니다"),
+    ("결을 따라 걷고", "흐름을 차분히 살피고"),
+    ("결을 따라 걷", "흐름을 차분히 살피"),
+)
+_QUALITY_PATTERN_REPLACEMENTS = (
+    (
+        re.compile(r"명궁은\s*명궁\s*[,，]\s*신궁은\s*명궁"),
+        "타고난 바탕과 실행 방향이 같은 축에 놓여",
+    ),
+    (
+        re.compile(r"명궁은\s*명궁(?=\s*[\(（\.,，。]|$)"),
+        "명궁은 타고난 바탕을 보는 자리",
+    ),
+)
+
+
+def style_safe_text(text: str) -> str:
+    """알려진 lint 트리거 반복어의 결정론 선치환(개인·integrated 공용 단일 소스)."""
+    text = text or ""
+    for old, new in _STYLE_REPLACEMENTS:
+        text = text.replace(old, new)
+    for pattern, replacement in _QUALITY_PATTERN_REPLACEMENTS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
 def strip_artifacts(text: str) -> str:
     """LLM 출력의 메타 누출 제거 — 섹션 표시·마크다운(제목/굵게/수평선/리스트/
     인용) 등 AI틱 표식을 걷어낸다. '---' 본문 인쇄 실사고(2026-06-12) 재발 방지."""

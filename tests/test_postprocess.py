@@ -82,3 +82,40 @@ def test_markdown_artifacts_detects_and_clean():
     hits = v.markdown_artifacts("앞줄\n---\n**굵게** 줄\n# 제목 줄")
     assert any(h.strip("-") == "" for h in hits)  # --- 탐지
     assert "**" in hits  # 굵게 탐지
+
+
+def test_style_safe_text_replaces_known_lint_triggers():
+    # 2026-07-04 단일소스화: '또렷하게' 계열·'명궁은 명궁' 동어반복의 결정론 선치환.
+    out = pp.style_safe_text("흐름이 또렷하게 보이고, 또렷한 결이 있습니다.")
+    assert "또렷" not in out and "분명하게" in out and "분명한" in out
+    out2 = pp.style_safe_text("명궁은 명궁, 신궁은 명궁입니다.")
+    assert "명궁은 명궁" not in out2
+    assert pp.style_safe_text("") == ""  # 빈 입력 안전
+
+
+def test_builder_presubstitutes_repeat_words_before_guard(monkeypatch):
+    # 개인 경로 이식 회귀: LLM 후보의 '또렷하게'가 가드 전 선치환되어 폴백 없이
+    # 윤문이 보존된다(실측: CUSTOMER_3 frame 폴백의 재발 방지). lint 자체는 불변.
+    from sajugen.calc import engine
+    from sajugen.content import builder, llm_polish, llm_sections
+    from sajugen.content.question_router import QuestionCategory
+
+    class _Stub:
+        name = "anthropic"
+
+        def classify(self, concern):
+            return QuestionCategory.WEALTH
+
+        def compose(self, *, base_text, **kw):
+            return base_text + " 이 흐름은 또렷하게 이어집니다."
+
+    monkeypatch.setattr(llm_sections, "get_backend", lambda: _Stub())
+    monkeypatch.setattr(llm_polish, "polish", lambda text, title, **kw: text)  # 윤문 무변형
+    saju = engine.build(1989, 1, 2, 7, 40, is_male=False, horoscope_date="2026-06-01")
+    r = builder.build_report(
+        saju, use_llm=True, ref_year=2026, name="테스트", concern="재물운이 궁금합니다."
+    )
+    nature = next(s for s in r.sections if s.id == "nature")
+    assert "또렷" not in nature.final_text  # 선치환됨
+    assert "분명하게 이어집니다" in nature.final_text  # 윤문 보존(폴백 아님)
+    assert nature.polished is True

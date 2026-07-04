@@ -315,6 +315,10 @@ def build_report(
                 # 룰 패스스루(무키)는 변형하지 않는다(결정론·폴백 판정 보존).
                 cand = re.sub(r"\s*[—–]\s*", ", ", cand)
                 cand = re.sub(r"\s*·\s*", ", ", cand)
+                # 반복어 결정론 선치환(2026-07-04 — integrated 승인 설계의 개인 경로 이식).
+                # '또렷하게' 계열이 style_lint 폴백을 유발해 윤문이 유실되던 것(실측 frame
+                # 폴백)을 가드 전 선반영으로 흡수. 반복 상한 등 lint 자체는 불변(완화 0).
+                cand = postprocess.style_safe_text(cand)
                 # 외래어 1차 자동 순화(H1.5.1): 폴백 전 기본 대체어로 치환해 LLM 산문 보존률↑.
                 # 순화 후에도 남은 외래어는 아래 loanword_lint 가 잡아 폴백(hard-ban 유지).
                 if sid in _COMPOSE_SECTIONS:
@@ -362,6 +366,7 @@ def build_report(
                     retry = postprocess.strip_formulaic_conclusion(retry)
                     retry = postprocess.replace_generic_address(retry, rules.call_name(name))
                     retry = client_tone_lint.normalize_loanwords(retry)  # 재작성도 1차 순화
+                    retry = postprocess.style_safe_text(retry)  # 반복어 선치환(재작성도)
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
                     if retry and retry != rule_text:
                         rsv = (
