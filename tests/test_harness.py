@@ -366,6 +366,74 @@ def test_integrated_hrun_regen_uses_integrated_module(monkeypatch):
     assert "--out" in cmd and "__nonexistent_synthetic_integrated_full__.pdf" in cmd
 
 
+def test_failed_regen_is_reported_as_failed_not_done(monkeypatch):
+    # 관측 갭(2026-07-05 h153 실측): 재생성 CLI rc!=0 인데 summary 의 regen 이 "done" 으로
+    # 표기돼 실패가 가려졌다. 실패한 프로파일 자신은 "failed" 로 드러난다(fail-closed 관측).
+    monkeypatch.setenv("SAJUGEN_HARNESS_ALLOW_REGEN", "1")
+    monkeypatch.setattr(hrun, "_regen_pdf", lambda profile, python: {"returncode": 1})
+    s = hrun.run([FIX_P], _args(regen=True, allow_llm=True, stamp="pytest-regen-failed"))
+    assert s["pdfs"][0]["regen"] == "failed"
+    assert "pdf_regen_failed" in s["retry_reasons"]
+
+
+def test_hrun_regen_forwards_ref_date_when_present(monkeypatch):
+    # QI-2026-07-04-02 관계 확장: 프로파일 ref_date 가 있으면 재생성 CLI 에 --ref-date 전달,
+    # 없으면 미전달(연중 기본 자기일관) — 양방.
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return types.SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(hrun.subprocess, "run", fake_run)
+    base = {
+        "pdf": "sajugen/render/out/__nonexistent_synthetic__.pdf",
+        "ref_year": 2026,
+        "people": [
+            {"name": "합성갑", "birth": "1990-01-01 10:00", "gender": "남"},
+            {"name": "합성을", "birth": "1991-02-02 11:00", "gender": "여"},
+        ],
+    }
+    for ptype in ("integrated_full", "gunghap"):
+        calls.clear()
+        hrun._regen_pdf({**base, "type": ptype, "ref_date": "2026-07-05"}, "python")
+        cmd = calls[0]
+        assert "--ref-date" in cmd and "2026-07-05" in cmd, ptype
+        calls.clear()
+        hrun._regen_pdf({**base, "type": ptype}, "python")
+        assert "--ref-date" not in calls[0], ptype  # 미지정 시 미전달(기본 유지)
+
+
+def test_integrated_cli_gen_forwards_ref_date(monkeypatch):
+    # integrated CLI 진입점 배선: --ref-date 가 build_integrated_full 로 전달된다
+    # (함수만 배선되고 CLI 가 못 넘기는 팬텀 파라미터 방지, 방법론 A-5).
+    from typer.testing import CliRunner
+
+    from sajugen import integrated
+
+    captured = {}
+
+    def fake_build(people, **kwargs):
+        captured.update(kwargs)
+        return {"pdf_path": "fake.pdf", "people": [{"name": "합성갑"}]}
+
+    monkeypatch.setattr(integrated, "build_integrated_full", fake_build)
+    r = CliRunner().invoke(
+        integrated.app,
+        [
+            "gen",
+            "--person",
+            "합성갑,1990-01-01,10:00,남",
+            "--person",
+            "합성을,1991-02-02,11:00,여",
+            "--ref-date",
+            "2026-07-05",
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    assert captured["ref_date"] == "2026-07-05"
+
+
 def test_integrated_hverify_profile_forwards_receiver_specs(monkeypatch):
     import fitz
     from sajugen.render import verify as verify_mod

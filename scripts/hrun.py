@@ -97,6 +97,10 @@ def _regen_pdf(profile: dict, python: str) -> dict:
             t = b[1] if len(b) > 1 else ""
             cmd += ["--person", f"{p['name']},{b[0]},{t},{p.get('gender', '남')}"]
         cmd += ["--ref-year", str(profile.get("ref_year", 2026)), "--out", out_name]
+        # 월 시제 닻(QI-2026-07-04-02 관계 확장): 프로파일 ref_date 가 있으면 전달.
+        # 미지정 시 CLI 기본(연중 6-13)과 verify 앵커가 동일해 자기일관.
+        if profile.get("ref_date"):
+            cmd += ["--ref-date", str(profile["ref_date"])]
         if profile.get("receiver"):
             cmd += ["--receiver", str(profile["receiver"])]
         if profile.get("brand"):
@@ -110,6 +114,9 @@ def _regen_pdf(profile: dict, python: str) -> dict:
             t = b[1] if len(b) > 1 else ""
             cmd += ["--person", f"{p['name']},{b[0]},{t},{p.get('gender', '남')}"]
         cmd += ["--ref-year", str(profile.get("ref_year", 2026)), "--out", out_name]
+        # 월 시제 닻 — integrated 분기와 동일(프로파일 ref_date 임의 필드).
+        if profile.get("ref_date"):
+            cmd += ["--ref-date", str(profile["ref_date"])]
         if profile.get("brand"):
             cmd += ["--brand", str(profile["brand"])]
         if profile.get("mode"):
@@ -178,7 +185,9 @@ def run(profiles: list[str], args) -> dict:
         if regen_result and regen_result.get("blocked"):
             res["regen"] = "blocked_after_failure"
         elif regen_ok:
-            res["regen"] = "done"
+            # rc!=0 인데 "done" 으로 표기되던 관측 갭(2026-07-05 h153 실측: 빌드 하드 게이트
+            # 실패가 summary 에서 done 으로 보임) — 실패는 실패로 드러낸다(fail-closed 관측).
+            res["regen"] = "done" if (regen_result or {}).get("returncode") == 0 else "failed"
         else:
             res["regen"] = "skipped(미승인)"
         if regen_result is not None:
