@@ -1,6 +1,19 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
-## 2026-07-04 추가: QI-2026-07-04-02 월 단위 시제 오류 — 7월 생성 풀이가 지난 4·5월을 행동 시기로 권함
+## 2026-07-05 추가: QI-2026-07-05-01 business 궁합 골격 미동기화 — 감지(금지어)만 강화되고 생성 골격이 안 따라감 + regen 실패가 "done" 으로 표기
+
+- 증상: h153 픽스처 재생성(운영자 승인 regen)에서 gunghap(3인 business 모드) 빌드가 하드 게이트 실패. hverify 실측 quality internal_meta_label 8건('십성으로' 6·'같은 방향으로 모이는 협업의 결' 2) + semantic ai_signature_punctuation 4건(장 제목의 em dash, 4개 페이지). 동일 PDF 계열이 06-25 리포트까지는 gate PASS — 그 후 게이트 강화기에 잠복.
+- 영향: business 궁합 경로는 compose 폴백이 발생하면 현행 게이트를 통과하는 PDF 를 만들 수 없는 상태였다(판매 시 빌드 실패로 fail-closed — 고객 유출은 없음). 부가로 hrun summary 가 재생성 실패(rc!=0)를 `regen: "done"` 으로 표기해 실패가 가려졌다(관측 갭).
+- 원인(2층):
+  - (생성) `_pair_slot` 골격 문구('십성으로'·'같은 방향으로 모이는 협업의 결')가 relationship 작업 때 quality_lint internal_meta_label 금지어로 등재됐는데, 순화 치환은 relationship 모드(relationship/context.py)에만 배선 — business 모드는 이 슬롯이 폴백 본문으로 원문 그대로 나간다. `_GH_SECTIONS` 장 제목 4개의 em dash 도 시맨틱 벨트(ai_signature_punctuation, 제목 포함 페이지 텍스트 검사) 사각. **금지어를 등재하면 그 문구를 쓰는 생성 골격 전 경로의 동기화까지가 한 단위**(A-5 '배선까지 한 단위'의 감지-생성 대칭형).
+  - (감지/관측) hrun 이 regen rc!=0 이어도 res["regen"]="done" — retry_reasons 에만 pdf_regen_failed 가 남고 문서별 표기는 성공처럼 보였다. regen_returncode 는 summary 화이트리스트에서 드롭(E-5 유형 재발).
+- 재발 방지(구현·검증 완료):
+  - `_pair_slot` 문구 고객 문장화('관계 역할로 보면'·'관계의 결', em dash 제거) + `_GH_SECTIONS` 제목 em dash 제거. 게이트는 불변(완화 0).
+  - hrun: regen rc!=0 이면 `regen: "failed"` 로 표기(fail-closed 관측).
+  - 양방 테스트 4건: 골격 출력 internal_meta_label 0 / 구 골격 문구는 여전히 차단(가드 불변 앵커) / 제목 시그니처 부호 0 / regen 실패 "failed" 표기.
+- 실측: 골격 수정 후 룰 전용 빌드(API 0) gate_pass=True 선확인 → LLM 재생성 1회로 성공. h153 픽스처 교체 완료: personal 37p·gunghap 17p 모두 gate PASS(리포트 handoff/reports/20260705-031710·20260705-033305). 전체 pytest 553 passed / 4 skipped / exit 0.
+- 비용 주의: 1차 재생성은 compose(LLM 지출) 후 최종 게이트에서 파기 — 게이트가 옳게 막았지만 차단 시점이 비용 발생 이후라 실패 1회분이 낭비된다. 재시도 전 API 0 룰 전용 프로브로 통과를 선확인하는 순서가 비용 방어의 표준.
+- 연결 커밋: d7dc63c(골격+제목+양방 3건)·88fb6a1(hrun ref_date 전달+failed 표기+양방 3건)·e9efc7a(integrated CLI ref_date).
 
 - 증상(운영자 발견): 2026-07-04 생성 풀이(CUSTOMER 시기재물)가 "4월 안에 재물 준비를 하나라도 시작해 두라", "5월 이후부터 더 열어두고 보시길 권합니다" — 이미 지난 달을 앞으로의 행동 시기로 제시. gate_pass=True 로 통과했었음(false-pass).
 - 영향: 유료 풀이의 시기 답변 신뢰 붕괴(고객이 즉시 알아챌 오류). 연도 닻(2026-06-12 "지금은 2025년" 사고의 4중 방어)은 연 단위만 커버 — 월 단위 재판.

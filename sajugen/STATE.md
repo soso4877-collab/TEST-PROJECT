@@ -1,5 +1,22 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-05 h153 픽스처 교체 + QI-2026-07-05-01 — 이 블록 먼저 읽기) =====
+>   [h153 픽스처 교체 완료 — 운영자 승인 regen] 구형 픽스처가 06-25 이후 게이트 강화에 밀려
+>     FAIL 되던 것을 최신 게이트 통과본으로 교체. personal 37p·gunghap 17p 모두 gate PASS
+>     (리포트 20260705-031710·20260705-033305). 구본 PDF 는 재생성으로 대체(동일 경로 덮어씀).
+>   [QI-2026-07-05-01 business 궁합 골격 미동기화 — 수정 완료, 상세 docs/16] gunghap 1차
+>     재생성이 하드 게이트에서 실패: 금지어 등재('십성으로' 등) 때 relationship 만 순화 배선되고
+>     business 골격 미동기화 + 장 제목 em dash 4건 + hrun 이 regen 실패를 "done" 으로 표기하던
+>     관측 갭. 수정 3커밋(전부 양방 테스트): d7dc63c(골격·제목) / 88fb6a1(hrun ref_date 전달
+>     +failed 표기) / e9efc7a(integrated CLI --ref-date, 팬텀 파라미터 해소).
+>   [비용 교훈] 재생성 실패 = compose 지출 후 파기라 1회분 낭비. 재시도 전 API 0 룰 전용
+>     프로브로 게이트 통과 선확인이 표준 순서(docs/16 비용 주의 항목).
+>   [백로그 후보] LLM 사용량 관측 배선: llm_sections._usage 카운터가 소비처 0(미출력),
+>     gunghap._compose 는 카운터 미경유 — 빌드 종료 시 usage 합계를 stdout/summary 에 남기기.
+>   [잔여 정리] sajugen/render/out/__probe_gunghap_business__.{pdf,html} 프로브 2파일
+>     수동 삭제 대상(gitignore 영역, rm 권한 정책으로 자동 삭제 불가).
+>   전체 pytest 553 passed / 4 skipped / exit 0 (기준선 547+신규 6).
+>
 > ===== 압축/새세션 재개 앵커 (2026-07-05 백로그 2건 완료 — 이 블록 먼저 읽기) =====
 >   [백로그 완료 1] '또렷' 변형형 선치환: postprocess._STYLE_REPLACEMENTS 를 어간 캐치올
 >     ('또렷'→'분명', '또렷이'만 특례 '분명하게')로 확장 — '또렷해지는/또렷해집니다' 등
