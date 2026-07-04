@@ -11,7 +11,7 @@
 3. `docs/06-llm-usage-policy.md` — LLM 허용/금지 구간
 4. `docs/09-roadmap.md` — Phase 로드맵과 완료 기준
 5. 절대 규칙 상세: `.claude/rules/00-immutable.md` / 작업 방법론: `.claude/rules/10-methodology.md` (항상 로드됨)
-6. 품질 사고 장부: `docs/16-quality-incident-ledger.md` / 운영자 기본기: `docs/18-operator-fundamentals.md`
+6. 품질 사고 장부: `docs/16-quality-incident-ledger.md` / 운영자 기본기: `docs/18-operator-fundamentals.md` / 운영자 플레이북(사람의 운전법): `docs/19-operator-playbook.md`
 
 ## 스택 (확정 — 임의 변경 금지, 변경 시 골든 전수 재검증)
 - Python 올인: lunar-python 1.4.8 고정 / iztro-py>=0.3.5 / Skyfield(de440s.bsp, 절기) / KASI 캐시(3원 교차)
