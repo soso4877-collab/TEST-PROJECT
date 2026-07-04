@@ -88,6 +88,7 @@ def _patch_integrated_sources(monkeypatch):
 
     def fake_personal_report(*args, **kwargs):
         captured["personal_product"] = kwargs["product"]
+        captured["personal_kwargs"] = kwargs
         return SimpleNamespace(
             sections=[
                 SimpleNamespace(id="cover", title="표지", source_keys=[], final_text=""),
@@ -294,6 +295,39 @@ def test_integrated_full_assembler_uses_native_sections_without_render(monkeypat
     ]
     assert "마무리" in result["sections"][-1].final_text
     assert "글을 맺으며" in result["sections"][-1].final_text
+
+
+def test_integrated_full_threads_ref_date_to_personal_and_relationship(monkeypatch):
+    # QI-2026-07-04-02 관계 상품 확장: ref_date 가 개인 장(build_report)과 관계 장
+    # (build_gunghap) 양쪽 compose 경로에 배선된다(월 시제 닻 — 팬텀 파라미터 방지,
+    # 방법론 A-5 '파라미터를 만들면 소비처 배선까지가 한 단위').
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured = _patch_integrated_sources(monkeypatch)
+
+    integrated.build_integrated_full(
+        _people(),
+        receiver_name="DOC_A",
+        situation="synthetic context",
+        ref_date="2026-07-04",
+        render=False,
+    )
+    assert captured["personal_kwargs"]["ref_date"] == "2026-07-04"
+    assert captured["gunghap"]["ref_date"] == "2026-07-04"
+
+
+def test_integrated_full_ref_date_defaults_to_midyear_legacy(monkeypatch):
+    # 미지정 시 기존 하드코딩(연중 6월 13일)과 동일 — 하위호환 보존 앵커.
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured = _patch_integrated_sources(monkeypatch)
+
+    integrated.build_integrated_full(
+        _people(),
+        receiver_name="DOC_A",
+        situation="synthetic context",
+        render=False,
+    )
+    assert captured["personal_kwargs"]["ref_date"] == "2026-06-13"
+    assert captured["gunghap"]["ref_date"] == "2026-06-13"
 
 
 def test_integrated_full_receiver_perspective_unmasks_llm_placeholders(monkeypatch):

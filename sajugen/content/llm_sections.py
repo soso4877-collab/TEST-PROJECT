@@ -226,6 +226,36 @@ def _usage_add(input_tokens: int, output_tokens: int) -> None:
         _usage["calls"] += 1
 
 
+def temporal_anchor_block(ref_year: int | None, ref_date: str | None = None) -> str:
+    """[기준 시점] 프롬프트 닻 — 개인(builder)·궁합(gunghap) compose 공용 단일 소스.
+
+    ref_year: '지금/올해' 오서술 방지(2026-06-12 버그). ref_date: 지난 달을 행동 시기로
+    권하는 월 단위 시제 오류 방지(QI-2026-07-04-02 — 궁합 경로 배선 2026-07-05 백로그).
+    복붙 시 경로별 문구 드리프트를 막기 위해 함수로 분리했다(postprocess 단일소스화와 동일 원칙).
+    """
+    if not ref_year:
+        return ""
+    _today_line = ""
+    if ref_date:
+        try:
+            from datetime import date as _d
+
+            _rd = _d.fromisoformat(str(ref_date)[:10])
+            _today_line = (
+                f"오늘은 {_rd.year}년 {_rd.month}월 {_rd.day}일이다. "
+                f"{_rd.month}월보다 앞선 달을 '앞으로 준비/시작할 시기'나 "
+                f"'~월 안에 하라'는 행동 마감으로 제시하지 마라 — 이미 지난 달이다. "
+                f"앞으로의 시기는 {_rd.month}월부터 12월, 그리고 다음 해에서만 골라라. "
+            )
+        except ValueError:
+            _today_line = ""
+    return (
+        f"\n[기준 시점 — 절대 어기지 마라]\n이 풀이의 '지금'과 '올해'는 "
+        f"{ref_year}년이다. {_today_line}{ref_year}년이 아닌 해를 '지금·올해·현재'로 "
+        f"부르지 마라. 지나간 해를 다가올 일처럼 말하지 마라.\n"
+    )
+
+
 @runtime_checkable
 class LLMBackend(Protocol):
     name: str
@@ -368,26 +398,8 @@ class AnthropicBackend:
                     f"\n[호칭 — 절대 어기지 마라]\n이 사람은 '{call_name}'으로 부른다. "
                     f"'당신'·'고객님'·다른 호칭은 쓰지 마라.\n"
                 )
-            if ref_year:
-                _today_line = ""
-                if ref_date:
-                    try:
-                        from datetime import date as _d
-
-                        _rd = _d.fromisoformat(str(ref_date)[:10])
-                        _today_line = (
-                            f"오늘은 {_rd.year}년 {_rd.month}월 {_rd.day}일이다. "
-                            f"{_rd.month}월보다 앞선 달을 '앞으로 준비/시작할 시기'나 "
-                            f"'~월 안에 하라'는 행동 마감으로 제시하지 마라 — 이미 지난 달이다. "
-                            f"앞으로의 시기는 {_rd.month}월부터 12월, 그리고 다음 해에서만 골라라. "
-                        )
-                    except ValueError:
-                        _today_line = ""
-                user += (
-                    f"\n[기준 시점 — 절대 어기지 마라]\n이 풀이의 '지금'과 '올해'는 "
-                    f"{ref_year}년이다. {_today_line}{ref_year}년이 아닌 해를 '지금·올해·현재'로 "
-                    f"부르지 마라. 지나간 해를 다가올 일처럼 말하지 마라.\n"
-                )
+            # [기준 시점] 닻 — temporal_anchor_block 단일 소스(궁합 _compose 와 공용).
+            user += temporal_anchor_block(ref_year, ref_date)
             if feedback:
                 user += (
                     f"\n[재작성 사유 — 반드시 반영하라]\n직전 초안이 다음 표현 때문에 "

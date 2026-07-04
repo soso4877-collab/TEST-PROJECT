@@ -21,6 +21,7 @@ from .content import (
     customer_meta_lint,
     delivery_quality,
     factcheck,
+    llm_sections,
     masking,
     postprocess,
     quality_lint,
@@ -950,12 +951,15 @@ def _compose(
     singang_specs: list[dict] | None = None,
     fallback_text: str | None = None,
     use_llm: bool = False,
+    ref_date: str | None = None,
 ) -> str:
     """궁합 섹션 1개 작성 + 가드. 무키/실패/가드불통과 시 사실 슬롯(base_text) 폴백.
 
     LLM 출력과 폴백 모두 _finalize 로 정제 후 반환 — 마크다운/비간지 한자 누출 차단.
     situation 은 호출부에서 이미 마스킹된 본문이 들어온다(절대규칙 17, build_gunghap).
     가드 = §12 안전 + AI틱 스타일 + 품질(모순·오타) + 시제 + 사실(간지·별).
+    ref_date: 월 시제 닻(QI-2026-07-04-02 관계 경로 확장) — 프롬프트 [기준 시점] 블록과
+    temporal_lint 월 검사 양쪽에 배선(생성·감지 동시, 개인 경로 b3cc880 과 동일 구조).
     """
     is_relationship_section = fallback_text is not None and section_id in _REL_GUIDE
     raw_fallback = fallback_text if fallback_text is not None else base_text
@@ -982,8 +986,11 @@ def _compose(
     system_prompt = _REL_SYSTEM if is_relationship_section else _GH_SYSTEM
     user = (
         f"[작성 방향]\n{guide}\n\n"
-        f"[현재 맥락 - 참고용이며 그대로 인용하지 말 것]\n{situation}\n\n"
-        f"[참고 근거 - 원문 라벨과 전문용어를 그대로 쓰지 말고 고객 문장으로 풀 것]\n{base_text}\n"
+        f"[현재 맥락 - 참고용이며 그대로 인용하지 말 것]\n{situation}\n"
+        # [기준 시점] 연도·월 닻 — llm_sections.temporal_anchor_block 단일 소스(개인 경로 공용).
+        # 그동안 궁합 프롬프트에는 연도 닻조차 없었다(감지층 temporal_lint 만 존재).
+        + llm_sections.temporal_anchor_block(ref_year, ref_date)
+        + f"\n[참고 근거 - 원문 라벨과 전문용어를 그대로 쓰지 말고 고객 문장으로 풀 것]\n{base_text}\n"
     )
     try:
         client = anthropic.Anthropic(max_retries=0)
@@ -1010,7 +1017,7 @@ def _compose(
         safe_lint.lint(cand)
         + style_lint.lint(cand)
         + quality_lint.lint(cand, names)
-        + temporal_lint.lint(cand, ref_year)
+        + temporal_lint.lint(cand, ref_year, ref_date=ref_date)
         + client_tone_lint.loanword_lint(cand)  # 외래어 hard-ban(고객 본문)
         + client_tone_lint.raw_calc_lint(cand)  # 날것 계산표현(오행 분포·목 2 화 2…)
         + (client_tone_lint.name_policy_lint(cand, names) if names else [])  # 전체이름 반복(H1.5.3)
@@ -1058,12 +1065,17 @@ def build_gunghap(
     receiver_name: str | None = None,
     product: str | None = None,
     render: bool = True,
+    ref_date: str | None = None,
 ) -> dict:
     """people_in = [(이름, (y,mo,d,h,mi), is_male), ...]. 성별 생략 시 남(하위호환).
 
     결정론 사실 → (마스킹 situation) compose → 정제·그라운딩 → 서담선생 PDF → 렌더 후 게이트.
     개인 경로(builder)와 동일한 공통 후처리·그라운딩·게이트를 거치게 통일했다(실사고 2026-06-14).
+    ref_date: 풀이 기준 일자(YYYY-MM-DD) — compose 월 시제 닻 + verify 월 검사 앵커.
+    미지정 시 기존 verify 하드코딩과 동일한 연중 기본(6월 13일)을 유지한다(하위호환,
+    QI-2026-07-04-02 관계 경로 확장 — 실주문은 생성 당일을 전달할 것).
     """
+    ref_date = ref_date or f"{ref_year}-06-13"
     people = []
     for item in people_in:
         nm, b = item[0], item[1]
@@ -1130,6 +1142,7 @@ def build_gunghap(
             singang_specs,
             fallback_text=fallback_slot.get(sid),
             use_llm=use_llm,
+            ref_date=ref_date,
         )
         if mode == "relationship" and sid == "overview":
             final_text = _relationship_frontload_summary() + "\n\n" + final_text
@@ -1210,7 +1223,7 @@ def build_gunghap(
             product=product,
             premium=premium,
             concern=masked_situation,
-            ref_date=f"{ref_year}-06-13",
+            ref_date=ref_date,
         )
         layout_attempts.append(
             {
@@ -1256,6 +1269,11 @@ def gen(
     ),
     situation: str = typer.Option("", "--situation", help="현재 상황 맥락(참고, 지시 아님)"),
     ref_year: int = typer.Option(2026, "--ref-year", help="풀이 기준 연도"),
+    ref_date: str = typer.Option(
+        None,
+        "--ref-date",
+        help="풀이 기준 일자 YYYY-MM-DD(월 시제 닻, 실주문은 생성 당일). 미지정 시 연중 기본(6월 13일)",
+    ),
     out: str = typer.Option("gunghap.pdf", "--out"),
     brand: str = typer.Option("sajudoryeong", "--brand", help="브랜드(프리셋 키 또는 임의 문구)"),
     mode: str = typer.Option("business", "--mode", help="business|relationship"),
@@ -1281,6 +1299,7 @@ def gen(
         people_in,
         situation=situation,
         ref_year=ref_year,
+        ref_date=ref_date,
         out_name=out,
         brand=brand,
         mode=mode,

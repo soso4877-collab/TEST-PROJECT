@@ -318,6 +318,112 @@ def test_compose_keeps_life_flow_continuation(monkeypatch):
     assert "이어지도록" in out
 
 
+def test_compose_prompt_carries_month_anchor(monkeypatch):
+    # QI-2026-07-04-02 관계 경로 확장(생성 층): 궁합 compose 프롬프트에도 [기준 시점]
+    # 연도·월 닻이 실린다(그동안 궁합 프롬프트에는 연도 닻조차 없었다 — 감지층만 존재).
+    import sys as _sys
+    import types
+
+    captured = {}
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    fake = types.ModuleType("anthropic")
+
+    class _Messages:
+        def create(self, *a, **k):
+            captured["prompt"] = k["messages"][0]["content"]
+            return types.SimpleNamespace(
+                content=[
+                    types.SimpleNamespace(text="흐름이 이어지도록 확인의 속도를 맞추면 좋아요.")
+                ]
+            )
+
+    class _Anthropic:
+        def __init__(self, *a, **k):
+            self.messages = _Messages()
+
+    fake.Anthropic = _Anthropic
+    monkeypatch.setitem(_sys.modules, "anthropic", fake)
+
+    g._compose(
+        "each",
+        "근거 슬롯",
+        {"ganzhi": [], "ganzhi_ko": []},
+        "",
+        ["김태수"],
+        2026,
+        use_llm=True,
+        ref_date="2026-07-04",
+    )
+    p = captured["prompt"]
+    assert "기준 시점" in p and "2026년이다" in p  # 연도 닻(궁합 프롬프트 신규)
+    assert "오늘은 2026년 7월 4일" in p and "7월부터 12월" in p  # 월 닻
+
+
+def test_compose_falls_back_on_past_month_advice(monkeypatch):
+    # 감지 층(양방-차단): 지난 달 기점 권유(실사고 문형)를 temporal_lint 월 검사가 잡아 폴백.
+    _fake_anthropic(monkeypatch, "5월 이후부터 더 열어두고 보시길 권합니다.")
+    out = g._compose(
+        "timing",
+        "근거 슬롯",
+        {"ganzhi": [], "ganzhi_ko": []},
+        "",
+        ["김태수"],
+        2026,
+        use_llm=True,
+        ref_date="2026-07-04",
+    )
+    assert "5월" not in out and out == "근거 슬롯"
+
+
+def test_compose_keeps_future_month_advice(monkeypatch):
+    # 감지 층(양방-통과): 미래 달 권유는 폴백 아님(오탐 0 앵커).
+    _fake_anthropic(monkeypatch, "9월 이후부터 더 열어두고 보시길 권합니다.")
+    out = g._compose(
+        "timing",
+        "근거 슬롯",
+        {"ganzhi": [], "ganzhi_ko": []},
+        "",
+        ["김태수"],
+        2026,
+        use_llm=True,
+        ref_date="2026-07-04",
+    )
+    assert "9월" in out and out != "근거 슬롯"
+
+
+def test_build_gunghap_wires_ref_date_to_compose_and_verify(monkeypatch):
+    # 배선 회귀: build_gunghap ref_date 가 compose 가드체인과 verify 월 앵커에 전달되고,
+    # 미지정 시 기존 하드코딩과 동일한 연중 기본(6월 13일)이 보존된다(하위호환).
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    captured = {"compose_ref_dates": set()}
+
+    def fake_render(report, saju, out_name, **kwargs):
+        return "fake.pdf"
+
+    def fake_verify(pdf_path, **kwargs):
+        captured["verify_ref_date"] = kwargs.get("ref_date")
+        return {"gate_pass": True, "markdown_clean": True}
+
+    orig_compose = g._compose
+
+    def spy_compose(*a, **k):
+        captured["compose_ref_dates"].add(k.get("ref_date"))
+        return orig_compose(*a, **k)
+
+    monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
+    monkeypatch.setattr(g.render_verify, "verify", fake_verify)
+    monkeypatch.setattr(g, "_compose", spy_compose)
+    people = [
+        ("서가현", (2002, 10, 23, 11, 40), False, False),
+        ("민상철", (1994, 6, 27, 12, 0), True, True),
+    ]
+    g.build_gunghap(people, mode="relationship", ref_date="2026-07-04")
+    assert captured["verify_ref_date"] == "2026-07-04"
+    assert captured["compose_ref_dates"] == {"2026-07-04"}
+    g.build_gunghap(people, mode="relationship")
+    assert captured["verify_ref_date"] == "2026-06-13"  # 레거시 기본 보존
+
+
 def test_relationship_mode_uses_sajudoryeong_gate_and_unknown_time(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     captured = {}

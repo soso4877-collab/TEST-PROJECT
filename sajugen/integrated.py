@@ -321,8 +321,12 @@ def _render_integrated(
     brand: str,
     out_name: str,
     out_dir: str | Path | None,
+    ref_date: str | None = None,
 ) -> tuple[str, dict, list]:
-    """assemble 된 report 를 _LAYOUT_VARIANTS 로 렌더+게이트(compose 없음). build·재렌더 공용."""
+    """assemble 된 report 를 _LAYOUT_VARIANTS 로 렌더+게이트(compose 없음). build·재렌더 공용.
+
+    ref_date: verify 월 시제 검사 앵커 — 미전달 시 기존 하드코딩과 동일한 연중 기본(6월 13일)."""
+    ref_date = ref_date or f"{ref_year}-06-13"
     bp = dict(cfg.brand(brand))
     bp["cover_title"] = f"{bp['seal']} 통합 사주와 관계 풀이"
     fake_saju = SimpleNamespace(input_civil=" · ".join(names))
@@ -353,7 +357,7 @@ def _render_integrated(
             product=PRODUCT,
             premium=True,
             concern=situation,
-            ref_date=f"{ref_year}-06-13",
+            ref_date=ref_date,
             role_perspective=role_specs,
             honorific=role_specs,
         )
@@ -412,6 +416,8 @@ def render_integrated_from_content(
         brand=brand or data.get("brand", "sajudoryeong"),
         out_name=out,
         out_dir=out_dir,
+        # T5.3 영속 ref_date 로 재렌더도 같은 월 시제 앵커 — 구 파일(필드 없음)은 연중 기본.
+        ref_date=data.get("ref_date"),
     )
     return {
         "product": PRODUCT,
@@ -438,7 +444,12 @@ def build_integrated_full(
     use_llm: bool = False,
     render: bool = True,
     out_dir: str | Path | None = None,
+    ref_date: str | None = None,
 ) -> dict:
+    # 월 시제 닻(QI-2026-07-04-02 관계 상품 확장): 개인 장(build_report)·관계 장(build_gunghap)·
+    # verify·content.json 영속에 같은 기준 일자를 배선. 미지정 시 기존 하드코딩과 동일한
+    # 연중 기본(6월 13일) — 실주문은 생성 당일을 전달할 것.
+    ref_date = ref_date or f"{ref_year}-06-13"
     receiver = _receiver_person(people_in, receiver_name)
     receiver_name = receiver[0]
     y, mo, da, hh, mi = receiver[1]
@@ -459,11 +470,13 @@ def build_integrated_full(
         product=PRODUCT,
         concern=situation,
         closing_sign=cfg.brand(brand)["closing_sign"],
+        ref_date=ref_date,
     )
     relationship_result = gunghap.build_gunghap(
         people_in,
         situation=situation,
         ref_year=ref_year,
+        ref_date=ref_date,
         out_name=out_name,
         brand=brand,
         mode="relationship",
@@ -506,7 +519,7 @@ def build_integrated_full(
         brand=brand,
         out_name=out_name,
         out_dir=out_dir,
-        ref_date=f"{ref_year}-06-13",
+        ref_date=ref_date,
         premium=True,
         model=model,
     )
@@ -522,6 +535,7 @@ def build_integrated_full(
         brand=brand,
         out_name=out_name,
         out_dir=out_dir,
+        ref_date=ref_date,
     )
     result["layout_attempts"] = attempts
     result["pdf_path"] = pdf_path
