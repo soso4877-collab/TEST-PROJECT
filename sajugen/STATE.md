@@ -11,11 +11,13 @@
 >     +failed 표기) / e9efc7a(integrated CLI --ref-date, 팬텀 파라미터 해소).
 >   [비용 교훈] 재생성 실패 = compose 지출 후 파기라 1회분 낭비. 재시도 전 API 0 룰 전용
 >     프로브로 게이트 통과 선확인이 표준 순서(docs/16 비용 주의 항목).
->   [백로그 후보] LLM 사용량 관측 배선: llm_sections._usage 카운터가 소비처 0(미출력),
->     gunghap._compose 는 카운터 미경유 — 빌드 종료 시 usage 합계를 stdout/summary 에 남기기.
+>   [백로그 완료 — LLM 사용량 관측 배선(288e464)] content/llm_usage.py 단일소스 신설,
+>     gunghap compose·llm_polish·classify 집계 배선, 빌드 CLI 3종 "LLM usage:" stdout 출력,
+>     hrun 파싱→summary regen_llm_usage + regen_returncode 화이트리스트 등재(그동안 드롭).
+>     테스트 9건. 다음 재생성부터 지출이 summary 에 남는다(과금액은 Console 대조).
 >   [잔여 정리] sajugen/render/out/__probe_gunghap_business__.{pdf,html} 프로브 2파일
 >     수동 삭제 대상(gitignore 영역, rm 권한 정책으로 자동 삭제 불가).
->   전체 pytest 553 passed / 4 skipped / exit 0 (기준선 547+신규 6).
+>   전체 pytest 562 passed / 4 skipped / exit 0 (기준선 553+신규 9).
 >
 > ===== 압축/새세션 재개 앵커 (2026-07-05 백로그 2건 완료 — 이 블록 먼저 읽기) =====
 >   [백로그 완료 1] '또렷' 변형형 선치환: postprocess._STYLE_REPLACEMENTS 를 어간 캐치올
