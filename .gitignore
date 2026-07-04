@@ -93,3 +93,6 @@ diag_out.txt
 diag_stdout.log
 diag_stderr.log
 sajugen/render/assets/seal_cache/
+
+# 백업 산출물 (docs/18 §8 — 로컬 1부 + OneDrive 오프사이트 1부)
+backup/
