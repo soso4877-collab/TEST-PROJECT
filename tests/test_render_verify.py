@@ -340,3 +340,18 @@ def test_toc_two_column_threshold_boundary():
     # 'toc-2col' 은 <style> 안 CSS 정의(.toc-2col ...)에도 있으므로 적용된 클래스 문자열로 판정.
     assert 'class="toc-list toc-2col"' not in _html(14)  # 임계 이하 = 단일 열
     assert 'class="toc-list toc-2col"' in _html(15)  # 초과 = 2단
+
+
+def test_volume_benchmark_report_only():
+    # 완성본 분량 벤치마크(2026-07-04, 보고 전용): H153 실측 기준 하한(16,000자·400자/쪽)
+    # 미달을 수치로 보고하되 gate_pass 에는 불참(게이트 불변 — physical_frontloaded 선례).
+    secs = [_sn("nature", "타고난 성격", "본문 문장입니다. 흐름이 이어집니다. " * 60)]
+    pdf = _render_sections(secs, "test_volume_bench.pdf")
+    r = v.verify(pdf, ref_year=2026)
+    vol = r["volume"]
+    assert set(vol) >= {"dense_chars", "chars_per_page", "meets_benchmark"}
+    assert vol["meets_benchmark"] is False  # 짧은 합성본 = 기준 미달로 정확 보고
+    assert vol["dense_chars"] < v._VOLUME_BENCH_MIN_CHARS
+    # 보고 전용 증명: 분량 미달이 gate_pass 를 깎지 않는다(다른 게이트 결과와 무관하게
+    # volume 은 어떤 *_clean 플래그도 만들지 않음)
+    assert not any(k.startswith("volume") and k.endswith("_clean") for k in r)

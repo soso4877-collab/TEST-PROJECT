@@ -19,6 +19,12 @@ from . import layout
 
 MIN_TEXT_CHARS = 1500  # 통이미지면 ~0 → 이 기준으로 결함 차단
 
+# 완성본 분량 벤치마크(보고 전용, 게이트 아님) — 근거: 같은 고객 H153 검증 업로드본 실측
+# 17,396자·424자/쪽(2026-07-04). 하한은 그보다 낮게 잡아 질문 유형·챕터 드롭(자미단독 등)의
+# 정상 변동을 허용: 공백 제거 글자수 16,000 + 쪽당 400자. verify()['volume'] 로 보고.
+_VOLUME_BENCH_MIN_CHARS = 16_000
+_VOLUME_BENCH_MIN_CPP = 400.0
+
 # 렌더 후 마크다운 누출 탐지(궁합 PDF '---'·'**' 본문 인쇄 실사고 2026-06-14).
 # 한국어 본문에는 등장하지 않는 강한 신호만 검사 → 오탐 0(부록 한자 병기 등은 무관).
 _MD_HR_RX = re.compile(r"^\s*(?:-{3,}|\*{3,}|_{3,})\s*$", re.M)  # 수평선 라인('---')
@@ -461,6 +467,18 @@ def verify(
         "fonts_embedded": embedded,
         "outline_items": len(toc),
         "tagged": tagged,
+    }
+    # 완성본 분량 벤치마크(2026-07-04, 보고 전용 — 게이트 불변, physical_frontloaded 선례).
+    # 기준 = 역대 최고본 H153 검증 업로드 실측(41p·17,396자·424자/쪽)에서 도출한 하한.
+    # 목적: "완성본인지 판단이 어렵다"(운영자)를 감이 아니라 수치 미달량으로 바꾼다.
+    _dense = len(text.replace(" ", "").replace("\n", ""))
+    _cpp = (_dense / doc.page_count) if doc.page_count else 0.0
+    r["volume"] = {
+        "dense_chars": _dense,
+        "chars_per_page": round(_cpp, 1),
+        "benchmark_min_chars": _VOLUME_BENCH_MIN_CHARS,
+        "benchmark_min_chars_per_page": _VOLUME_BENCH_MIN_CPP,
+        "meets_benchmark": _dense >= _VOLUME_BENCH_MIN_CHARS and _cpp >= _VOLUME_BENCH_MIN_CPP,
     }
     md_hits = markdown_artifacts(text)
     r["markdown_hits"] = md_hits[:20]
