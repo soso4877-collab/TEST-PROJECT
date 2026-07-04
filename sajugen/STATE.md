@@ -15,15 +15,19 @@
 >     gunghap compose·llm_polish·classify 집계 배선, 빌드 CLI 3종 "LLM usage:" stdout 출력,
 >     hrun 파싱→summary regen_llm_usage + regen_returncode 화이트리스트 등재(그동안 드롭).
 >     테스트 9건. 다음 재생성부터 지출이 summary 에 남는다(과금액은 Console 대조).
->   [v6 발송 준비 완료 2026-07-05 — 운영자 수동 발송만 남음] 운영자 육안 검수 완료 선언 접수.
->     무결성: sha12 8e11002460d4·40p·729,832B·mtime 07-04 20:17(검수본=발송본, 무변경).
->     재확인 벨트(읽기 전용) 전부 0: §12·월 시제(ref 07-04/07-05 양측)·customer_meta·markdown·
->     '또렷'·em dash·AI 고지어. 발송 준비 리포트(APPROVED·release_allowed=true):
->     handoff/reports/customer3-money-v6-release/pdf_review_report.md. 발송은 운영자 수동
->     (절대규칙 16 — 자동 발송 없음), 발송 후 STATE 에 발송 완료 표기.
->   [잔여 정리] sajugen/render/out/__probe_gunghap_business__.{pdf,html} 프로브 2파일
->     수동 삭제 대상(gitignore 영역, rm 권한 정책으로 자동 삭제 불가).
->   전체 pytest 562 passed / 4 skipped / exit 0 (기준선 553+신규 9).
+>   [v6 발송 취소 → v7 재검수 대기 2026-07-05 — QI-2026-07-05-02, 상세 docs/16] v6 발송
+>     직전 운영자 발견: 1장 "압축해 보겠습니다"(작업 예고)·"차례대로 확인하세요"(빈 지시) —
+>     둘 다 LLM 아닌 룰 골격(rules.py) 원문이며 1장은 rule-only 라 골격이 곧 고객 표면.
+>     규범('~보겠습니다 금지')이 프롬프트에만 있고 골격·lint 미동기화(QI-05-01 개인판).
+>     수정(0c91f03): rules.py 9+2+1곳 상담가 화법 + customer_meta_lint 신규 룰 2종
+>     (writer_task_announcement·formulaic_empty_instruction) + 전 섹션 실빌드 동기화 앵커.
+>   [v7 = 발송 후보] customer3_money_v7.pdf 39p·sha12 06be3fa768ae·게이트 PASS·지적 문구 0·
+>     신규 룰 포함 벨트 0·usage 17호출/입력 102,757/출력 26,904 토큰(~$0.7, 관측 배선 첫 실전).
+>     ** 전 챕터 LLM 재작성본 — 운영자 전문 육안 검수 후 발송(리포트 REVIEW_REQUIRED:
+>     handoff/reports/customer3-money-v6-release/pdf_review_report.md). ** v6 쌍(pdf/html)은
+>     발송 보류·검수 완료 후 폐기(수동 삭제 목록).
+>   [잔여 정리(수동 삭제)] __probe_gunghap_business__.{pdf,html} + (v7 검수 후) v6 쌍.
+>   전체 pytest 566 passed / 4 skipped / exit 0 (기준선 562+신규 4).
 >
 > ===== 압축/새세션 재개 앵커 (2026-07-05 백로그 2건 완료 — 이 블록 먼저 읽기) =====
 >   [백로그 완료 1] '또렷' 변형형 선치환: postprocess._STYLE_REPLACEMENTS 를 어간 캐치올
