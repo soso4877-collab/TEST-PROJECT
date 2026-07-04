@@ -159,6 +159,12 @@ def _redact_pdf(p: dict) -> dict:
     # 재생성 실패 진단(T5.2/E-5) — PII 레닥션 통과분만 화이트리스트 포함(그동안 드롭되던 관측 갭).
     if p.get("regen_stderr_tail"):
         out["regen_stderr_tail"] = _redact_stderr_tail(p["regen_stderr_tail"])
+    # 사용량·rc 관측(2026-07-05, PII 0): regen_returncode 는 그동안 화이트리스트에서
+    # 드롭돼 summary 만으로 재생성 성패를 알 수 없었다(QI-2026-07-05-01 관측 갭의 이웃).
+    if "regen_returncode" in p:
+        out["regen_returncode"] = p["regen_returncode"]
+    if p.get("regen_llm_usage"):
+        out["regen_llm_usage"] = p["regen_llm_usage"]
     return out
 
 

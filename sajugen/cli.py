@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import typer
 
+from .content import llm_usage
 from .input import normalize as norm
 from .input import time_correction as tc
 from .pipeline import generate
@@ -82,6 +83,9 @@ def gen(
     )
     if r.crosscheck_warnings:
         typer.echo("경고: " + " / ".join(r.crosscheck_warnings))
+    # 사용량 관측(2026-07-05): 빌드 1회의 LLM 지출을 stdout 에 남긴다(PII 0, ASCII 키).
+    # hrun._regen_pdf 가 이 줄을 파싱해 summary(regen_llm_usage)로 올린다.
+    typer.echo(llm_usage.format_line())
     if r.ok:
         typer.echo("게이트: PASS")
     else:

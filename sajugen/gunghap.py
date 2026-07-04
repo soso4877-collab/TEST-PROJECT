@@ -22,6 +22,7 @@ from .content import (
     delivery_quality,
     factcheck,
     llm_sections,
+    llm_usage,
     masking,
     postprocess,
     quality_lint,
@@ -1008,6 +1009,7 @@ def _compose(
             system=system_prompt,
             messages=[{"role": "user", "content": user}],
         )
+        llm_usage.add_response(msg)  # 사용량 관측(2026-07-05) — 그동안 궁합 compose 는 집계 미경유
         cand = (msg.content[0].text if msg.content else "").strip()
     except Exception:
         return fallback
@@ -1314,6 +1316,7 @@ def gen(
         use_llm=llm,
     )
     typer.echo(f"PDF: {r['pdf_path']} ({len(r['people'])}인)")
+    typer.echo(llm_usage.format_line())  # 사용량 관측(2026-07-05) — hrun 이 파싱해 summary 로
 
 
 if __name__ == "__main__":

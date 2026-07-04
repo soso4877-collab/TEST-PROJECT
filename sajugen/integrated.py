@@ -17,7 +17,7 @@ import typer
 from . import config as cfg
 from . import gunghap
 from .calc import engine
-from .content import builder, client_tone_lint, postprocess
+from .content import builder, client_tone_lint, llm_usage, postprocess
 from .render import pdf as render_pdf
 from .render import verify as render_verify
 
@@ -585,6 +585,7 @@ def gen(
         render=True,
     )
     typer.echo(f"PDF: {result['pdf_path']} ({len(result['people'])}인)")
+    typer.echo(llm_usage.format_line())  # 사용량 관측(2026-07-05) — hrun 이 파싱해 summary 로
 
 
 @app.command()

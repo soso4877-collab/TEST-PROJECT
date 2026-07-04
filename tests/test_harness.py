@@ -366,6 +366,56 @@ def test_integrated_hrun_regen_uses_integrated_module(monkeypatch):
     assert "--out" in cmd and "__nonexistent_synthetic_integrated_full__.pdf" in cmd
 
 
+def test_regen_parses_llm_usage_line_from_stdout(monkeypatch):
+    # 사용량 관측 배선(2026-07-05): 빌드 CLI 의 "LLM usage:" 줄이 regen 결과로 파싱되고,
+    # 줄이 없으면 None(구 빌드/무LLM — 양방).
+    def fake_run(cmd, **kwargs):
+        return types.SimpleNamespace(
+            returncode=0,
+            stdout="PDF: x.pdf (2인)\nLLM usage: calls=7 input_tokens=1200 output_tokens=340\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(hrun.subprocess, "run", fake_run)
+    profile = {
+        "type": "personal",
+        "pdf": "sajugen/render/out/__nonexistent__.pdf",
+        "birth": "1990-01-01 10:00",
+        "name": "합성갑",
+        "ref_year": 2026,
+    }
+    r = hrun._regen_pdf(profile, "python")
+    assert r["llm_usage"] == {"calls": 7, "input_tokens": 1200, "output_tokens": 340}
+
+    monkeypatch.setattr(
+        hrun.subprocess,
+        "run",
+        lambda cmd, **kw: types.SimpleNamespace(returncode=0, stdout="PDF: x.pdf\n", stderr=""),
+    )
+    assert hrun._regen_pdf(profile, "python")["llm_usage"] is None
+
+
+def test_hsummary_whitelists_regen_usage_and_returncode():
+    # summary 화이트리스트 배선 — regen_returncode 는 그동안 드롭돼 성패가 안 보였다
+    # (QI-2026-07-05-01 관측 갭의 이웃). PII 0 필드만 추가.
+    import hsummary
+
+    p = {
+        "type": "gunghap",
+        "pdf": "x.pdf",
+        "status": "verified",
+        "regen": "done",
+        "regen_returncode": 0,
+        "regen_llm_usage": {"calls": 7, "input_tokens": 1200, "output_tokens": 340},
+    }
+    out = hsummary._redact_pdf(p)
+    assert out["regen_returncode"] == 0
+    assert out["regen_llm_usage"] == {"calls": 7, "input_tokens": 1200, "output_tokens": 340}
+    # 필드 부재 시 키 미출현(None 오염 방지)
+    out2 = hsummary._redact_pdf({"type": "personal", "pdf": "y.pdf", "status": "verified"})
+    assert "regen_llm_usage" not in out2 and "regen_returncode" not in out2
+
+
 def test_failed_regen_is_reported_as_failed_not_done(monkeypatch):
     # 관측 갭(2026-07-05 h153 실측): 재생성 CLI rc!=0 인데 summary 의 regen 이 "done" 으로
     # 표기돼 실패가 가려졌다. 실패한 프로파일 자신은 "failed" 로 드러난다(fail-closed 관측).

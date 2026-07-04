@@ -61,6 +61,9 @@ def polish(rule_text: str, title: str, *, mask_civil: str | None = None) -> str:
             messages=[{"role": "user", "content": f"[섹션:{title}]\n원문:\n{safe_text}"}],
             response_model=Polished,
         )
+        from . import llm_usage
+
+        llm_usage.add_response(res)  # 사용량 관측(2026-07-05) — 재윤문도 비용 집계에 포함
         return res.text.strip() or rule_text
     except Exception:
         return rule_text  # 어떤 실패든 안전 폴백

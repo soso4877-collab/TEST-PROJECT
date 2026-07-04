@@ -202,28 +202,21 @@ _COMPOSE_GUIDE = {
 }
 
 
-# --- API 사용량 집계(비용 실측, 2026-06-12) — compose 호출 토큰 누적(스레드 안전) ---
-import threading as _threading
-
-_usage_lock = _threading.Lock()
-_usage = {"input_tokens": 0, "output_tokens": 0, "calls": 0}
+# --- API 사용량 집계(비용 실측, 2026-06-12) — 단일 소스는 llm_usage 로 이전(2026-07-05).
+# 여기 이름들은 하위호환 위임만 남긴다(카운터 이중화로 인한 드리프트 방지).
+from . import llm_usage as _llm_usage
 
 
 def usage_reset() -> None:
-    with _usage_lock:
-        _usage.update(input_tokens=0, output_tokens=0, calls=0)
+    _llm_usage.reset()
 
 
 def usage_snapshot() -> dict:
-    with _usage_lock:
-        return dict(_usage)
+    return _llm_usage.snapshot()
 
 
 def _usage_add(input_tokens: int, output_tokens: int) -> None:
-    with _usage_lock:
-        _usage["input_tokens"] += input_tokens
-        _usage["output_tokens"] += output_tokens
-        _usage["calls"] += 1
+    _llm_usage.add(input_tokens, output_tokens)
 
 
 def temporal_anchor_block(ref_year: int | None, ref_date: str | None = None) -> str:
@@ -354,6 +347,7 @@ class AnthropicBackend:
                 messages=[{"role": "user", "content": concern.strip()}],
                 response_model=_Cat,
             )
+            _llm_usage.add_response(res)  # 사용량 관측(2026-07-05) — instructor _raw_response 경유
             return res.category
         except Exception as e:  # 어떤 실패든 룰 폴백 — 폴백 발생을 관측 가능하게 로깅(T5.4)
             _log.warning("classify LLM 실패 → 룰 폴백: %s", type(e).__name__)

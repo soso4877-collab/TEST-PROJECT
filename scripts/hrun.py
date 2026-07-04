@@ -138,7 +138,12 @@ def _regen_pdf(profile: dict, python: str) -> dict:
     # 실패 시 원인 추적용 — 그동안 returncode 만 반환해 CLI 에러가 가려졌다(관측 갭). stderr tail 보존.
     # getattr: 테스트가 subprocess.run 을 stdout/stderr 없는 mock 으로 대체해도 안전.
     tail = ((getattr(r, "stderr", "") or "") + (getattr(r, "stdout", "") or ""))[-3000:]
-    return {"returncode": r.returncode, "stderr_tail": tail}
+    # 사용량 관측(2026-07-05): 빌드 CLI 가 남긴 "LLM usage:" 줄을 파싱해 summary 로 올린다
+    # (PII 0 — 토큰 수·호출 수만). 줄이 없으면 None(구 빌드/무LLM).
+    from sajugen.content import llm_usage
+
+    usage = llm_usage.parse_line(getattr(r, "stdout", "") or "")
+    return {"returncode": r.returncode, "stderr_tail": tail, "llm_usage": usage}
 
 
 def _profile_concern(profile: dict) -> str | None:
@@ -192,6 +197,8 @@ def run(profiles: list[str], args) -> dict:
             res["regen"] = "skipped(미승인)"
         if regen_result is not None:
             res["regen_returncode"] = regen_result.get("returncode")
+            if regen_result.get("llm_usage"):
+                res["regen_llm_usage"] = regen_result["llm_usage"]  # 비용 관측(PII 0)
             # 재생성 실패 시 CLI stderr tail 을 로컬 진단용으로 보존(PII 포함 가능 → gitignored,
             # 채팅/커밋 비출력). 그동안 원인이 가려지던 관측 갭 보강(2026-07-02).
             if regen_result.get("returncode") not in (0, None) and regen_result.get("stderr_tail"):
