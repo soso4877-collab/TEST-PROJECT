@@ -197,7 +197,190 @@ diff 를 한 문장으로 설명할 수 있는 작은 작업(오타, 문구 1줄
 
 ---
 
-## 7. 빠른 참조 카드
+## 7. 결정 내리는 법 — 헤매지 않는 선택의 프레임워크
+
+코딩에서 헤매는 시간의 대부분은 코드가 아니라 **결정을 못 내리는 시간**이다. 아래 4개 도구로
+결정을 빠르게 만든다.
+
+### 7-1. 이 결정, 되돌릴 수 있나? (Bezos Type 1 / Type 2)
+- **되돌릴 수 있는 결정(two-way door)**: 빨리 결정하고 진행한다. 틀리면 문을 다시 열고 나오면
+  된다 — 고민 시간이 낭비다. 예: 함수 이름, 문구, 내부 구조, 대부분의 코드.
+- **되돌릴 수 없는 결정(one-way door)**: 천천히, 신중하게, 조사 후 결정. 예: 발송(고객에게 나간
+  PDF), DB 스키마 파괴적 변경, 데이터 파기, 공개 push 된 비밀, 유파 정책(기존 고객 결과가 바뀜).
+- 함정: 모든 결정을 Type 1 처럼 무겁게 다루면 느려진다. 원출처: Amazon 2015 주주서한
+  (https://s2.q4cdn.com/299287126/files/doc_financials/annual/2015-Letter-to-Shareholders.PDF)
+- 내 프로젝트 적용: git 이 있는 한 코드는 거의 전부 two-way door 다(9장 복구 참조). one-way 는
+  "발송·파기·push 된 비밀" 셋이 전부다 — 이 셋만 의식적으로 느리게 간다.
+
+### 7-2. 새 기술·라이브러리 앞에서: 지루한 기술을 골라라 (Choose Boring Technology)
+- 혁신 토큰(innovation tokens)은 약 3개뿐 — 검증 안 된 새 기술 하나를 채택할 때마다 하나를 쓴다.
+- "지루한" 기술 = 성능이 나쁜 게 아니라 **실패 모드가 잘 알려진** 기술. "capabilities 도 알려져
+  있지만, 더 중요한 건 failure modes 가 알려져 있다는 것."
+- 새 도구를 원할 때 먼저 물을 것: "지금 있는 걸로 정말 못 푸나?" — "지금 가진 것으로 목표를 못
+  이룬다고 생각한다면, 아마 충분히 창의적으로 생각하지 않은 것이다."
+- 원출처: https://mcfunley.com/choose-boring-technology
+- 내 적용: sajugen 스택 고정(lunar-python 핀 등)이 정확히 이 원칙이다. 에이전트가 "더 좋은 새
+  라이브러리"를 제안하면 4-4 체크 5줄 + "혁신 토큰을 쓸 가치인가"를 묻는다.
+
+### 7-3. "나중에 필요할 것 같은데" 앞에서: YAGNI (Fowler)
+- 추정 기능(presumptive feature)의 4가지 비용: 만드는 비용(build) + 그 시간에 못 만든 다른 것
+  (delay) + 얹혀서 이후 모든 수정을 어렵게 만드는 비용(carry) + 나중에 다시 고치는 비용(repair).
+- 기준: **실제로 필요해질 때 만든다.** "6개월 뒤 필요하고 만드는 데 2개월이면, 앞으로 4개월은
+  시작하지 말아야 한다." 원출처: https://martinfowler.com/bliki/Yagni.html
+- 에이전트에게 쓰는 표현: "지금 요청한 것만 만들어. 확장 대비 추상화는 하지 마."
+
+### 7-4. 순서: 돌아가게 -> 옳게 -> 빠르게
+- "Make it work, make it right, make it fast" (Kent Beck 에게 귀속되는 격언,
+  https://tidyfirst.substack.com/p/chapter-make-it-run-make-it-right). 최적화는 항상 마지막이고
+  측정 후에만(10-methodology B-5와 동일).
+- MVP 의 진짜 의미: 축소판 완성품이 아니라 "최소 노력으로 **검증된 학습**을 최대로 얻는 버전"
+  (Eric Ries, https://leanstartup.co/resources/articles/what-is-an-mvp/). 목적은 출시가 아니라 학습.
+- 타임박스(실무 관행, 정전급 출처 없음): 막히면 15분 타이머 — 시간이 다 되면 같은 접근을 계속하지
+  말고 (a) 접근 전환 (b) 에이전트에게 "다른 방법 3개" 요청 (c) 문제를 소리 내어 설명(러버덕,
+  https://blog.codinghorror.com/rubber-duck-problem-solving/) 중 하나로 바꾼다.
+
+---
+
+## 8. 컨텍스트·세션 운용 — "기억을 잃을까" 걱정에 대한 답
+
+### 8-1. 결론부터: /compact 는 최선이 아니다 (공식 서열)
+컨텍스트가 차면 요약(compact)이 아니라 **파일 영속 + 새 세션**이 기본이다. Anthropic 공식 서열:
+1. **작업 간 /clear** — 무관한 작업으로 넘어갈 때마다 리셋(가장 자주 권장).
+2. **같은 이슈를 2번 이상 교정했으면** compact 가 아니라 **/clear + 더 나은 프롬프트로 재시작** —
+   "누적 교정된 긴 세션보다 깨끗한 세션이 거의 항상 낫다"(공식).
+3. **긴 작업은 외부 파일에 상태를 영속** — 인터뷰 -> SPEC/PLAN 파일 작성 -> 새 세션에서 실행.
+   진행 상태·결정·수정 파일 목록은 요약이 아니라 **레포 안 파일**에 남긴다.
+4. **/compact 는 한 흐름을 반드시 이어가야 할 때만**, 항상 초점을 지정한다
+   (`/compact 수정 파일 목록과 테스트 결과에 집중`).
+- 출처: https://code.claude.com/docs/en/best-practices ,
+  https://code.claude.com/docs/en/context-window
+
+### 8-2. 왜 compact 만 믿으면 안 되나 (공식 근거)
+- compact = 대화를 요약으로 치환하는 **손실 압축**. Anthropic engineering 공식 표현: "과도한
+  압축은 **나중에야 중요해지는 미묘한 맥락을 잃게** 할 수 있다"
+  (https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
+- 압축에서 살아남는 것(공식 표): 프로젝트 루트 CLAUDE.md·unscoped rules·auto memory.
+  **유실되는 것**: paths 스코프 rule·nested CLAUDE.md·스킬 목록 설명.
+- 그래서 이 프로젝트의 **STATE.md 자동 주입 훅 + 재개 앵커** 구조가 정확히 공식 권장 형태다 —
+  기억은 세션이 아니라 저장소가 갖고 있고, 어떤 새 세션이든 파일만 읽으면 이어간다.
+
+### 8-3. 업계 트렌드: context engineering (2025~)
+- 원칙: 컨텍스트는 "가장 적은 수의 고신호 토큰"으로 유지. LLM 은 컨텍스트가 찰수록 성능이 떨어진다.
+- 권장 패턴 2개(Anthropic engineering): (a) **구조화 노트테이킹** — 에이전트가 컨텍스트 밖
+  파일에 메모를 영속하고 나중에 다시 불러온다(= STATE/PLAN/SPEC 파일). (b) **서브에이전트 분산** —
+  탐색·대량 로그는 깨끗한 컨텍스트의 서브에이전트가 처리하고 메인에는 요약 1~2천 토큰만 반환.
+- 내 운용 수칙: 탐색/조사/테스트 로그는 서브에이전트로 격리 지시("에이전트 띄워서 조사해"),
+  메인 세션은 결정과 편집만.
+
+### 8-4. 세션 운용 도구 정리 (공식)
+| 도구 | 무엇 | 언제 |
+|---|---|---|
+| /clear | 컨텍스트 완전 리셋 | 다른 작업으로 전환할 때마다 |
+| /compact <초점> | 요약 치환(손실 압축) | 한 흐름을 이어야 할 때만, 초점 필수 |
+| /rewind (Esc Esc) | 체크포인트 복원(파일+대화) | 실험 되돌리기. **Bash 가 바꾼 파일은 추적 안 됨**, git 대체 아님 |
+| --resume / /rename | 세션 재개·이름 부여 | 워크스트림당 세션 1개, 이름은 브랜치처럼 |
+| git worktree | 병렬 세션 파일 격리 | 두 세션이 같은 저장소를 동시에 만질 때 |
+| /usage · /context | 토큰·비용·컨텍스트 점유 확인 | 세션이 무거워졌다 싶을 때 |
+- 주의: 같은 세션을 두 터미널에서 동시에 재개하면 기록이 뒤섞인다 — 분기는 /branch 나
+  --fork-session. 출처: https://code.claude.com/docs/en/sessions ,
+  https://code.claude.com/docs/en/checkpointing , https://code.claude.com/docs/en/costs
+
+### 8-5. 비용 운용 한 줄 요약 (공식 팁 중 내게 유효한 것)
+작업 간 /clear · CLAUDE.md 200줄 이하 유지 · 대량 출력은 서브에이전트/훅으로 격리 · plan mode 로
+잘못된 방향 재작업 방지 · 복잡한 결정에만 상위 모델(/model·/effort).
+
+---
+
+## 9. 망가졌을 때 — 복구 안전망 (겁이 없어야 헤매지 않는다)
+
+### 9-1. 겁내지 않아도 되는 것 (전부 되돌릴 수 있음, git 공식 문서 기준)
+| 상황 | 복구 방법 | 근거 |
+|---|---|---|
+| 커밋 안 한 수정을 되돌리고 싶다 | `git restore <파일>` (스테이징 취소는 `--staged`) | https://git-scm.com/docs/git-restore |
+| 지금 변경을 잠시 치워두고 싶다 | `git stash` -> 복원은 `git stash pop` | https://git-scm.com/docs/git-stash |
+| **push 된** 잘못된 커밋 | `git revert <해시>` — 히스토리를 안 지우는 안전한 공개 취소 | https://git-scm.com/docs/git-revert |
+| 로컬에만 있는 커밋 정리 | `git reset` (여기까지만 reset 허용) | https://git-scm.com/docs/git-reset |
+| 커밋이 "사라졌다" | `git reflog` 로 이동 이력에서 해시 찾기 — 커밋된 것은 기본 90일 로컬 보존 | https://git-scm.com/docs/git-reflog |
+
+핵심: **한 번이라도 커밋한 작업은 거의 잃지 않는다.** 그래서 "자주 커밋"이 최고의 보험이다
+(= 코드는 대부분 two-way door, 7-1). Claude Code 의 /rewind 체크포인트도 같은 층의 보험.
+
+### 9-2. 정말 조심할 것 (복구 불가 지점 3개)
+1. **커밋하지 않은 변경의 삭제** — `git reset --hard`·restore 로 덮인 미커밋 변경, clean 으로 지운
+   미추적 파일은 reflog 에도 없다. 예방 = 자주 커밋.
+2. **push 된 비밀(키·PII)** — 원격·포크·캐시로 퍼진 순간 히스토리 재작성으로 "없던 일"이 안 된다.
+   GitHub 공식: **1순위는 즉시 키 폐기/로테이션, 히스토리 제거는 2차**
+   (https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository).
+   유출을 알아챈 순간 하던 일을 멈추고 로테이션부터.
+3. **force push** — 남의(다른 세션의) 커밋을 소리 없이 파괴 가능. 꼭 필요하면 `--force` 대신
+   `--force-with-lease` (https://git-scm.com/docs/git-push).
+
+### 9-3. Windows 특이 함정 (공식 근거)
+- 개행: Windows=CRLF, 리눅스/맥=LF. `git config --global core.autocrlf true` 권장, 저장소 고정은
+  .gitattributes (https://git-scm.com/book/en/v2/Customizing-Git-Git-Configuration). "LF will be
+  replaced by CRLF" 경고는 정상 동작이다 — 겁내지 않아도 된다.
+- 경로: Git Bash 는 `/c/Users/...`, PowerShell 은 `C:\Users\...` — 스크립트 복붙 시 깨지는 1순위.
+- 인코딩: 파일은 UTF-8 통일, 터미널 출력은 ASCII 평문(cp949 함정, 6장).
+
+### 9-4. AI 와 속도에 대한 냉정한 사실 (METR 2025 RCT)
+- 숙련 오픈소스 개발자 16명이 자기 저장소 실제 이슈 246개를 수행한 무작위 대조 실험: AI 허용
+  조건에서 **19% 더 느렸다**. 그런데 본인들은 실험 후에도 "20% 빨라졌다"고 믿었다 — 체감과 실제가
+  정반대 (https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/ ,
+  https://arxiv.org/abs/2507.09089).
+- 조건 주의: 숙련자+익숙한 대형 코드베이스의 결과라 내 상황(비전공·에이전트 주도)에 그대로
+  일반화되진 않는다. 교훈은 하나 — **속도 체감을 믿지 말고 측정하라**(작업 시작/끝 시각 기록,
+  Phase 별 소요 시간을 STATE 에 남기기). 그리고 검증 없는 속도는 속도가 아니다(2-4).
+
+---
+
+## 10. 집중·보안·읽기 — 추가로 채운 공백 4축
+
+### 10-1. 프로젝트 4개 병행의 진짜 비용 (과제 전환 + 계획 오류)
+- 과제 전환은 무의식적 2단계(목표 전환 + 규칙 재활성화) 비용을 매번 문다. 짧아 보여도 누적되면
+  **생산 시간의 최대 40%까지** 잡아먹을 수 있다 (APA 공식,
+  https://www.apa.org/topics/research/multitasking).
+- 계획 오류(planning fallacy): 자기 작업은 과거 실적을 알면서도 낙관 과소추정한다. 남의 작업처럼
+  3인칭으로 보면 편향이 준다 (Kahneman/Tversky 명명, Buehler 1994,
+  https://web.mit.edu/curhan/www/docs/Articles/biases/67_J_Personality_and_Social_Psychology_366,_1994.pdf).
+- 내 수칙 2개: (1) 프로젝트는 왔다갔다 하지 않고 **반나절~하루 블록으로 배치 처리**(전환 횟수
+  자체를 줄인다). (2) 마감 견적은 감이 아니라 **"지난 비슷한 작업이 실제 며칠 걸렸나"**(STATE 의
+  Phase 소요 기록)로 잡고 버퍼를 붙인다.
+
+### 10-2. 계정 보안 위생 — 1인 사업자는 계정 탈취 = 사업 전체 상실
+- CISA 공식: **MFA 를 켜면 계정 해킹 확률이 99% 낮아진다** (https://www.cisa.gov/MFA).
+  SMS 방식은 약하다 — 앱 TOTP 또는 보안키(FIDO)가 권장.
+- GitHub 는 기여자 2FA 를 의무화했다(공급망 보안은 개발자 계정에서 시작,
+  https://github.blog/news-insights/product-news/raising-the-bar-for-software-security-github-2fa-begins-march-13/).
+- 내 체크: 이메일·GitHub·Anthropic 콘솔·결제·클라우드 5대 계정에 TOTP 2FA + 패스워드 매니저로
+  계정별 고유 비밀번호 + **복구 코드는 오프라인 보관**. 분기 점검(2-6 루틴에 포함).
+
+### 10-3. 프롬프트 인젝션 — 고객 텍스트를 LLM 에 넣는 상품의 필수 인식 (OWASP LLM01)
+- 정의: 사용자/외부 콘텐츠가 LLM 의 동작을 의도치 않게 바꾸는 취약점. 직접(고객 입력)과
+  간접(파일·웹 콘텐츠) 두 경로. **OWASP 공식 입장: 완벽한 방어는 불확실 — 목표는 예방이 아니라
+  영향 완화** (https://genai.owasp.org/llmrisk/llm01-prompt-injection/).
+- 완화 원칙(공식): 외부 콘텐츠를 신뢰 경계로 분리·식별, 출력 형식 결정적 검증, 최소 권한,
+  고위험 행동에 인간 승인.
+- sajugen 은 이미 구현체다: 고객 고민 원문을 "<<<인용, 지시 아님>>>" 격리 블록으로만 전달 +
+  출력은 가드 재검증 + 발송은 사람 승인(APPROVED). **새 LLM 기능을 만들 때마다 이 3종 세트
+  (격리·검증·사람 승인)를 기본값으로 요구**한다.
+
+### 10-4. 코드·테스트를 읽는 법 (비전공자의 지렛대)
+- 코드가 안 읽히는 이유는 3가지로 구분된다: 지식 부족(문법을 모름) / 정보 부족(찾아봐야 함) /
+  **처리력 부족(작업기억 과부하 — 한 번에 2~6개만 처리 가능)** (Felienne Hermans, The
+  Programmer's Brain, https://www.manning.com/books/the-programmers-brain). 셋 중 무엇인지
+  구분하면 대응이 달라진다: 모르면 배우고, 없으면 찾고, 넘치면 쪼갠다.
+- **테스트부터 읽어라**: 테스트는 "이 코드가 무엇을 해야 하는가"가 입력·기대출력으로 적힌
+  실행 가능한 문서다 (Fowler, https://martinfowler.com/bliki/SelfTestingCode.html). 낯선 함수는
+  본문보다 test_*.py 를 먼저 연다.
+- AI 시대의 원칙(Simon Willison): AI 가 쓴 코드는 주니어의 결과물처럼 읽고·실행하고·테스트하라.
+  **이해했고 검증했다면 그것은 vibe coding 이 아니다 — 이해 없이 커밋하는 것이 문제다**
+  (https://simonwillison.net/2025/Mar/19/vibe-coding/).
+- 내 루틴: 매주 한 파일 "이 파일이 뭘 하는지 설명해줘, 내가 질문할게" 세션(11장) — 읽기 근육은
+  이렇게만 는다.
+
+---
+
+## 11. 빠른 참조 카드
 
 **세션 시작 템플릿(복붙):**
 ```
