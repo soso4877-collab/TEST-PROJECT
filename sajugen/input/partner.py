@@ -72,6 +72,49 @@ _NAME_STOP = set(
     "셋째 그리고 궁금 합니다 입니다 생일 생년 월일".split()
 )
 
+# 인물 문맥 게이트(2026-07-04 QI 팬텀 파트너): 날짜는 '사람'을 가리키는 문맥이 있을 때만
+# 상대방 생일로 채택한다. 사건·이력 날짜("2020년 3월 5일에 이사")가 상대 생일로 둔갑해
+# 존재하지 않는 인물의 명식·관계 서술이 개인 풀이에 주입된 실사고의 근본 차단.
+# 미감지 = 해당 인물 생략(개인 풀이로 진행)이라 안전 방향(모듈 원칙과 동일).
+_PERSON_TOKENS = _RELATIONS + (
+    "그분",
+    "그 분",
+    "그사람",
+    "그 사람",
+    "상대",
+    "애인",
+    "배우자",
+    "썸",
+    "남사친",
+    "여사친",
+    "친구",
+    "지인",
+    "동료",
+    "남자",
+    "여자",
+    "자녀",
+    "자식",
+)
+# 날짜 직후의 출생 접미("…일생", "19990118 생이에요", "…일 태어났") = 인물 문맥으로 인정
+_BIRTH_SUFFIX_RX = re.compile(r"^[ \t]*(?:년?생|생일|출생|태어)")
+
+
+def _has_person_context(text: str, start: int, end: int) -> bool:
+    """날짜 매치 주변(같은 줄 앞 30자 + 뒤 16자)에 인물 신호가 있는가."""
+    line_start = text.rfind("\n", 0, start) + 1
+    before = text[max(line_start, start - 30) : start]
+    line_end = text.find("\n", end)
+    if line_end == -1:
+        line_end = len(text)
+    after = text[end : min(end + 16, line_end)]
+    # 역법 라벨(양력/음력)은 생년월일 표기 관행 — 사건 날짜에는 붙지 않는다
+    if "음력" in before or "양력" in before or "음력" in after[:8] or "양력" in after[:8]:
+        return True
+    if _BIRTH_SUFFIX_RX.match(after):
+        return True
+    win = before + " " + after
+    return any(tok in win for tok in _PERSON_TOKENS)
+
 
 def _century(yy: int, ref_year: int) -> int:
     """두 자리 연도 → 세기 추론: 2000+yy가 기준연도를 넘으면 1900+yy (99→1999)."""
@@ -168,6 +211,8 @@ def find_partner_births(
         if self_solar and date(y, mo, d) == self_solar:
             return  # 본인 생일 재언급 오탐 방지
         s, e = m.span()
+        if not _has_person_context(concern, s, e):
+            return  # 인물 문맥 없음 = 사건·이력 날짜(팬텀 파트너 방지, 2026-07-04 QI)
         if any(s < pe and ps < e for ps, pe in spans):
             return  # 겹침(같은 표기 이중 매치) 방지
         spans.append((s, e))

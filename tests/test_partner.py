@@ -28,13 +28,14 @@ _CONCERN = (
 
 # ---- 파서 ----
 def test_parser_formats():
+    # 인물 문맥(관계어/역법 라벨/출생 접미) 동반 날짜는 전 포맷 감지 유지
     for text, ymd in [
         ("그친구는 990118 양력인데", (1999, 1, 18)),
         ("19990118 생이에요", (1999, 1, 18)),
         ("99년 1월 18일생", (1999, 1, 18)),
         ("1999.1.18 남자", (1999, 1, 18)),
-        ("1999-01-18", (1999, 1, 18)),
-        ("05년 4월 20일", (2005, 4, 20)),
+        ("여자친구 1999-01-18", (1999, 1, 18)),
+        ("그분은 05년 4월 20일 태어났어요", (2005, 4, 20)),
     ]:
         got = input_partner.find_partner_births(text, ref_year=_REF)
         assert len(got) == 1, (text, got)
@@ -49,6 +50,33 @@ def test_parser_rejects_noise():
     assert not input_partner.find_partner_births(
         "제 생일은 890102 입니다", self_solar=date(1989, 1, 2), ref_year=_REF
     )
+
+
+def test_parser_requires_person_context():
+    # QI-2026-07-04 팬텀 파트너: 인물 문맥 없는 날짜(사건·이력·금액 조각)는 미감지.
+    # 사건 날짜가 상대 생일로 둔갑해 존재하지 않는 인물의 명식·관계 서술이 개인 풀이에
+    # 주입된 실사고의 회귀 앵커. 미감지 = 개인 풀이 진행(안전 방향).
+    for text in [
+        "2020년 3월 5일에 이사한 뒤로 일이 잘 안 풀립니다.",  # 사건 날짜(_RX_KO)
+        "계약금 300만원 중 150301 송금했는데 사업운이 궁금합니다.",  # 맨 6자리(_RX_6)
+        "1999-01-18",  # 문맥 없는 맨 날짜(_RX_SEP) — 구 골든에서 의도 변경(사건 오인 방지)
+        "2021.4.1 계약했고 2023-05-02 퇴사했습니다.",  # 이력 날짜 2건
+    ]:
+        assert not input_partner.find_partner_births(text, ref_year=_REF), text
+
+
+def test_builder_wires_self_solar_guard():
+    # QI-2026-07-04: builder 가 본인 생일 제외 가드(self_solar)를 실제 배선하는지 —
+    # 원문에 본인 생일이 있어도 상대방 명식이 주입되지 않아야 한다.
+    saju = engine.build(1989, 1, 2, 7, 40, is_male=False, horoscope_date="2026-06-01")
+    r = builder.build_report(
+        saju,
+        use_llm=False,
+        ref_year=2026,
+        concern="제 남편은 저랑 동갑이고 저는 1989년 1월 2일생입니다. 남편 복이 궁금해요.",
+    )
+    consult = next(s for s in r.sections if s.id == "consult")
+    assert "의 명식" not in consult.rule_text  # 본인 생일 = 상대 아님(가드 발동)
 
 
 # ---- 결정론 계산(골든) ----

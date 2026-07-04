@@ -66,6 +66,9 @@ class Report23(BaseModel):
     # factcheck 허용 토큰(set→list 직렬화). 검수 UI의 관리자 수정 재검증용 —
     # saju 객체 없이도 계산 시점과 동일한 허용 집합으로 검사(상대방 간지 포함).
     allow_tokens: dict = Field(default_factory=dict)
+    # QI-2026-07-04: 상대방 명식 주입 여부 — verify 커플 지칭 승격 판정용.
+    # None=미상(레거시 저장분, 승격 비적용) / False=1인 문서(커플 지칭 hard) / True=파트너 有.
+    partner_present: bool | None = None
 
     def section(self, sid: str) -> Section:
         return next(s for s in self.sections if s.id == sid)

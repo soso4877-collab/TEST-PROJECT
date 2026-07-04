@@ -116,6 +116,8 @@ def generate(
         product=product,
         concern=concern,
         ref_date=horoscope_date,
+        # QI-2026-07-04: 1인 문서(파트너 부재)면 커플 지칭 candidate 를 hard 승격.
+        partner_present=getattr(report, "partner_present", None),
     )
 
     reasons: list[str] = []

@@ -179,11 +179,25 @@ def _semantic_style_hits(page_items: list[tuple[int, str]]) -> list[dict]:
     ][:50]
 
 
-def _placeholder_residue_hits_clean(hits: list[dict], product: str | None = None) -> bool:
+# 다인(2인+) 상품 — 커플 지칭이 정상 표현인 문서(candidate 승격 비적용).
+_MULTI_PERSON_PRODUCTS = {"gunghap", "relationship", "integrated_full"}
+
+
+def _placeholder_residue_hits_clean(
+    hits: list[dict],
+    product: str | None = None,
+    partner_present: bool | None = None,
+) -> bool:
     # Phase 1 hard gate: definite masking/placeholder residue fails everywhere.
-    # Candidate hits such as "두 분께" are exposed for product-aware follow-up without
-    # failing relationship/gunghap documents by default.
-    return not any(h.get("severity") == "hard" for h in hits)
+    # QI-2026-07-04(팬텀 파트너): product 가 dead parameter 여서 "두 분" 류 커플 지칭이
+    # 1인 문서에서도 통과했다. 이제 '1인 상품 + 파트너 부재(partner_present is False)'가
+    # 확인되면 candidate 도 hard 로 승격해 실패시킨다. partner_present=None(미상, 레거시
+    # 호출)·다인 상품·파트너 명식 있는 개인 풀이는 기존 동작 유지(완화 0, 사각 축소만).
+    if any(h.get("severity") == "hard" for h in hits):
+        return False
+    if partner_present is False and (product or "") not in _MULTI_PERSON_PRODUCTS:
+        return not any(h.get("severity") == "candidate" for h in hits)
+    return True
 
 
 _CHAPTER_HEAD_RX = re.compile(r"^\s*제\s*\d(?:\s*\d)*\s*장")  # 두 자리 장 공백 추출 대응(A-4)
@@ -410,6 +424,7 @@ def verify(
     ref_date: str | None = None,
     role_perspective: list[dict] | None = None,
     honorific: list[dict] | None = None,
+    partner_present: bool | None = None,
 ) -> dict:
     """렌더 PDF 게이트. name_full(전체 이름 리스트)·identity((expected_gans, expected_terms,
     subject_specs))·singang([{full,given,honor,singang}]) 가 주어지면 H1.5.3/3.2 이름 호칭·일간
@@ -500,7 +515,7 @@ def verify(
     r["placeholder_residue_hits"] = placeholder_hits
     r["placeholder_residue_hits_count"] = sum(int(h.get("count", 1)) for h in placeholder_hits)
     r["placeholder_residue_clean"] = _placeholder_residue_hits_clean(
-        placeholder_hits, product=product
+        placeholder_hits, product=product, partner_present=partner_present
     )
     r["role_perspective_hits"] = []
     r["role_perspective_hits_count"] = 0

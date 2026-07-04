@@ -124,7 +124,20 @@ def build_report(
     partner_spans: list[tuple[int, int]] = []
     if concern:
         try:
-            matches = input_partner.find_partner_births(concern)
+            # 본인 생일 제외 가드 배선(2026-07-04 QI 팬텀 파트너 — 가드는 partner.py 에
+            # 있었으나 인자 미전달로 사장돼, 원문 속 본인 생일이 상대방으로 둔갑했다).
+            _self_solar = None
+            _civ = getattr(saju, "input_civil", None)
+            if _civ:
+                try:
+                    from datetime import date as _date
+
+                    _self_solar = _date.fromisoformat(str(_civ)[:10])
+                except ValueError:
+                    _self_solar = None
+            matches = input_partner.find_partner_births(
+                concern, self_solar=_self_solar, ref_year=ref_year
+            )
             partner_spans = [(pm.start, pm.end) for pm in matches]
             partner_spans += [pm.time_span for pm in matches if pm.time_span]
             blocks: list[str] = []
@@ -324,6 +337,11 @@ def build_report(
                         )
                         + delivery_quality.guarantee_lint(cand)  # 보장형(최종 게이트 갭 차단)
                         + customer_meta_lint.lint(cand)  # 문서 진행/섹션 예고 메타 발화(P3)
+                        # QI-2026-07-04(F4): placeholder/커플 지칭 — 1인 문서(파트너 부재)면
+                        # 커플 지칭 candidate 도 위반(팬텀 파트너 문안이 compose 를 못 통과).
+                        + client_tone_lint.placeholder_residue_strict_violations(
+                            cand, strict_pair=not partner_text
+                        )
                     )
                 # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
@@ -358,6 +376,10 @@ def build_report(
                             )
                             + delivery_quality.guarantee_lint(retry)  # 보장형(재작성도 검사)
                             + customer_meta_lint.lint(retry)  # 문서 진행/섹션 예고 메타(재작성도)
+                            + client_tone_lint.placeholder_residue_strict_violations(
+                                retry,
+                                strict_pair=not partner_text,  # 커플 지칭(재작성도, F4)
+                            )
                         )
                         rfv = factcheck.check(retry, saju, partner_gz)
                         if not rsv and not rfv:
@@ -431,6 +453,7 @@ def build_report(
         sections=sections,
         concern_category=category.value,
         allow_tokens=allow_ser,
+        partner_present=bool(partner_text),  # QI-2026-07-04: verify 커플 지칭 승격 판정용
         guard=GuardReport(
             safe_lint_total=safe_total,
             factcheck_total=fact_total,

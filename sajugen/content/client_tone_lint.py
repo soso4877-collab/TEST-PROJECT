@@ -558,11 +558,19 @@ def singang_role_lint(text: str, specs: list[dict]) -> list[dict]:
 # 중심이며 고객 본문 원문을 넣지 않는다. "두 분" 자체는 관계/궁합 문서의 정상 표현일
 # 수 있어 금지하지 않고, "두 분께" 같은 수신자 흐림 후보만 candidate 로 보고한다.
 _PLACEHOLDER_RULES: list[tuple[str, re.Pattern[str], str]] = [
-    ("ordinal_person_placeholder", re.compile(r"첫\s*번째\s*분|두\s*번째\s*분|세\s*번째\s*분"), "hard"),
+    (
+        "ordinal_person_placeholder",
+        re.compile(r"첫\s*번째\s*분|두\s*번째\s*분|세\s*번째\s*분"),
+        "hard",
+    ),
     ("generic_customer_address", re.compile(r"고객님|당신"), "hard"),
     ("operator_intake_label", re.compile(r"신청자|상담\s*대상"), "hard"),
     ("counterpart_placeholder", re.compile(r"상대\s*분"), "hard"),
     ("ambiguous_pair_recipient", re.compile(r"두\s*분께"), "candidate"),
+    # QI-2026-07-04 팬텀 파트너: 일반 커플 지칭. 관계/궁합 문서·파트너 명식이 있는 개인
+    # 풀이에선 정상 표현이라 candidate — 1인 문서(파트너 부재)에서만 hard 로 승격된다
+    # (승격 판정: placeholder_residue_strict_violations / verify._placeholder_residue_hits_clean).
+    ("couple_pair_reference", re.compile(r"두\s*사람|두\s*분(?!\s*께)"), "candidate"),
 ]
 
 
@@ -588,6 +596,19 @@ def placeholder_residue_lint(text: str) -> list[dict]:
 
 def placeholder_residue_clean(text: str) -> bool:
     return not any(h.get("severity") == "hard" for h in placeholder_residue_lint(text))
+
+
+def placeholder_residue_strict_violations(text: str, *, strict_pair: bool) -> list[dict]:
+    """가드체인용(QI-2026-07-04): hard 는 항상 위반, strict_pair=True(1인 문서·파트너 부재)면
+    커플 지칭 candidate 도 위반으로 승격한다. 파트너 명식이 있는 개인 풀이/관계 상품은
+    strict_pair=False 로 호출해 정상 커플 표현을 통과시킨다(완화 아님 — 기존 candidate 는
+    어디서도 실패하지 않던 것을 1인 문서에서만 실패하게 좁히는 사각 축소)."""
+    hits = placeholder_residue_lint(text)
+    return [
+        h
+        for h in hits
+        if h.get("severity") == "hard" or (strict_pair and h.get("severity") == "candidate")
+    ]
 
 
 # ───────────────── Integrated full: receiver perspective / honorific ─────────────────

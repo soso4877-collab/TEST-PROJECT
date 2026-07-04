@@ -395,6 +395,8 @@ def final_render_fn(report: UnifiedReport) -> str:
         product=p.get("product"),
         concern=p.get("concern") or None,
         ref_date=horoscope or None,
+        # QI-2026-07-04: 저장된 Report23 의 파트너 유무로 커플 지칭 승격(레거시 None=비적용).
+        partner_present=getattr(r23, "partner_present", None),
     )
     if not v.get("gate_pass"):
         # 불리언 clean 플래그만 노출(hit 본문 미포함 — B-3/PII).

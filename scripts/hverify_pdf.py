@@ -175,6 +175,9 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         ref_date=profile.get("ref_date"),
         role_perspective=specs.get("role_perspective"),
         honorific=specs.get("honorific"),
+        # QI-2026-07-04: 프로파일이 파트너 유무를 선언하면 커플 지칭 승격 판정에 사용
+        # (미선언 None = 기존 동작 — 잘못된 hard fail 방지 위해 운영자가 명시할 때만).
+        partner_present=profile.get("partner_present"),
     )
     out["status"] = "verified"
     out["meta"] = _file_meta(pdf_abs)
