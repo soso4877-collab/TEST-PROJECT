@@ -103,22 +103,43 @@ def generate(
         closing_sign=bp.get("closing_sign"),
         is_leap=is_leap,
     )
-    pdf_path = render_pdf.render_pdf(
-        report, saju, out_name, age=age, name=name, unknown_time=unknown_time, brand=bp
-    )
     # 개인 일간 role 게이트(H1.5.3) — 결정론 일간만 정답. 이름 정책은 개인 미적용(단일 호명).
     _id_spec = builder.personal_identity_spec(saju, name)
-    v = render_verify.verify(
-        pdf_path,
-        ref_year=ref_year,
-        names=[name] if name else None,
-        identity=_id_spec,
-        product=product,
-        concern=concern,
-        ref_date=horoscope_date,
-        # QI-2026-07-04: 1인 문서(파트너 부재)면 커플 지칭 candidate 를 hard 승격.
-        partner_present=getattr(report, "partner_present", None),
-    )
+
+    # 저밀도 단독 실패 시 무과금 재렌더 재시도(2026-07-04 — integrated 검증 패턴 이식).
+    # compose 는 이미 끝난 상태라 레이아웃 변형(폰트 14.5→13.8pt)은 API 0. 저밀도 '단독'
+    # 실패일 때만 발동하고(다른 게이트 실패 = 즉시 반환), 하한 13.8pt 도 실패하면 그대로
+    # FAIL 보고(열화 발급 금지·게이트 완화 0). 개인 경로엔 이 재시도가 없어 저밀도 1건에도
+    # 재compose 과금이 강제되던 갭(QI-2026-07-04 후속 실측: 재시도 2회 $1 소모)의 근본 차단.
+    from . import integrated as _integrated
+
+    pdf_path = ""
+    v: dict = {}
+    for _fs, _lh in _integrated._LAYOUT_VARIANTS:
+        pdf_path = render_pdf.render_pdf(
+            report,
+            saju,
+            out_name,
+            age=age,
+            name=name,
+            unknown_time=unknown_time,
+            brand=bp,
+            body_font_size=_fs,
+            body_line_height=_lh,
+        )
+        v = render_verify.verify(
+            pdf_path,
+            ref_year=ref_year,
+            names=[name] if name else None,
+            identity=_id_spec,
+            product=product,
+            concern=concern,
+            ref_date=horoscope_date,
+            # QI-2026-07-04: 1인 문서(파트너 부재)면 커플 지칭 candidate 를 hard 승격.
+            partner_present=getattr(report, "partner_present", None),
+        )
+        if v.get("gate_pass") or not _integrated._integrated_only_low_density_failure(v):
+            break
 
     reasons: list[str] = []
     if not v["gate_pass"]:
