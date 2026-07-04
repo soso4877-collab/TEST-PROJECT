@@ -71,7 +71,7 @@ def test_render_gate_pass(rendered_pdf):
 
 def test_layout_geometry_symmetric(rendered_pdf):
     # 실 렌더 회귀: 본문 칼럼이 중앙정렬(margin:0 auto)이라 좌우 여백 대칭 → 기하 게이트 clean.
-    # (좌 20mm/우 42mm 로 쏠리던 결함 2026-07-02 수정. |Δ|>10mm 면 margin_asymmetry 로 실패.)
+    # (좌 20mm 로 쏠리던 결함 2026-07-02 수정. 좌단 기대위치 이탈 >5mm 면 column_shift 로 실패.)
     _, v, _, _ = rendered_pdf
     assert v["layout_geometry_clean"] is True, v["layout_geometry_hits"]
     assert v["layout_geometry_hits"] == []

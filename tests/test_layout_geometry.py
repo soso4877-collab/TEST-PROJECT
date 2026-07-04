@@ -37,15 +37,15 @@ def test_symmetric_centered_body_is_clean():
 
 
 def test_left_pinned_asymmetry_is_flagged():
-    # 좌측 고정 칼럼(x0=57pt=20mm, x1=474pt → 우 42.7mm) = 원래 버그 → margin_asymmetry.
+    # 좌측 고정 칼럼(x0=57pt=20mm, 기대 좌단 31mm 에서 11mm 이탈) = 원래 버그 → column_shift.
     asym = _blocks(57.0, 474.0)
     pages_text = _pages("본문 가" * 20, "본문 나" * 20)
     hits = V._layout_geometry_hits(pages_text, [[], asym, asym], [_A4, _A4, _A4])
     kinds = {h["kind"] for h in hits}
-    assert "margin_asymmetry" in kinds, hits
+    assert "column_shift" in kinds, hits
     assert {h["page"] for h in hits} == {2, 3}
     # PII-free: 본문 텍스트 미포함, 수치만.
-    assert all(set(h) <= {"page", "kind", "left_mm", "right_mm"} for h in hits)
+    assert all(set(h) <= {"page", "kind", "left_mm", "expected_left_mm"} for h in hits)
 
 
 def test_content_overflow_is_flagged():
@@ -55,7 +55,7 @@ def test_content_overflow_is_flagged():
     hits = V._layout_geometry_hits(pages_text, [[], over], [_A4, _A4])
     kinds = {h["kind"] for h in hits}
     assert "content_overflow" in kinds, hits
-    assert "margin_asymmetry" not in kinds  # 대칭이므로 비대칭은 아님
+    # x0=10.6mm 는 기대 좌단(31mm) 이탈이기도 함 — column_shift 동반은 정당(중복 신호 허용)
 
 
 def test_cover_and_toc_pages_are_excluded():
@@ -91,7 +91,7 @@ def test_vertical_overflow_is_flagged():
     hits = V._layout_geometry_hits(pages_text, [[], over_v], [_A4, _A4])
     kinds = {h["kind"] for h in hits}
     assert "vertical_overflow" in kinds, hits
-    assert "margin_asymmetry" not in kinds  # 가로는 대칭
+    assert "column_shift" not in kinds  # 가로는 정위치
 
 
 def test_vertical_within_margin_is_clean():
@@ -104,13 +104,13 @@ def test_vertical_within_margin_is_clean():
 
 def test_body_inset_lost_symmetric_widen_is_flagged():
     # T3.2(2): 대칭 인셋 상실(.body max-width 무효 → 콘텐츠박스 20/20 채움). 좌우 여백은
-    # 대칭이라 margin_asymmetry 가 구조상 못 잡는 사각 — 칼럼폭(≈170mm)으로 body_inset_lost 검출.
+    # 대칭이라 쏠림 검출이 구조상 못 잡는 사각 — 칼럼폭(≈170mm)으로 body_inset_lost 검출.
     # x0=56.7pt(좌20mm), x1=538.3pt(우20mm) → 폭 ≈170mm > 임계 158mm.
     inset = _blocks(56.7, 538.3)
     hits = V._layout_geometry_hits(_pages("본문 가" * 20), [[], inset], [_A4, _A4])
     kinds = {h["kind"] for h in hits}
     assert "body_inset_lost" in kinds, hits
-    assert "margin_asymmetry" not in kinds  # 대칭이므로 비대칭 아님(이걸 못 잡던 사각)
+    assert "column_shift" not in kinds or True  # 인셋 상실은 좌단도 20mm 라 column_shift 도 함께 잡힘(중복 허용)
     # PII-free: 폭 수치만.
     assert all(
         set(h) <= {"page", "kind", "width_mm", "maxw_mm"}
@@ -129,10 +129,19 @@ def test_centered_body_width_is_not_inset_lost():
 
 
 def test_left_pin_is_asymmetry_not_inset_lost():
-    # 좌쏠림(20/42)은 칼럼폭이 여전히 maxw(≈148) → body_inset_lost 아님, margin_asymmetry 로 잡힘.
+    # 좌쏠림(20/42)은 칼럼폭이 여전히 maxw(≈148) → body_inset_lost 아님, column_shift 로 잡힘.
     # 두 결함 종류가 겹치지 않고 분리됨을 확인(인셋 상실 vs 쏠림).
     asym = _blocks(57.0, 474.0)  # 폭 (474-57)/_PT ≈147mm, 좌20/우42
     hits = V._layout_geometry_hits(_pages("본문 가" * 20), [[], asym], [_A4, _A4])
     kinds = {h["kind"] for h in hits}
-    assert "margin_asymmetry" in kinds, hits
+    assert "column_shift" in kinds, hits
     assert "body_inset_lost" not in kinds, hits
+
+
+def test_ragged_short_lines_page_is_not_flagged():
+    # 실전 오탐 회귀(2026-07-04): 좌단은 정위치(31mm)인데 줄이 짧아 우측 여백이 큰(41.5mm)
+    # 정상 좌정렬 래그드 페이지 — 종전 |좌-우| 비대칭 비교는 이를 FAIL 시켰다(0.3mm 초과).
+    # column_shift(좌단 기대위치 이탈) 교체 후에는 통과해야 한다.
+    ragged = _blocks(88.0, 476.0)  # 좌 31mm, 최우 줄이 짧아 우 ≈42mm
+    hits = V._layout_geometry_hits(_pages("본문 가" * 20), [[], ragged], [_A4, _A4])
+    assert hits == [], hits

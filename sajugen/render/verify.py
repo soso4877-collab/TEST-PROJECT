@@ -237,19 +237,20 @@ def _low_density_pages(pages_text: list[str]) -> list[dict]:
 # 레이아웃 기하 게이트(2026-07-02) — 텍스트/글자수 게이트가 못 잡는 시각 결함을 검출.
 # 근본원인: verify 가 텍스트/카운트/시맨틱만 검사해 좌우 비대칭·넘침 같은 기하 결함이
 # gate_pass=true 로 반복 통과했다. PyMuPDF 텍스트 블록 bbox 로 판정 — 픽셀 diff 는 폰트/AA
-# 차이에 취약하므로 결정론적 bbox 기하를 쓴다. 검출: (a) 좌우 여백 비대칭(칼럼 쏠림),
-# (b) 콘텐츠박스 밖 넘침. 표지·목차·부록·짧은/장식 페이지는 스코프 제외(오탐 방지).
+# 차이에 취약하므로 결정론적 bbox 기하를 쓴다. 검출: (a) 칼럼 쏠림(좌단 기대위치 이탈),
+# (b) 콘텐츠박스 밖 넘침, (c) 인셋 상실, (d) 세로 넘침. 표지·목차·부록·짧은 페이지 스코프 제외.
 _PT_PER_MM = 72.0 / 25.4
 # 레이아웃 상수 단일 소스(render/layout.py) — pdf.py @page·본문폭과 동일 값 참조(T3.2/B-2).
 _PAGE_LR_MARGIN_MM = layout.PAGE_MARGIN_MM["left"]  # @page left/right
 _PAGE_TB_MARGIN_MM = layout.PAGE_MARGIN_MM["top"]  # @page top/bottom — 세로 넘침 검사
 _BODY_MAXW_MM = layout.BODY_MAXW_MM  # .body max-width — 기대 칼럼폭·좌단 파생 기준
-_MARGIN_ASYMMETRY_MM = (
-    10.0  # 좌우 여백 차 관용치(= 칼럼중심 5mm 오프셋). 중앙정렬≈0=통과, 쏠림 버그(≈22mm)=탐지
-)
+# 칼럼 쏠림 관용치: 좌단의 기대 위치((페이지폭-BODY_MAXW)/2) 이탈 허용. 정상 실측 이탈
+# ≈0.2mm, 원 버그(좌 20mm) 이탈 ≈11mm → 5mm 로 넉넉히 분리. (종전 |좌-우| 비대칭 비교는
+# 짧은 줄 래그드 페이지 과탐으로 2026-07-04 교체 — column_shift.)
+_COLUMN_SHIFT_TOL_MM = 5.0
 _OVERFLOW_EPS_MM = 3.0  # 콘텐츠박스 경계 넘침 허용 epsilon
 # 본문 칼럼폭이 기대폭(BODY_MAXW_MM)보다 이만큼 넓으면 인셋 상실(max-width 무효) = 대칭 넓힘.
-# margin_asymmetry 는 대칭 결함을 구조상 못 잡는다(좌우 여백 동일) → 칼럼폭으로 검출.
+# column_shift 는 대칭 결함을 구조상 못 잡는다(좌단 정위치 유지) → 칼럼폭으로 검출.
 # 실측: 정상 중앙정렬 칼럼폭 ≈147.5mm, 인셋 상실 시 콘텐츠박스 채움 ≈170mm → 관용치 10mm(임계 158mm)로 분리.
 _BODY_INSET_TOL_MM = 10.0
 _GEOM_MIN_BLOCKS = 6  # 본문형 페이지 최소 텍스트 블록(표지/짧은/장식 페이지 오탐 제외)
@@ -282,9 +283,10 @@ def _layout_geometry_hits(
     pages_blocks: list,
     page_rects: list,
 ) -> list[dict]:
-    """고객 본문 페이지의 좌우 여백 대칭·콘텐츠 넘침을 텍스트 블록 bbox 로 검사(PII-free).
+    """고객 본문 페이지의 칼럼 위치·콘텐츠 넘침을 텍스트 블록 bbox 로 검사(PII-free).
 
-    반환 hit = {page, kind: 'margin_asymmetry'|'content_overflow', left_mm, right_mm} — 본문 텍스트 미포함."""
+    반환 hit kind: 'column_shift'|'content_overflow'|'body_inset_lost'|'vertical_overflow'
+    — 본문 텍스트 미포함(page/mm 메타만)."""
     if not pages_blocks or not page_rects:
         return []
     body_pages = {p for p, _ in _customer_body_page_items(pages_text)}
@@ -303,13 +305,19 @@ def _layout_geometry_hits(
         right_mm = (width - x1) / _PT_PER_MM
         content_left_mm = _PAGE_LR_MARGIN_MM
         content_right_edge_mm = width / _PT_PER_MM - _PAGE_LR_MARGIN_MM
-        if abs(left_mm - right_mm) > _MARGIN_ASYMMETRY_MM:
+        # 칼럼 쏠림(column_shift, 2026-07-04 교체): 종전 |좌-우|>10mm 비대칭 비교는 짧은 줄만
+        # 있는 정상 페이지(우측 여백이 커지는 좌정렬 래그드)를 과탐했다(실전 오탐: 좌 31.2 정위치
+        # 인데 우 41.5 로 FAIL). 원 결함(칼럼 이동, 좌 20mm)의 충실한 신호는 '좌단이 기대 위치
+        # (페이지폭-BODY_MAXW)/2 에서 이탈'이다 — 좌/우 어느 쪽 이동도 잡고 래그드는 통과.
+        # 원 버그(좌 20, 기대 31)=이탈 11mm 로 계속 FAIL(완화 아님 — 프록시 교정).
+        expected_left_mm = (width / _PT_PER_MM - _BODY_MAXW_MM) / 2.0
+        if abs(left_mm - expected_left_mm) > _COLUMN_SHIFT_TOL_MM:
             hits.append(
                 {
                     "page": page,
-                    "kind": "margin_asymmetry",
+                    "kind": "column_shift",
                     "left_mm": round(left_mm, 1),
-                    "right_mm": round(right_mm, 1),
+                    "expected_left_mm": round(expected_left_mm, 1),
                 }
             )
         if (
@@ -325,7 +333,7 @@ def _layout_geometry_hits(
                 }
             )
         # 본문 인셋(max-width) 상실 = 대칭 넓힘 — 좌우 여백은 그대로 대칭이라(예 20/20)
-        # margin_asymmetry·content_overflow 모두 통과하던 사각. 기대 칼럼폭(BODY_MAXW_MM,
+        # column_shift·content_overflow 모두 통과하던 사각. 기대 칼럼폭(BODY_MAXW_MM,
         # 중앙정렬)보다 관용치 이상 넓으면 인셋 상실로 검출(20mm 콘텐츠박스 고정이 아니라
         # (페이지폭-maxw)/2 파생과 정합 — pdf.py 와 단일 소스).
         # [불변식 주의] col_width = 최우(x1) - 최좌(x0) 는 '모든 본문 요소가 .body(max-width) 안'일
