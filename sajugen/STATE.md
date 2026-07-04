@@ -28,7 +28,8 @@
 >     content.json 2개, OneDrive/sajugen-backup 오프사이트 1부, 백업 열림/조회 복원 검증 완료.
 >     backup/ 는 gitignore(2aa95da). (3) 자시 영향 스캔 = 영향 주문 0건(P0-1 소급 영향 없음 확정).
 >     (4) customer2 v2 무과금 재렌더 완료(51p·gate_pass·저밀도 0·13.8pt 축소 변형) — 운영자 육안
->     검수 대기. 잔여 운영자 수동 = tmp PII 파기(! rm 명령) + v2 검수/교체 판단.
+>     검수 대기. [완료 2026-07-04] tmp PII 파기 — 운영자 지시로 실행(69개 파기, audit_brief.md 만 보존,
+>     synthetic-tmp/ 전체 삭제). 잔여 운영자 수동 = v2 검수/교체 판단 1건뿐.
 >   구현 SSOT = `handoff/audit-followup-roadmap.md` (2026-07-03 전수 감사 후속 로드맵 Phase 1~5).
 >   진행 상태: **Phase 1·2·3·4·5 전 항목 완료 — 2026-07-03 전수감사 후속 로드맵 완결.**
 >     T5.1~T5.10 전부 소진(T5.7 측정 포함). 로컬 clean·전부 push.
