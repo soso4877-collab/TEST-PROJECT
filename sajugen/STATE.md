@@ -1,5 +1,28 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-05 품질 총정비 P0~P6 + v8 재검수 대기 — 이 블록 먼저 읽기) =====
+>   [운영자 실격 판정(v7) → 총정비 완료 — 승인 계획 7 Phase 전부 구현·커밋(각 양방 테스트)]
+>     P0 챕터별 폴백 관측(7c94afa: GuardReport ids+cli chapters 줄+hrun summary) /
+>     P1 직답 골격 재작성(7b154fc: [방향 단정→궁 실명 근거→시기→첫 행동], generic 388→900자대) /
+>     P2 consult 직답 게이트+2차 재시도(02e7c1d: consult_direct_result, pipeline 하드 게이트) /
+>     P3 guarantee 정밀화(a896515: 결과어 결합만 차단·행동/시기 단정 허용, '보겠습니다' 선치환) /
+>     P4 명리-자미 층위 통합 B안(61542b9: _palace_para hint·정형 5회 소거·10장 실사실 교차 요약·
+>       주제 장 가이드 통합 지시·docs/03 §5 보강) /
+>     P5 날것 용어 소멸(8e291aa 골격 스윕 26곳 → 332620e lint 등재: 대운수·오행국·bare 분포·
+>       리듬 하드밴 + '결'/'의 색' 필러 카운터 warning + term 밀도 보고) /
+>     P6 조판 재시도 확대(1922ef0: orphan 스필 단독 = 무과금 재렌더 — v8 1차 파기 실측 갭).
+>   [QI 등재] docs/16 QI-2026-07-05-03(consult 폴백 false-PASS + 발송 리포트 오보 — 관측 갭).
+>   [v8 = 발송 후보, 운영자 육안 검수 대기] customer3_money_v8.pdf 40p·sha12 abc234aab5b0·
+>     dense 16,138자(v7 +9.5%)·게이트 PASS·consult/closing 윤문 성공·폴백 intro 1(직답 유실
+>     반려→직답 골격 보존=의도 동작)·발송 벨트 전부 0(지적 부류 포함)·'오행국' 본문 0(부록
+>     정의 1건=허용구역). 반복어 warning(자리 91/26 등)은 보고 전용 — FAIL 승격은 육안 후 결정.
+>     리포트: handoff/reports/customer3-money-v6-release/pdf_review_report.md (REVIEW_REQUIRED).
+>   [비용] v8 지출 2회(1차 파기 ~$0.63 + 재실행 ~$0.63 ≈ $1.26 — 계획 안내 '2회까지 ~$1.4' 내).
+>     1차 파기 원인(orphan 단독 재compose 강제)은 P6 로 구조 해소.
+>   [잔여 정리(수동 삭제)] __probe_gunghap_business__ 쌍·__probe_v8_rule__.pdf/html·
+>     (v8 검수 후) v6·v7 쌍.
+>   전체 pytest 592 passed / 4 skipped / exit 0 (세션 시작 539 → +53).
+>
 > ===== 압축/새세션 재개 앵커 (2026-07-05 h153 픽스처 교체 + QI-2026-07-05-01 — 이 블록 먼저 읽기) =====
 >   [h153 픽스처 교체 완료 — 운영자 승인 regen] 구형 픽스처가 06-25 이후 게이트 강화에 밀려
 >     FAIL 되던 것을 최신 게이트 통과본으로 교체. personal 37p·gunghap 17p 모두 gate PASS
