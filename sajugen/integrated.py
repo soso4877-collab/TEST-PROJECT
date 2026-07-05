@@ -18,6 +18,7 @@ from . import config as cfg
 from . import gunghap
 from .calc import engine
 from .content import builder, client_tone_lint, llm_usage, postprocess
+from .refdate import default_ref_date_iso
 from .render import pdf as render_pdf
 from .render import verify as render_verify
 
@@ -591,6 +592,10 @@ def gen(
     llm: bool = typer.Option(False, "--llm"),
 ):
     people = [parse_person_arg(p) for p in person]
+    # Phase 0: 운영자 대면 CLI 미지정 시 '오늘' 주입(기억 의존 제거). 라이브러리
+    # build_integrated_full 의 None→6-13 폴백은 유지(테스트 결정론) — 여기서만 today.
+    if ref_date is None:
+        ref_date = default_ref_date_iso()
     result = build_integrated_full(
         people,
         receiver_name=receiver,

@@ -34,6 +34,7 @@ from .content import (
     trace,
 )
 from .input import partner as input_partner
+from .refdate import default_ref_date_iso
 from .relationship import context as relationship_context
 from .relationship import delivery_gate as relationship_delivery_gate
 from .relationship import fallback as relationship_fallback
@@ -1305,6 +1306,10 @@ def gen(
     if len(people_in) < 2:
         typer.echo("궁합은 2인 이상이 필요합니다(--person 반복).")
         raise typer.Exit(code=1)
+    # Phase 0: 운영자 대면 CLI 미지정 시 '오늘' 주입(기억 의존 제거). 라이브러리
+    # build_gunghap 의 None→6-13 폴백은 유지(테스트 결정론) — 여기서만 today.
+    if ref_date is None:
+        ref_date = default_ref_date_iso()
     r = build_gunghap(
         people_in,
         situation=situation,

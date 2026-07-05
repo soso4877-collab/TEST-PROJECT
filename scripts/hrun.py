@@ -26,6 +26,8 @@ import hstate  # noqa: E402
 import hsummary  # noqa: E402
 import hverify_pdf  # noqa: E402
 
+from sajugen.refdate import default_ref_date_iso  # noqa: E402
+
 
 def _load_common() -> dict:
     import yaml
@@ -97,10 +99,10 @@ def _regen_pdf(profile: dict, python: str) -> dict:
             t = b[1] if len(b) > 1 else ""
             cmd += ["--person", f"{p['name']},{b[0]},{t},{p.get('gender', '남')}"]
         cmd += ["--ref-year", str(profile.get("ref_year", 2026)), "--out", out_name]
-        # 월 시제 닻(QI-2026-07-04-02 관계 확장): 프로파일 ref_date 가 있으면 전달.
-        # 미지정 시 CLI 기본(연중 6-13)과 verify 앵커가 동일해 자기일관.
-        if profile.get("ref_date"):
-            cmd += ["--ref-date", str(profile["ref_date"])]
+        # Phase 0(2026-07-06): 운영자 대면 regen 이라 프로파일 ref_date 부재 시 '오늘'을
+        # 명시 주입(관측성 — CLI 내부 기본에 맡기지 않고 실행 명령에 날짜를 기록한다).
+        # 프로파일에 ref_date 를 고정하면 재렌더가 그 날짜로 결정론 유지(픽스처 권장).
+        cmd += ["--ref-date", str(profile.get("ref_date") or default_ref_date_iso())]
         if profile.get("receiver"):
             cmd += ["--receiver", str(profile["receiver"])]
         if profile.get("brand"):
@@ -114,9 +116,8 @@ def _regen_pdf(profile: dict, python: str) -> dict:
             t = b[1] if len(b) > 1 else ""
             cmd += ["--person", f"{p['name']},{b[0]},{t},{p.get('gender', '남')}"]
         cmd += ["--ref-year", str(profile.get("ref_year", 2026)), "--out", out_name]
-        # 월 시제 닻 — integrated 분기와 동일(프로파일 ref_date 임의 필드).
-        if profile.get("ref_date"):
-            cmd += ["--ref-date", str(profile["ref_date"])]
+        # Phase 0(2026-07-06): integrated 분기와 동일 — 부재 시 '오늘' 명시 주입(관측성).
+        cmd += ["--ref-date", str(profile.get("ref_date") or default_ref_date_iso())]
         if profile.get("brand"):
             cmd += ["--brand", str(profile["brand"])]
         if profile.get("mode"):

@@ -1,5 +1,22 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 Phase 0 — ref_date 오늘 기본값 — 이 블록 먼저 읽기) =====
+>   [다층 검증 시스템 로드맵 실행 개시] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
+>     P0(완료)→P1(게이트 키 SSOT+요약 계약)→P2(dead-param 스캔)→P3(골격×lint 매트릭스+커버리지)
+>     →P4(발송 전 이질 렌즈 스윕 advisory)→P5(설계 논쟁)→P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
+>     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 0 완료 — ref_date 오늘 기본값(운영자 기억 의존 제거)]
+>     신규 sajugen/refdate.py default_ref_date_iso()(단일 소스·monkeypatch seam). 소비처 3:
+>     gunghap CLI gen·integrated CLI gen(미지정→오늘) + hrun _regen_pdf(integrated/gunghap 분기,
+>     부재 시 오늘 명시 주입=관측성). 라이브러리 build_gunghap/build_integrated_full None→6-13
+>     폴백 유지(테스트 결정론·재렌더 영속 불변), integrated --content 재렌더는 저장 ref_date 재현.
+>     양방 테스트: test_harness.py — hrun regen 의도 변경(미지정→오늘 주입) + gunghap/integrated CLI
+>     today 양방(헬퍼 monkeypatch 고정값, 자정 flakiness 회피). docs/19 §11 개정.
+>   [비블로킹 플래그(Phase 4 전 처리)] hrun --regen 이 ref_date 부재 프로파일에서 날짜 민감해짐 —
+>     로컬 픽스처 프로파일(harness/profiles/local/**, gitignored·PII)에 ref_date 를 고정해야
+>     달력일마다 게이트 결과가 드리프트하지 않는다(특히 gunghap_h153.yml). regen 전 운영자 조치.
+>   전체 pytest 588 passed / 4 skipped / exit 0 (586 → 신규 2건 = 588).
+>
 > ===== 압축/새세션 재개 앵커 (2026-07-05 1장 직답 문단 제거 + frontload 게이트 철거 — 이 블록 먼저 읽기) =====
 >   [운영자 실격 판정(v8 육안) → 지시 개정 실행] 1장 도입의 직답 문단(concern_snapshot)이
 >     "처음부터 답을 흐린다"고 실격 — 성향 슬롯만으로 만든 결정론 템플릿이라 어떤 문안으로도

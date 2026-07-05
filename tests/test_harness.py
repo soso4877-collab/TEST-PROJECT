@@ -426,9 +426,12 @@ def test_failed_regen_is_reported_as_failed_not_done(monkeypatch):
     assert "pdf_regen_failed" in s["retry_reasons"]
 
 
-def test_hrun_regen_forwards_ref_date_when_present(monkeypatch):
-    # QI-2026-07-04-02 관계 확장: 프로파일 ref_date 가 있으면 재생성 CLI 에 --ref-date 전달,
-    # 없으면 미전달(연중 기본 자기일관) — 양방.
+def test_hrun_regen_injects_today_ref_date_when_absent(monkeypatch):
+    # Phase 0(2026-07-06, 의도 변경 — 구 동작 '미지정 시 미전달'을 폐기): 운영자 대면
+    # regen 은 프로파일 ref_date 부재 시 '오늘'을 명시 주입한다(관측성 — CLI 내부 기본에
+    # 맡기지 않고 실행 명령에 날짜 기록). 양방: 명시→전달값 / 부재→오늘(고정값 주입).
+    # date.today() 자정 경계 flakiness 회피 위해 헬퍼 monkeypatch(고정값).
+    monkeypatch.setattr(hrun, "default_ref_date_iso", lambda: "2026-07-06")
     calls = []
 
     def fake_run(cmd, **kwargs):
@@ -448,10 +451,11 @@ def test_hrun_regen_forwards_ref_date_when_present(monkeypatch):
         calls.clear()
         hrun._regen_pdf({**base, "type": ptype, "ref_date": "2026-07-05"}, "python")
         cmd = calls[0]
-        assert "--ref-date" in cmd and "2026-07-05" in cmd, ptype
+        assert "--ref-date" in cmd and "2026-07-05" in cmd, ptype  # 명시→전달
         calls.clear()
         hrun._regen_pdf({**base, "type": ptype}, "python")
-        assert "--ref-date" not in calls[0], ptype  # 미지정 시 미전달(기본 유지)
+        cmd = calls[0]
+        assert "--ref-date" in cmd and "2026-07-06" in cmd, ptype  # 부재→오늘 주입
 
 
 def test_integrated_cli_gen_forwards_ref_date(monkeypatch):
@@ -482,6 +486,54 @@ def test_integrated_cli_gen_forwards_ref_date(monkeypatch):
     )
     assert r.exit_code == 0, r.output
     assert captured["ref_date"] == "2026-07-05"
+
+
+def test_integrated_cli_gen_defaults_ref_date_to_today_when_absent(monkeypatch):
+    # Phase 0: --ref-date 미지정 시 CLI 가 '오늘'을 주입(운영자 기억 의존 제거).
+    # 헬퍼 monkeypatch 로 고정값(자정 경계 flakiness 회피).
+    from typer.testing import CliRunner
+
+    from sajugen import integrated
+
+    monkeypatch.setattr(integrated, "default_ref_date_iso", lambda: "2026-07-06")
+    captured = {}
+
+    def fake_build(people, **kwargs):
+        captured.update(kwargs)
+        return {"pdf_path": "fake.pdf", "people": [{"name": "합성갑"}]}
+
+    monkeypatch.setattr(integrated, "build_integrated_full", fake_build)
+    r = CliRunner().invoke(
+        integrated.app,
+        ["gen", "--person", "합성갑,1990-01-01,10:00,남", "--person", "합성을,1991-02-02,11:00,여"],
+    )
+    assert r.exit_code == 0, r.output
+    assert captured["ref_date"] == "2026-07-06"  # 미지정→오늘
+
+
+def test_gunghap_cli_gen_defaults_ref_date_to_today_and_forwards_explicit(monkeypatch):
+    # Phase 0 양방: gunghap CLI 도 미지정→오늘 / 명시→전달값.
+    from typer.testing import CliRunner
+
+    from sajugen import gunghap
+
+    monkeypatch.setattr(gunghap, "default_ref_date_iso", lambda: "2026-07-06")
+    captured = {}
+
+    def fake_build(people_in, **kwargs):
+        captured.clear()
+        captured.update(kwargs)
+        return {"pdf_path": "fake.pdf", "people": [{"name": "합성갑"}, {"name": "합성을"}]}
+
+    monkeypatch.setattr(gunghap, "build_gunghap", fake_build)
+    # gunghap.app 은 단일 커맨드(gen 하나) — Typer 가 서브커맨드명을 요구하지 않는다.
+    persons = ["--person", "합성갑,1990-01-01,10:00,남", "--person", "합성을,1991-02-02,11:00,여"]
+    r1 = CliRunner().invoke(gunghap.app, [*persons])
+    assert r1.exit_code == 0, r1.output
+    assert captured["ref_date"] == "2026-07-06"  # 미지정→오늘
+    r2 = CliRunner().invoke(gunghap.app, [*persons, "--ref-date", "2026-07-05"])
+    assert r2.exit_code == 0, r2.output
+    assert captured["ref_date"] == "2026-07-05"  # 명시→전달
 
 
 def test_integrated_hverify_profile_forwards_receiver_specs(monkeypatch):
