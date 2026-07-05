@@ -27,6 +27,7 @@ import hsummary  # noqa: E402
 import hverify_pdf  # noqa: E402
 
 from sajugen.refdate import default_ref_date_iso  # noqa: E402
+from sajugen.render.verify import GATE_KEYS  # noqa: E402  게이트 키 SSOT(수동 목록 복제 금지)
 
 
 def _load_common() -> dict:
@@ -302,23 +303,9 @@ def _retry_reason(res: dict) -> str:
         return str(res.get("status") or "pdf_not_verified")
     if res.get("gate_pass"):
         return "none"
-    for key in (
-        "markdown_clean",
-        "quality_clean",
-        "temporal_clean",
-        "delivery_quality_clean",
-        "no_orphan",
-        "loanword_clean",
-        "raw_calc_head_clean",
-        "customer_meta_clean",
-        "placeholder_residue_clean",
-        "style_clean",
-        "role_perspective_clean",
-        "honorific_consistency_clean",
-        "name_policy_clean",
-        "identity_role_clean",
-        "singang_role_clean",
-    ):
+    # GATE_KEYS(verify SSOT) 순회 — 수동 목록이 layout_geometry_clean·daewoon_consistent·
+    # 구조키(text/font/tag)를 누락해 단독 실패가 pdf_gate_failed 로 뭉개지던 갭(C4) 해소.
+    for key in GATE_KEYS:
         if res.get(key) is False:
             return key
     return "pdf_gate_failed"

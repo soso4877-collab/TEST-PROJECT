@@ -1,10 +1,21 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 Phase 0 — ref_date 오늘 기본값 — 이 블록 먼저 읽기) =====
->   [다층 검증 시스템 로드맵 실행 개시] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
->     P0(완료)→P1(게이트 키 SSOT+요약 계약)→P2(dead-param 스캔)→P3(골격×lint 매트릭스+커버리지)
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0·P1 완료 — 이 블록 먼저 읽기) =====
+>   [다층 검증 시스템 로드맵 실행 중] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
+>     P0(완료)→P1(완료)→P2(dead-param 스캔)→P3(골격×lint 매트릭스+커버리지)
 >     →P4(발송 전 이질 렌즈 스윕 advisory)→P5(설계 논쟁)→P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
 >     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 1 완료 — 게이트 키 SSOT + 요약↔원천 정합 계약(C4 관측 갭 자동화)]
+>     실결함 RED-first 수확: verify.gate_pass 20키에 layout_geometry_clean·text_layer_ok·
+>     fonts_embedded·tagged 가 있으나 hsummary._PDF_GATE·hrun._retry_reason 수동 목록에서 드롭
+>     → 단독 실패 시 이유 불명(pdf_gate_failed)·요약 필드 소실. 3건 RED 실측 후 수정:
+>     - verify.py GATE_KEYS 모듈 상수(20키 SSOT, 순서=구조→내용→기하). gate_pass=all(r[k] for
+>       k in GATE_KEYS) 순수 리팩터(r[k] not .get — 키 부재는 KeyError 로 드러냄). 키집합 불변.
+>     - hsummary._PDF_GATE = [gate_pass, *GATE_KEYS] 파생 + _redact_pdf suffix 확장(*_clean·
+>       *_hits_count 자동 표면화, PII-safe bool/int만; *_hits 문구는 curated 경로 유지).
+>     - hrun._retry_reason = GATE_KEYS 순회(수동 목록 제거).
+>     신규 tests/test_gate_contract.py 9건: RED 갭 3 + 20키 동결 + gate_pass 순수성 + summary⊇
+>     GATE_KEYS + 키별 retry + 미래필드 자동표면화 + PII 가드(*_hits 문구·문자열 _clean 미노출).
 >   [Phase 0 완료 — ref_date 오늘 기본값(운영자 기억 의존 제거)]
 >     신규 sajugen/refdate.py default_ref_date_iso()(단일 소스·monkeypatch seam). 소비처 3:
 >     gunghap CLI gen·integrated CLI gen(미지정→오늘) + hrun _regen_pdf(integrated/gunghap 분기,
@@ -15,7 +26,7 @@
 >   [비블로킹 플래그(Phase 4 전 처리)] hrun --regen 이 ref_date 부재 프로파일에서 날짜 민감해짐 —
 >     로컬 픽스처 프로파일(harness/profiles/local/**, gitignored·PII)에 ref_date 를 고정해야
 >     달력일마다 게이트 결과가 드리프트하지 않는다(특히 gunghap_h153.yml). regen 전 운영자 조치.
->   전체 pytest 588 passed / 4 skipped / exit 0 (586 → 신규 2건 = 588).
+>   전체 pytest 597 passed / 4 skipped / exit 0 (P0 586→588, P1 588→597 신규 9건).
 >
 > ===== 압축/새세션 재개 앵커 (2026-07-05 1장 직답 문단 제거 + frontload 게이트 철거 — 이 블록 먼저 읽기) =====
 >   [운영자 실격 판정(v8 육안) → 지시 개정 실행] 1장 도입의 직답 문단(concern_snapshot)이

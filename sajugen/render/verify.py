@@ -17,6 +17,33 @@ import fitz
 
 from . import layout
 
+# 하드 게이트 구성 키 SSOT(Phase 1 2026-07-06). gate_pass = all(r[k] for k in GATE_KEYS).
+# 순서 = 구조(text/font/tag) → 내용/시맨틱 → 기하. 소비처(hsummary._PDF_GATE·hrun._retry_reason)
+# 는 이 상수에서 파생한다(수동 목록 복제 금지 — 그 복제가 layout_geometry 관측 드롭을 낳았다).
+# 키 집합/순서 변경은 test_gate_keys_frozen 이 동결(게이트 의미 변경은 별도 결정·양방 필수).
+GATE_KEYS = (
+    "text_layer_ok",
+    "fonts_embedded",
+    "tagged",
+    "markdown_clean",
+    "daewoon_consistent",
+    "quality_clean",
+    "temporal_clean",
+    "no_orphan",
+    "loanword_clean",  # 외래어 hard-ban(고객 본문)
+    "raw_calc_head_clean",  # 표제형 계산표현(오행 분포·십성축·신강약)
+    "customer_meta_clean",  # AI/meta/document self-reference residue
+    "placeholder_residue_clean",  # placeholder/masking residue
+    "style_clean",  # compose 외 경로까지 style_lint 보편 적용
+    "role_perspective_clean",  # integrated_full receiver perspective
+    "honorific_consistency_clean",  # integrated_full honorific consistency
+    "name_policy_clean",  # 전체 이름 반복(H1.5.3, name_full 전달 시)
+    "identity_role_clean",  # 일간 role 오서술(H1.5.3, identity 전달 시)
+    "singang_role_clean",  # 신강약 group/role(H1.5.3.2, singang 전달 시)
+    "delivery_quality_clean",
+    "layout_geometry_clean",  # 레이아웃 기하(좌우 여백·넘침) — 시각 결함 반복 차단
+)
+
 MIN_TEXT_CHARS = 1500  # 통이미지면 ~0 → 이 기준으로 결함 차단
 
 # 완성본 분량 벤치마크(보고 전용, 게이트 아님) — 근거: 같은 고객 H153 검증 업로드본 실측
@@ -626,26 +653,8 @@ def verify(
 
     # 하드 게이트(빌드 차단 기준): 검증된 구조 요건. veraPDF PDF/UA-1 완전 준수는
     # 별도 추적(Chromium 엔진 한계로 7.1-3 잔존 — WeasyPrint pdf/ua-1 경로 필요).
-    r["gate_pass"] = bool(
-        r["text_layer_ok"]
-        and r["fonts_embedded"]
-        and r["tagged"]
-        and r["markdown_clean"]
-        and r["daewoon_consistent"]
-        and r["quality_clean"]
-        and r["temporal_clean"]
-        and r["no_orphan"]
-        and r["loanword_clean"]  # 외래어 hard-ban(고객 본문)
-        and r["raw_calc_head_clean"]  # 표제형 계산표현(오행 분포·십성축·신강약)
-        and r["customer_meta_clean"]  # AI/meta/document self-reference residue
-        and r["placeholder_residue_clean"]  # placeholder/masking residue
-        and r["style_clean"]  # compose 외 경로까지 style_lint 보편 적용
-        and r["role_perspective_clean"]  # integrated_full receiver perspective
-        and r["honorific_consistency_clean"]  # integrated_full honorific consistency
-        and r["name_policy_clean"]  # 전체 이름 반복(H1.5.3, name_full 전달 시)
-        and r["identity_role_clean"]  # 일간 role 오서술(H1.5.3, identity 전달 시)
-        and r["singang_role_clean"]  # 신강약 group/role(H1.5.3.2, singang 전달 시)
-        and r["delivery_quality_clean"]
-        and r["layout_geometry_clean"]  # 레이아웃 기하(좌우 여백·넘침) — 시각 결함 반복 차단
-    )
+    # gate_pass = GATE_KEYS 전부 참(SSOT — hsummary·hrun 이 이 상수에서 파생). r[k] 사용:
+    # 20키는 위에서 무조건 설정되므로 .get 이 아니라 [] — 키 부재는 조용한 False 가 아니라
+    # KeyError 로 드러나야 한다(관측 원칙 B-2). 키 집합 변경은 test_gate_keys_frozen 이 차단.
+    r["gate_pass"] = bool(all(r[k] for k in GATE_KEYS))
     return r

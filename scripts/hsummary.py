@@ -11,8 +11,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from sajugen.render.verify import GATE_KEYS  # noqa: E402  게이트 키 SSOT(수동 목록 복제 금지)
 
 # regen stderr tail 의 생년월일·시각형 토큰 결정론 레닥션(T5.2/E-5) — hsummary 는 self_civil 이
 # 없어 정밀 마스킹 불가 → 날짜(YYYY-MM-DD/./ )·시각(HH:MM)·8자리 생일형을 보수적으로 가린다.
@@ -32,26 +36,10 @@ def _redact_stderr_tail(tail: str | None, limit: int = 800) -> str | None:
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# PDF 검증 결과에서 리포트에 노출할 키(이름/생년월일 등 PII는 _build_specs 입력일 뿐 결과에 없음)
-_PDF_GATE = [
-    "gate_pass",
-    "markdown_clean",
-    "daewoon_consistent",
-    "quality_clean",
-    "temporal_clean",
-    "no_orphan",
-    "loanword_clean",
-    "raw_calc_head_clean",
-    "customer_meta_clean",
-    "placeholder_residue_clean",
-    "style_clean",
-    "role_perspective_clean",
-    "honorific_consistency_clean",
-    "name_policy_clean",
-    "identity_role_clean",
-    "singang_role_clean",
-    "delivery_quality_clean",
-]
+# PDF 검증 결과에서 리포트에 노출할 게이트 키(이름/생년월일 등 PII는 결과 dict 에 없음).
+# GATE_KEYS(verify SSOT)에서 파생 — 수동 목록 복제가 layout_geometry_clean·text_layer_ok 등
+# 관측 드롭을 낳았다(C4). gate_pass(집계) + 20 구성키 = summary ⊇ GATE_KEYS 계약.
+_PDF_GATE = ["gate_pass", *GATE_KEYS]
 _PDF_COUNT = [
     "quality_hits_count",
     "temporal_hits_count",
@@ -135,6 +123,14 @@ def _redact_pdf(p: dict) -> dict:
             out[k] = p[k]
     for k, default in _SEMANTIC_COUNT_DEFAULTS.items():
         out.setdefault(k, default)
+    # 미래 관측 필드 자동 표면화(C4 재발 방지 — 수동 목록이 곧 드롭 원천): *_clean(bool)·
+    # *_hits_count(int) 은 PII-safe 라 패턴 포함. *_hits(문구 보유)는 절대 제외 —
+    # curated _summarize_hits 경로로만 노출(원문 마스킹). 가드: test_redact_never_leaks_hits_text.
+    for k, v in p.items():
+        if k in out:
+            continue
+        if (k.endswith("_clean") or k.endswith("_hits_count")) and isinstance(v, (bool, int)):
+            out[k] = v
     for k in (
         "quality_hits",
         "temporal_hits",
