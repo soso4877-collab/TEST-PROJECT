@@ -25,7 +25,12 @@
 >     원인은 loanword(3)+raw_calc(2) 히트로 frontload와 무관. 정적 h153 PDF(03:17/03:33 렌더)가
 >     이후 P5 loanword/raw_calc lint 등재(8e291aa·332620e)에 걸린 픽스처 노후화. 내 커밋은
 >     client_tone_lint diff 0줄·verify 주석 1줄뿐 → 부모 100f4d9에서 이미 False(비악화 실증).
->     조치 필요(별건): h153 픽스처 재렌더로 P5 lint 동기화 — '게이트 강화 후 픽스처 미동기화' 재발.
+>   [h153 P5 lint 동기화 완료(운영자 승인, 20260705-215457, api_calls=0·무과금·룰 전용 재렌더)]
+>     ANTHROPIC_API_KEY 부재 + P5가 골격 스윕(8e291aa) 완료 → 룰 전용 재렌더로 loanword/raw_calc
+>     동기화. personal 29p·gunghap 10p 모두 gate_pass=True·loanword_clean=True·raw_calc_head_clean=True,
+>     all_gates_pass=True·final=PASSED·pytest 586. 부록 오행국 정의 1건은 verify body/appendix
+>     분리로 게이트 제외(허용구역). 픽스처가 LLM 윤문본→룰 전용(짧아짐, 결정론) 전환 — 회귀
+>     baseline 로는 적합. PDF는 gitignored(비커밋).
 >
 > ===== 압축/새세션 재개 앵커 (2026-07-05 품질 총정비 P0~P6 + v8 재검수 대기 — 이 블록 먼저 읽기) =====
 >   [운영자 실격 판정(v7) → 총정비 완료 — 승인 계획 7 Phase 전부 구현·커밋(각 양방 테스트)]
