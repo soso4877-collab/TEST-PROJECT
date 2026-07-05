@@ -141,7 +141,9 @@ def generate(
             # QI-2026-07-04: 1인 문서(파트너 부재)면 커플 지칭 candidate 를 hard 승격.
             partner_present=getattr(report, "partner_present", None),
         )
-        if v.get("gate_pass") or not _integrated._integrated_only_low_density_failure(v):
+        # P6(2026-07-05): 재시도 조건을 조판 부류(저밀도+orphan 스필)로 확대 — v8 실측에서
+        # 13자 스필 1쪽(no_orphan 단독)이 재compose 과금을 강제하던 갭. 게이트 완화 아님.
+        if v.get("gate_pass") or not _integrated._layout_only_failure(v):
             break
 
     reasons: list[str] = []

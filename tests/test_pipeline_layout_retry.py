@@ -73,3 +73,42 @@ def test_low_density_at_floor_reports_fail(monkeypatch):
     renders, r = _run(monkeypatch, [_fail_low_density_only(), _fail_low_density_only()])
     assert renders == ["14.5pt", "13.8pt"]
     assert r.verify["gate_pass"] is False
+
+
+# ---- P6(2026-07-05): 조판 부류(orphan 스필) 무과금 재렌더 확대 양방 ----
+
+
+def _clean_flags(**overrides):
+    from sajugen import integrated as itg
+
+    base = {f: True for f in itg._LOW_DENSITY_ONLY_CLEAN_FLAGS}
+    base["delivery_quality"] = {"failures": []}
+    base["gate_pass"] = False
+    base.update(overrides)
+    return base
+
+
+def test_layout_only_failure_two_way():
+    from sajugen import integrated as itg
+
+    # orphan 단독 실패(v8 실측: 13자 스필 1쪽) = 재렌더 대상
+    assert itg._layout_only_failure(_clean_flags(no_orphan=False)) is True
+    # 저밀도 dq 단독 = 재렌더 대상(기존 동작 포함)
+    assert itg._layout_only_failure(
+        _clean_flags(delivery_quality={"failures": [{"rule": "premium_low_density_pages"}]})
+    ) is True
+    # 저밀도+orphan 동시 = 재렌더 대상
+    assert itg._layout_only_failure(
+        _clean_flags(
+            no_orphan=False,
+            delivery_quality={"failures": [{"rule": "premium_low_density_pages"}]},
+        )
+    ) is True
+    # 내용 결함 동반(예: 시맨틱 스타일) = 재렌더 아님(하드 실패 유지 — 완화 0)
+    assert itg._layout_only_failure(_clean_flags(no_orphan=False, style_clean=False)) is False
+    # 다른 dq 실패 동반 = 재렌더 아님
+    assert itg._layout_only_failure(
+        _clean_flags(delivery_quality={"failures": [{"rule": "missing_near_term_timing"}]})
+    ) is False
+    # 조판 실패 자체가 없으면(다른 원인 gate FAIL) 재렌더 아님
+    assert itg._layout_only_failure(_clean_flags()) is False

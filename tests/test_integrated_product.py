@@ -540,12 +540,14 @@ def test_integrated_full_low_density_only_retries_layout_then_passes(monkeypatch
             "body_line_height": "1.8",
             "gate_pass": False,
             "low_density_only": True,
+            "layout_only": True,  # P6: orphan 포함 조판 부류 재렌더 판정 키(additive)
         },
         {
             "body_font_size": "13.8pt",
             "body_line_height": "1.68",
             "gate_pass": True,
             "low_density_only": False,
+            "layout_only": False,
         },
     ]
 

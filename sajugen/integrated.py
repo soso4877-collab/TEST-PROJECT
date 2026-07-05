@@ -250,6 +250,22 @@ def _integrated_only_low_density_failure(verify_result: dict) -> bool:
     return all(bool(verify_result.get(flag)) for flag in _LOW_DENSITY_ONLY_CLEAN_FLAGS)
 
 
+def _layout_only_failure(verify_result: dict) -> bool:
+    """조판 부류 단독 실패(저밀도 dq 그리고/또는 orphan 스필 페이지) — 레이아웃 변형
+    무과금 재렌더 대상. P6 실측(2026-07-05 v8): 13자 스필 1쪽(no_orphan 단독)으로 전체
+    빌드가 파기돼 재compose 과금이 강제되던 갭. 게이트 완화 아님 — 최종적으로는 여전히
+    gate_pass 가 필요하며, 다음 레이아웃 변형을 시도할 조건만 확대한다."""
+    dq = verify_result.get("delivery_quality") or {}
+    failures = dq.get("failures") or []
+    if any(failure.get("rule") != "premium_low_density_pages" for failure in failures):
+        return False
+    other_flags = [f for f in _LOW_DENSITY_ONLY_CLEAN_FLAGS if f != "no_orphan"]
+    if not all(bool(verify_result.get(flag)) for flag in other_flags):
+        return False
+    # 저밀도 dq 실패도, orphan 실패도 없으면 조판 부류 실패가 아님(다른 원인).
+    return bool(failures) or not bool(verify_result.get("no_orphan"))
+
+
 def _content_path(out_name: str, out_dir: str | Path | None) -> Path:
     base = Path(out_dir) if out_dir else Path(render_pdf._OUT)
     return base / f"{Path(out_name).stem}.content.json"
@@ -362,17 +378,19 @@ def _render_integrated(
             honorific=role_specs,
         )
         low_density_only = _integrated_only_low_density_failure(verify_result)
+        layout_only = _layout_only_failure(verify_result)  # P6: orphan 스필 포함(무과금 재렌더)
         attempts.append(
             {
                 "body_font_size": body_font_size,
                 "body_line_height": body_line_height,
                 "gate_pass": bool(verify_result.get("gate_pass")),
                 "low_density_only": low_density_only,
+                "layout_only": layout_only,
             }
         )
         if verify_result.get("gate_pass"):
             break
-        if idx < len(_LAYOUT_VARIANTS) - 1 and low_density_only:
+        if idx < len(_LAYOUT_VARIANTS) - 1 and layout_only:
             continue
         raise RuntimeError(
             "integrated_full PDF 하드 게이트 실패(빌드 실패, PII 제외): "
