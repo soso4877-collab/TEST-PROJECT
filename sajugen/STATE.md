@@ -51,8 +51,9 @@
 >     리포트: handoff/reports/customer3-money-v6-release/pdf_review_report.md (REVIEW_REQUIRED).
 >   [비용] v8 지출 2회(1차 파기 ~$0.63 + 재실행 ~$0.63 ≈ $1.26 — 계획 안내 '2회까지 ~$1.4' 내).
 >     1차 파기 원인(orphan 단독 재compose 강제)은 P6 로 구조 해소.
->   [잔여 정리(수동 삭제)] __probe_gunghap_business__ 쌍·__probe_v8_rule__.pdf/html·
->     (v8 검수 후) v6·v7 쌍.
+>   [잔여 정리] 2026-07-05 완료: __probe_gunghap_business__ 쌍·__probe_v8_rule__ 쌍·
+>     sajudoryeong_layout_probe_13_* 3쌍 삭제(10파일). 보류: customer3 v6/v7/v8 쌍은
+>     납품 후보(PII)라 v8 육안 검수·v9 확정 후 운영자 지시 시 삭제(현재 미삭제).
 >   전체 pytest 592 passed / 4 skipped / exit 0 (세션 시작 539 → +53).
 >
 > ===== 압축/새세션 재개 앵커 (2026-07-05 h153 픽스처 교체 + QI-2026-07-05-01 — 이 블록 먼저 읽기) =====
