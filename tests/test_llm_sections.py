@@ -353,8 +353,11 @@ def test_compose_prompt_matches_delivery_quality_guardrails():
     text = Path("sajugen/content/llm_sections.py").read_text(encoding="utf-8")
     assert "기운·흐름·구조·자리·정리" in text
     assert "각각 두 번을 넘기지 마라" in text
-    assert "문맥과 상관없이 본문에 쓰지 마라" in text
-    assert "무조건 막을 필요는 없어요" in text
+    # P3(2026-07-05 운영자 승인): 문맥 무관 금지 → 결과어 결합 금지 + 행동·시기 단정 허용
+    # (guarantee_lint 정밀화와 1:1 동기화 — 구 문구 부재도 함께 고정).
+    assert "결과 말과 붙여 쓰지 마라" in text
+    assert "행동과 시기는 단정해도 된다" in text
+    assert "문맥과 상관없이 본문에 쓰지 마라" not in text
 
 
 def test_no_concern_defaults_general_and_section_present():

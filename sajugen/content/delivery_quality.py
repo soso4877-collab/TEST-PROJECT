@@ -14,6 +14,8 @@ import math
 import re
 from collections.abc import Iterable
 
+from . import safe_lint
+
 MIN_PREMIUM_PAGES = 20
 MIN_GUNGHAP_PAGES = 30
 MIN_INTEGRATED_FULL_PAGES = 30
@@ -51,11 +53,27 @@ _FAIL_REPEAT_TERMS = {"또렷"}
 _REPEAT_BASE_LEN = 10_000
 _FRONTLOAD_CHARS = 1_800
 
+# P3(2026-07-05, 운영자 승인 — 절대규칙 12 '사각 축소 방향' 정밀화):
+# '무조건' 단독 금지가 정당한 행동·시기 단정("무조건 미룰 일은 아닙니다")까지 차단해
+# 재작성/폴백을 유발하던 것을, safe_lint §12(2026-06-12 완화 원칙: 부사 단독 허용,
+# 부사+결과동사 결합만 차단)와 동기화. 동시에 결과동사 어간을 OUTCOME_VERBS 재사용으로
+# 확대(승진/창업/취업류 — 기존 성공|재회|결혼|된다 5종만 보던 사각 흡수 = 강화).
+# 100%·"(재회|결혼)합니다" 는 불변.
 _GUARANTEE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"100\s*%"), "absolute percentage"),
-    (re.compile(r"무조건"), "absolute guarantee"),
-    (re.compile(r"반드시\s*(?:성공|재회|결혼|된다|됩니다)"), "absolute guarantee"),
-    (re.compile(r"확실히\s*(?:성공|재회|결혼|된다|됩니다)"), "absolute guarantee"),
+    # '잘 맞' = 궁합 단정 보장(retry3 갭 앵커 "무조건 잘 맞습니다" 비악화 보존).
+    (
+        re.compile(rf"무조건\s*[^.\n!?]{{0,14}}(?:{safe_lint.OUTCOME_VERBS}|성공|재회|잘\s*맞)"),
+        "absolute guarantee",
+    ),
+    (
+        re.compile(rf"반드시\s*[^.\n!?]{{0,14}}(?:{safe_lint.OUTCOME_VERBS}|성공|재회|잘\s*맞)"),
+        "absolute guarantee",
+    ),
+    (
+        re.compile(rf"확실히\s*[^.\n!?]{{0,14}}(?:{safe_lint.OUTCOME_VERBS}|성공|재회|잘\s*맞)"),
+        "absolute guarantee",
+    ),
     (re.compile(r"(?:재회|결혼)합니다"), "hard outcome statement"),
 ]
 

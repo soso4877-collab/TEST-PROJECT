@@ -108,6 +108,23 @@ def test_style_safe_text_covers_conjugated_variants():
     assert not [h for h in style_lint.lint(out) if "또렷" in str(h)]
 
 
+def test_style_safe_text_replaces_task_announcement():
+    # P3(2026-07-05): '-어 보겠습니다' 전 활용 선치환 — 문법 보존, 게이트(writer_task_
+    # announcement)는 불변. 관법 '봅니다'·권유 '보세요'는 원문 유지.
+    out = pp.style_safe_text("겉과 속의 짜임도 함께 보겠습니다. 이제 살펴보겠습니다.")
+    assert "보겠습니다" not in out
+    assert "함께 봅니다" in out and "살펴봅니다" in out
+    from sajugen.content import customer_meta_lint
+
+    assert not [h for h in customer_meta_lint.lint(out) if h["rule"] == "writer_task_announcement"]
+    # 가드 불변 앵커: 선치환을 거치지 않으면 여전히 차단
+    assert [
+        h
+        for h in customer_meta_lint.lint("함께 보겠습니다.")
+        if h["rule"] == "writer_task_announcement"
+    ]
+
+
 def test_style_lint_still_flags_variant_forms():
     # 가드 불변(완화 0) 앵커 — 선치환을 거치지 않은 변형형은 여전히 차단된다.
     from sajugen.content import style_lint

@@ -466,13 +466,18 @@ def test_physical_frontloaded_not_evaluated_without_concern_or_pages():
 
 def test_guarantee_lint_flags_absolute_guarantee_family():
     # public 헬퍼는 absolute_guarantee 계열을 잡는다(compose 단계 가드용).
-    assert dq.guarantee_lint("무조건")
+    # P3(2026-07-05): '무조건' 단독 → 결과어 결합형으로 정밀화(safe_lint §12 원칙 동기화).
+    assert dq.guarantee_lint("무조건 됩니다")
+    assert dq.guarantee_lint("무조건 잘 성사됩니다")
     assert dq.guarantee_lint("결혼합니다")
     assert dq.guarantee_lint("재회합니다")
     assert dq.guarantee_lint("100%")
     assert dq.guarantee_lint("100 %")
     assert dq.guarantee_lint("반드시 성공")
     assert dq.guarantee_lint("확실히 된다")
+    # 어간 확대(강화): 승진/창업류 결과 보장 — 구 패턴(성공|재회|결혼|된다|됩니다)의 사각.
+    assert dq.guarantee_lint("반드시 승진합니다")
+    assert dq.guarantee_lint("확실히 취업하게 됩니다")
 
 
 def test_guarantee_lint_allows_non_guarantee_phrasing():
@@ -480,6 +485,10 @@ def test_guarantee_lint_allows_non_guarantee_phrasing():
     assert dq.guarantee_lint("반드시 확인해 보세요") == []
     assert dq.guarantee_lint("결혼을 준비하는 마음으로 점검해 보세요") == []
     assert dq.guarantee_lint("") == []
+    # P3 정밀화(양방-통과): 정당한 행동·시기 단정은 허용 — 직답 맥빠짐의 규칙적 원인 해소.
+    assert dq.guarantee_lint("무조건 미룰 일은 아닙니다.") == []
+    assert dq.guarantee_lint("반드시 서류부터 확인하고 움직이세요.") == []
+    assert dq.guarantee_lint("이 시기가 유리합니다. 꼭 먼저 연락처를 정리해 두세요.") == []
 
 
 def test_guarantee_lint_matches_analyze_criteria_no_drift():
