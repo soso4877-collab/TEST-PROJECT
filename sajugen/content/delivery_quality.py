@@ -349,6 +349,38 @@ def _frontloaded_result(text: str, required_axes: set[str]) -> dict:
     }
 
 
+# P2(2026-07-05, QI-2026-07-05-03): consult 최소 밀도 하한. v7 실사고 = generic 골격
+# 388자(공백 제외)로 붕괴했는데 frontload 게이트는 intro 초반 1800자만 봐 false-PASS.
+# 하한은 골격 최소(연애 분기 약 560자)보다 낮게 잡아 골격 폴백은 항상 통과(fail-closed 가
+# 아니라 '붕괴 감지'가 목적 — 골격 자체의 밀도 하한은 test_consult_skeleton 이 별도 고정).
+MIN_CONSULT_CHARS = 450
+
+
+def consult_direct_result(text: str, concern: str | None) -> dict:
+    """consult(신청 질문 답변) 챕터의 직답성 검사 — builder compose 가드·pipeline 게이트 공용.
+
+    concern 부재는 조용한 통과가 아니라 skipped 로 구분 보고(B-2 fail-closed 관측 원칙).
+    검사: 최소 밀도 + 결론/시기/행동 표지 + 질문축 evidence(축이 잡힌 concern 만).
+    """
+    if not (concern or "").strip():
+        return {"ok": True, "skipped": True, "missing": []}
+    body = text or ""
+    dense = len(body.replace(" ", "").replace("\n", ""))
+    missing: list[str] = []
+    if dense < MIN_CONSULT_CHARS:
+        missing.append(f"min_chars({dense}<{MIN_CONSULT_CHARS})")
+    if not _hit_terms(body, _FRONTLOAD_TERMS["decision"]):
+        missing.append("decision")
+    if not _hit_terms(body, _FRONTLOAD_TERMS["timing"]):
+        missing.append("timing")
+    if not _hit_terms(body, _FRONTLOAD_TERMS["action"]):
+        missing.append("action")
+    topic_axes = sorted(a for a in _required_axes(concern) if a not in {"timing", "action"})
+    if topic_axes and not any(_hit_terms(body, _AXES[a]["evidence"]) for a in topic_axes):
+        missing.append("question_topic")
+    return {"ok": not missing, "skipped": False, "missing": missing, "dense_chars": dense}
+
+
 _PHYSICAL_FRONTLOAD_PAGES = 3  # 고객이 체감하는 '초반' = 물리 첫 3페이지
 
 

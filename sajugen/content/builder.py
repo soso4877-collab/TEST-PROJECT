@@ -370,17 +370,40 @@ def build_report(
                                     + ")",
                                 }
                             ]
-                # 가드 실패(주로 §12 단정어 1개)면 1회 재작성 — 샘플링 변동으로 통과 가능.
+                    # P2(QI-2026-07-05-03): consult 직답성 선검사 — v7 실사고(388자 유보
+                    # 골격 폴백)를 compose 단계에서 감지. concern 없으면 skipped(no-op 명시).
+                    if sid == "consult":
+                        _cd = delivery_quality.consult_direct_result(cand, concern)
+                        if not _cd.get("ok", True):
+                            csv = csv + [
+                                {
+                                    "type": "consult_direct",
+                                    "match": "질문 직답 미달("
+                                    + ",".join(_cd.get("missing", []))
+                                    + ")",
+                                }
+                            ]
+                # 가드 실패(주로 §12 단정어 1개)면 재작성 — 샘플링 변동으로 통과 가능.
                 # 가드는 그대로 전수 적용(우회·완화 아님). compose 챕터·anthropic 일 때만.
-                if (csv or cfv) and sid in _COMPOSE_SECTIONS and backend.name == "anthropic":
+                # P2(2026-07-05): consult 는 질문에 답하는 유일한 챕터라 폴백(골격) 전에
+                # 한 번 더 재시도(총 2회, 운영자 승인 +1콜). 그 외 챕터는 기존 1회 유지.
+                _max_retry = 2 if sid == "consult" else 1
+                _round = 0
+                _fb_pool: set[str] = set()
+                while (
+                    (csv or cfv)
+                    and _round < _max_retry
+                    and sid in _COMPOSE_SECTIONS
+                    and backend.name == "anthropic"
+                ):
+                    _round += 1
                     # 재작성 피드백(2026-07-04): 직전 초안의 위반 표현을 프롬프트로 전달 —
                     # 사유 없이 재시도하면 같은 단어가 재발해 폴백률이 높았다(실측: '쯤' 2회 연속).
-                    _fb = ", ".join(
-                        sorted(
-                            {str(v.get("match") or v.get("token") or "") for v in (csv + cfv)}
-                            - {""}
-                        )[:5]
-                    )
+                    # 2차 재시도는 라운드별 위반을 누적 전달(같은 실패 반복 방지).
+                    _fb_pool |= {
+                        str(v.get("match") or v.get("token") or "") for v in (csv + cfv)
+                    } - {""}
+                    _fb = ", ".join(sorted(_fb_pool)[:8])
                     retry = _strip_artifacts(
                         backend.compose(
                             section_id=sid,
@@ -401,39 +424,57 @@ def build_report(
                     retry = client_tone_lint.normalize_loanwords(retry)  # 재작성도 1차 순화
                     retry = postprocess.style_safe_text(retry)  # 반복어 선치환(재작성도)
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
-                    if retry and retry != rule_text:
-                        rsv = (
-                            safe_lint.lint(retry)
-                            + style_lint.lint(retry)
-                            + quality_lint.lint(retry, names=[name] if name else None)
-                            + temporal_lint.lint(retry, ref_year, ref_date=ref_date)
-                            + client_tone_lint.loanword_lint(retry)
-                            + client_tone_lint.raw_calc_lint(retry)
-                            + client_tone_lint.identity_role_lint(
-                                retry, _id_spec[0], _id_spec[1], _id_spec[2]
-                            )
-                            + delivery_quality.guarantee_lint(retry)  # 보장형(재작성도 검사)
-                            + customer_meta_lint.lint(retry)  # 문서 진행/섹션 예고 메타(재작성도)
-                            + client_tone_lint.placeholder_residue_strict_violations(
-                                retry,
-                                strict_pair=not partner_text,  # 커플 지칭(재작성도, F4)
-                            )
+                    if not retry or retry == rule_text:
+                        continue
+                    rsv = (
+                        safe_lint.lint(retry)
+                        + style_lint.lint(retry)
+                        + quality_lint.lint(retry, names=[name] if name else None)
+                        + temporal_lint.lint(retry, ref_year, ref_date=ref_date)
+                        + client_tone_lint.loanword_lint(retry)
+                        + client_tone_lint.raw_calc_lint(retry)
+                        + client_tone_lint.identity_role_lint(
+                            retry, _id_spec[0], _id_spec[1], _id_spec[2]
                         )
-                        if sid == "intro" and concern:  # 직답 유지(재작성도)
-                            _axes_r = delivery_quality._required_axes(concern)
-                            _fl_r = delivery_quality._frontloaded_result(retry, _axes_r)
-                            if not _fl_r.get("ok", True):
-                                rsv = rsv + [
-                                    {
-                                        "type": "frontload",
-                                        "match": "질문 직답 유실("
-                                        + ",".join(_fl_r.get("missing", []))
-                                        + ")",
-                                    }
-                                ]
-                        rfv = factcheck.check(retry, saju, partner_gz)
-                        if not rsv and not rfv:
-                            cand, csv, cfv = retry, rsv, rfv
+                        + delivery_quality.guarantee_lint(retry)  # 보장형(재작성도 검사)
+                        + customer_meta_lint.lint(retry)  # 문서 진행/섹션 예고 메타(재작성도)
+                        + client_tone_lint.placeholder_residue_strict_violations(
+                            retry,
+                            strict_pair=not partner_text,  # 커플 지칭(재작성도, F4)
+                        )
+                    )
+                    if sid == "intro" and concern:  # 직답 유지(재작성도)
+                        _axes_r = delivery_quality._required_axes(concern)
+                        _fl_r = delivery_quality._frontloaded_result(retry, _axes_r)
+                        if not _fl_r.get("ok", True):
+                            rsv = rsv + [
+                                {
+                                    "type": "frontload",
+                                    "match": "질문 직답 유실("
+                                    + ",".join(_fl_r.get("missing", []))
+                                    + ")",
+                                }
+                            ]
+                    if sid == "consult":  # 직답성(재작성도, P2)
+                        _cd_r = delivery_quality.consult_direct_result(retry, concern)
+                        if not _cd_r.get("ok", True):
+                            rsv = rsv + [
+                                {
+                                    "type": "consult_direct",
+                                    "match": "질문 직답 미달("
+                                    + ",".join(_cd_r.get("missing", []))
+                                    + ")",
+                                }
+                            ]
+                    rfv = factcheck.check(retry, saju, partner_gz)
+                    if not rsv and not rfv:
+                        cand, csv, cfv = retry, rsv, rfv
+                    else:
+                        # 실패 라운드의 위반도 다음 라운드 피드백에 누적(원 csv/cfv 는 유지 —
+                        # 최종 폴백 판단·섹션 위반 기록의 기준은 본경로 초안).
+                        _fb_pool |= {
+                            str(v.get("match") or v.get("token") or "") for v in (rsv + rfv)
+                        } - {""}
                 if not csv and not cfv:
                     final, polished = cand, True
                     polished_n += 1

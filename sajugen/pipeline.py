@@ -21,6 +21,7 @@ except Exception:
 
 from .calc import engine
 from .content import builder
+from .content import delivery_quality as _delivery_quality
 from .input import time_correction as tc
 from .render import pdf as render_pdf
 from .render import verify as render_verify
@@ -149,6 +150,11 @@ def generate(
             f"렌더 게이트 실패(text={v['text_chars']}, tagged={v['tagged']}, "
             f"fonts={v['fonts_embedded']})"
         )
+    # P2(QI-2026-07-05-03): consult 직답성 하드 게이트 — 질문 답변 챕터가 얇은 유보
+    # 골격으로 붕괴한 채 발급되는 것을 차단(v7 false-PASS 실사고). concern 없으면 skipped.
+    _cd = _delivery_quality.consult_direct_result(report.section("consult").final_text, concern)
+    if not _cd.get("ok", True):
+        reasons.append("consult 직답 미달(" + ",".join(_cd.get("missing", [])) + ")")
     if not report.guard.clean:
         reasons.append(
             f"콘텐츠 가드 미통과(§12={report.guard.safe_lint_total}, "
