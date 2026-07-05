@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """P1(2026-07-05) 직답 골격 재작성 — v7 실격 후속(운영자: 직답 맥빠짐·유보 프레임).
 
-골격 consult/concern_snapshot 이 [방향 단정]→[근거 겹침(궁 실명)]→[시기]→[첫 행동]
-구조로, 전 가드(안전·메타·보장·날것 계산어·외래어)를 통과하면서 충분한 밀도를
-가짐을 카테고리 전수 실빌드로 고정한다. PII 0(합성 입력만).
+골격 consult 가 [방향 단정]→[근거 겹침(궁 실명)]→[시기]→[첫 행동] 구조로, 전 가드
+(안전·메타·보장·날것 계산어·외래어)를 통과하면서 충분한 밀도를 가짐을 카테고리
+전수 실빌드로 고정한다. PII 0(합성 입력만).
+2026-07-05 운영자 지시 개정: 1장(intro) 직답 문단(concern_snapshot)·frontload 게이트는
+폐기 — 신청 질문 직답은 consult 장 전담(아래 역방향 앵커 테스트로 고정).
 검증하지 않는 것: LLM 윤문 품질(골격 하한만 고정).
 """
 
@@ -89,13 +91,47 @@ def test_consult_palace_line_absent_when_unknown_time():
     assert "자미두수에서 같은 영역을 비추는 자리는" not in T["consult"]
 
 
-def test_snapshot_is_decisive_not_hedging():
-    # 스냅샷(인트로 직답 리드)이 유보 프레임 대신 성향 근거+시기+첫 행동을 담는다.
+def test_intro_no_direct_answer_answer_lives_in_consult():
+    # 2026-07-05 운영자 지시 개정(역방향 앵커): 1장(intro) 직답 문단 제거 — 도입은
+    # '사주를 펼쳐 놓고 보면…' 요약 카드로 시작하고, 신청 질문 직답은 consult 장이 전담한다.
+    # (구 test_snapshot_is_decisive_not_hedging 을 반대 방향으로 재정의)
     saju = _saju()
     T = rules.build_all(
         saju, ref_year=2026, name="테스트", concern_category="재물", concern_text="돈 고민입니다."
     )
     intro = T["intro"]
-    assert "신청 질문부터 먼저 답하면" in intro  # frontload 가드 앵커 유지
-    assert "늦지 않습니다" not in intro  # 구 유보 꼬리 부재
-    assert "첫걸음" in intro or "지켜보십시오" in intro  # 행동 지시 존재
+    assert "신청 질문부터 먼저 답하면" not in intro  # 직답 문단 소멸
+    assert "사주를 펼쳐 놓고 보면" in intro[:30]  # 요약 카드로 시작(nm_pfx 접두 뒤)
+    consult = T["consult"]
+    # 직답은 consult 장 전담 — 직답 리드가 여기에 있다.
+    assert "먼저 핵심부터 말하면" in consult or "결론부터" in consult
+
+
+def test_intro_frontload_gate_removed_two_way():
+    # frontload 게이트 철거 회귀(2026-07-05 운영자 지시 개정). 양방:
+    #  (a) intro 초반에 decision/timing 표지가 없어도 missing_frontloaded_answer 미발생
+    #      (게이트·산출 필드 소멸 — 직답은 consult 장 전담).
+    #  (b) 골격 실빌드 intro 는 전 가드 clean(제거로 인한 회귀 0) + 직답 문단 소멸.
+    # (a) 초반 1800자에 결론/시기 표지가 없는 본문 — 구 게이트라면 FAIL 대상
+    body = "배경을 천천히 살펴보겠습니다. " * 300
+    r = delivery_quality.analyze(
+        body,
+        pages=27,
+        product="integrated",
+        premium=True,
+        concern="아파트 매매 시기가 궁금합니다",
+    )
+    assert "missing_frontloaded_answer" not in {f["rule"] for f in r["failures"]}
+    assert "frontloaded_answer" not in r  # 산출 필드 소멸
+    assert "physical_frontloaded_answer" not in r
+    # (b) 골격 intro: 전 가드 clean + 직답 문단 소멸
+    saju = _saju()
+    T = rules.build_all(
+        saju,
+        ref_year=2026,
+        name="테스트",
+        concern_category="재물",
+        concern_text="합성 고민 텍스트입니다.",
+    )
+    assert _guards(T["intro"]) == []
+    assert "신청 질문부터 먼저 답하면" not in T["intro"]

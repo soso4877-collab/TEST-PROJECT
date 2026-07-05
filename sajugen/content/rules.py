@@ -830,41 +830,6 @@ def _love_focus(concern_text: str | None) -> str:
     return "relationship"
 
 
-def _love_snapshot_text(
-    focus: str,
-    near_label: str,
-    love_detail: str,
-    name_prefix: str,
-) -> str:
-    if focus == "reunion":
-        base = (
-            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에서는 상대의 반응이 "
-            "다시 살아나는지 보되 짧은 안부부터 여는 쪽이 안전합니다. 좋은 구간은 "
-            "연락이 자연스럽게 이어지고 약속이 구체화되는 때이고, 조심할 구간은 답이 짧거나 "
-            "예전 문제가 그대로 반복되는 때입니다."
-        )
-    elif focus == "new_love":
-        base = (
-            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에는 새 만남을 "
-            "가볍게 열어 볼 여지가 있습니다. 좋은 구간은 소개팅이나 지인 소개처럼 부담이 작은 "
-            "자리에서 대화가 이어지는 때이고, 조심할 구간은 외로움 때문에 서둘러 결론을 "
-            "정하려는 때입니다."
-        )
-    elif focus == "marriage":
-        base = (
-            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에는 결혼을 "
-            "확정하기보다 생활 기준과 돈 관리, 가족과의 거리를 확인해야 합니다. 좋은 구간은 "
-            "현실 조건을 함께 맞춰 보는 때이고, 조심할 구간은 감정만 앞서 약속을 크게 잡는 때입니다."
-        )
-    else:
-        base = (
-            f"{name_prefix}신청 질문부터 먼저 답하면, {near_label} 안에서 관계가 "
-            "움직이는 신호와 멈춰야 할 신호를 나누어 보는 것이 핵심입니다. 좋은 구간은 대화가 "
-            "자연스럽게 이어지는 때이고, 조심할 구간은 혼자만 애쓰는 때입니다."
-        )
-    return base + (f" {love_detail}" if love_detail else "")
-
-
 def _love_consult_intro(focus: str, near_label: str) -> str:
     if focus == "reunion":
         return (
@@ -1620,31 +1585,6 @@ def build_all(
             f"비추는 영역이 같은 곳을 향하고 있어, 두 판을 겹쳐 읽어도 답의 방향은 하나로 "
             f"모입니다. "
         )
-    T["concern_snapshot"] = ""
-    if _cc == "연애":
-        T["concern_snapshot"] = _love_snapshot_text(
-            _love_focus_kind, _near_label, _love_detail, nm_pfx
-        )
-    elif _ctx_topics:
-        _snapshot_label = _concern_snapshot_label(_ctx_topics)
-        # P1: 유보적 절차 안내 → 방향 단정(성향 근거)+시기+첫 행동. 결과 보장 없음.
-        T["concern_snapshot"] = (
-            f"{nm_pfx}신청 질문부터 먼저 답하면, 이번 고민의 답은 "
-            f"{_J(_snapshot_label, '을를')} 한꺼번에 쥐는 데가 아니라 먼저 매듭지을 "
-            f"한 축을 정하는 데 있습니다. {mx_ko} 기운({mx_mn})이 강한 {nm_call}은 "
-            f"축을 정해 {mx_mn}의 힘으로 밀고 갈 때 성과가 나는 결이니, "
-            f"{_near_label}를 그 매듭을 짓는 구간으로 쓰는 것이 유리합니다. 확정된 "
-            f"조건과 아직 말뿐인 조건을 나누어 적는 것이 그 첫걸음입니다."
-        )
-    elif concern_text:
-        T["concern_snapshot"] = (
-            f"{nm_pfx}신청 질문부터 먼저 답하면, 이 고민은 {_near_label} 안에 방향을 "
-            f"정하는 것이 맞습니다. {dm_ko} 일간에 {mx_ko} 기운({mx_mn})이 강한 "
-            f"{nm_call}은 {mx_mn} 쪽으로 기준을 세웠을 때 힘이 실리는 결이라, 남의 "
-            f"확답을 기다리는 시간보다 걸려 있는 일의 조건이 갖춰졌는지 직접 확인하는 "
-            f"시간이 답을 앞당깁니다. 조건이 갖춰진 자리에서는 미루지 말고 움직이고, "
-            f"말뿐인 자리는 기한을 정해 두고 지켜보십시오."
-        )
     if _cc == "연애":
         _love_intro = _love_consult_intro(_love_focus_kind, _near_label)
         # QI-2026-07-04(F2): 재회 전제 문구(기존 상대·재접촉·붙잡기)는 원문에 재회 토큰이
@@ -1745,7 +1685,7 @@ def build_all(
 
     NT: dict[str, str] = {
         "cover": T["cover"],
-        "intro": _join("concern_snapshot", "summary", "howto", "keywords"),
+        "intro": _join("summary", "howto", "keywords"),
         "wonguk": _join("wonguk", "ohaeng"),
         "nature": _join("ilgan", "sipseong", "character", "strength"),
         "frame": _join("geukguk", "shinsal"),

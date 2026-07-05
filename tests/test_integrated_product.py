@@ -262,13 +262,11 @@ def test_integrated_full_with_concern_populates_axes_and_stores_fields(monkeypat
         "required_axes",
         "has_customer_context",
         "missing_axes",
-        "frontloaded_answer",
         "near_term_timing",
         "love_action",
         "ziwei",
     ):
         assert key in dq, key
-    assert dq["frontloaded_answer"].get("ok") is not None
     assert dq["ziwei"].get("ok") is not None
 
 
@@ -621,19 +619,6 @@ def test_integrated_full_non_low_density_failure_does_not_retry(monkeypatch):
         raise AssertionError("expected RuntimeError")
 
     assert len(render_calls) == 1
-
-
-def test_verify_stores_physical_frontloaded_field(monkeypatch):
-    # P5: verify 가 물리 페이지 기준 초반 답변 보조지표를 delivery_quality 에 저장(보고 보존).
-    concern = "도와주는 사람과 시기가 궁금하고 어떻게 준비할지 알고 싶습니다"
-    r = _verify_integrated(monkeypatch, "clean.json", concern=concern)
-    dq = r["delivery_quality"]
-    assert "physical_frontloaded_answer" in dq
-    pf = dq["physical_frontloaded_answer"]
-    assert pf["required"] is True
-    assert "first_pages" in pf and "answer_page" in pf
-    # 게이트 미변경: 이 보조지표는 warning 경로이며 gate_pass 를 좌우하지 않는다.
-    assert "physical_frontloaded_answer" not in {f["rule"] for f in dq["failures"]}
 
 
 def test_toc_lead_has_no_transition_meta(monkeypatch):

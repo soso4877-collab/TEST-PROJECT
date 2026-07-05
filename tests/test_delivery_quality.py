@@ -107,7 +107,6 @@ def test_premium_integrated_question_passes_when_axes_and_ziwei_are_present():
     assert r["missing_axes"] == []
     assert r["ziwei"]["ok"] is True
     assert r["expected_context_hits"]["청마"] == 1
-    assert r["frontloaded_answer"]["ok"] is True
     assert r["ziwei"]["cross_domains"]
 
 
@@ -139,7 +138,6 @@ def test_generated_premium_context_report_passes_with_domain_term_repetition_war
         expected_context_terms=["청마"],
     )
     assert r["clean"] is True, r
-    assert r["frontloaded_answer"]["ok"] is True
     assert r["missing_axes"] == []
     assert r["ziwei"]["ok"] is True
     assert r["expected_context_hits"]["청마"] == 1
@@ -170,7 +168,6 @@ def test_generated_reunion_context_report_frontloads_question_answer(monkeypatch
     rules = {f["rule"] for f in r["failures"]}
     assert r["clean"] is True, r
     assert "missing_frontloaded_answer" not in rules
-    assert r["frontloaded_answer"]["ok"] is True
     assert r["near_term_timing"]["ok"] is True
     assert "군대" in body and "휴가나 외출" in body
     assert "학교와 전공이 같은 선후배" in body
@@ -228,7 +225,6 @@ def test_generated_question_type_matrix_keeps_customer_axes_visible(monkeypatch)
         body = "\n".join(s.final_text for s in rep.sections)
         r = dq.analyze(body, pages=24, product="integrated", premium=True, concern=case["concern"])
         assert r["clean"] is True, (case["concern"], r)
-        assert r["frontloaded_answer"]["ok"] is True, case["concern"]
         assert r["near_term_timing"]["ok"] is True, case["concern"]
         assert r["missing_axes"] == [], (case["concern"], r["missing_axes"])
         assert r["ziwei"]["ok"] is True, case["concern"]
@@ -249,24 +245,6 @@ def test_love_or_reunion_question_requires_near_term_timing_and_action():
     r = dq.analyze(text, pages=22, premium=True, concern="헤어진 사람과 재회가 될까요")
     assert "timing" in r["missing_axes"]
     assert r["clean"] is False
-
-
-def test_premium_question_requires_frontloaded_answer_not_late_only():
-    late_answer = (
-        "정성스럽게 전체 흐름을 천천히 살펴보겠습니다. "
-        "여러 갈래가 겹쳐 있으니 배경부터 길게 보겠습니다. "
-    ) * 45
-    late_answer += _premium_text()
-    r = dq.analyze(
-        late_answer,
-        pages=27,
-        product="integrated",
-        concern="아파트 매매와 김포 이사, 로타리 클럽 창립 시기가 궁금합니다",
-        expected_context_terms=["청마"],
-    )
-    rules = {f["rule"] for f in r["failures"]}
-    assert "missing_frontloaded_answer" in rules
-    assert r["frontloaded_answer"]["ok"] is False
 
 
 def test_reunion_question_requires_near_term_timing_not_only_generic_timing():
@@ -296,7 +274,6 @@ def test_reunion_question_passes_with_one_year_timing_and_contact_action():
         text, pages=24, product="integrated", concern="헤어진 사람과 재회 시기와 다가가는 방법"
     )
     assert r["near_term_timing"]["ok"] is True
-    assert r["frontloaded_answer"]["ok"] is True
     assert "missing_near_term_timing" not in {f["rule"] for f in r["failures"]}
 
 
@@ -415,53 +392,6 @@ def test_context_required_default_false_preserves_no_concern_paths():
     # 기존 무고객 합성/단위 경로 보존 — 기본 False 면 실패 추가 없음.
     r = dq.analyze(_premium_text(), pages=57, product="integrated_full")
     assert "missing_customer_context" not in {f["rule"] for f in r["failures"]}
-
-
-_PF_CONCERN = "도와주는 사람과 시기가 궁금하고 어떻게 준비할지 알고 싶습니다"
-
-
-def test_physical_frontloaded_flags_cover_toc_first_pages():
-    # P5: 물리 p1~p3이 표지/목차뿐이고 답변이 p4 이후면 warning(보고)로 드러남.
-    pages = ["표지", "차례", "인사말 페이지", _premium_text()]
-    r = dq.analyze(
-        _premium_text(),
-        pages=57,
-        product="integrated_full",
-        concern=_PF_CONCERN,
-        context_required=True,
-        page_texts=pages,
-    )
-    pf = r["physical_frontloaded_answer"]
-    assert pf["required"] is True
-    assert pf["ok"] is False
-    assert pf["answer_page"] == 4
-    assert "physical_frontloaded_answer" in {w["rule"] for w in r["warnings"]}
-    # 보고용 warning — failures 로는 올라가지 않는다(게이트 미변경).
-    assert "physical_frontloaded_answer" not in {f["rule"] for f in r["failures"]}
-
-
-def test_physical_frontloaded_ok_when_answer_in_first_pages():
-    # P5: 물리 첫 페이지에 답변 근거가 있으면 ok=True, warning 없음.
-    pages = [_premium_text(), "표지", "차례"]
-    r = dq.analyze(
-        _premium_text(),
-        pages=57,
-        product="integrated_full",
-        concern=_PF_CONCERN,
-        context_required=True,
-        page_texts=pages,
-    )
-    pf = r["physical_frontloaded_answer"]
-    assert pf["ok"] is True
-    assert pf["answer_page"] == 1
-    assert "physical_frontloaded_answer" not in {w["rule"] for w in r["warnings"]}
-
-
-def test_physical_frontloaded_not_evaluated_without_concern_or_pages():
-    # 기존 무고객/무페이지 경로 보존 — 평가 안 함, warning 없음.
-    r = dq.analyze(_premium_text(), pages=57, product="integrated_full")
-    assert r["physical_frontloaded_answer"]["required"] is False
-    assert "physical_frontloaded_answer" not in {w["rule"] for w in r["warnings"]}
 
 
 def test_guarantee_lint_flags_absolute_guarantee_family():

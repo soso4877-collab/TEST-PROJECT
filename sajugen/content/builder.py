@@ -354,22 +354,6 @@ def build_report(
                             cand, strict_pair=not partner_text
                         )
                     )
-                    # 유료 직답 유지(QI-2026-07-04-02 후속, v5 실측 missing_frontloaded_answer):
-                    # intro 윤문이 골격의 '신청 질문부터 먼저 답하면' 직답 문단을 확률적으로
-                    # 유실 → 문서 초반 1800자 frontload 게이트 FAIL. 챕터 단위 선검사로
-                    # 유실 시 재작성/폴백(골격 intro = 직답 보존이라 폴백은 항상 통과).
-                    if sid == "intro" and concern:
-                        _axes = delivery_quality._required_axes(concern)
-                        _fl = delivery_quality._frontloaded_result(cand, _axes)
-                        if not _fl.get("ok", True):
-                            csv = csv + [
-                                {
-                                    "type": "frontload",
-                                    "match": "질문 직답 유실("
-                                    + ",".join(_fl.get("missing", []))
-                                    + ")",
-                                }
-                            ]
                     # P2(QI-2026-07-05-03): consult 직답성 선검사 — v7 실사고(388자 유보
                     # 골격 폴백)를 compose 단계에서 감지. concern 없으면 skipped(no-op 명시).
                     if sid == "consult":
@@ -443,18 +427,6 @@ def build_report(
                             strict_pair=not partner_text,  # 커플 지칭(재작성도, F4)
                         )
                     )
-                    if sid == "intro" and concern:  # 직답 유지(재작성도)
-                        _axes_r = delivery_quality._required_axes(concern)
-                        _fl_r = delivery_quality._frontloaded_result(retry, _axes_r)
-                        if not _fl_r.get("ok", True):
-                            rsv = rsv + [
-                                {
-                                    "type": "frontload",
-                                    "match": "질문 직답 유실("
-                                    + ",".join(_fl_r.get("missing", []))
-                                    + ")",
-                                }
-                            ]
                     if sid == "consult":  # 직답성(재작성도, P2)
                         _cd_r = delivery_quality.consult_direct_result(retry, concern)
                         if not _cd_r.get("ok", True):

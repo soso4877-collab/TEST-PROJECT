@@ -1,5 +1,26 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-05 1장 직답 문단 제거 + frontload 게이트 철거 — 이 블록 먼저 읽기) =====
+>   [운영자 실격 판정(v8 육안) → 지시 개정 실행] 1장 도입의 직답 문단(concern_snapshot)이
+>     "처음부터 답을 흐린다"고 실격 — 성향 슬롯만으로 만든 결정론 템플릿이라 어떤 문안으로도
+>     뭉툭. 신청 질문 직답은 consult 장(고객 원문 기반 LLM + 전용 게이트) 전담으로 회귀
+>     (docs/13 back-peak 원 설계). 이번 커밋에서 구현·검증 완료:
+>     - 골격 제거(rules.py): T["concern_snapshot"] 3분기 블록 + _love_snapshot_text() 삭제,
+>       intro join = summary+howto+keywords(직답 문단 소멸, '사주를 펼쳐 놓고 보면…'로 시작).
+>     - frontload 게이트 철거(delivery_quality.py): _frontloaded_result·_FRONTLOAD_CHARS·
+>       physical 계열(_page_has_direct_answer·_physical_frontloaded_result·_PHYSICAL_FRONTLOAD_PAGES)
+>       + analyze() 산출/판정(missing_frontloaded_answer·physical_frontloaded_answer) 전부 삭제.
+>       builder.py intro 선검사 2곳 삭제. llm_sections intro 가이드 = '질문 답은 consult 전담'.
+>     - 유지(건드리지 않음): consult_direct_result + pipeline 하드 게이트 + 2차 재시도(답변 품질
+>       보증 기계장치), _FRONTLOAD_TERMS·_concern_snapshot_label·_love_context_detail·_cp_line
+>       (consult 소비 공유 헬퍼), gunghap frontload_summary(궁합 전용 별개 장치).
+>   [양방 테스트] test_frontload_guard.py 삭제(가드 소멸), physical/premium-frontload 테스트 삭제,
+>     test_intro_no_direct_answer_answer_lives_in_consult(역방향 앵커) + test_intro_frontload_gate_removed_two_way(신규 양방) 추가.
+>   [QI] docs/16 월 시제 사고 항목 (b)에 폐기 후속 1줄 등재.
+>   전체 pytest 586 passed / 4 skipped / exit 0 (592 → 삭제 7 + 신규 1 = 586, 정합·회귀 아님).
+>   [다음(운영자 입력 대기)] v9 재생성 승인됨(~$0.65) — customer3 입력(PII, 저장소 밖)을
+>     운영자에게 요청 → API 0 룰 전용 프로브 PASS 선검증 후에만 v9 LLM 재생성. 실패 시 v9 금지.
+>
 > ===== 압축/새세션 재개 앵커 (2026-07-05 품질 총정비 P0~P6 + v8 재검수 대기 — 이 블록 먼저 읽기) =====
 >   [운영자 실격 판정(v7) → 총정비 완료 — 승인 계획 7 Phase 전부 구현·커밋(각 양방 테스트)]
 >     P0 챕터별 폴백 관측(7c94afa: GuardReport ids+cli chapters 줄+hrun summary) /

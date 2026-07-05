@@ -468,7 +468,7 @@ def verify(
         "outline_items": len(toc),
         "tagged": tagged,
     }
-    # 완성본 분량 벤치마크(2026-07-04, 보고 전용 — 게이트 불변, physical_frontloaded 선례).
+    # 완성본 분량 벤치마크(2026-07-04, 보고 전용 — 게이트 불변, warning 보고 경로 선례).
     # 기준 = 역대 최고본 H153 검증 업로드 실측(41p·17,396자·424자/쪽)에서 도출한 하한.
     # 목적: "완성본인지 판단이 어렵다"(운영자)를 감이 아니라 수치 미달량으로 바꾼다.
     _dense = len(text.replace(" ", "").replace("\n", ""))

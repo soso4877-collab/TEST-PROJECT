@@ -62,7 +62,6 @@ _REPEAT_CAP_PATTERNS: dict[str, tuple[re.Pattern[str], int]] = {
     "의 색": (re.compile(r"의\s*색(?:이|을|은|과|와|으로|도)?(?![가-힣])"), 4),
 }
 _REPEAT_BASE_LEN = 10_000
-_FRONTLOAD_CHARS = 1_800
 
 # P3(2026-07-05, 운영자 승인 — 절대규칙 12 '사각 축소 방향' 정밀화):
 # '무조건' 단독 금지가 정당한 행동·시기 단정("무조건 미룰 일은 아닙니다")까지 차단해
@@ -356,34 +355,6 @@ def _repetition_hits(text: str) -> list[dict]:
     return hits
 
 
-def _frontloaded_result(text: str, required_axes: set[str]) -> dict:
-    """Check that a paid answer gives the customer a usable answer early."""
-
-    if not required_axes:
-        return {"ok": True, "missing": [], "window_chars": _FRONTLOAD_CHARS}
-
-    early = text[:_FRONTLOAD_CHARS]
-    missing: list[str] = []
-    if not _hit_terms(early, _FRONTLOAD_TERMS["decision"]):
-        missing.append("decision")
-    if "timing" in required_axes and not _hit_terms(early, _FRONTLOAD_TERMS["timing"]):
-        missing.append("timing")
-    if "action" in required_axes and not _hit_terms(early, _FRONTLOAD_TERMS["action"]):
-        missing.append("action")
-
-    topic_axes = sorted(a for a in required_axes if a not in {"timing", "action"})
-    covered_topic_axes = [axis for axis in topic_axes if _hit_terms(early, _AXES[axis]["evidence"])]
-    if topic_axes and not covered_topic_axes:
-        missing.append("question_topic")
-
-    return {
-        "ok": not missing,
-        "missing": missing,
-        "window_chars": _FRONTLOAD_CHARS,
-        "covered_topic_axes": covered_topic_axes,
-    }
-
-
 # P2(2026-07-05, QI-2026-07-05-03): consult 최소 밀도 하한. v7 실사고 = generic 골격
 # 388자(공백 제외)로 붕괴했는데 frontload 게이트는 intro 초반 1800자만 봐 false-PASS.
 # 하한은 골격 최소(연애 분기 약 560자)보다 낮게 잡아 골격 폴백은 항상 통과(fail-closed 가
@@ -414,48 +385,6 @@ def consult_direct_result(text: str, concern: str | None) -> dict:
     if topic_axes and not any(_hit_terms(body, _AXES[a]["evidence"]) for a in topic_axes):
         missing.append("question_topic")
     return {"ok": not missing, "skipped": False, "missing": missing, "dense_chars": dense}
-
-
-_PHYSICAL_FRONTLOAD_PAGES = 3  # 고객이 체감하는 '초반' = 물리 첫 3페이지
-
-
-def _page_has_direct_answer(page_text: str, required_axes: set[str]) -> bool:
-    """물리 한 페이지가 직접 답변(결론 표지 + 질문 주제/시기 근거)을 담는지."""
-    if not _hit_terms(page_text, _FRONTLOAD_TERMS["decision"]):
-        return False
-    topic_axes = [a for a in required_axes if a not in {"timing", "action"}]
-    if any(_hit_terms(page_text, _AXES[axis]["evidence"]) for axis in topic_axes):
-        return True
-    if "timing" in required_axes and _hit_terms(page_text, _FRONTLOAD_TERMS["timing"]):
-        return True
-    # 주제/시기 축이 없으면 결론 표지만으로도 초반 답변으로 인정(과탐 방지).
-    return not topic_axes and "timing" not in required_axes
-
-
-def _physical_frontloaded_result(
-    page_texts: list[str] | None,
-    required_axes: set[str],
-    first_pages: int = _PHYSICAL_FRONTLOAD_PAGES,
-) -> dict:
-    """물리 페이지 기준 초반 답변 보조지표(보고용). char 기반 frontloaded_answer 와 별개.
-
-    표지/목차가 물리 p1~p3을 차지해 고객 체감 '초반'에 답변이 없을 때를 드러낸다.
-    concern/required_axes 가 있을 때만 평가하며, 게이트(clean/gate_pass)는 바꾸지 않고
-    warning 으로만 보고한다(false-pass 가시화 — 게이트 완화·과차단 아님).
-    """
-    if not required_axes or not page_texts:
-        return {"required": False, "ok": True, "first_pages": first_pages, "answer_page": None}
-    answer_page = None
-    for idx, page_text in enumerate(page_texts, start=1):
-        if _page_has_direct_answer(page_text or "", required_axes):
-            answer_page = idx
-            break
-    return {
-        "required": True,
-        "ok": answer_page is not None and answer_page <= first_pages,
-        "first_pages": first_pages,
-        "answer_page": answer_page,
-    }
 
 
 def _near_term_timing_result(text: str, required_axes: set[str]) -> dict:
@@ -566,8 +495,6 @@ def _finding_message(finding: dict) -> dict:
         "premium_low_density_pages": "본문 밀도가 낮은 페이지가 있습니다.",
         "missing_customer_context": "고객 질문(고민)이 이 상품의 품질 검사까지 전달되지 않았습니다.",
         "missing_question_axes": "질문 축에 대한 답변 근거가 부족합니다.",
-        "missing_frontloaded_answer": "초반부에 결론, 시기, 행동 기준이 충분히 앞서 나오지 않았습니다.",
-        "physical_frontloaded_answer": "물리 첫 3페이지(표지/목차 포함) 안에 직접 답변이 보이지 않습니다(검수 확인).",
         "missing_near_term_timing": "연애/재회 질문에 필요한 가까운 시기 기준이 부족합니다.",
         "missing_love_reunion_action": "연애/재회 질문에 필요한 행동 기준과 주의 기준이 부족합니다.",
         "repetitive_phrasing": "반복 표현이 기준을 넘었습니다.",
@@ -659,18 +586,6 @@ def analyze(
     if missing_axes:
         failures.append({"rule": "missing_question_axes", "axes": missing_axes})
 
-    frontloaded = _frontloaded_result(text, required_axes)
-    if is_premium and not frontloaded["ok"]:
-        failures.append({"rule": "missing_frontloaded_answer", "frontloaded": frontloaded})
-
-    # 물리 페이지 기준 초반 답변(보고용 warning — 게이트 미변경). 표지/목차가 물리 p1~p3을
-    # 차지해 고객 체감 초반에 답변이 없을 때를 드러낸다(char 기반 frontloaded 와 별개).
-    physical_frontloaded = _physical_frontloaded_result(page_texts, required_axes)
-    if is_premium and physical_frontloaded["required"] and not physical_frontloaded["ok"]:
-        warnings.append(
-            {"rule": "physical_frontloaded_answer", "physical_frontloaded": physical_frontloaded}
-        )
-
     near_term_timing = _near_term_timing_result(text, required_axes)
     if is_premium and not near_term_timing["ok"]:
         failures.append({"rule": "missing_near_term_timing", "timing": near_term_timing})
@@ -734,8 +649,6 @@ def analyze(
         "required_axes": sorted(required_axes),
         "coverage_hits": coverage_hits,
         "missing_axes": missing_axes,
-        "frontloaded_answer": frontloaded,
-        "physical_frontloaded_answer": physical_frontloaded,
         "near_term_timing": near_term_timing,
         "love_action": love_action,
         "love_myeongni": love_myeongni,

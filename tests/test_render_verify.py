@@ -349,7 +349,7 @@ def test_toc_two_column_threshold_boundary():
 
 def test_volume_benchmark_report_only():
     # 완성본 분량 벤치마크(2026-07-04, 보고 전용): H153 실측 기준 하한(16,000자·400자/쪽)
-    # 미달을 수치로 보고하되 gate_pass 에는 불참(게이트 불변 — physical_frontloaded 선례).
+    # 미달을 수치로 보고하되 gate_pass 에는 불참(게이트 불변 — warning 보고 경로 선례).
     secs = [_sn("nature", "타고난 성격", "본문 문장입니다. 흐름이 이어집니다. " * 60)]
     pdf = _render_sections(secs, "test_volume_bench.pdf")
     r = v.verify(pdf, ref_year=2026)
