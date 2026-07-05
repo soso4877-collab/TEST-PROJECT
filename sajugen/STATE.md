@@ -1,10 +1,22 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0·P1 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0·P1·P2 완료 — 이 블록 먼저 읽기) =====
 >   [다층 검증 시스템 로드맵 실행 중] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
->     P0(완료)→P1(완료)→P2(dead-param 스캔)→P3(골격×lint 매트릭스+커버리지)
+>     P0(완료)→P1(완료)→P2(완료)→P3(골격×lint 매트릭스+커버리지)
 >     →P4(발송 전 이질 렌즈 스윕 advisory)→P5(설계 논쟁)→P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
 >     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 2 완료 — dead-param 정적 스캐너(C2 자동화)] 팬텀 파라미터 3연속(QI-2026-07-04-01)
+>     구조 차단. scripts/deadparam_scan.py(stdlib-only AST — 하드 게이트 무의존·이식성) +
+>     tests/deadparam_allowlist.txt(참 사유 필수). 제외: self/cls·_접두·*args/**kwargs·stub·
+>     단일 return 패스스루·@overload/abstractmethod/override. ruff --select ARG(16건)로 크로스체크
+>     (스캐너 7건 — 패스스루 제외가 duck-typed 백엔드 클러스터 정확 필터). 전수 분류:
+>     - 즉시 제거(출력 불변·골든 28 GREEN): calc/advanced.geukguk(day_master)·delivery_quality.
+>       analyze(page_texts, 내 frontload 제거 잔여) + 각 1 호출부.
+>     - allowlist(참 사유·소비처 실측): 관계 폴백 situation×3(LLM compose _compose:999 가 소비 →
+>       대칭 실재), compose(title, polish 가 소비하는 섹션 인터페이스), render_html(age, 4단계
+>       팬텀 체인 order_flow→pipeline→render — docs/16 QI-2026-07-06-01 추적, 별도 세션 제거).
+>     tests/test_deadparam_scan.py 7건: POSITIVE 검출(B-2 no-op 방지) + 제외 앵커 + 하드 게이트
+>     + 제거분 회귀 + allowlist 사유 강제. ruff 는 오라클로만(정본=스캐너).
 >   [Phase 1 완료 — 게이트 키 SSOT + 요약↔원천 정합 계약(C4 관측 갭 자동화)]
 >     실결함 RED-first 수확: verify.gate_pass 20키에 layout_geometry_clean·text_layer_ok·
 >     fonts_embedded·tagged 가 있으나 hsummary._PDF_GATE·hrun._retry_reason 수동 목록에서 드롭
@@ -26,7 +38,7 @@
 >   [비블로킹 플래그(Phase 4 전 처리)] hrun --regen 이 ref_date 부재 프로파일에서 날짜 민감해짐 —
 >     로컬 픽스처 프로파일(harness/profiles/local/**, gitignored·PII)에 ref_date 를 고정해야
 >     달력일마다 게이트 결과가 드리프트하지 않는다(특히 gunghap_h153.yml). regen 전 운영자 조치.
->   전체 pytest 597 passed / 4 skipped / exit 0 (P0 586→588, P1 588→597 신규 9건).
+>   전체 pytest 604 passed / 4 skipped / exit 0 (P0 586→588, P1 588→597, P2 597→604 신규 7건).
 >
 > ===== 압축/새세션 재개 앵커 (2026-07-05 1장 직답 문단 제거 + frontload 게이트 철거 — 이 블록 먼저 읽기) =====
 >   [운영자 실격 판정(v8 육안) → 지시 개정 실행] 1장 도입의 직답 문단(concern_snapshot)이

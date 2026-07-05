@@ -1,5 +1,13 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-06 추가: QI-2026-07-06-01 age 팬텀 파라미터 체인(도판 제거 잔여) — dead-param 스캐너(Phase 2)가 적발, 제거는 추적 대기
+
+- 증상(Phase 2 dead-param 스캔 실측): `age` 가 order_flow(관메타 `meta.get("age")`)→pipeline→render_pdf(`age=age` 포워딩)→render_html 로 4단계 흐르는데 어느 렌더 함수도 소비하지 않는다. 도판(일러스트) 전면 제거(운영자 지시) 후 남은 잔여 인자 — 기능 영향은 없으나 팬텀 파라미터 클래스(QI-2026-07-04-01 계열: "받기만 하고 안 쓰는" 인자).
+- 영향: 현재 무해(미소비라 산출 불변). 위험은 미래 — 이런 죽은 배선이 방치되면 "존재하지 않는 값이 흐르는" 착시로 실결함(팬텀 파트너류)의 온상이 된다.
+- 조치(Phase 2): dead-param 스캐너(scripts/deadparam_scan.py)+하드 게이트가 이 클래스를 자동 적발하도록 상시화. `age` 는 체인 전체 제거가 주문경로(order_flow) 리팩터라 반나절 범위 밖 → tests/deadparam_allowlist.txt 에 참 사유로 등재하고 별도 세션 제거로 추적(이 항목). page_texts(내 frontload 제거 잔여)·geukguk(day_master)는 같은 스캔에서 즉시 제거(소비처 배선까지 한 단위).
+- 재발 방지: 파라미터 신설 시 소비처 배선까지가 한 단위(방법론 A-5). 스캐너 게이트가 미소비 인자를 커밋 시점에 차단(allowlist 는 참 사유 필수).
+- 남은 액션: age 4단계 체인 제거(order_flow→pipeline→render_pdf→render_html) — 별도 세션.
+
 ## 2026-07-05 추가: QI-2026-07-05-03 consult 골격 폴백 false-PASS — 질문 답변 챕터 붕괴가 게이트·발송 리포트 모두에서 안 보임
 
 - 증상(운영자 실격 판정 v7 + 조사 B 실측): 질문에 정면으로 답하는 유일한 챕터(consult)가 가장 얇은 generic 골격으로 폴백(985→388자, -61%). 그런데 (a) delivery 게이트는 intro 초반 1800자만 검사해 gate PASS, (b) 발송 리포트에는 "전 챕터 LLM 재작성"으로 오기재됐다(GuardReport 가 폴백 카운트만 보고, 어느 챕터인지 미배선).

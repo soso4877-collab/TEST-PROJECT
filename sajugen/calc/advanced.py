@@ -61,8 +61,11 @@ _GE_KO = {
 _ELEM_KO = {"木": "목(木)", "火": "화(火)", "土": "토(土)", "金": "금(金)", "水": "수(水)"}
 
 
-def geukguk(month, day_master: str) -> tuple[str, str]:
-    """월령 본기(정기) 십성으로 격 판정(자평진전 기본). 미판정 시 잡격."""
+def geukguk(month) -> tuple[str, str]:
+    """월령 본기(정기) 십성으로 격 판정(자평진전 기본). 미판정 시 잡격.
+
+    격 판정은 월지 본기 십성만으로 결정되므로 day_master 는 불필요(2026-07-06 Phase 2
+    dead-param 정리로 미사용 인자 제거 — 미사용이라 산출 불변, 골든 회귀로 확인)."""
     bon = month.shishen_zhi[0] if month.shishen_zhi else ""
     ge = _GE_KO.get(bon)
     if ge:

@@ -525,7 +525,6 @@ def analyze(
     concern: str | None = None,
     expected_context_terms: list[str] | None = None,
     context_required: bool = False,
-    page_texts: list[str] | None = None,
 ) -> dict:
     """Return customer-delivery quality findings.
 

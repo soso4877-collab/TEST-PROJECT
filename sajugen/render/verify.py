@@ -628,9 +628,6 @@ def verify(
         expected_context_terms=expected_context_terms,
         # integrated_full·궁합 계열은 고객 질문 필수 → concern 부재 시 조용히 통과 금지(P1).
         context_required=delivery_quality.context_required_for(product),
-        # 물리 페이지 기준 초반 답변 보조지표(P5, 보고용 warning) — 표지/목차가 물리 p1~p3을
-        # 차지해 초반 답변이 없을 때를 드러낸다(게이트 미변경).
-        page_texts=pages_text,
     )
     r["delivery_quality"] = dq
     r["delivery_quality_clean"] = dq["clean"]

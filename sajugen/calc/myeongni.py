@@ -208,7 +208,7 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
 
     # 심화 계산 (결정론; 세운/월운은 lunar-python 출력 노출)
     dm = ec.getDayGan()
-    ge, ge_note = advanced.geukguk(pillars["Month"], dm)
+    ge, ge_note = advanced.geukguk(pillars["Month"])
     eb = advanced.eokbu(pillars, dm)
     sal_profile = myeongni_shinsal()
     sal_hits = shinsal_mod.evaluate(pillars, dm, sal_profile)
