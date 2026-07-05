@@ -20,6 +20,12 @@
 >   전체 pytest 586 passed / 4 skipped / exit 0 (592 → 삭제 7 + 신규 1 = 586, 정합·회귀 아님).
 >   [다음(운영자 입력 대기)] v9 재생성 승인됨(~$0.65) — customer3 입력(PII, 저장소 밖)을
 >     운영자에게 요청 → API 0 룰 전용 프로브 PASS 선검증 후에만 v9 LLM 재생성. 실패 시 v9 금지.
+>   [프리플라이트 실측(20260705-204000, 재생성/LLM 없음·api_calls=0·무과금)] pytest 586/exit 0.
+>     h153 두 픽스처 delivery_quality_clean=True(내 frontload 변경 부분 clean). 단 gate_pass=False —
+>     원인은 loanword(3)+raw_calc(2) 히트로 frontload와 무관. 정적 h153 PDF(03:17/03:33 렌더)가
+>     이후 P5 loanword/raw_calc lint 등재(8e291aa·332620e)에 걸린 픽스처 노후화. 내 커밋은
+>     client_tone_lint diff 0줄·verify 주석 1줄뿐 → 부모 100f4d9에서 이미 False(비악화 실증).
+>     조치 필요(별건): h153 픽스처 재렌더로 P5 lint 동기화 — '게이트 강화 후 픽스처 미동기화' 재발.
 >
 > ===== 압축/새세션 재개 앵커 (2026-07-05 품질 총정비 P0~P6 + v8 재검수 대기 — 이 블록 먼저 읽기) =====
 >   [운영자 실격 판정(v7) → 총정비 완료 — 승인 계획 7 Phase 전부 구현·커밋(각 양방 테스트)]
