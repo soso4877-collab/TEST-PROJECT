@@ -13,8 +13,8 @@ def _lw(t):
     return [x["match"] for x in ct.loanword_lint(t)]
 
 
-def test_loanword_43_and_drive_separate():
-    assert len(ct.LOANWORDS) == 43
+def test_loanword_44_and_drive_separate():
+    assert len(ct.LOANWORDS) == 44  # P5(2026-07-05): '리듬' 등재
     assert _lw("한 지붕 아래 두 드라이버") == ["드라이버"]
     assert _lw("강한 드라이브가 필요해요") == ["드라이브"]
     for w in [

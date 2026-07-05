@@ -517,6 +517,11 @@ def verify(
     r["raw_calc_phrase_hits"] = _ct.raw_calc_lint(body)[:30]  # 표제형+카운트(보고)
     r["raw_calc_head_clean"] = not head  # 표제형은 게이트
     r["client_tone_hits"] = _ct.term_hits(body)[:50]  # 전문용어 밀도(보고만)
+    # P5-4(2026-07-05): 전문용어 밀도(공백 제외 1,000자당) 보고 필드 — 하드 게이트 아님
+    # (첫 1회 괄호 풀이 정책과 오탐 충돌). v8 실측으로 상한 수치 확정 예정. 게이트 비악화:
+    # 기존 키 제거·완화 없음, 관측 필드 추가만.
+    _dense_n = max(1, len(body.replace(" ", "").replace("\n", "")))
+    r["term_density_per_1k"] = round(len(_ct.term_hits(body)) * 1000.0 / _dense_n, 2)
     r["punctuation_hits"] = re.findall(r",\s*,|,\s*\.|\.\s*\.", body)[
         :30
     ]  # 보고(postprocess 후 0 기대)

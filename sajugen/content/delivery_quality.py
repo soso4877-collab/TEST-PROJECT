@@ -50,6 +50,17 @@ _REPEAT_CAPS = {
     "중심": 8,
 }
 _FAIL_REPEAT_TERMS = {"또렷"}
+# P5-3(2026-07-05, 운영자 지적 '결' 77회·'색' 은유): 상투 필러 정규식 카운터 —
+# text.count 는 부분문자열이라 '결'을 세면 결혼/결론/결정을 전부 오탐(설계 검증 실측).
+# 단독 명사 '결(+조사)'과 '~의 색' 은유만 센다. FAIL 승격은 v8 실측 후 운영자 결정 —
+# 지금은 warning(domain_term_repetition) 보고 전용.
+_REPEAT_CAP_PATTERNS: dict[str, tuple[re.Pattern[str], int]] = {
+    "결(단독)": (
+        re.compile(r"(?<![가-힣])결(?:이|을|은|의|과|와|로|도|입니다|이에요)?(?![가-힣])"),
+        12,
+    ),
+    "의 색": (re.compile(r"의\s*색(?:이|을|은|과|와|으로|도)?(?![가-힣])"), 4),
+}
 _REPEAT_BASE_LEN = 10_000
 _FRONTLOAD_CHARS = 1_800
 
@@ -331,6 +342,12 @@ def _required_axes(concern: str | None) -> set[str]:
 def _repetition_hits(text: str) -> list[dict]:
     scale = max(1.0, len(text) / _REPEAT_BASE_LEN)
     hits: list[dict] = []
+    # P5-3: 정규식 카운터(단독 '결'·'의 색') — _FAIL_REPEAT_TERMS 미포함 = warning 전용.
+    for term, (rx, cap) in _REPEAT_CAP_PATTERNS.items():
+        count = len(rx.findall(text))
+        allowed = int(math.ceil(cap * scale))
+        if count > allowed:
+            hits.append({"term": term, "count": count, "allowed": allowed})
     for word, cap in _REPEAT_CAPS.items():
         count = text.count(word)
         allowed = int(math.ceil(cap * scale))

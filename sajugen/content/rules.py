@@ -1173,7 +1173,7 @@ def build_all(
         T["love"] = (
             f"관계 영역은 명리의 일주와 자미두수 부처궁을 겹쳐서 봅니다.\n"
             f"{_pillar_block('일주(나의 관계 바탕)', m.day)}\n"
-            f"{_palace_para(love_p, '가까운 관계', myeongni_hint=f'일주에서 본 {_ss_list(m.day.shishen_zhi)}의 결')}\n"
+            f"{_palace_para(love_p, '가까운 관계', myeongni_hint=f'일주에 놓인 {_ss_list(m.day.shishen_zhi)}의 방식')}\n"
             f"정리하면, 일주의 지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} "
             f"{_J(nm_call, '이가')} 관계에서 편하게 여기는 거리와 방식의 결을 보여 주고, "
             f"힘의 강약 '{m.singang}'{_josa(m.singang, '은는')} {_singang_phrase(m.singang, kind='rel')}"
@@ -1200,7 +1200,7 @@ def build_all(
         f"천이궁)을 겹쳐서 봅니다.\n"
         f"{_pillar_block('월주(사회·일의 무대)', m.month)}\n"
         f"{_pillar_block('시주(지향·후반의 일)', m.hour)}\n"
-        f"{_palace_para(job_p, '일과 성취', myeongni_hint=f'월간 {mon_sg}({mon_sgm})의 결')}\n"
+        f"{_palace_para(job_p, '일과 성취', myeongni_hint=f'월간 {mon_sg}({mon_sgm})의 방식')}\n"
         f"월간 십성 {_J(f'{mon_sg}({mon_sgm})', '은는')} {_J(nm_call, '이가')} 일하는 방식을, "
         f"{gk}과 억부용신({m.yongshin_eokbu}, {m.yongshin_axis})은 "
         f"어떤 환경에서 강점이 잘 쓰이는지의 방향을 보는 단서입니다."
@@ -1222,7 +1222,7 @@ def build_all(
     T["wealth"] = (
         f"재물은 명리의 재성·식상 축과 자미두수 재백궁 구조로 재물 흐름을 "
         f"봅니다(기둥 세부는 앞 '일과 직업'의 시주 풀이를 같이 참고하세요).\n"
-        f"{_palace_para(wealth_p, '재물을 다루는 방식', myeongni_hint=f'월간 {mon_sg}({mon_sgm})의 결')}\n"
+        f"{_palace_para(wealth_p, '재물을 다루는 방식', myeongni_hint=f'재물을 밀어 주는 월간 {mon_sg}의 힘')}\n"
         f"재물은 버는 힘(재성)과 만들어 내는 힘(식상 — 일간이 생하는 작용, "
         f"{mon_sgm} 등)의 균형으로 봅니다. 힘의 강약 '{m.singang}'에 따라 "
         f"{m.yongshin_axis} 방향이 재정 운용 방식을 "
@@ -1418,9 +1418,9 @@ def build_all(
     # P4(B안): 9장 핵심 궁도 명리 앵커를 참조해 통합 서술(자미 사일로 해소).
     _ZW_HINT = {
         "명궁": f"일간 {dm_ko}의 중심축",
-        "관록궁": f"월간 {mon_sg}({mon_sgm})의 결",
+        "관록궁": f"월간 {mon_sg}({mon_sgm})의 방식",
         "재백궁": "버는 힘과 만들어 내는 힘의 축",
-        "부처궁": f"일주에서 본 {_ss_list(m.day.shishen_zhi)}의 결",
+        "부처궁": f"일주에 놓인 {_ss_list(m.day.shishen_zhi)}의 방식",
         "질액궁": f"{mx_ko} 기운({mx_mn})의 강약",
     }
     key_para = []
@@ -1468,11 +1468,11 @@ def build_all(
     )
     if not unknown_time and love_p is not None and job_p is not None and wealth_p is not None:
         _cross_body = (
-            f"가까운 관계에서는, 일주에서 본 {_ss_list(m.day.shishen_zhi)}의 결이 "
+            f"가까운 관계에서는, 일주에 놓인 {_ss_list(m.day.shishen_zhi)}의 방식이 "
             f"{_J(nm_call, '이가')} 편해하는 거리와 방식을 보여 주고, 부처궁의 "
             f"{_J(_stars_ko(love_p), '이가')} 그 방식이 실제 관계에서 드러나는 장면을 "
             f"비춥니다. 하나는 결의 안쪽이고 하나는 생활의 바깥쪽일 뿐, 같은 이야기입니다.\n"
-            f"일과 재물에서도 같습니다. 월간 {mon_sg}({mon_sgm})의 결이 일하는 방식의 "
+            f"일과 재물에서도 같습니다. 월간 {mon_sg}({mon_sgm})의 힘이 일하는 방식의 "
             f"큰 줄기라면, 관록궁의 {_J(_stars_ko(job_p), '과와')} 재백궁의 "
             f"{_J(_stars_ko(wealth_p), '은는')} 그 줄기가 어느 무대에서 힘을 받는지의 "
             f"국면입니다.\n"

@@ -156,7 +156,8 @@ def collapse_adjacent_duplicates(text: str) -> str:
 def hanja_clean(text: str) -> str:
     # 한자 제거 + 기호 산문화. '수면·식사'(무간격) 보존, 불릿용 ' · '(양옆 공백)만 환원.
     t = _CJK_RX.sub("", text)
-    t = t.replace("[원국]", "").replace("[기운 분포]", "")
+    # P5(2026-07-05): 라벨명 변경([기운 분포]→[기운 짜임]) — 구 라벨도 제거 유지(하위호환).
+    t = t.replace("[원국]", "").replace("[기운 분포]", "").replace("[기운 짜임]", "")
     t = t.replace("[자미 구조]", "").replace("[읽는 방향]", "")
     t = re.sub(rf"^\s*[{_CIRCLED}]\s*", "", t, flags=re.M)  # 줄머리 원문자
     t = re.sub(r"^\s*·\s*", "", t, flags=re.M)  # 줄머리 불릿
