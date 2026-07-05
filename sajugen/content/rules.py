@@ -571,8 +571,13 @@ def _palace_brief(p, role: str) -> str:
     return f"· {p.name}{tag}(지지 {p.branch}) — {role}: {_stars_full(p)}."
 
 
-def _palace_para(p, role: str) -> str:
-    """한 궁을 상담 화법으로 — 같은 꼬리말이 궁마다 반복되지 않게 _pick."""
+def _palace_para(p, role: str, myeongni_hint: str = "") -> str:
+    """한 궁을 상담 화법으로 — 같은 꼬리말이 궁마다 반복되지 않게 _pick.
+
+    P4(2026-07-05, 운영자 실격 판정 후속): myeongni_hint(예 "일주 십성 정관의 결")를
+    받으면 꼬리를 명리 참조 통합 문장으로 바꾼다 — 궁 카드가 명리 문맥과 무관하게
+    자립 나열되던 단절(스택) 해소. hint 미전달 호출은 기존 seed·문형 그대로(결정론 보존).
+    """
     if p is None:
         return f"{_J(role, '을를')} 보는 자리는 이 명반 구성에서는 정보가 제한적입니다."
     tag = (
@@ -598,19 +603,34 @@ def _palace_para(p, role: str) -> str:
             f"별로 보면 {_stars_full(p)} 놓여 있습니다.",
         ],
     )
-    tail = _pick(
-        "ppT" + p.name + role,
-        [
-            "별의 밝기와 사화(화록·화권·화과·화기)는 이 영역에서 기운이 "
-            "드러나는 세기와 방향을 읽는 단서가 됩니다.",
-            "밝기는 이 자리의 힘이 드러나는 정도를, 사화는 그 힘이 향하는 "
-            "쪽을 가늠하는 참고가 됩니다.",
-            "별이 밝을수록 그 결이 분명하게 드러나고, 사화는 그 흐름이 "
-            "어디로 기우는지를 보는 실마리가 됩니다.",
-            "어느 별이 자리했는지와 그 밝기를, 사화가 더하는 방향과 함께 "
-            "읽으면 이 영역의 결이 분명해집니다.",
-        ],
-    )
+    if myeongni_hint:
+        # 통합 꼬리(별도 seed "ppT2…" — 기존 hint 미전달 출력의 결정론 불변).
+        tail = _pick(
+            "ppT2" + p.name + role,
+            [
+                f"이 자리가 비추는 방향을 앞서 본 {_J(myeongni_hint, '과와')} 겹쳐 읽으면, "
+                f"두 판이 같은 자리를 가리키고 있음을 알 수 있습니다.",
+                f"앞서 본 {_J(myeongni_hint, '이가')} 큰 흐름이라면, 이 자리는 그 흐름이 "
+                f"생활에서 드러나는 국면을 비춥니다. 서로 다른 이야기가 아니라 같은 결을 "
+                f"안과 밖에서 본 것입니다.",
+                f"별의 밝기와 사화가 더하는 방향을 {_J(myeongni_hint, '과와')} 나란히 놓고 "
+                f"읽으면, 이 영역에서 힘을 실을 자리가 하나로 모입니다.",
+            ],
+        )
+    else:
+        tail = _pick(
+            "ppT" + p.name + role,
+            [
+                "별의 밝기와 사화(화록·화권·화과·화기)는 이 영역에서 기운이 "
+                "드러나는 세기와 방향을 읽는 단서가 됩니다.",
+                "밝기는 이 자리의 힘이 드러나는 정도를, 사화는 그 힘이 향하는 "
+                "쪽을 가늠하는 참고가 됩니다.",
+                "별이 밝을수록 그 결이 분명하게 드러나고, 사화는 그 흐름이 "
+                "어디로 기우는지를 보는 실마리가 됩니다.",
+                "어느 별이 자리했는지와 그 밝기를, 사화가 더하는 방향과 함께 "
+                "읽으면 이 영역의 결이 분명해집니다.",
+            ],
+        )
     return f"{head} {stars} {tail}"
 
 
@@ -1153,7 +1173,7 @@ def build_all(
         T["love"] = (
             f"관계 영역은 명리의 일주와 자미두수 부처궁을 겹쳐서 봅니다.\n"
             f"{_pillar_block('일주(나의 관계 바탕)', m.day)}\n"
-            f"{_palace_para(love_p, '가까운 관계')}\n"
+            f"{_palace_para(love_p, '가까운 관계', myeongni_hint=f'일주에서 본 {_ss_list(m.day.shishen_zhi)}의 결')}\n"
             f"정리하면, 일주의 지지 십성 {_J(_ss_list(m.day.shishen_zhi), '은는')} "
             f"{_J(nm_call, '이가')} 관계에서 편하게 여기는 거리와 방식의 결을 보여 주고, "
             f"힘의 강약 '{m.singang}'{_josa(m.singang, '은는')} {_singang_phrase(m.singang, kind='rel')}"
@@ -1180,7 +1200,7 @@ def build_all(
         f"천이궁)을 겹쳐서 봅니다.\n"
         f"{_pillar_block('월주(사회·일의 무대)', m.month)}\n"
         f"{_pillar_block('시주(지향·후반의 일)', m.hour)}\n"
-        f"{_palace_para(job_p, '일과 성취')}\n"
+        f"{_palace_para(job_p, '일과 성취', myeongni_hint=f'월간 {mon_sg}({mon_sgm})의 결')}\n"
         f"월간 십성 {_J(f'{mon_sg}({mon_sgm})', '은는')} {_J(nm_call, '이가')} 일하는 방식을, "
         f"{gk}과 억부용신({m.yongshin_eokbu}, {m.yongshin_axis})은 "
         f"어떤 환경에서 강점이 잘 쓰이는지의 방향을 보는 단서입니다."
@@ -1202,7 +1222,7 @@ def build_all(
     T["wealth"] = (
         f"재물은 명리의 재성·식상 축과 자미두수 재백궁 구조로 재물 흐름을 "
         f"봅니다(기둥 세부는 앞 '일과 직업'의 시주 풀이를 같이 참고하세요).\n"
-        f"{_palace_para(wealth_p, '재물을 다루는 방식')}\n"
+        f"{_palace_para(wealth_p, '재물을 다루는 방식', myeongni_hint=f'월간 {mon_sg}({mon_sgm})의 결')}\n"
         f"재물은 버는 힘(재성)과 만들어 내는 힘(식상 — 일간이 생하는 작용, "
         f"{mon_sgm} 등)의 균형으로 봅니다. 힘의 강약 '{m.singang}'에 따라 "
         f"{m.yongshin_axis} 방향이 재정 운용 방식을 "
@@ -1224,7 +1244,7 @@ def build_all(
         f"자리입니다. 몸이 보내는 신호가 이어진다면 병원 진료로 먼저 "
         f"확인해 보세요.\n"
         f"자미두수에서 몸 상태를 보는 자리는 질액궁입니다. "
-        f"{_palace_para(health_p, '몸 상태와 생활 관리') if health_p else '이 상품 구성에서는 이 자리를 생략합니다.'}\n"
+        f"{_palace_para(health_p, '몸 상태와 생활 관리', myeongni_hint=f'{mx_ko} 기운({mx_mn})의 강약') if health_p else '이 상품 구성에서는 이 자리를 생략합니다.'}\n"
         f"다섯 기운으로 보면, {mx_ko} 기운({mx_mn})이 강하고 {mn_ko} 기운"
         f"({mn_mn})이 옅은 구성입니다. 강한 쪽으로 치우쳐 무리하기 쉬운 결을 "
         f"옅은 쪽을 생활 습관으로 채우며 함께 보는 참고로 활용해 보세요(좋고 "
@@ -1368,8 +1388,10 @@ def build_all(
             "정해 함께 정리하시길 권합니다."
         )
 
+    # P4: '명리는 흐름/자미는 구조' 역할분담 정형 소거 — 지도 은유로 교체(반복어 '구조' 억제 겸).
     T["ziwei_summary"] = (
-        f"자미두수 명반은 인생의 '구조'를 보는 틀입니다. {nm_call}의 명궁은 {z.soul_palace}(지지 "
+        f"자미두수 명반은 {nm_call}의 삶이 어느 자리에서 펼쳐지는지를 한 판에 그린 "
+        f"지도입니다. {nm_call}의 명궁은 {z.soul_palace}(지지 "
         f"{sp.branch})에 놓이고 거기에는 {_stars_full(sp)} 들어 있습니다. "
         f"신궁은 {z.body_palace}(지지 {bp.branch})로, {_stars_full(bp)} "
         f"있습니다. 오행국은 {_oguk(z.five_elements_class)}입니다. 명궁은 타고난 "
@@ -1392,11 +1414,24 @@ def build_all(
         )
     )
 
+    # P4(B안): 9장 핵심 궁도 명리 앵커를 참조해 통합 서술(자미 사일로 해소).
+    _ZW_HINT = {
+        "명궁": f"일간 {dm_ko}의 중심축",
+        "관록궁": f"월간 {mon_sg}({mon_sgm})의 결",
+        "재백궁": "버는 힘과 만들어 내는 힘의 축",
+        "부처궁": f"일주에서 본 {_ss_list(m.day.shishen_zhi)}의 결",
+        "질액궁": f"{mx_ko} 기운({mx_mn})의 강약",
+    }
     key_para = []
     for nm in _KEY_PALACES:
         p = _palace(z, nm)
         if p:
-            key_para.append("· " + _palace_para(p, _PALACE_ROLE.get(nm, "삶의 한 영역")))
+            key_para.append(
+                "· "
+                + _palace_para(
+                    p, _PALACE_ROLE.get(nm, "삶의 한 영역"), myeongni_hint=_ZW_HINT.get(nm, "")
+                )
+            )
     all_lines = []
     seen = set()
     for nm in _PALACE_ORDER:
@@ -1420,15 +1455,40 @@ def build_all(
         "것만 다룹니다."
     )
 
-    T["cross"] = (
+    # P4(B안): 10장을 방법론 일반론('명리는 흐름/자미는 구조' 재진술)에서 이 사람의
+    # 실제 겹침을 짚는 3영역 교차 요약(관계·일과 재물·시간)으로 재작성. 시진 불명이면
+    # 궁 실명 없이 층위 원칙만(절대규칙 8 — 자미 서술 생략).
+    _cross_head = (
         f"명리와 자미두수를 교차로 맞춰 보았습니다. 사주팔자 일치는 "
         f"'{'예' if x.bazi_consistent else '아니오'}', 월지 교차는 "
-        f"'{'일치' if x.month_branch_ok else '재검토 필요'}'입니다. 두 체계는 "
-        f"같은 출생 정보를 다른 방식으로 봅니다. 명리는 시간의 '흐름'을, "
-        f"자미두수는 인생의 '구조'를 보는 역할로 나눠, 같은 결론이 나오는 "
-        f"부분은 강조하고 관점이 다른 부분은 상황별로 분리해 살핍니다. 두 "
-        f"체계가 같은 출생 정보에서 어긋나지 않는다는 것은, 풀이의 토대가 "
-        f"안정적이라는 참고가 됩니다." + (f" 참고: {' / '.join(x.warnings)}" if x.warnings else "")
+        f"'{'일치' if x.month_branch_ok else '재검토 필요'}'입니다. 두 체계는 같은 출생 "
+        f"정보를 다른 방식으로 읽는데, 이 결과지에서는 역할을 나눠 따로 두지 않고 "
+        f"{nm_call}의 실제 자리에서 겹쳐 읽었습니다.\n"
+    )
+    if not unknown_time and love_p is not None and job_p is not None and wealth_p is not None:
+        _cross_body = (
+            f"가까운 관계에서는, 일주에서 본 {_ss_list(m.day.shishen_zhi)}의 결이 "
+            f"{_J(nm_call, '이가')} 편해하는 거리와 방식을 보여 주고, 부처궁의 "
+            f"{_J(_stars_ko(love_p), '이가')} 그 방식이 실제 관계에서 드러나는 장면을 "
+            f"비춥니다. 하나는 결의 안쪽이고 하나는 생활의 바깥쪽일 뿐, 같은 이야기입니다.\n"
+            f"일과 재물에서도 같습니다. 월간 {mon_sg}({mon_sgm})의 결이 일하는 방식의 "
+            f"큰 줄기라면, 관록궁의 {_J(_stars_ko(job_p), '과와')} 재백궁의 "
+            f"{_J(_stars_ko(wealth_p), '은는')} 그 줄기가 어느 무대에서 힘을 받는지의 "
+            f"국면입니다.\n"
+            f"시간에서는 명리의 대운·세운이 큰 방향을 정하고, 자미두수의 대한·유년은 같은 "
+            f"흐름이 지나는 영역을 짚습니다. 두 판이 다르게 보이는 대목은 틀린 것이 아니라 "
+            f"층위가 다른 것이라, 큰 방향은 명리를 따르고 영역의 결은 자미두수로 보면 "
+            f"됩니다. 같은 출생 정보에서 두 판이 어긋나지 않는다는 것은 풀이의 토대가 "
+            f"안정적이라는 참고가 됩니다."
+        )
+    else:
+        _cross_body = (
+            f"명리의 대운·세운이 큰 방향을 정하고, 영역별 결은 상황에 따라 나누어 "
+            f"살핍니다. 두 체계가 같은 출생 정보에서 어긋나지 않는다는 것은 풀이의 "
+            f"토대가 안정적이라는 참고가 됩니다."
+        )
+    T["cross"] = (
+        _cross_head + _cross_body + (f" 참고: {' / '.join(x.warnings)}" if x.warnings else "")
     )
 
     T["advice"] = (

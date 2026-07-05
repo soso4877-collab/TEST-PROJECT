@@ -29,7 +29,8 @@ SECTION_SPECS: list[tuple[str, str, list[str]]] = [
         ["myeongni.daewoon", "myeongni", "ziwei.yearly"],
     ),  # daewoon+thisyear+seun+monthly
     ("ziwei", "자미두수로 본 삶의 구조", ["ziwei", "ziwei.palaces"]),  # ziwei_summary+ziwei_palaces
-    ("together", "두 체계를 함께 읽으며", ["crosscheck"]),  # cross
+    # P4(2026-07-05): 교차 요약이 명리·자미 실사실(십성·궁·별)을 참조하므로 소스 확장.
+    ("together", "두 체계를 함께 읽으며", ["crosscheck", "myeongni", "ziwei"]),  # cross
     ("consult", "신청하신 질문에 대하여", ["input", "myeongni", "ziwei"]),  # 개인화 피크
     ("closing", "마무리하며", ["myeongni.elements", "input"]),  # advice+caution+closing
     ("appendix_terms", "용어 풀이", []),  # 정적 교육(노동착시 가치 장치). 줄표 제거
