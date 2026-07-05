@@ -60,7 +60,10 @@ def test_classify_golden():
         ("전남친과 다시 만날 수 있을까요", _C.LOVE),
         ("소개팅은 언제가 좋을까요", _C.LOVE),
         ("주식 투자 시기 괜찮을까요", _C.WEALTH),  # 투자/주식이 시기보다 우선
-        ("가지고 있는 땅과 재산이 언제 큰 자산이 될까요. 자식복과 위험한 시점도 궁금합니다", _C.WEALTH),
+        (
+            "가지고 있는 땅과 재산이 언제 큰 자산이 될까요. 자식복과 위험한 시점도 궁금합니다",
+            _C.WEALTH,
+        ),
         ("요즘 건강이 걱정돼요", _C.HEALTH),
         ("부모님과 갈등이 있어요", _C.RELATION),
         ("이사 가기 좋은 때가 언제일까요", _C.TIMING),
@@ -170,7 +173,8 @@ def test_love_concern_answers_near_term_first(monkeypatch):
     assert "겹지인" in consult and "학교" in consult and "전공" in consult
     assert "상대가 답을 이어 오고" in consult
     assert "답이 짧고 늦어지거나" in consult
-    assert "명리에서는" in consult and "자미두수에서는" in consult
+    # P1(2026-07-05): 역할분담 정형 삭제 → 궁 실명 근거(부처궁 라인)로 대체.
+    assert "자미두수에서 같은 영역을 비추는 자리는" in consult
     assert len(consult) >= 700
     assert "재회합니다" not in consult and "결혼합니다" not in consult
     assert rep.guard.clean is True
@@ -223,8 +227,8 @@ def test_new_love_concern_answers_meeting_window_and_action(monkeypatch):
         "좋은 구간",
         "조심할 구간",
         "서두르지 말고",
-        "명리에서는",
-        "자미두수에서는",
+        # P1(2026-07-05): 역할분담 정형 삭제 → 궁 실명 근거로 대체.
+        "자미두수에서 같은 영역을 비추는 자리는",
     ):
         assert term in consult, (term, consult)
     assert "재회합니다" not in consult and "결혼합니다" not in consult
@@ -235,8 +239,7 @@ def test_new_love_concern_answers_meeting_window_and_action(monkeypatch):
 def test_marriage_concern_answers_conditions_money_and_caution(monkeypatch):
     _no_key(monkeypatch)
     concern = (
-        "나이가 있어서 언제 결혼운이 들어오는지 궁금합니다. "
-        "지금 만나는 사람과 결혼까지 봐도 될까요"
+        "나이가 있어서 언제 결혼운이 들어오는지 궁금합니다. 지금 만나는 사람과 결혼까지 봐도 될까요"
     )
     rep = builder.build_report(
         _saju(),
@@ -256,10 +259,11 @@ def test_marriage_concern_answers_conditions_money_and_caution(monkeypatch):
         "가족",
         "좋은 구간",
         "조심할 구간",
-        "명리에서는",
-        "자미두수에서는",
+        # P1(2026-07-05): '명리는 X/자미는 Y' 역할분담 정형 삭제 → 궁 실명 근거로 대체.
+        "자미두수에서 같은 영역을 비추는 자리는",
     ):
         assert term in consult, (term, consult)
+    assert "명리에서는 이 문제를 시기의 흐름으로" not in consult  # 구 정형 부재 앵커
     assert "재회합니다" not in consult and "결혼합니다" not in consult
     assert "또렷" not in consult
     assert rep.guard.clean is True
@@ -288,10 +292,11 @@ def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
         "도움을 주겠다는 사람",
         "계약",
         "직접 확인",
-        "명리에서는",
-        "자미두수에서는",
+        # P1(2026-07-05): 역할분담 정형 삭제 → 성향(월간 십성)+궁 실명 근거로 대체.
+        "자미두수에서 같은 영역을 비추는 자리는",
     ):
         assert term in consult, term
+    assert "명리에서는 이 문제를 시기의 흐름으로" not in consult  # 구 정형 부재 앵커
     assert "장재화" not in consult
     assert rep.guard.clean is True
 
