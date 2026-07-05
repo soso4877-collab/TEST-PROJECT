@@ -142,8 +142,20 @@ def _regen_pdf(profile: dict, python: str) -> dict:
     # (PII 0 — 토큰 수·호출 수만). 줄이 없으면 None(구 빌드/무LLM).
     from sajugen.content import llm_usage
 
-    usage = llm_usage.parse_line(getattr(r, "stdout", "") or "")
-    return {"returncode": r.returncode, "stderr_tail": tail, "llm_usage": usage}
+    stdout = getattr(r, "stdout", "") or ""
+    usage = llm_usage.parse_line(stdout)
+    # 챕터별 폴백 관측(P0 2026-07-05): cli 의 "chapters: polished=... fallback=..." 줄 파싱
+    # (QI-2026-07-05-03 — consult 골격 폴백이 summary 에서 안 보이던 갭). 챕터 id 만이라 PII 0.
+    fallback_chapters = None
+    m = re.search(r"chapters: polished=\S* fallback=(\S+)", stdout)
+    if m:
+        fallback_chapters = [] if m.group(1) == "-" else m.group(1).split(",")
+    return {
+        "returncode": r.returncode,
+        "stderr_tail": tail,
+        "llm_usage": usage,
+        "fallback_chapters": fallback_chapters,
+    }
 
 
 def _profile_concern(profile: dict) -> str | None:
@@ -199,6 +211,8 @@ def run(profiles: list[str], args) -> dict:
             res["regen_returncode"] = regen_result.get("returncode")
             if regen_result.get("llm_usage"):
                 res["regen_llm_usage"] = regen_result["llm_usage"]  # 비용 관측(PII 0)
+            if regen_result.get("fallback_chapters") is not None:
+                res["regen_fallback_chapters"] = regen_result["fallback_chapters"]  # P0(PII 0)
             # 재생성 실패 시 CLI stderr tail 을 로컬 진단용으로 보존(PII 포함 가능 → gitignored,
             # 채팅/커밋 비출력). 그동안 원인이 가려지던 관측 갭 보강(2026-07-02).
             if regen_result.get("returncode") not in (0, None) and regen_result.get("stderr_tail"):

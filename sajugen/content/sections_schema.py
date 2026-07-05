@@ -55,6 +55,10 @@ class GuardReport(BaseModel):
     grounding_ok: bool
     polished_sections: int
     fallback_sections: int  # 가드 실패로 룰 원문 사용한 섹션 수
+    # 어느 챕터가 폴백됐는지 id 목록(2026-07-05 P0 — v7 consult 붕괴가 카운트만으로는
+    # 안 보였던 관측 갭). additive 기본값이라 레거시 직렬화분 로드 하위호환.
+    polished_section_ids: list[str] = Field(default_factory=list)
+    fallback_section_ids: list[str] = Field(default_factory=list)
     daewoon_consistent: bool = True  # 교차챕터 '현재 대운' 단일 일치(2026-06-14)
     clean: bool  # 전체 통과 여부
 

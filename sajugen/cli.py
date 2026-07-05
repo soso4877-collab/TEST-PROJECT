@@ -86,6 +86,15 @@ def gen(
     # 사용량 관측(2026-07-05): 빌드 1회의 LLM 지출을 stdout 에 남긴다(PII 0, ASCII 키).
     # hrun._regen_pdf 가 이 줄을 파싱해 summary(regen_llm_usage)로 올린다.
     typer.echo(llm_usage.format_line())
+    # 챕터별 윤문/폴백 관측(P0 2026-07-05): 어느 챕터가 골격으로 남았는지 즉시 확인
+    # (QI-2026-07-05-03: v7 consult 폴백이 카운트만으로는 안 보였던 관측 갭). PII 0.
+    g = r.report.guard
+    typer.echo(
+        "chapters: polished="
+        + (",".join(g.polished_section_ids) or "-")
+        + " fallback="
+        + (",".join(g.fallback_section_ids) or "-")
+    )
     if r.ok:
         typer.echo("게이트: PASS")
     else:

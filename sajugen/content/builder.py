@@ -217,6 +217,10 @@ def build_report(
         drop |= {"ziwei", "together"}
     sections: list[Section] = []
     safe_total = fact_total = polished_n = fallback_n = 0
+    # P0(2026-07-05): 어느 챕터가 윤문/폴백됐는지 id 추적 — v7 consult 골격 폴백이
+    # 카운트만으로는 발송 리포트에서 안 보였던 관측 갭(QI-2026-07-05-03).
+    polished_ids: list[str] = []
+    fallback_ids: list[str] = []
     _id_spec = personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
 
     # 목차(toc): 보이는 챕터 제목을 나열(노동착시·호기심격차·책 권위, docs/13). 빌더가 생성.
@@ -433,8 +437,10 @@ def build_report(
                 if not csv and not cfv:
                     final, polished = cand, True
                     polished_n += 1
+                    polished_ids.append(sid)
                 else:
                     fallback_n += 1  # 재작성도 실패 → 룰 원문 유지
+                    fallback_ids.append(sid)
                     import sys
 
                     _bad = [v.get("match") or v.get("token") for v in (csv + cfv)][:5]
@@ -482,6 +488,10 @@ def build_report(
                     sec.final_text = txt if sec.id in _STATIC_OK else _hanja_clean(txt)
                     sec.polished = False
                     fallback_n += 1
+                    if sec.id in polished_ids:
+                        polished_ids.remove(sec.id)  # 윤문됐다가 대운 일관성 폴백된 챕터
+                    if sec.id not in fallback_ids:
+                        fallback_ids.append(sec.id)
                     import sys
 
                     print(
@@ -506,6 +516,8 @@ def build_report(
             grounding_ok=grounding_ok,
             polished_sections=polished_n,
             fallback_sections=fallback_n,
+            polished_section_ids=polished_ids,
+            fallback_section_ids=fallback_ids,
             daewoon_consistent=daewoon_consistent,
             clean=clean,
         ),

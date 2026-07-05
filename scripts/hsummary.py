@@ -165,6 +165,8 @@ def _redact_pdf(p: dict) -> dict:
         out["regen_returncode"] = p["regen_returncode"]
     if p.get("regen_llm_usage"):
         out["regen_llm_usage"] = p["regen_llm_usage"]
+    if "regen_fallback_chapters" in p:
+        out["regen_fallback_chapters"] = p["regen_fallback_chapters"]  # 챕터 id 만(PII 0)
     return out
 
 
