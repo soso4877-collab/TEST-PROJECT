@@ -37,6 +37,10 @@ _DEFAULTS = {
         "relationship_compose": "claude-sonnet-4-6",
         "classify": "claude-haiku-4-5-20251001",
         "polish": "claude-haiku-4-5-20251001",
+        # Phase 4 발송 전 이질 렌즈 스윕(advisory) — 렌즈≠judge 모델 이질성이 자기선호 편향
+        # (2404.13076) 완화의 핵심. 렌즈=Sonnet(발굴), judge=Opus(루브릭 채점). 동일화 금지.
+        "sweep_lens": "claude-sonnet-4-6",
+        "sweep_judge": "claude-opus-4-8",
     },
 }
 
@@ -79,6 +83,8 @@ def llm_models() -> dict:
         "relationship_compose": "SAJUGEN_LLM_RELATIONSHIP_COMPOSE_MODEL",
         "classify": "SAJUGEN_LLM_CLASSIFY_MODEL",
         "polish": "SAJUGEN_LLM_POLISH_MODEL",
+        "sweep_lens": "SAJUGEN_LLM_SWEEP_LENS_MODEL",
+        "sweep_judge": "SAJUGEN_LLM_SWEEP_JUDGE_MODEL",
     }
     for key, env_name in env_map.items():
         val = os.environ.get(env_name)

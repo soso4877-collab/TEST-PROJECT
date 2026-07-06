@@ -1,10 +1,22 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P3 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P4 인프라 완료 — 이 블록 먼저 읽기) =====
 >   [다층 검증 시스템 로드맵 실행 중] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
->     P0(완료)→P1(완료)→P2(완료)→P3(완료)→P4(발송 전 이질 렌즈 스윕 advisory)
+>     P0(완료)→P1(완료)→P2(완료)→P3(완료)→P4(인프라 완료·파일럿 실측 대기)
 >     →P5(설계 논쟁)→P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
 >     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 4 인프라 완료 — 발송 전 이질 렌즈 스윕(L2 advisory)] scripts/hsweep.py +
+>     harness/prompts/sweep/lens_*.md 5종 + config sweep_lens(Sonnet)/sweep_judge(Opus).
+>     파이프라인: 이질 렌즈 5(신선 컨텍스트)→적대 반박 1콜→루브릭 judge(순서 스왑 2콜)→
+>     sweep.json/md(상한 10건). 불변(구조·테스트): advisory(verify/order 모듈 비import),
+>     PII fail-closed(names 필수·전송 전 마스킹+벨트 재검증·날짜 리댁션), 비용 상한 $3
+>     pre-call 중단+부분리포트, 렌즈≠judge 모델, 인용 금지·리포트 스키마 고객 자유텍스트 0.
+>     tests/test_hsweep_contract.py 12건(전부 API 0 FakeBackend — 전송 PII·캡·advisory·이질성·
+>     프롬프트 계약·전 파이프라인). CLI fail-closed 실측(exit 2 무names/3 무잠금).
+>   [Phase 4 실측 대기 — 2중 게이트] 실 API 스윕은 (a) 운영자 명시 승인+3중 잠금, (b) 실 발송
+>     후보 PDF 필요(customer3 v9 미생성·PII 입력 필요; h153 은 픽스처). 파일럿 지표(N→M→K, Z=0
+>     목표, K/M≥0.7)는 docs/16 "파일럿 계측"에 기록 예정. 첫 승인 지출 후보 = 기존 PDF 합성 드라이런.
+>   전체 pytest 622 passed / 4 skipped / exit 0 (P4: 610→622 신규 12건).
 >   [Phase 3 완료 — 골격×lint 매트릭스(C1) + 게이트 커버리지(C3) + 프록시 레지스트리(C5)]
 >     3 서브커밋: (C3/C5 9f9698e) docs/20-gate-coverage.md — GATE_KEYS 레지스트리 표(20키 ×
 >     검증·유형·측정면) + 커버리지 매트릭스 + 프록시 절("신규 검증은 물리 우선"). test_gate_
