@@ -1,10 +1,20 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P6 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P7 완료 — 이 블록 먼저 읽기) =====
 >   [다층 검증 시스템 로드맵 실행 중] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
 >     P0(완료)→P1(완료)→P2(완료)→P3(완료)→P4(인프라 완료·파일럿 실측 대기)→P5(완료)
->     →P6(완료)→P7(이식 키트)→P8(플레이북).
+>     →P6(완료)→P7(완료)→P8(플레이북 개정, 잔여).
 >     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 7 완료 — 다층 검증 키트(vkit) 이식 규격] docs/21-verification-kit.md(L0~L4 규격 +
+>     측정된 이식 경계표 + 채택 안전장치 4대) + 정본 handoff/kit/(README·manifest.template.json·
+>     논쟁기록) + .claude/skills/vkit/(스캐폴딩). **Phase 5 논쟁 프로토콜 첫 실전(dogfood)**:
+>     sg-design-critic subagent(Opus·114k tok)가 배포 메커니즘 3안(복사/pip/생성기) 적대 비평 →
+>     확정=복사-적응+출처 스탬프 벤더링(pip=결정론·무의존 위반 ruff 선례 재현, 생성기=미검증
+>     메타코드로 기각). critic 이 드러낸 4 no-op·착시 차단을 규격에 명문화: (1)채택처 no-op
+>     자가검증(게이트 CI 배선+양방 회귀) (2)PII 형상 재정의 필수(생년월일→도메인 PII, 미재정의시
+>     탐지 no-op) (3)이질성 채택 검증(단일 모델 퇴화 차단) (4)도메인 리터럴 치환. crypto-signal
+>     드라이런=계획만(비파괴). tests/test_verification_kit.py 6건. (handoff/reports gitignore로
+>     논쟁기록은 handoff/kit/ 로 이동=추적.)
 >   [Phase 6 완료 — 운영 자동화 스킬 3종(.claude/skills/)] /audit(월 감사: 회의적 재검증=문서
 >     보장↔코드 프로브 + 문서-코드 대조 + docs/16 포스트모템 전수 + mutation testing
 >     verify.py·temporal_lint.py[cosmic-ray 온디맨드]) / /adjacent(사각 인접 스캐너 advisory —
@@ -28,7 +38,7 @@
 >   [Phase 4 실측 대기 — 2중 게이트] 실 API 스윕은 (a) 운영자 명시 승인+3중 잠금, (b) 실 발송
 >     후보 PDF 필요(customer3 v9 미생성·PII 입력 필요; h153 은 픽스처). 파일럿 지표(N→M→K, Z=0
 >     목표, K/M≥0.7)는 docs/16 "파일럿 계측"에 기록 예정. 첫 승인 지출 후보 = 기존 PDF 합성 드라이런.
->   전체 pytest 632 passed / 4 skipped / exit 0 (P4:610→624, P5:624→627, P6:627→632 신규 5건).
+>   전체 pytest 638 passed / 4 skipped / exit 0 (P4:610→624, P5:627, P6:632, P7:632→638 신규 6건).
 >   [Phase 3 완료 — 골격×lint 매트릭스(C1) + 게이트 커버리지(C3) + 프록시 레지스트리(C5)]
 >     3 서브커밋: (C3/C5 9f9698e) docs/20-gate-coverage.md — GATE_KEYS 레지스트리 표(20키 ×
 >     검증·유형·측정면) + 커버리지 매트릭스 + 프록시 절("신규 검증은 물리 우선"). test_gate_

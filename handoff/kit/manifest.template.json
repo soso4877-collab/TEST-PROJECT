@@ -1,0 +1,22 @@
+{
+  "_comment": "vkit 출처 스탬프 매니페스트 — 채택처 handoff/kit/manifest.json 으로 복사 후 채운다. 비차단 drift-check 근거(상류 정본과 diff 나면 CI 경고, 하드게이트 결정론은 불변).",
+  "kit_spec": "docs/21-verification-kit.md",
+  "upstream_repo": "github.com/soso4877-collab/TEST-PROJECT",
+  "upstream_sha": "<복사 시점 상류 커밋 SHA>",
+  "copied_at": "<YYYY-MM-DD>",
+  "adopted_by": "<채택 프로젝트명>",
+  "layers_adopted": {
+    "L0_spec_red_first": false,
+    "L1_deterministic_gates": false,
+    "L2_lens_sweep_advisory": false,
+    "L3_structural_checks": false,
+    "L4_human_review": false
+  },
+  "safeguards_verified": {
+    "no_op_self_check": false,
+    "pii_shape_redefined": false,
+    "heterogeneity_verified": false,
+    "domain_literals_replaced": false
+  },
+  "notes": "safeguards 4대가 모두 true 여야 이식 완료(docs/21). PII 형상 재정의는 도메인 필수 — 미재정의 시 탐지 no-op."
+}
