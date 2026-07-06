@@ -1,10 +1,21 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0·P1·P2 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P3 완료 — 이 블록 먼저 읽기) =====
 >   [다층 검증 시스템 로드맵 실행 중] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
->     P0(완료)→P1(완료)→P2(완료)→P3(골격×lint 매트릭스+커버리지)
->     →P4(발송 전 이질 렌즈 스윕 advisory)→P5(설계 논쟁)→P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
+>     P0(완료)→P1(완료)→P2(완료)→P3(완료)→P4(발송 전 이질 렌즈 스윕 advisory)
+>     →P5(설계 논쟁)→P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
 >     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 3 완료 — 골격×lint 매트릭스(C1) + 게이트 커버리지(C3) + 프록시 레지스트리(C5)]
+>     3 서브커밋: (C3/C5 9f9698e) docs/20-gate-coverage.md — GATE_KEYS 레지스트리 표(20키 ×
+>     검증·유형·측정면) + 커버리지 매트릭스 + 프록시 절("신규 검증은 물리 우선"). test_gate_
+>     registry.py 가 표를 live verify.GATE_KEYS 와 양방 대조(미문서화/팬텀 행 RED).
+>     (C1 6b4e7a1) test_skeleton_lint_matrix.py — 골격 6축(personal 3카테고리+gunghap
+>     business/relationship+integrated, API 0·무렌더 render=False) × text lint 8종. 스코프
+>     미러링(부록 제외·커플 검사 제외·raw_calc=headwords 게이트 동일함수). 완전성 단언:
+>     20 GATE_KEYS 전부 enrolled/matrix-excluded(style=렌더 스코프)/specs-excluded/non-lint
+>     로 파티션(신규 게이트 lint→미분류 RED). (보너스 603f1fd) test_lint_properties.py —
+>     hypothesis 로 전 text lint 무크래시+결정론(max_examples=200).
+>   전체 pytest 610 passed / 4 skipped / exit 0 (P3: 604→610 신규 6건).
 >   [Phase 2 완료 — dead-param 정적 스캐너(C2 자동화)] 팬텀 파라미터 3연속(QI-2026-07-04-01)
 >     구조 차단. scripts/deadparam_scan.py(stdlib-only AST — 하드 게이트 무의존·이식성) +
 >     tests/deadparam_allowlist.txt(참 사유 필수). 제외: self/cls·_접두·*args/**kwargs·stub·
