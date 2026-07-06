@@ -106,17 +106,23 @@ def _scrub(text: str, names: list[str]) -> str:
     return _DATE_RX.sub("[비공개]", out)
 
 
-def mask_for_api(text: str, names: list[str], self_civil: str | None = None) -> str:
-    """API 전송용 마스킹: 생년월일시(masking) + 공급된 이름 치환. names 필수(빈 값 fail-closed)."""
+def mask_for_api(text: str, names: list[str], self_civils: list[str] | None = None) -> str:
+    """API 전송용 마스킹: 생년월일시 + 공급된 이름 치환. names 필수(빈 값 fail-closed).
+
+    self_civils(각 인물 "YYYY-MM-DD HH:MM")를 주면 masking.mask_birth_in_text 가 그 생일의
+    표기 변형 전부(한글 'YYYY년 M월 D일'·'오전 H시 M분' 포함)를 정밀 마스킹한다 — 이게 있어야
+    한글 형식 생년월일이 막힌다(_DATE_RX 는 dashed/HH:MM/8자리만 커버). self_civils 없이 bare
+    'N월 D일'을 통째 마스킹하지는 않는다(사주 시기 참조를 오마스킹하면 스윕 입력이 망가짐 —
+    정밀 마스킹은 특정 인물 생일만). 벨트(assert_pii_free)는 dashed/이름 backstop 으로 유지."""
     if not names:
         raise PIILeakBlocked("names 인자는 필수·비어있으면 안 됨(마스킹 없이 전송 금지)")
-    out = masking.mask_birth_in_text(text or "", self_civil)
+    out = text or ""
+    for civ in self_civils or [None]:
+        out = masking.mask_birth_in_text(out, civ)
     for nm in names:
         nm = (nm or "").strip()
         if nm:
             out = out.replace(nm, "[이름 비공개]")
-    # 잔여 날짜/시각/8자리 생일형(self_civil 미제공이라도 PDF 표지·본문의 dashed 날짜·HH:MM
-    # 을 벨트가 차단하기 전에 선제 리댁션). 벨트(assert_pii_free)는 최종 방어겹으로 유지.
     out = _DATE_RX.sub("[비공개]", out)
     return out
 
@@ -267,8 +273,11 @@ def sweep(
     return report
 
 
-def extract_masked_pages(pdf_path: str, names: list[str]) -> list[str]:
-    """PDF 페이지별 텍스트 추출 + 마스킹 + 전송 벨트. names 필수(fail-closed)."""
+def extract_masked_pages(
+    pdf_path: str, names: list[str], self_civils: list[str] | None = None
+) -> list[str]:
+    """PDF 페이지별 텍스트 추출 + 마스킹(self_civils 로 정밀 생일 마스킹) + 전송 벨트.
+    names 필수(fail-closed). self_civils 를 주면 한글 형식 생년월일까지 막힌다."""
     if not names:
         raise PIILeakBlocked("names 필수·비어있으면 안 됨")
     import fitz  # lazy(무 PDF 테스트는 masked_pages 주입으로 우회)
@@ -276,7 +285,7 @@ def extract_masked_pages(pdf_path: str, names: list[str]) -> list[str]:
     doc = fitz.open(pdf_path)
     pages = []
     for page in doc:
-        masked = mask_for_api(page.get_text(), names)
+        masked = mask_for_api(page.get_text(), names, self_civils)
         assert_pii_free(masked, names)  # 전송 전 벨트
         pages.append(masked)
     doc.close()

@@ -37,6 +37,15 @@ def test_mask_for_api_removes_name_and_birth():
     assert "1997-10-27" not in masked and "09:46" not in masked
 
 
+def test_mask_for_api_masks_korean_birthdate_with_self_civil_not_timing():
+    # self_civils 정밀 마스킹: 한글 형식 생년월일은 막되(_DATE_RX 미커버) 사주 시기 참조
+    # (같은 'N월 D일'이라도 생일이 아닌 것)는 오마스킹하지 않는다.
+    text = "1997년 10월 27일생입니다. 그리고 2026년 3월 5일에 좋은 흐름이 옵니다."
+    masked = hsweep.mask_for_api(text, ["김태수"], self_civils=["1997-10-27 09:46"])
+    assert "1997년 10월 27일" not in masked  # 생일 한글형 마스킹됨
+    assert "3월 5일" in masked  # 시기 참조는 보존(오마스킹 금지)
+
+
 def test_outgoing_payload_never_contains_pii():
     # 정상 마스킹된 페이지로 스윕 → FakeBackend 가 받은 어떤 system/user 에도 PII 없음.
     pages = [hsweep.mask_for_api("김태수님의 재물 흐름 1997-10-27 분석", ["김태수"])]
