@@ -62,7 +62,6 @@ def _report(final_text: str) -> UnifiedReport:
         content=r23.model_dump(),
         render_meta={
             "input_civil": "1990-05-20 14:30",
-            "age": 36,
             "gen_params": {
                 "year": 1990,
                 "month": 5,

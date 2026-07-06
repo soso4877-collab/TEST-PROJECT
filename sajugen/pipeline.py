@@ -83,12 +83,6 @@ def generate(
             ref_year = int(str(horoscope_date)[:4])
         except Exception:
             ref_year = None
-    age = None
-    if ref_year:
-        try:
-            age = ref_year - int(str(saju.input_civil)[:4])
-        except Exception:
-            age = None
     # 브랜드 프로필(다계정, config/brands.yaml) — 표지·낙관·맺음 서명 가변
     from . import config as cfg
 
@@ -123,7 +117,6 @@ def generate(
             report,
             saju,
             out_name,
-            age=age,
             name=name,
             unknown_time=unknown_time,
             brand=bp,

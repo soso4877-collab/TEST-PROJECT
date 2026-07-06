@@ -85,7 +85,6 @@ def _clean_cover_text(text: str | None) -> str:
 def render_html(
     report,
     saju,
-    age: int | None = None,
     name: str | None = None,
     unknown_time: bool = False,
     brand: dict | None = None,
@@ -152,7 +151,6 @@ def render_pdf(
     report,
     saju,
     out_name: str = "saju_report.pdf",
-    age: int | None = None,
     name: str | None = None,
     unknown_time: bool = False,
     brand: dict | None = None,
@@ -170,7 +168,6 @@ def render_pdf(
     html = render_html(
         report,
         saju,
-        age=age,
         name=name,
         unknown_time=unknown_time,
         brand=brand_profile,

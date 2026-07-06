@@ -203,15 +203,6 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
         if st.get_state(order_id) == OrderState.NORMALIZED:
             st.transition(order_id, OrderState.CALC_OK, actor="system", note=r.bazi)
 
-        # 기준 연도·나이(표지/개인화) — pipeline 과 동일 산술
-        age = None
-        horoscope = p.get("horoscope") or ""
-        try:
-            if horoscope and r.input_civil:
-                age = int(str(horoscope)[:4]) - int(str(r.input_civil)[:4])
-        except Exception:
-            age = None
-
         report = st.get_report(order_id)  # 최신본 재로드(경합 회피)
         guard = r.guard or {}
         report = report.model_copy(
@@ -222,7 +213,6 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                     "draft_pdf": r.pdf_path,
                     "input_civil": r.input_civil,
                     "bazi": r.bazi,
-                    "age": age,
                     "verify": r.verify,
                     "guard": guard,
                     "reasons": list(r.reasons),
@@ -382,7 +372,6 @@ def final_render_fn(report: UnifiedReport) -> str:
         r23,
         _CoverMeta(input_civil=str(meta.get("input_civil", ""))),
         out_name=f"final_{report.order_id}.pdf",
-        age=meta.get("age"),
         name=name,
         unknown_time=bool(p.get("unknown_time")),
         brand=bp,

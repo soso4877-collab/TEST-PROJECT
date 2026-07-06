@@ -6,6 +6,10 @@
 >     지출) — 후보30→생존0→확정0, 비용 $0.617(상한 $3의 21%·모델 확정), PII 0 실측, advisory 구조
 >     확인. 발견·선제수정: 한글 생년월일 마스킹 갭(self_civils 정밀 마스킹). 잔여 = 실 파일럿 계측
 >     (검수 전 신선 발송물 필요 — judge 발화+K/M; customer2 는 정제본이라 M=0). docs/16 기록.
+>   [age 팬텀 체인 제거 완료 2026-07-06 QI-2026-07-06-01] 도판 제거 잔여 age 4단계 체인
+>     (order_flow→pipeline→render_pdf→render_html) 원자 제거. 소비처 order_flow:385 단 하나
+>     (render_meta dict 무마이그레이션) 실측 후 시그니처·계산·kwarg·픽스처·allowlist 일괄 삭제.
+>     positional-arg 점검 0. 발급 회귀(test_orders·test_final_render_gate) GREEN. deadparam 미해결 0.
 >     P0 ref_date·P1 게이트 SSOT(C4)·P2 dead-param(C2)·P3 골격×lint
 >     매트릭스+커버리지+프록시(C1/C3/C5)·P4 렌즈 스윕 인프라(L2 advisory)·P5 논쟁 프로토콜·
 >     P6 운영 스킬(/audit·/adjacent·/done)·P7 이식 키트(vkit)·P8 플레이북 배선.

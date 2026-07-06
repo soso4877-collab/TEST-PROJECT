@@ -18,7 +18,3 @@ sajugen/relationship/fallback.py::build_fallback::situation  # 폴백 결정론 
 ## 유지. 제거 시 2 백엔드+2 builder 호출+13개 테스트 파일 churn(반나절 범위 밖).
 sajugen/content/llm_sections.py::compose::title  # 섹션 인터페이스 인자(polish 가 소비), compose 만 미사용
 
-## render_html(age): 도판 전면 제거(운영자 지시)로 age 미소비. 단 age 는 order_flow(관메타)→
-## pipeline→render_pdf(age=age 포워딩)→render_html 로 흐르는 4단계 팬텀 체인 — 전체 제거는
-## 주문경로 리팩터라 반나절 범위 밖. docs/16 QI-2026-07-06-01 로 추적(팬텀 후보, 별도 세션 제거).
-sajugen/render/pdf.py::render_html::age  # 도판 제거 잔여 팬텀 체인(order_flow→…→render), docs/16 추적

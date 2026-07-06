@@ -11,13 +11,13 @@
   - **발견·선제수정**: mask_for_api 가 self_civil 미수용이라 한글 형식 생년월일("YYYY년 M월 D일")을 못 막던 갭 발견(customer2 엔 없었으나 타 리포트 유출 위험) → self_civils 정밀 마스킹 추가(시기 참조 오마스킹 없이 특정 인물 생일만). 양방 테스트 동반.
 - PII 방어 범위(residual 명시): 전송 페이로드는 이름(공급값)·날짜/시각/8자리 마스킹 + 전송 전 벨트로 fail-closed. rationale 은 모델 free-text 라 parse 시점에 name/date 스크럽하나, 그 외 PII 클래스(지명·직장·관계 세부)는 프롬프트 지시 + 벨트로 축소할 뿐 완전 제거 보장 아님("PII 0" 아니라 "name/date belt + 인용 금지 프롬프트"). 리포트는 gitignored·운영자 전용이라 잔여 위험 낮음. 더 강한 보장이 필요하면 rationale 자체를 구조화(자유텍스트 제거)하는 후속.
 
-## 2026-07-06 추가: QI-2026-07-06-01 age 팬텀 파라미터 체인(도판 제거 잔여) — dead-param 스캐너(Phase 2)가 적발, 제거는 추적 대기
+## 2026-07-06 추가: QI-2026-07-06-01 age 팬텀 파라미터 체인(도판 제거 잔여) — dead-param 스캐너(Phase 2)가 적발, 2026-07-06 제거 완료
 
 - 증상(Phase 2 dead-param 스캔 실측): `age` 가 order_flow(관메타 `meta.get("age")`)→pipeline→render_pdf(`age=age` 포워딩)→render_html 로 4단계 흐르는데 어느 렌더 함수도 소비하지 않는다. 도판(일러스트) 전면 제거(운영자 지시) 후 남은 잔여 인자 — 기능 영향은 없으나 팬텀 파라미터 클래스(QI-2026-07-04-01 계열: "받기만 하고 안 쓰는" 인자).
 - 영향: 현재 무해(미소비라 산출 불변). 위험은 미래 — 이런 죽은 배선이 방치되면 "존재하지 않는 값이 흐르는" 착시로 실결함(팬텀 파트너류)의 온상이 된다.
 - 조치(Phase 2): dead-param 스캐너(scripts/deadparam_scan.py)+하드 게이트가 이 클래스를 자동 적발하도록 상시화. `age` 는 체인 전체 제거가 주문경로(order_flow) 리팩터라 반나절 범위 밖 → tests/deadparam_allowlist.txt 에 참 사유로 등재하고 별도 세션 제거로 추적(이 항목). page_texts(내 frontload 제거 잔여)·geukguk(day_master)는 같은 스캔에서 즉시 제거(소비처 배선까지 한 단위).
 - 재발 방지: 파라미터 신설 시 소비처 배선까지가 한 단위(방법론 A-5). 스캐너 게이트가 미소비 인자를 커밋 시점에 차단(allowlist 는 참 사유 필수).
-- 남은 액션: age 4단계 체인 제거(order_flow→pipeline→render_pdf→render_html) — 별도 세션.
+- 제거 완료(2026-07-06): age 4단계 체인 전체 제거. 사전 매핑으로 소비처가 order_flow:385(최종 발급 render) **단 하나**(render_meta["age"] 는 dict 라 무마이그레이션·다른 READ 0)임을 실측 → 원자적 제거: render_html/render_pdf 시그니처·forward + pipeline age 계산·kwarg + order_flow age 계산·render_meta 저장·kwarg + test_final_render_gate 픽스처 키 + allowlist 항목. 전 render_pdf/render_html 호출부 positional-arg 점검(오배치 0). 순수 dead-code 제거라 산출 불변(골든 불요) — 발급 경로 회귀(test_orders·test_final_render_gate) GREEN 으로 APPROVED-전-발송 상태머신 불변 확인. 전체 pytest 643 passed(제거 전과 동일, 테스트 수 불변). deadparam 스캔 미해결 0.
 
 ## 2026-07-05 추가: QI-2026-07-05-03 consult 골격 폴백 false-PASS — 질문 답변 챕터 붕괴가 게이트·발송 리포트 모두에서 안 보임
 
