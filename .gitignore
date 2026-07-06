@@ -3,6 +3,7 @@
 .claude/*
 !.claude/agents/
 !.claude/rules/
+!.claude/skills/
 !.claude/settings.json
 
 # Base64 encoded assets (not needed in repo)

@@ -1,10 +1,16 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P5 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P6 완료 — 이 블록 먼저 읽기) =====
 >   [다층 검증 시스템 로드맵 실행 중] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
 >     P0(완료)→P1(완료)→P2(완료)→P3(완료)→P4(인프라 완료·파일럿 실측 대기)→P5(완료)
->     →P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
+>     →P6(완료)→P7(이식 키트)→P8(플레이북).
 >     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 6 완료 — 운영 자동화 스킬 3종(.claude/skills/)] /audit(월 감사: 회의적 재검증=문서
+>     보장↔코드 프로브 + 문서-코드 대조 + docs/16 포스트모템 전수 + mutation testing
+>     verify.py·temporal_lint.py[cosmic-ray 온디맨드]) / /adjacent(사각 인접 스캐너 advisory —
+>     경계값·동치류·스코프 제외·동일문구 타 골격·미배선 소비처 나열+테스트 존재표) / /done(증거
+>     3종 pytest·SHA·명령 정형, 추정 금지). tests/test_ops_skills.py 5건: frontmatter·읽기전용
+>     (advisory Write/Edit 부재)·증거계약·mutation/포스트모템 커버. Stop hook 추가 없음(D-3 보류).
 >   [Phase 5 완료 — 설계 결정 논쟁 프로토콜] one-way door 결정에만 쓰는 이질 generator-critic
 >     분리 프로토콜(자기선호 편향 회피 2404.13076). .claude/agents/sg-design-critic.md(Opus·
 >     읽기전용·승자 선택 안 함, 안별 프리모템·실패 시나리오만) + handoff/templates/design_debate.md
@@ -22,7 +28,7 @@
 >   [Phase 4 실측 대기 — 2중 게이트] 실 API 스윕은 (a) 운영자 명시 승인+3중 잠금, (b) 실 발송
 >     후보 PDF 필요(customer3 v9 미생성·PII 입력 필요; h153 은 픽스처). 파일럿 지표(N→M→K, Z=0
 >     목표, K/M≥0.7)는 docs/16 "파일럿 계측"에 기록 예정. 첫 승인 지출 후보 = 기존 PDF 합성 드라이런.
->   전체 pytest 627 passed / 4 skipped / exit 0 (P4: 610→624 신규 14건, P5: 624→627 신규 3건).
+>   전체 pytest 632 passed / 4 skipped / exit 0 (P4:610→624, P5:624→627, P6:627→632 신규 5건).
 >   [Phase 3 완료 — 골격×lint 매트릭스(C1) + 게이트 커버리지(C3) + 프록시 레지스트리(C5)]
 >     3 서브커밋: (C3/C5 9f9698e) docs/20-gate-coverage.md — GATE_KEYS 레지스트리 표(20키 ×
 >     검증·유형·측정면) + 커버리지 매트릭스 + 프록시 절("신규 검증은 물리 우선"). test_gate_
