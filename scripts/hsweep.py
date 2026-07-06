@@ -96,10 +96,20 @@ class CostGuard:
         return in_tok / 1e6 * _EST_IN_PER_MTOK + out_tok / 1e6 * _EST_OUT_PER_MTOK
 
 
+def _scrub(text: str, names: list[str]) -> str:
+    """이름 + 날짜/시각/8자리 리댁션(rationale 등 모델 출력 정화 — 리포트·다운스트림 방어)."""
+    out = text or ""
+    for nm in names or []:
+        nm = (nm or "").strip()
+        if nm:
+            out = out.replace(nm, "[이름 비공개]")
+    return _DATE_RX.sub("[비공개]", out)
+
+
 def mask_for_api(text: str, names: list[str], self_civil: str | None = None) -> str:
     """API 전송용 마스킹: 생년월일시(masking) + 공급된 이름 치환. names 필수(빈 값 fail-closed)."""
-    if names is None:
-        raise PIILeakBlocked("names 인자는 필수(마스킹 없이 전송 금지)")
+    if not names:
+        raise PIILeakBlocked("names 인자는 필수·비어있으면 안 됨(마스킹 없이 전송 금지)")
     out = masking.mask_birth_in_text(text or "", self_civil)
     for nm in names:
         nm = (nm or "").strip()
@@ -139,8 +149,10 @@ def _load_lens_prompt(lens_id: str) -> str:
     return p.read_text(encoding="utf-8")
 
 
-def _parse_findings(text: str, lens_id: str) -> list[dict]:
-    """모델 출력에서 JSON findings 파싱 — 스키마: page/severity/rule/rationale(비-PII)만."""
+def _parse_findings(text: str, lens_id: str, names: list[str]) -> list[dict]:
+    """모델 출력에서 JSON findings 파싱 — 스키마 밖 필드 폐기(고객 본문 자유텍스트 유입 차단).
+    rationale 는 모델 free-text 라 parse 시점에 name/date 스크럽(리포트·refute/judge 다운스트림
+    양쪽 정화 — 이름/날짜 외 PII 잔여는 벨트+프롬프트로 축소, docs 에 residual 명시)."""
     try:
         m = re.search(r"\[.*\]", text, re.S)
         raw = json.loads(m.group(0)) if m else []
@@ -155,8 +167,8 @@ def _parse_findings(text: str, lens_id: str) -> list[dict]:
                 "lens": lens_id,
                 "page": f.get("page"),
                 "severity": str(f.get("severity", "unknown"))[:12],
-                "rule": str(f.get("rule", ""))[:60],
-                "rationale": str(f.get("rationale", ""))[:400],
+                "rule": _scrub(str(f.get("rule", "")), names)[:60],
+                "rationale": _scrub(str(f.get("rationale", "")), names)[:400],
             }
         )
     return out
@@ -170,7 +182,7 @@ def run_lenses(masked_pages: list[str], backend, guard: CostGuard, names: list[s
         out = _safe_call(
             backend, role="sweep_lens", system=system, user=body, names=names, guard=guard
         )
-        findings.extend(_parse_findings(out, lens_id))
+        findings.extend(_parse_findings(out, lens_id, names))
     return findings
 
 
@@ -183,7 +195,7 @@ def refute(findings: list[dict], backend, guard: CostGuard, names: list[str]) ->
     )
     user = json.dumps(findings, ensure_ascii=False)
     out = _safe_call(backend, role="sweep_lens", system=system, user=user, names=names, guard=guard)
-    survivors = _parse_findings(out, "refuted")
+    survivors = _parse_findings(out, "refuted", names)
     # lens 라벨 보존(refute 는 필터일 뿐) — page/rule 로 원 후보 매칭.
     keyset = {(f.get("page"), f.get("rule")) for f in survivors}
     return [f for f in findings if (f.get("page"), f.get("rule")) in keyset] or survivors
@@ -217,8 +229,8 @@ def sweep(
 ) -> dict:
     """전 파이프라인. masked_pages 를 주면 PDF 추출을 건너뛴다(테스트/재사용).
     부분 실패(캡 초과)는 partial=True 로 표시하고 그때까지의 리포트를 반환한다."""
-    if names is None:
-        raise PIILeakBlocked("names 필수 — 마스킹 없이 스윕 불가(fail-closed)")
+    if not names:
+        raise PIILeakBlocked("names 필수·비어있으면 안 됨 — 마스킹 없이 스윕 불가(fail-closed)")
     guard = guard or CostGuard()
     if masked_pages is None:
         masked_pages = extract_masked_pages(pdf_path, names)
@@ -257,8 +269,8 @@ def sweep(
 
 def extract_masked_pages(pdf_path: str, names: list[str]) -> list[str]:
     """PDF 페이지별 텍스트 추출 + 마스킹 + 전송 벨트. names 필수(fail-closed)."""
-    if names is None:
-        raise PIILeakBlocked("names 필수")
+    if not names:
+        raise PIILeakBlocked("names 필수·비어있으면 안 됨")
     import fitz  # lazy(무 PDF 테스트는 masked_pages 주입으로 우회)
 
     doc = fitz.open(pdf_path)

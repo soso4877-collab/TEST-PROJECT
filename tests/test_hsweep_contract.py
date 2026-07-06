@@ -63,6 +63,37 @@ def test_names_required_fail_closed():
         hsweep.sweep("x.pdf", None, backend=be, masked_pages=["안전 텍스트"])
 
 
+def test_empty_names_list_also_fail_closed():
+    # 빈 리스트도 is None 가드를 우회하면 안 된다(마스킹 no-op → PII 유출 구멍).
+    be = FakeBackend()
+    with pytest.raises(hsweep.PIILeakBlocked):
+        hsweep.sweep("x.pdf", [], backend=be, masked_pages=["안전 텍스트"])
+    with pytest.raises(hsweep.PIILeakBlocked):
+        hsweep.mask_for_api("본문", [])
+    assert be.calls == []
+
+
+def test_refute_and_judge_payloads_carry_no_pii_from_rationale():
+    # 렌즈가 rationale 에 이름을 되뱉어도 refute/judge 로 나가는 페이로드에 이름이 없어야 한다
+    # (parse 스크럽 + _safe_call 벨트 이중 방어). lens 만이 아니라 다운스트림까지 검증.
+    leaky = '[{"page":2,"severity":"high","rule":"x","rationale":"김태수 관련 메타"}]'
+
+    class Seq(FakeBackend):
+        def complete(self, *, model, system, user):
+            self.calls.append({"model": model, "system": system, "user": user})
+            if "opus" in model:
+                return "0.9", 10, 2  # judge
+            if "적대적 검증자" in system:
+                return leaky, 20, 20  # refute 도 이름 되뱉기 시도
+            return leaky, 20, 20  # lens
+
+    be = Seq()
+    hsweep.sweep("x.pdf", ["김태수"], backend=be, masked_pages=["안전 본문"])
+    assert len(be.calls) > len(hsweep.LENS_IDS), "refute/judge 단계까지 도달해야 검증됨"
+    for c in be.calls:
+        assert "김태수" not in c["system"] + c["user"], "다운스트림 페이로드에 이름 유출"
+
+
 def test_main_refuses_without_names_and_without_lock(monkeypatch):
     assert hsweep.main(["--pdf", "x.pdf"]) == 2  # names 없음
     # 이름 있어도 3중 잠금 미충족이면 실행 거부(실 API 미승인)
@@ -109,9 +140,10 @@ def test_findings_schema_has_no_freetext_customer_field():
     malicious = (
         '[{"page":3,"severity":"high","rule":"x","rationale":"ok","verbatim":"김태수 원문"}]'
     )
-    parsed = hsweep._parse_findings(malicious, "narrator_tone")
+    parsed = hsweep._parse_findings(malicious, "narrator_tone", ["김태수"])
     assert parsed and set(parsed[0].keys()) == {"lens", "page", "severity", "rule", "rationale"}
     assert "verbatim" not in parsed[0]
+    assert "김태수" not in parsed[0]["rationale"]  # rationale free-text 스크럽
 
 
 # ── 4) 모델 이질성: 렌즈 ≠ judge ──
