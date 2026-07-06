@@ -1,10 +1,16 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P4 인프라 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P5 완료 — 이 블록 먼저 읽기) =====
 >   [다층 검증 시스템 로드맵 실행 중] "운영자보다 먼저 버그를 잡는" 프로세스 격상.
->     P0(완료)→P1(완료)→P2(완료)→P3(완료)→P4(인프라 완료·파일럿 실측 대기)
->     →P5(설계 논쟁)→P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
+>     P0(완료)→P1(완료)→P2(완료)→P3(완료)→P4(인프라 완료·파일럿 실측 대기)→P5(완료)
+>     →P6(운영 스킬)→P7(이식 키트)→P8(플레이북).
 >     불변: LLM 판정은 전 구간 advisory(gate_pass AND 체인 편입 금지), API 호출은 운영자 승인 후.
+>   [Phase 5 완료 — 설계 결정 논쟁 프로토콜] one-way door 결정에만 쓰는 이질 generator-critic
+>     분리 프로토콜(자기선호 편향 회피 2404.13076). .claude/agents/sg-design-critic.md(Opus·
+>     읽기전용·승자 선택 안 함, 안별 프리모템·실패 시나리오만) + handoff/templates/design_debate.md
+>     (트리거 체크리스트 one-way door 한정→2~3안+트레이드오프→비평 1라운드(반박 ≤1)→루브릭 0-1
+>     단일 judge 별도 세션→운영자). tests/test_design_debate_protocol.py 3건: 비평 모델 이질
+>     (Opus≠Sonnet)·읽기전용(Edit/Write 부재)·템플릿 트리거/judge 분리 계약(산출물 rot 방지).
 >   [Phase 4 인프라 완료 — 발송 전 이질 렌즈 스윕(L2 advisory)] scripts/hsweep.py +
 >     harness/prompts/sweep/lens_*.md 5종 + config sweep_lens(Sonnet)/sweep_judge(Opus).
 >     파이프라인: 이질 렌즈 5(신선 컨텍스트)→적대 반박 1콜→루브릭 judge(순서 스왑 2콜)→
@@ -16,7 +22,7 @@
 >   [Phase 4 실측 대기 — 2중 게이트] 실 API 스윕은 (a) 운영자 명시 승인+3중 잠금, (b) 실 발송
 >     후보 PDF 필요(customer3 v9 미생성·PII 입력 필요; h153 은 픽스처). 파일럿 지표(N→M→K, Z=0
 >     목표, K/M≥0.7)는 docs/16 "파일럿 계측"에 기록 예정. 첫 승인 지출 후보 = 기존 PDF 합성 드라이런.
->   전체 pytest 622 passed / 4 skipped / exit 0 (P4: 610→622 신규 12건).
+>   전체 pytest 627 passed / 4 skipped / exit 0 (P4: 610→624 신규 14건, P5: 624→627 신규 3건).
 >   [Phase 3 완료 — 골격×lint 매트릭스(C1) + 게이트 커버리지(C3) + 프록시 레지스트리(C5)]
 >     3 서브커밋: (C3/C5 9f9698e) docs/20-gate-coverage.md — GATE_KEYS 레지스트리 표(20키 ×
 >     검증·유형·측정면) + 커버리지 매트릭스 + 프록시 절("신규 검증은 물리 우선"). test_gate_
