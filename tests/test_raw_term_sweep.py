@@ -49,21 +49,46 @@ def test_all_personal_skeleton_sections_pass_new_lints():
 
 
 def test_gunghap_and_integrated_skeletons_pass_loanword():
-    # 이웃 소스(궁합 폴백 가이드·integrated depth 골격)도 '리듬' 스윕 완료 앵커.
+    # 이웃 출력(궁합 폴백 가이드·integrated depth 골격·긴장 관계 소비처)도
+    # '리듬' 스윕 완료 앵커. 주석 오탐을 피하려고 실제 고객 출력 문자열만 추가한다.
     from sajugen import gunghap as g
     from sajugen import integrated as itg
+    from sajugen.calc import partner as calc_partner
     from sajugen.relationship import context as rc
     from sajugen.relationship import fallback as rf
 
     blobs = []
     blobs += [v for v in rc.GUIDE.values()] if hasattr(rc, "GUIDE") else []
     blobs += [str(getattr(itg, n, "")) for n in dir(itg) if n.startswith("_DEPTH")]
+
+    people = [
+        g.person_facts("합성갑", (1990, 1, 11, 12, 0), ref_year=2026),
+        g.person_facts("합성을", (1990, 1, 6, 13, 0), ref_year=2026, is_male=False),
+    ]
+    blobs.append(g._pair_slot(people[0], people[1]))
+
+    pillar = calc_partner.PartnerPillar(gan="甲", zhi="子", ganzhi="甲子")
+    pf = calc_partner.PartnerFacts(
+        year=pillar,
+        month=pillar,
+        day=pillar,
+        day_gan_elem_ko="목",
+        shishen_to_me="",
+        ilji_hai="해",
+        ilji_po="파",
+        ilji_wonjin="원진",
+        ilji_xing="상형",
+    )
+    saju = engine.build(1990, 1, 11, 12, 0, is_male=True, horoscope_date="2026-06-01")
+    blobs.append(rules.partner_block(pf, saju, label="합성상대"))
+
     import inspect
 
     blobs.append(inspect.getsource(rf))
     blobs.append(inspect.getsource(rc))
     joined = "\n".join(str(b) for b in blobs)
     assert "리듬" not in joined
+    assert ct.loanword_lint(joined) == []
 
 
 def test_filler_regex_counter_no_substring_false_positive():

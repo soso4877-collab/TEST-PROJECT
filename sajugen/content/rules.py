@@ -1740,7 +1740,7 @@ def partner_block(pf, saju, label: str = "", lunar_input: bool = False) -> str:
         lines.append(f"본인 일지와 {who}의 일지는 충, 강하게 부딪히며 흔드는 자리다.")
     if pf.ilji_hai:
         lines.append(
-            f"본인 일지와 {who}의 일지는 해, 생활 리듬이 엇갈리기 쉬워 확인이 필요한 자리다."
+            f"본인 일지와 {who}의 일지는 해, 생활 흐름이 엇갈리기 쉬워 확인이 필요한 자리다."
         )
     if pf.ilji_po:
         lines.append(

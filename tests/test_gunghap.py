@@ -385,10 +385,8 @@ def test_pair_slot_ilji_tension_terms_are_guard_clean(monkeypatch):
         monkeypatch.setattr(g, "pair_facts", lambda _a, _b: facts)
         return g._pair_slot({"name": "합성갑"}, {"name": "합성을"})
 
-    raw_text = slot_with_xing("자형") + "\n" + slot_with_xing("상형")
-    # _compose 의 cand 경로는 loanword_lint 직전에 normalize_loanwords 를 먼저 적용한다.
-    # direct guard 테스트도 같은 순서로 맞춰 신규 긴장 어휘 자체의 FP 여부를 본다.
-    text = g.client_tone_lint.normalize_loanwords(raw_text)
+    # business 폴백은 normalize_loanwords 를 거치지 않으므로 raw _pair_slot 출력을 그대로 검사한다.
+    text = slot_with_xing("자형") + "\n" + slot_with_xing("상형")
     names = ["합성갑", "합성을"]
     allow = {"ganzhi": [], "ganzhi_ko": [], "ziwei_majors_in_chart": [], "allowed_years": []}
 

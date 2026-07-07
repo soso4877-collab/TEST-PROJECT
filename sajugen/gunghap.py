@@ -333,7 +333,7 @@ def _pair_slot(a: dict, b: dict) -> str:
     if pf.ilji_hai:
         bits.append(
             f"일지 {pf.ilji_hai}({_ILJI_TENSION_KO.get(pf.ilji_hai, '')}) 관계라 "
-            "생활 리듬이 어긋날 때 확인이 필요한 구조입니다."
+            "생활 흐름이 어긋날 때 확인이 필요한 구조입니다."
         )
     if pf.ilji_po:
         bits.append(

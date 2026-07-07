@@ -291,10 +291,13 @@ def test_partner_block_outputs_ilji_tension_fields():
     blk = rules.partner_block(pf, _SAJU, label="합성상대")
 
     assert "본인 일지와 합성상대의 일지는 해" in blk
-    assert "생활 리듬이 엇갈리기 쉬워 확인이 필요한 자리다" in blk
+    assert "생활 흐름이 엇갈리기 쉬워 확인이 필요한 자리다" in blk
     assert "본인 일지와 합성상대의 일지는 파" in blk
     assert "가까워진 뒤에도 약속과 역할을 다시 맞춰야 하는 자리다" in blk
     assert "본인 일지와 합성상대의 일지는 원진" in blk
     assert "이유 없이 서먹해지기 쉬워 감정을 천천히 확인해야 하는 자리다" in blk
     assert "본인 일지와 합성상대의 일지는 상형" in blk
     assert "비슷한 반응이 반복될 때 속도를 낮춰야 하는 자리다" in blk
+    from sajugen.content import client_tone_lint as ct
+
+    assert ct.loanword_lint(blk) == []
