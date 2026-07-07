@@ -102,6 +102,82 @@ def test_partner_pillars_golden_990118():
     assert pf.shishen_to_me == LunarUtil.SHI_SHEN[m.day.gan + "庚"]
 
 
+_DAY_ZHI_SAMPLE = {
+    "子": (1990, 1, 11),
+    "丑": (1990, 1, 12),
+    "寅": (1990, 1, 1),
+    "卯": (1990, 1, 2),
+    "辰": (1990, 1, 3),
+    "巳": (1990, 1, 4),
+    "午": (1990, 1, 5),
+    "未": (1990, 1, 6),
+    "申": (1990, 1, 7),
+    "酉": (1990, 1, 8),
+    "戌": (1990, 1, 9),
+    "亥": (1990, 1, 10),
+}
+
+
+def _facts_for_day_pair(my_day_zhi: str, partner_day_zhi: str):
+    # 각 날짜의 일지는 lunar-python EightChar 실측값으로 고정했다.
+    # 테스트 목적은 달력 계산이 아니라 docs/03 §1-1 지지쌍 표와 필드 배선 검증이다.
+    y, m, d = _DAY_ZHI_SAMPLE[partner_day_zhi]
+    return calc_partner.partner_pillars(
+        y,
+        m,
+        d,
+        None,
+        my_day_gan="甲",
+        my_day_zhi=my_day_zhi,
+        my_elements={"木": 1, "火": 1, "土": 1, "金": 1, "水": 1},
+    )
+
+
+def test_ilji_hai_table_hit_and_no_hit():
+    for a, b in [("子", "未"), ("丑", "午"), ("寅", "巳"), ("卯", "辰"), ("申", "亥"), ("酉", "戌")]:
+        assert _facts_for_day_pair(a, b).ilji_hai == "해"
+    assert _facts_for_day_pair("子", "寅").ilji_hai == ""
+
+
+def test_ilji_po_table_hit_and_no_hit():
+    for a, b in [("子", "酉"), ("卯", "午"), ("巳", "申"), ("寅", "亥"), ("丑", "辰"), ("戌", "未")]:
+        assert _facts_for_day_pair(a, b).ilji_po == "파"
+    assert _facts_for_day_pair("子", "寅").ilji_po == ""
+
+
+def test_ilji_wonjin_table_hit_and_no_hit():
+    for a, b in [("子", "未"), ("丑", "午"), ("寅", "酉"), ("卯", "申"), ("辰", "亥"), ("巳", "戌")]:
+        assert _facts_for_day_pair(a, b).ilji_wonjin == "원진"
+    assert _facts_for_day_pair("子", "寅").ilji_wonjin == ""
+
+
+def test_ilji_xing_pairwise_scope_and_boundary():
+    for zhi in ("辰", "午", "酉", "亥"):
+        assert _facts_for_day_pair(zhi, zhi).ilji_xing == "자형"
+    assert _facts_for_day_pair("子", "卯").ilji_xing == "상형"
+    assert _facts_for_day_pair("卯", "子").ilji_xing == "상형"
+    assert _facts_for_day_pair("子", "子").ilji_xing == ""
+    assert _facts_for_day_pair("子", "寅").ilji_xing == ""
+
+
+def test_ilji_relations_are_independent_not_elif_chain():
+    yuk_hap_and_po = _facts_for_day_pair("巳", "申")
+    assert yuk_hap_and_po.ilji_relation == "육합"
+    assert yuk_hap_and_po.ilji_po == "파"
+
+    hai_and_wonjin = _facts_for_day_pair("子", "未")
+    assert hai_and_wonjin.ilji_hai == "해"
+    assert hai_and_wonjin.ilji_wonjin == "원진"
+
+
+def test_samhyeong_deferred_yin_si_is_hai_only_for_now():
+    # docs/03 §1-1: 寅巳의 형은 삼형(寅巳申)에서 오므로 이번 pairwise 범위에서는 defer.
+    # 추후 삼형 전체 구조를 구현하면 이 테스트를 형+해 동시 발화로 승격한다.
+    pf = _facts_for_day_pair("寅", "巳")
+    assert pf.ilji_hai == "해"
+    assert pf.ilji_xing == ""
+
+
 # ---- factcheck: extra_ganzhi + 한글 간지 ----
 def test_factcheck_hangul_ganzhi():
     # 이 사주에 없는 한글 간지(접미 문맥) = 차단 — 부재 간지를 허용 집합에서 역산
@@ -195,3 +271,30 @@ def test_partner_block_text():
     blk = rules.partner_block(pf, _SAJU)
     assert "경오일주" in blk and "시주는 제외" in blk
     assert "199" not in blk  # 생년월일 원본 없음
+
+
+def test_partner_block_outputs_ilji_tension_fields():
+    # 개인 consult 경로도 PartnerFacts 긴장 관계를 소비해야 한다.
+    # 합성 PartnerFacts 만 사용해 생년월일·실명 PII 없이 출력 문장 배선을 검증한다.
+    pillar = calc_partner.PartnerPillar(gan="甲", zhi="子", ganzhi="甲子")
+    pf = calc_partner.PartnerFacts(
+        year=pillar,
+        month=pillar,
+        day=pillar,
+        day_gan_elem_ko="목",
+        shishen_to_me="",
+        ilji_hai="해",
+        ilji_po="파",
+        ilji_wonjin="원진",
+        ilji_xing="상형",
+    )
+    blk = rules.partner_block(pf, _SAJU, label="합성상대")
+
+    assert "본인 일지와 합성상대의 일지는 해" in blk
+    assert "생활 리듬이 엇갈리기 쉬워 확인이 필요한 자리다" in blk
+    assert "본인 일지와 합성상대의 일지는 파" in blk
+    assert "가까워진 뒤에도 약속과 역할을 다시 맞춰야 하는 자리다" in blk
+    assert "본인 일지와 합성상대의 일지는 원진" in blk
+    assert "이유 없이 서먹해지기 쉬워 감정을 천천히 확인해야 하는 자리다" in blk
+    assert "본인 일지와 합성상대의 일지는 상형" in blk
+    assert "비슷한 반응이 반복될 때 속도를 낮춰야 하는 자리다" in blk

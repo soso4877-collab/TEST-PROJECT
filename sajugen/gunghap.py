@@ -288,6 +288,13 @@ def _person_slot(p: dict) -> str:
 
 
 _REL_KO = {"육합": "끌림·합이 잘 맞는", "충": "부딪침·자극이 있는"}
+_ILJI_TENSION_KO = {
+    "해": "엇갈리기 쉬운 결",
+    "파": "매듭이 흔들릴 수 있는 결",
+    "원진": "이유 없이 서먹해질 수 있는 결",
+    "자형": "스스로를 조이는 결",
+    "상형": "예의와 속도가 부딪히기 쉬운 결",
+}
 _SS_KO = {
     "比肩": "비견",
     "劫財": "겁재",
@@ -323,6 +330,26 @@ def _pair_slot(a: dict, b: dict) -> str:
         bits.append(f"일간 천간합({pf.gan_hap}), 결이 묶이는 끌림.")
     if pf.ilji_relation:
         bits.append(f"일지 {pf.ilji_relation}({_REL_KO.get(pf.ilji_relation, '')}) 관계.")
+    if pf.ilji_hai:
+        bits.append(
+            f"일지 {pf.ilji_hai}({_ILJI_TENSION_KO.get(pf.ilji_hai, '')}) 관계라 "
+            "생활 리듬이 어긋날 때 확인이 필요한 구조입니다."
+        )
+    if pf.ilji_po:
+        bits.append(
+            f"일지 {pf.ilji_po}({_ILJI_TENSION_KO.get(pf.ilji_po, '')}) 관계라 "
+            "가까워진 뒤에도 약속과 역할을 다시 맞춰야 하는 구조입니다."
+        )
+    if pf.ilji_wonjin:
+        bits.append(
+            f"일지 {pf.ilji_wonjin}({_ILJI_TENSION_KO.get(pf.ilji_wonjin, '')}) 관계라 "
+            "감정의 오해가 쌓이지 않게 확인이 필요한 구조입니다."
+        )
+    if pf.ilji_xing:
+        bits.append(
+            f"일지 {pf.ilji_xing}({_ILJI_TENSION_KO.get(pf.ilji_xing, '')}) 관계라 "
+            "비슷한 반응이 반복될 때 속도를 낮춰야 하는 구조입니다."
+        )
     if pf.ilji_banhap:
         bits.append(f"일지 삼합 반합({pf.ilji_banhap}), 같은 방향으로 모이는 관계의 결.")
     if pf.complements_elems_ko:

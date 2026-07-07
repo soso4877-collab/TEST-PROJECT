@@ -333,6 +333,97 @@ def test_business_pair_slot_has_no_internal_meta_labels():
     assert "—" not in out  # em dash(AI 시그니처) 소스 금지
 
 
+def test_pair_slot_outputs_new_ilji_tension_fields(monkeypatch):
+    # 신규 계산 필드가 생겼는데 본문 슬롯에서 쓰이지 않으면 팬텀 파라미터가 된다.
+    # _pair_slot 이 business 폴백 본문으로 직접 나가므로 고객 안전 문장까지 함께 고정한다.
+    from sajugen.calc import partner as calc_partner
+    from sajugen.content import quality_lint
+
+    pillar = calc_partner.PartnerPillar(gan="甲", zhi="子", ganzhi="甲子")
+    facts = calc_partner.PartnerFacts(
+        year=pillar,
+        month=pillar,
+        day=pillar,
+        day_gan_elem_ko="목",
+        shishen_to_me="",
+        ilji_hai="해",
+        ilji_po="파",
+        ilji_wonjin="원진",
+        ilji_xing="자형",
+    )
+    monkeypatch.setattr(g, "pair_facts", lambda _a, _b: facts)
+
+    out = g._pair_slot({"name": "합성갑"}, {"name": "합성을"})
+
+    for need in ("일지 해", "일지 파", "일지 원진", "일지 자형"):
+        assert need in out
+    for need in ("엇갈리기 쉬운 결", "매듭이 흔들릴 수 있는 결", "이유 없이 서먹해질 수 있는 결", "스스로를 조이는 결"):
+        assert need in out
+    hits = [h for h in quality_lint.lint(out, None) if h["type"] == "internal_meta_label"]
+    assert hits == [], hits
+
+
+def test_pair_slot_ilji_tension_terms_are_guard_clean(monkeypatch):
+    # _compose 의 LLM cand 경로 가드 중 텍스트 단위로 독립 실행 가능한 항목을 그대로 적용한다.
+    # temporal/name/identity/singang lint 는 ref_date·이름 정책·주체 spec 의존이라 이 단위 테스트에서 제외한다.
+    from sajugen.calc import partner as calc_partner
+
+    pillar = calc_partner.PartnerPillar(gan="甲", zhi="子", ganzhi="甲子")
+
+    def slot_with_xing(xing: str) -> str:
+        facts = calc_partner.PartnerFacts(
+            year=pillar,
+            month=pillar,
+            day=pillar,
+            day_gan_elem_ko="목",
+            shishen_to_me="",
+            ilji_hai="해",
+            ilji_po="파",
+            ilji_wonjin="원진",
+            ilji_xing=xing,
+        )
+        monkeypatch.setattr(g, "pair_facts", lambda _a, _b: facts)
+        return g._pair_slot({"name": "합성갑"}, {"name": "합성을"})
+
+    raw_text = slot_with_xing("자형") + "\n" + slot_with_xing("상형")
+    # _compose 의 cand 경로는 loanword_lint 직전에 normalize_loanwords 를 먼저 적용한다.
+    # direct guard 테스트도 같은 순서로 맞춰 신규 긴장 어휘 자체의 FP 여부를 본다.
+    text = g.client_tone_lint.normalize_loanwords(raw_text)
+    names = ["합성갑", "합성을"]
+    allow = {"ganzhi": [], "ganzhi_ko": [], "ziwei_majors_in_chart": [], "allowed_years": []}
+
+    assert "일지 해" in text and "일지 파" in text and "일지 원진" in text
+    assert "일지 자형" in text and "일지 상형" in text
+    guards = {
+        "safe": g.safe_lint.lint(text),
+        "style": g.style_lint.lint(text),
+        "quality": g.quality_lint.lint(text, names),
+        "loanword": g.client_tone_lint.loanword_lint(text),
+        "raw_calc": g.client_tone_lint.raw_calc_lint(text),
+        "customer_meta": g.customer_meta_lint.lint(text),
+        "guarantee": g.delivery_quality.guarantee_lint(text),
+        "factcheck": g.factcheck.check_with_allow(text, allow),
+    }
+    assert guards == {name: [] for name in guards}, guards
+
+
+def test_relationship_context_sanitizes_new_ilji_terms():
+    from sajugen.relationship import context
+
+    raw = (
+        "일지 해 관계. 일지 파 관계. 일지 원진 관계. "
+        "일지 자형 관계. 일지 상형 관계."
+    )
+    out = context._sanitize_for_prompt(raw, [{"name": "합성갑"}, {"name": "합성을"}])
+    assert "일지 해" not in out and "일지 파" not in out and "일지 원진" not in out
+    assert "일지 자형" not in out and "일지 상형" not in out
+    assert "생활 자리에서 엇갈리기 쉬운 결" in out
+    assert "생활 자리에서 매듭이 흔들릴 수 있는 결" in out
+    assert "생활 자리에서 이유 없이 서먹해질 수 있는 결" in out
+    assert "생활 자리에서 비슷한 반응이 스스로를 조일 수 있는 결" in out
+    assert "생활 자리에서 예의와 속도가 부딪히기 쉬운 결" in out
+
+
 def test_quality_lint_still_flags_legacy_pair_slot_phrases():
     # 가드 불변(완화 0) 앵커 — 구 골격 문구는 여전히 차단된다.
     from sajugen.content import quality_lint

@@ -1738,6 +1738,23 @@ def partner_block(pf, saju, label: str = "", lunar_input: bool = False) -> str:
         lines.append(f"본인 일지와 {who}의 일지는 육합, 서로 끌어당겨 묶이는 자리다.")
     elif pf.ilji_relation == "충":
         lines.append(f"본인 일지와 {who}의 일지는 충, 강하게 부딪히며 흔드는 자리다.")
+    if pf.ilji_hai:
+        lines.append(
+            f"본인 일지와 {who}의 일지는 해, 생활 리듬이 엇갈리기 쉬워 확인이 필요한 자리다."
+        )
+    if pf.ilji_po:
+        lines.append(
+            f"본인 일지와 {who}의 일지는 파, 가까워진 뒤에도 약속과 역할을 다시 맞춰야 하는 자리다."
+        )
+    if pf.ilji_wonjin:
+        lines.append(
+            f"본인 일지와 {who}의 일지는 원진, 이유 없이 서먹해지기 쉬워 감정을 천천히 확인해야 하는 자리다."
+        )
+    if pf.ilji_xing:
+        lines.append(
+            f"본인 일지와 {who}의 일지는 {pf.ilji_xing}, "
+            "비슷한 반응이 반복될 때 속도를 낮춰야 하는 자리다."
+        )
     if pf.ilji_banhap:
         lines.append(
             f"본인 일지와 {who}의 일지는 삼합의 짝, 만나면 {pf.ilji_banhap}의 기운이 "

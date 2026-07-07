@@ -35,6 +35,16 @@ def test_strict_helper_escalates_only_when_pairless():
     assert ct.placeholder_residue_strict_violations("상대 분의 명식", strict_pair=False)
 
 
+def test_ilji_tension_terms_do_not_trip_pairless_placeholder_gate():
+    # 형·해·파·원진 고객 문장은 관계 구조 어휘이지, "두 사람" 같은 커플 지칭 잔재가 아니다.
+    text = (
+        "생활 자리에서 엇갈리기 쉬운 결은 확인이 필요합니다. "
+        "매듭이 흔들릴 수 있는 결은 약속을 다시 맞추면 됩니다. "
+        "이유 없이 서먹해질 수 있는 결은 감정을 천천히 확인하면 됩니다."
+    )
+    assert ct.placeholder_residue_strict_violations(text, strict_pair=True) == []
+
+
 # ---- verify 판정: product + partner_present 승격 ----
 _CAND = [{"severity": "candidate", "rule": "couple_pair_reference", "count": 1}]
 

@@ -64,6 +64,34 @@ _ZHI_CHONG = {
     frozenset("辰戌"),
     frozenset("巳亥"),
 }
+# 일지 긴장 관계(docs/03 §1-1) — pairwise 완결 관계만 산출한다.
+# 삼형(寅巳申·丑戌未)은 두 지지만으로 맥락이 완결되지 않아 이번 범위에서 제외한다.
+_ZHI_HAI = {
+    frozenset("子未"),
+    frozenset("丑午"),
+    frozenset("寅巳"),
+    frozenset("卯辰"),
+    frozenset("申亥"),
+    frozenset("酉戌"),
+}
+_ZHI_PO = {
+    frozenset("子酉"),
+    frozenset("卯午"),
+    frozenset("巳申"),
+    frozenset("寅亥"),
+    frozenset("丑辰"),
+    frozenset("戌未"),
+}
+_ZHI_WONJIN = {
+    frozenset("子未"),
+    frozenset("丑午"),
+    frozenset("寅酉"),
+    frozenset("卯申"),
+    frozenset("辰亥"),
+    frozenset("巳戌"),
+}
+_ZHI_SELF_XING = set("辰午酉亥")
+_ZHI_XING_MUTUAL = {frozenset("子卯")}
 # 삼합국 — 두 지지가 같은 국이면 반합(기운이 살아나는 구조, 샘플 '화의 기운이 더 살아나는')
 _SAMHAP = [
     (set("申子辰"), "수"),
@@ -91,10 +119,17 @@ class PartnerFacts(BaseModel):
     shishen_to_me: str  # 나의 일간 기준 상대 일간의 십성(한자 — 표시 계층에서 한글化)
     gan_hap: str = ""  # 천간합(있을 때)
     ilji_relation: str = ""  # 일지 육합/충(있을 때)
+    ilji_hai: str = ""  # 일지 해(있을 때)
+    ilji_po: str = ""  # 일지 파(있을 때)
+    ilji_wonjin: str = ""  # 일지 원진(있을 때)
+    ilji_xing: str = ""  # 일지 형(자형/상형, pairwise 한정)
     ilji_banhap: str = ""  # 일지 삼합 반합(있을 때, 살아나는 오행)
     complements_elems_ko: list[str] = Field(default_factory=list)  # 보완하는 나의 부족 오행(한글)
     matches_my_yongshin: bool = False
-    note: str = "상대 명식은 신청 글의 생년월일 기준, 시간 미상으로 시주 제외·대운 미산출"
+    note: str = (
+        "상대 명식은 신청 글의 생년월일 기준, 시간 미상으로 시주 제외·대운 미산출. "
+        "일지 형은 자형·子卯 상형만 산출하고 삼형 완전판은 범위 밖으로 둔다"
+    )
 
 
 _ELEM_KO = {"木": "목", "火": "화", "土": "토", "金": "금", "水": "수"}
@@ -145,6 +180,15 @@ def partner_pillars(
         ilji = "충"
     else:
         ilji = ""
+    ilji_hai = "해" if pair in _ZHI_HAI else ""
+    ilji_po = "파" if pair in _ZHI_PO else ""
+    ilji_wonjin = "원진" if pair in _ZHI_WONJIN else ""
+    if my_day_zhi == pd.zhi and my_day_zhi in _ZHI_SELF_XING:
+        ilji_xing = "자형"
+    elif pair in _ZHI_XING_MUTUAL:
+        ilji_xing = "상형"
+    else:
+        ilji_xing = ""
     banhap = ""
     if my_day_zhi != pd.zhi:
         for group, elem_ko in _SAMHAP:
@@ -176,6 +220,10 @@ def partner_pillars(
         shishen_to_me=shishen,
         gan_hap=gan_hap,
         ilji_relation=ilji,
+        ilji_hai=ilji_hai,
+        ilji_po=ilji_po,
+        ilji_wonjin=ilji_wonjin,
+        ilji_xing=ilji_xing,
         ilji_banhap=banhap,
         complements_elems_ko=complements,
         matches_my_yongshin=matches,
