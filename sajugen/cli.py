@@ -46,6 +46,43 @@ def customer_find(
         )
 
 
+@app.command("customer-purge")
+def customer_purge(
+    alias: str = typer.Option(..., "--alias", help="식별자를 파기할 단골 별칭"),
+    yes: bool = typer.Option(False, "--yes", help="확인 프롬프트 없이 식별자 파기 실행"),
+    db: str = typer.Option(order_flow.DEFAULT_DB, "--db", help="주문 DB 경로"),
+) -> None:
+    """단골 식별자(name_masked)만 파기하고 명식·주문·별칭은 보존한다."""
+    store = OrderStore(db)
+    try:
+        try:
+            store.get_customer(alias)
+        except KeyError:
+            typer.echo(f"단골 없음(alias={alias})")
+            raise typer.Exit(code=1)
+
+        if not yes:
+            ok = typer.confirm(f"alias={alias} 식별자만 파기할까요? 명식·별칭·주문은 보존됩니다.")
+            if not ok:
+                typer.echo("식별자 파기 취소")
+                raise typer.Exit(code=1)
+
+        try:
+            store.purge_identifier(alias)
+        except KeyError:
+            typer.echo(f"단골 없음(alias={alias})")
+            raise typer.Exit(code=1)
+        customer = store.get_customer(alias)
+        typer.echo(
+            "식별자 파기 완료(alias={alias}, purged_at={purged_at}, 명식·별칭 보존)".format(
+                alias=alias,
+                purged_at=customer.get("purged_at") or "",
+            )
+        )
+    finally:
+        store.close()
+
+
 @app.command("gen-followup")
 def gen_followup(
     alias: str = typer.Option(..., "--alias", help="단골 별칭"),
