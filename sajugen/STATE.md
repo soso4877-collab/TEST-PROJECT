@@ -1,5 +1,17 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-07 후속·재방문 상담 T0~T4 구현 완료 — 이 블록 먼저 읽기) =====
+>   [TASK_PACKET 실행 완료] `C:\Users\pc\.claude\plans\ai-brain-50-decisions-2026-07-07-sajugen-shimmering-popcorn.md`
+>     기준으로 T0→T1→T2→T3→T4 순서 실행. 패킷 재해석 없음. 모순/범위 이탈로 멈춘 항목 없음.
+>   [T0] "상담에서" 원천 문구 제거, 월 표기 `간지월(절기명 - 양력 M/D~M/D)` 고정, 상대시제 절기경계 lint
+>     및 docs/prompt/tests 갱신. T0 직후 전체 테스트 **631 passed / 31 skipped / exit 0**, `상담에서` grep 0건.
+>   [T1~T4] customers 축과 orders additive migration, follow-up answer gate, Report23 기반 follow-up compose,
+>     `issue_final_text`, `run_followup`, CLI `customer-find`/`gen-followup` 구현. 최종 전체 테스트
+>     `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **660 passed / 31 skipped / exit 0**.
+>   [금지 준수] commit/push/PDF 재생성/LLM 호출 없음. `harness/profiles/local/**` 열람 없음. `scripts/hrun.py` 미실행.
+>   [교차리뷰 포인트] `sajugen/followup/*`, `sajugen/store/orders.py`, `sajugen/order_flow.py`, `sajugen/cli.py`,
+>     `sajugen/content/temporal_lint.py`, `sajugen/calc/advanced.py`, 관련 tests 및 `docs/03-engine-validation-plan.md` 확인.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-06 다층검증 로드맵 P0~P8 전부 완료 — 이 블록 먼저 읽기) =====
 >   [다층 검증 시스템 로드맵 완주] "운영자보다 먼저 버그를 잡는" 프로세스 격상 — P0~P8 전 Phase
 >     구현·양방 테스트·커밋 완료. [P4 드라이런 완료 2026-07-06] customer2 합성 드라이런(운영자 승인
