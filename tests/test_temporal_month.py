@@ -33,33 +33,37 @@ def test_past_month_anchor_recommendation_is_flagged():
 
 
 def test_future_month_recommendations_pass():
-    # 미래 달 권유는 정상(오탐 0)
+    # 미래 달 권유도 맨몸 n월 대신 간지월(절기명 - 양력 M/D~M/D)로 쓰면 정상.
     for text in (
-        "9월 안에 준비를 시작해 두면 좋습니다.",
-        "10월 이후부터 열어두고 보시길 권합니다.",
-        "8월부터 시작되는 흐름을 보세요.",
+        "정유월(백로 - 양력 9/7~10/8) 안에 준비를 시작해 두면 좋습니다.",
+        "무술월(한로 - 양력 10/8~11/7) 이후부터 열어두고 보시길 권합니다.",
+        "병신월(입추 - 양력 8/7~9/7)부터 시작되는 흐름을 보세요.",
     ):
         assert not tl.lint(text, 2026, ref_date=_REF), text
 
 
 def test_retrospective_past_month_passes():
-    # 회고 서술(행동 권유 아님)은 통과 — 과수정 방지 앵커
+    # 회고 서술도 월운 표기는 절기 구간을 함께 써야 한다.
     for text in (
-        "지난 4월에는 지출이 컸을 수 있습니다.",
-        "3월의 흐름은 무거웠습니다.",
-        "5월에 있었던 일은 정리 국면이었습니다.",
+        "지난 계사월(입하 - 양력 5/5~6/5)에는 지출이 컸을 수 있습니다.",
+        "임진월(청명 - 양력 4/4~5/5)의 흐름은 무거웠습니다.",
+        "계사월(입하 - 양력 5/5~6/5)에 있었던 일은 정리 국면이었습니다.",
     ):
         assert not tl.lint(text, 2026, ref_date=_REF), text
 
 
 def test_no_ref_date_keeps_legacy_behavior():
-    # ref_date 미전달(레거시) = 월 검사 생략(기존 동작 보존)
-    assert not tl.lint("4월 안에 준비를 시작해 두세요.", 2026)
+    # ref_date 가 없어도 맨몸 n월 표기는 차단한다. 과거/미래 월 판단만 생략된다.
+    assert tl.lint("4월 안에 준비를 시작해 두세요.", 2026)
 
 
 def test_next_year_past_month_number_passes():
-    # 연도 명시가 미래면 이른 달이어도 정상("2027년 3월부터 준비를 시작")
-    assert not tl.lint("2027년 3월부터 준비를 시작해 보세요.", 2026, ref_date=_REF)
+    # 연도 명시가 미래여도 맨몸 n월은 금지다. 간지월 구간 표기를 갖추면 정상.
+    assert not tl.lint(
+        "2027년 정묘월(경칩 - 양력 3/6~4/5)부터 준비를 시작해 보세요.",
+        2026,
+        ref_date=_REF,
+    )
 
 
 def test_compose_prompt_carries_month_anchor_and_feedback(monkeypatch):
@@ -103,4 +107,5 @@ def test_compose_prompt_carries_month_anchor_and_feedback(monkeypatch):
     p = captured["prompt"]
     assert "오늘은 2026년 7월 4일" in p  # 월 단위 닻
     assert "7월부터 12월" in p  # 남은 기간 지시
+    assert "간지월(절기명 - 양력 M/D~M/D)" in p  # 월운 표기 규약
     assert "재작성 사유" in p and "쯤" in p  # 위반 피드백

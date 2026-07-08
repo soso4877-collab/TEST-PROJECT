@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import timedelta, timezone
 
 # --- 표시 매핑 (계산 아님: lunar-python/iztro-py 한자 산출물을 한국어 표시로 치환) ---
 _SHISHEN_KO = {
@@ -303,6 +304,62 @@ _TWELVE_MEAN = {
     "화개살": "몰입·학문·예술의 자리",
 }
 _PILLAR_KO_LABEL = {"year": "년주", "month": "월주", "day": "일주", "hour": "시주"}
+_KST = timezone(timedelta(hours=9))
+_JIE_KO = {
+    "立春": "입춘",
+    "驚蟄": "경칩",
+    "清明": "청명",
+    "立夏": "입하",
+    "芒種": "망종",
+    "小暑": "소서",
+    "立秋": "입추",
+    "白露": "백로",
+    "寒露": "한로",
+    "立冬": "입동",
+    "大雪": "대설",
+    "小寒": "소한",
+}
+_WORUN_JIE = [
+    (315, 0),
+    (345, 0),
+    (15, 0),
+    (45, 0),
+    (75, 0),
+    (105, 0),
+    (135, 0),
+    (165, 0),
+    (195, 0),
+    (225, 0),
+    (255, 0),
+    (285, 1),
+    (315, 1),
+]
+
+
+def _term_date(year: int, lon: int):
+    """절입 UTC 시각을 고객이 읽는 양력 KST 날짜로 바꾼다. 표시 전용이며 계산 판정은 바꾸지 않는다."""
+    from ..calc import solarterms
+
+    raw = solarterms.solar_term_time(year, lon)
+    return raw.replace(tzinfo=timezone.utc).astimezone(_KST).date(), solarterms.TERMS[lon]
+
+
+def _worun_label(ganzhi: str, ref_year: int | None, idx: int) -> str:
+    """월운 표시 규약: 간지월(절기명 - 양력 M/D~M/D). 맨몸 n월은 쓰지 않는다."""
+    month_name = f"{_gz_ko(ganzhi)}월"
+    if not ref_year or not 0 <= idx < 12:
+        return f"{month_name}(절기 구간 확인 필요)"
+    try:
+        start_lon, start_off = _WORUN_JIE[idx]
+        end_lon, end_off = _WORUN_JIE[idx + 1]
+        start, term = _term_date(ref_year + start_off, start_lon)
+        end, _ = _term_date(ref_year + end_off, end_lon)
+    except Exception:
+        return f"{month_name}(절기 구간 확인 필요)"
+    return (
+        f"{month_name}({_JIE_KO.get(term, term)} - 양력 "
+        f"{start.month}/{start.day}~{end.month}/{end.day})"
+    )
 
 
 def _shinsal_by_weight(detail) -> list:
@@ -1065,8 +1122,8 @@ def build_all(
         f"억부(抑扶) 방식으로 본 참고 용신은 {m.yongshin_eokbu}"
         f"({m.yongshin_axis}) 방향입니다. 다만 용신은 억부·조후·통관·병약·"
         f"종격 등 방식에 따라 달라질 수 있어, 이 결과지는 억부 한 가지 방식의 "
-        f"참고만 제시합니다. 정확한 용신과 격국의 세밀한 판정은 상담에서 "
-        f"확정하시길 권합니다. 격국·용신은 좋고 나쁨의 단정이 아니라, 타고난 "
+        f"참고만 제시합니다. 학설에 따라 시각이 갈려 단정 대신 참고로 "
+        f"짚어드립니다. 격국·용신은 좋고 나쁨의 단정이 아니라, 타고난 "
         f"기운을 어떻게 쓰면 좋을지의 방향을 보는 도구로 활용하시면 됩니다."
     )
 
@@ -1180,7 +1237,7 @@ def build_all(
         f"{_J(_singang_phrase(m.singang, kind='work'), '을를')} 염두에 두고, "
         f"대운이 바뀌는 전환기에는 환경 변화를 미리 준비해 두면 흐름을 타기 "
         f"수월해집니다. 적성은 하나의 정답이 아니라 강점이 잘 쓰이는 환경을 "
-        f"찾는 관점이며, 합격이나 취업의 결과를 단정하지는 않습니다."
+        f"찾는 관점입니다."
     )
 
     wealth_p = _palace(z, "재백궁")
@@ -1196,18 +1253,15 @@ def build_all(
         f"재정에서는 {_J(_singang_phrase(m.singang, kind='money'), '을를')} 염두에 "
         f"두고 버는 흐름과 쓰는 흐름의 균형을 한 번 점검해 보시고, {gk}의 방향을 "
         f"크게 거스르는 결정 앞에서는 충분히 검토하고 분산해 두는 것이 좋습니다. "
-        f"세운 흐름이 바뀌는 전환기에는 관리의 박자도 한 번 조정해 보세요. "
-        f"수익이나 손실을 단정하거나 보장하지는 않습니다."
+        f"세운 흐름이 바뀌는 전환기에는 관리의 박자도 한 번 조정해 보세요."
     )
 
     health_p = _palace(z, _DOMAIN_PALACE["건강"])
     health_sal = [s for s in m.shinsal if _SHINSAL_META.get(s, {}).get("group") == "에너지"][:3]
-    # 의료 비단정 원칙 유지(진단 아님 + 진료 권유) — 표현만 자연스럽게
-    # (운영자 지시 2026-06-12: '전문가와 상의' 류 보일러플레이트 금지).
+    # 의료 비단정 프레이밍은 유지하되, 회피형 안내문은 고객용 문장에 넣지 않는다.
     T["health"] = (
         f"이 장은 병을 진단하는 자리가 아니라, 몸과 마음의 호흡을 살피는 "
-        f"자리입니다. 몸이 보내는 신호가 이어진다면 병원 진료로 먼저 "
-        f"확인해 보세요.\n"
+        f"자리입니다.\n"
         f"자미두수에서 몸 상태를 보는 자리는 질액궁입니다. "
         f"{_palace_para(health_p, '몸 상태와 생활 관리', myeongni_hint=f'{mx_ko} 기운({mx_mn})의 강약') if health_p else '이 상품 구성에서는 이 자리를 생략합니다.'}\n"
         f"다섯 기운으로 보면, {mx_ko} 기운({mx_mn})이 강하고 {mn_ko} 기운"
@@ -1224,8 +1278,8 @@ def build_all(
         )
         + f"생활에서는 강한 기운으로 치우쳐 무리하지 않게 휴식의 박자를 두고, "
         f"옅은 기운은 수면·식사·운동 같은 생활 습관으로 채워 가는 것이 "
-        f"좋습니다. 몸 상태 변화는 기록해 두었다가, 몸의 신호가 이어지면 "
-        f"병원에서 확인해 보세요."
+        f"좋습니다. 몸 상태 변화는 그때그때 기록해 두고, 회복이 더딘 날은 "
+        f"무리한 일정을 덜어 내세요."
     )
 
     # 현재 대운 단일 사실(실사고 2026-06-14): 기준 연도의 현재 대운 하나를 명시 주입해
@@ -1274,7 +1328,7 @@ def build_all(
     period_str = (
         f"자미두수 유년·대한 기준({('유년 ' + yr) if yr else ''}{(' · 대한 ' + dc) if dc else ''})"
         if (yr or dc)
-        else "자미두수 유년·대한(상담에서 시점을 정해 함께 살피는 구간)"
+        else "자미두수 유년·대한(기준 시점을 정해 참고로 살피는 구간)"
     )
     age_str = ""  # 나이 가정어('약 N세 전후') 제거 — 시기는 아래 ref_year 세운 연도로 앵커
     # 기준 연도 닻(2026-06-12 버그 수정): '올해'는 ref_year 와 정확히 일치하는
@@ -1309,12 +1363,13 @@ def build_all(
     if m.worun and len(m.worun) >= 12:
         q = [m.worun[0], m.worun[3], m.worun[6], m.worun[9]]
         wol_q = " · ".join(
-            f"{lab}분기 {_gz_ko(g)}({_gz_elem(g)})" for lab, (_, g) in zip(["1", "2", "3", "4"], q)
+            f"{lab}분기 {_worun_label(g, ref_year, idx)}({_gz_elem(g)})"
+            for lab, idx, (_, g) in zip(["1", "2", "3", "4"], [0, 3, 6, 9], q)
         )
     T["monthly"] = (
         f"월별 흐름은 대운({daewoon_dir})과 그해 세운의 방향을 바탕으로 봅니다. "
-        f"결과지에서는 큰 흐름만 짚어 드리며, 특정 달에 특정 사건이 일어난다고 "
-        f"단정하지 않습니다.\n"
+        f"월마다의 간지와 절기 구간은 일과 관계의 속도를 조절하는 기준으로 "
+        f"삼으면 좋습니다.\n"
         + (
             f"{'올해(' + str(ref_year) + '년)' if ref_year else '기준 해'}의 월운을 분기로 나눠 보면 {wol_q}입니다. 분기마다 "
             f"강조되는 오행의 색이 달라지니, 앞쪽은 시작과 준비, 가운데는 "
@@ -1324,15 +1379,15 @@ def build_all(
             else "한 해를 분기로 나눠 시작·추진·마무리의 결로 박자를 잡는 식으로 봅니다.\n"
         )
         + f"달마다의 흐름은 일과 관계의 속도를 잡는 참고로 쓰시고, 구체적인 "
-        f"달별 조언은 시점을 정해 상담에서 함께 정리하시길 권합니다."
+        f"달별 조언은 기준 시점을 정해 이어서 짚어드립니다."
     )
 
     if seun_fwd:
         seun_str = ", ".join(f"{y}년 {_gz_ko(g)}" for y, g in seun_fwd)
         wol_str = (
-            ", ".join(f"{i + 1}월 {_gz_ko(g)}" for i, (_, g) in enumerate(m.worun))
+            ", ".join(_worun_label(g, ref_year, i) for i, (_, g) in enumerate(m.worun))
             if m.worun
-            else "상담에서 기준 시점을 정해 함께 봅니다"
+            else "기준 시점을 정하면 이어서 짚어드립니다"
         )
         _yr_lab = f"올해({ref_year}년)의" if ref_year else "기준 해의"
         T["seun"] = (
@@ -1350,8 +1405,8 @@ def build_all(
             "세운(해마다의 흐름)과 월운(달마다의 오르내림)은 대운의 큰 흐름 위에서 "
             "함께 보는 참고입니다. 기준 시점(예: 올해)을 정하면 그 구간의 "
             "세운·월운 간지를 짚어 시기별 준비의 완급을 살펴볼 수 있습니다. "
-            "특정 사건을 단정하지 않으며, 정확한 시기 풀이는 상담에서 시점을 "
-            "정해 함께 정리하시길 권합니다."
+            "특정 사건을 단정하지 않으며, 시기 풀이는 기준 시점과 상황을 "
+            "정해 이어서 짚어드립니다."
         )
 
     # P4: '명리는 흐름/자미는 구조' 역할분담 정형 소거 — 지도 은유로 교체(반복어 '구조' 억제 겸).
@@ -1472,8 +1527,7 @@ def build_all(
         f"· 같은 고민이 반복되면 → {mon_sg}의 결로 치우치지 않았는지 "
         f"점검하고 한 가지만 바꿔 보세요.\n"
         f"한 번에 많이 바꾸기보다 한두 가지를 정해 꾸준히 점검하는 방식을 "
-        f"권하며, 구체적인 계획은 상담에서 시점과 상황을 정해 함께 정리할 수 "
-        f"있습니다."
+        f"권하며, 더 궁금한 점은 질문 주시면 이어서 짚어드립니다."
     )
 
     T["caution"] = (
@@ -1487,7 +1541,7 @@ def build_all(
     )
 
     T["questions"] = (
-        "상담에서 함께 다루면 좋은 질문을 제안해 드립니다.\n"
+        "이어서 다루면 좋은 질문을 제안해 드립니다.\n"
         "① 올해 집중할 한 가지는 무엇인가\n"
         "② 관계에서 지금 점검할 부분은 무엇인가\n"
         "③ 일·재물 결정에서 확인할 포인트는 무엇인가\n"

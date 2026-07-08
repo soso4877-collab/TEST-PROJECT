@@ -498,18 +498,18 @@ def test_compose_falls_back_on_past_month_advice(monkeypatch):
 
 def test_compose_keeps_future_month_advice(monkeypatch):
     # 감지 층(양방-통과): 미래 달 권유는 폴백 아님(오탐 0 앵커).
-    _fake_anthropic(monkeypatch, "9월 이후부터 더 열어두고 보시길 권합니다.")
+    _fake_anthropic(monkeypatch, "정유월(백로 - 양력 9/7~10/8) 이후부터 더 열어두고 보시길 권합니다.")
     out = g._compose(
         "timing",
         "근거 슬롯",
-        {"ganzhi": [], "ganzhi_ko": []},
+        {"ganzhi": [], "ganzhi_ko": ["정유"]},
         "",
         ["김태수"],
         2026,
         use_llm=True,
         ref_date="2026-07-04",
     )
-    assert "9월" in out and out != "근거 슬롯"
+    assert "정유월" in out and out != "근거 슬롯"
 
 
 def test_build_gunghap_wires_ref_date_to_compose_and_verify(monkeypatch):

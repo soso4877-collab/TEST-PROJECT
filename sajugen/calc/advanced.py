@@ -106,7 +106,7 @@ def eokbu(pillars: dict, day_master: str) -> dict:
             "label": "중화",
             "score": score,
             "yongshin": "중화에 가까워 단정이 어려움",
-            "axis": "상담에서 확정 권장",
+            "axis": "단정 대신 참고로 제시",
         }
     return {
         "label": label,

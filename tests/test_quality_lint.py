@@ -97,7 +97,11 @@ def test_temporal_flags_past_or_current_year():
 def test_temporal_flags_past_month_as_future_when_ref_date_known():
     hits = tl.lint("4월이 오면 자산 흐름이 열립니다.", 2026, ref_date="2026-06-25")
     assert hits
-    assert tl.is_clean("7월이 오면 자산 흐름을 다시 봅니다.", 2026, ref_date="2026-06-25")
+    assert tl.is_clean(
+        "을미월(소서 - 양력 7/7~8/7)이 오면 자산 흐름을 다시 봅니다.",
+        2026,
+        ref_date="2026-06-25",
+    )
 
 
 # ── 이슈2: 자미 골격 잔재(룰 경로, 무LLM) ──
