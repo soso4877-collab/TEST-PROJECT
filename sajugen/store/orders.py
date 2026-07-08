@@ -81,16 +81,28 @@ class OrderStore:
     def _init(self) -> None:
         # 검수 UI: 생성 스레드(쓰기)와 화면 폴링(읽기) 동시 접근 시 잠금 대기
         self._conn.execute("PRAGMA busy_timeout=5000")
+        # 후속 상담용 customers.alias 참조 무결성. 기존 NULL alias 주문은 영향 없다.
+        self._conn.execute("PRAGMA foreign_keys=ON")
         # WAL: 쓰기 중에도 읽기 허용(생성 스레드 쓰기 + 화면 폴링 읽기 동시성 개선).
         # synchronous=NORMAL: WAL 과 함께 안전(전원 손실 외 내구성 유지) — 내부 도구에 적정(T5.5/C-4).
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
         self._conn.executescript(
             """
+            CREATE TABLE IF NOT EXISTS customers (
+                alias       TEXT PRIMARY KEY,
+                name_masked TEXT,
+                consent_at  TEXT,
+                purged_at   TEXT,
+                created_at  TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS orders (
                 order_id   TEXT PRIMARY KEY,
                 state      TEXT NOT NULL,
                 report_json TEXT NOT NULL,
+                alias      TEXT REFERENCES customers(alias),
+                parent_order_id TEXT,
+                kind       TEXT DEFAULT 'new',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
@@ -107,6 +119,14 @@ class OrderStore:
             );
             """
         )
+        cols = {r[1] for r in self._conn.execute("PRAGMA table_info(orders)")}
+        for name, ddl in (
+            ("alias", "TEXT REFERENCES customers(alias)"),
+            ("parent_order_id", "TEXT"),
+            ("kind", "TEXT DEFAULT 'new'"),
+        ):
+            if name not in cols:
+                self._conn.execute(f"ALTER TABLE orders ADD COLUMN {name} {ddl}")
         self._conn.commit()
 
     def close(self) -> None:
@@ -114,19 +134,128 @@ class OrderStore:
 
     # ───────────────── 생성/조회 ─────────────────
 
-    def create(self, report: UnifiedReport, *, actor: str = "system") -> str:
+    def create(
+        self,
+        report: UnifiedReport,
+        *,
+        actor: str = "system",
+        alias: str | None = None,
+        parent_order_id: str | None = None,
+        kind: str = "new",
+    ) -> str:
         """주문 생성(상태 RECEIVED). report.order_id 가 비면 발급."""
         oid = report.order_id or new_order_id()
         report = report.model_copy(update={"order_id": oid})
         now = _now()
         self._conn.execute(
-            "INSERT INTO orders (order_id, state, report_json, created_at, updated_at) "
-            "VALUES (?,?,?,?,?)",
-            (oid, OrderState.RECEIVED.value, report.model_dump_json(), now, now),
+            "INSERT INTO orders "
+            "(order_id, state, report_json, alias, parent_order_id, kind, created_at, updated_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (
+                oid,
+                OrderState.RECEIVED.value,
+                report.model_dump_json(),
+                alias,
+                parent_order_id,
+                kind or "new",
+                now,
+                now,
+            ),
         )
         self._audit(oid, actor, "create", None, OrderState.RECEIVED, at=now)
         self._conn.commit()
         return oid
+
+    def _next_customer_alias(self) -> str:
+        """현재 customers 테이블 상태만으로 다음 단골번호를 결정한다. PII를 채번에 쓰지 않는다."""
+        rows = self._conn.execute("SELECT alias FROM customers WHERE alias GLOB 'SD-[0-9]*'").fetchall()
+        nums: list[int] = []
+        for row in rows:
+            tail = str(row["alias"])[3:]
+            if tail.isdigit():
+                nums.append(int(tail))
+        return f"SD-{(max(nums) + 1) if nums else 1:04d}"
+
+    def link_customer(
+        self,
+        alias: str | None = None,
+        *,
+        name_masked: str | None = None,
+        consent_at: str | None = None,
+    ) -> str:
+        """단골 별칭을 생성/갱신한다. 식별자는 마스킹본만 받고, 원문 PII는 저장하지 않는다."""
+        alias = (alias or "").strip() or self._next_customer_alias()
+        now = _now()
+        self._conn.execute(
+            """
+            INSERT INTO customers (alias, name_masked, consent_at, purged_at, created_at)
+            VALUES (?, ?, ?, NULL, ?)
+            ON CONFLICT(alias) DO UPDATE SET
+                name_masked=excluded.name_masked,
+                consent_at=COALESCE(excluded.consent_at, customers.consent_at),
+                purged_at=CASE
+                    WHEN excluded.name_masked IS NOT NULL THEN NULL
+                    ELSE customers.purged_at
+                END
+            """,
+            (alias, name_masked, consent_at or now, now),
+        )
+        self._conn.commit()
+        return alias
+
+    def get_customer(self, alias: str) -> dict:
+        """단골 메타 조회. 이름 원문은 없고 name_masked 만 반환된다."""
+        row = self._conn.execute("SELECT * FROM customers WHERE alias=?", (alias,)).fetchone()
+        if not row:
+            raise KeyError(f"단골 없음: {alias}")
+        return dict(row)
+
+    def find_customers(
+        self, *, alias: str | None = None, name_masked: str | None = None
+    ) -> list[dict]:
+        """단골 검색. 최근 주문 메타를 함께 반환하되, 이름은 마스킹 저장값만 노출한다."""
+        q = (
+            "SELECT c.alias, c.name_masked, c.consent_at, c.purged_at, c.created_at, "
+            "o.order_id AS latest_order_id, o.kind AS latest_kind, o.created_at AS latest_order_created_at "
+            "FROM customers c "
+            "LEFT JOIN orders o ON o.order_id = ("
+            "  SELECT oo.order_id FROM orders oo WHERE oo.alias=c.alias "
+            "  ORDER BY oo.created_at DESC, oo.order_id DESC LIMIT 1"
+            ")"
+        )
+        where: list[str] = []
+        args: list[str] = []
+        if alias:
+            where.append("c.alias=?")
+            args.append(alias)
+        if name_masked:
+            where.append("c.name_masked LIKE ?")
+            args.append(f"%{name_masked}%")
+        if where:
+            q += " WHERE " + " AND ".join(where)
+        q += " ORDER BY c.created_at DESC, c.alias DESC"
+        return [dict(r) for r in self._conn.execute(q, tuple(args)).fetchall()]
+
+    def latest_order_for_alias(self, alias: str) -> str:
+        """단골 별칭의 최신 주문 ID. 후속 답변의 부모 주문 선택에 사용한다."""
+        row = self._conn.execute(
+            "SELECT order_id FROM orders WHERE alias=? ORDER BY created_at DESC, order_id DESC LIMIT 1",
+            (alias,),
+        ).fetchone()
+        if not row:
+            raise KeyError(f"단골 주문 없음: {alias}")
+        return str(row["order_id"])
+
+    def purge_identifier(self, alias: str) -> None:
+        """단골 식별자만 파기한다. alias 와 기존 주문/report_json 은 보존한다."""
+        now = _now()
+        cur = self._conn.execute(
+            "UPDATE customers SET name_masked=NULL, purged_at=? WHERE alias=?",
+            (now, alias),
+        )
+        if cur.rowcount == 0:
+            raise KeyError(f"단골 없음: {alias}")
+        self._conn.commit()
 
     def get_state(self, order_id: str) -> OrderState:
         row = self._conn.execute(
@@ -157,6 +286,7 @@ class OrderStore:
         """주문 목록(최신순) — 검수 UI 목록 화면용 요약."""
         q = (
             "SELECT order_id, state, created_at, updated_at, "
+            "alias, parent_order_id, COALESCE(kind, 'new') AS kind, "
             "json_extract(report_json,'$.birth.name') AS name, "
             "json_extract(report_json,'$.birth.input_date') AS input_date, "
             "json_extract(report_json,'$.safety_flags.needs_review') AS needs_review "
@@ -239,6 +369,26 @@ class OrderStore:
         self._audit(order_id, actor, "issue_final_pdf", None, None, note=pdf_path)
         self.transition(order_id, OrderState.DELIVERED, actor=actor, note="final pdf issued")
         return pdf_path
+
+    def issue_final_text(self, order_id: str, *, actor: str = "admin") -> str:
+        """후속 텍스트 발급 — APPROVED 일 때만. 승인 전에는 ApprovalRequired 예외."""
+        state = self.get_state(order_id)
+        if state != OrderState.APPROVED:
+            raise ApprovalRequired(
+                f"APPROVED 이전 최종 텍스트 발급 금지(현재 {state.value}) — 절대규칙 16"
+            )
+        report = self.get_report(order_id)
+        text = str(report.derived_interpretation.get("followup_answer") or "").strip()
+        if not text:
+            for q in report.customer_questions:
+                if q.answer_text.strip():
+                    text = q.answer_text.strip()
+                    break
+        if not text:
+            raise KeyError(f"후속 답변 없음: {order_id}")
+        self._audit(order_id, actor, "issue_final_text", None, None, note=f"{len(text)}자")
+        self.transition(order_id, OrderState.DELIVERED, actor=actor, note="final text issued")
+        return text
 
     # ───────────────── audit ─────────────────
 
