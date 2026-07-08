@@ -26,10 +26,12 @@ from .input import time_correction as tc
 from .models.report import (
     BirthInput,
     CalendarVerification,
+    CustomerQuestion,
     ReportPlan,
     SafetyFlags,
     UnifiedReport,
 )
+from .followup import compose as followup_compose
 from .render import pdf as render_pdf
 from .render import verify as render_verify
 from .store.orders import OrderState, OrderStore
@@ -244,6 +246,102 @@ def retry_calc(order_id: str, *, db_path: str = DEFAULT_DB) -> None:
     try:
         if st.get_state(order_id) == OrderState.CALC_MISMATCH:
             st.transition(order_id, OrderState.NORMALIZED, actor="admin", note="재계산 재시도")
+    finally:
+        st.close()
+
+
+def _followup_domain(category: str) -> str:
+    return {
+        "연애": "love",
+        "직업": "job",
+        "재물": "wealth",
+        "건강": "health",
+        "시기": "timing",
+    }.get(category, "etc")
+
+
+def run_followup(
+    *,
+    alias: str,
+    question: str,
+    kind: str = "followup",
+    order_id: str | None = None,
+    use_llm: bool = False,
+    db_path: str = DEFAULT_DB,
+    backend=None,
+    today=None,
+) -> dict:
+    """저장 report_json 기반 후속 답변 주문 생성.
+
+    계산은 건너뛰고 부모 주문의 저장 사실만 재사용한다. 게이트 실패 시 새 주문을 만들지 않는다.
+    """
+    clean_alias = (alias or "").strip()
+    if not clean_alias:
+        return {"ok": False, "reason": "alias 없음", "failures": [], "skipped": []}
+    st = OrderStore(db_path)
+    try:
+        st.get_customer(clean_alias)
+        parent_id = order_id or st.latest_order_for_alias(clean_alias)
+        parent = st.get_report(parent_id)
+        if backend is None:
+            from .content import llm_sections
+
+            backend = llm_sections.get_backend() if use_llm else llm_sections.RuleBackend()
+        result = followup_compose.compose(parent, question, backend=backend, today=today)
+        if not result.get("ok"):
+            return result
+
+        answer = result["answer"]
+        masked_question = result.get("masked_question", "")
+        category = result.get("category", "전반")
+        report = parent.model_copy(
+            deep=True,
+            update={
+                "order_id": "",
+                "content": {},
+                "customer_questions": [
+                    CustomerQuestion(
+                        raw=masked_question,
+                        domain=_followup_domain(category),
+                        answer_text=answer,
+                        answer_status="draft",
+                    )
+                ],
+                "derived_interpretation": {
+                    **dict(parent.derived_interpretation or {}),
+                    "followup_answer": answer,
+                },
+                "render_meta": {
+                    "followup": {
+                        "parent_order_id": parent_id,
+                        "category": category,
+                        "masked_question": masked_question,
+                    }
+                },
+                "safety_flags": SafetyFlags(
+                    safe_lint_total=0,
+                    factcheck_total=0,
+                    grounding_ok=True,
+                    needs_review=False,
+                ),
+            },
+        )
+        new_id = st.create(
+            report,
+            alias=clean_alias,
+            parent_order_id=parent_id,
+            kind=kind if kind in {"followup", "revisit"} else "followup",
+        )
+        st.transition(new_id, OrderState.NORMALIZED, actor="system", note="followup stored facts reused")
+        st.transition(new_id, OrderState.CALC_OK, actor="system", note="calculation skipped")
+        st.transition(new_id, OrderState.DRAFTED, actor="system", note="followup answer gate pass")
+        st.transition(new_id, OrderState.IN_REVIEW, actor="system", note="followup ready for review")
+        return {
+            **result,
+            "order_id": new_id,
+            "parent_order_id": parent_id,
+            "state": st.get_state(new_id).value,
+        }
     finally:
         st.close()
 

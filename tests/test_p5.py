@@ -57,6 +57,7 @@ def test_cli_gen_runs_and_passes():
     res = CliRunner().invoke(
         cli_app,
         [
+            "gen",
             "--birth",
             "2000-01-01 12:00",
             "--gender",

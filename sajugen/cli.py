@@ -5,12 +5,73 @@ from __future__ import annotations
 
 import typer
 
+from . import order_flow
 from .content import llm_usage
 from .input import normalize as norm
 from .input import time_correction as tc
 from .pipeline import generate
+from .store.orders import OrderStore
 
 app = typer.Typer(add_completion=False, help="사주풀이 PDF 생성기 (운영자 내부 도구)")
+
+
+@app.command("customer-find")
+def customer_find(
+    name: str | None = typer.Option(None, "--name", help="마스킹 식별자 검색어"),
+    alias: str | None = typer.Option(None, "--alias", help="단골 별칭"),
+    db: str = typer.Option(order_flow.DEFAULT_DB, "--db", help="주문 DB 경로"),
+) -> None:
+    """단골 별칭과 최근 주문을 찾는다. 이름은 name_masked 저장값만 출력한다."""
+    if not name and not alias:
+        typer.echo("--name 또는 --alias 중 하나는 필요합니다.")
+        raise typer.Exit(code=1)
+    store = OrderStore(db)
+    try:
+        rows = store.find_customers(alias=alias, name_masked=name)
+    finally:
+        store.close()
+    if not rows:
+        typer.echo("검색 결과 없음")
+        raise typer.Exit(code=1)
+    for row in rows:
+        typer.echo(
+            "alias={alias} name_masked={name} latest_order_id={order} "
+            "kind={kind} purged_at={purged}".format(
+                alias=row.get("alias") or "",
+                name=row.get("name_masked") or "",
+                order=row.get("latest_order_id") or "",
+                kind=row.get("latest_kind") or "",
+                purged=row.get("purged_at") or "",
+            )
+        )
+
+
+@app.command("gen-followup")
+def gen_followup(
+    alias: str = typer.Option(..., "--alias", help="단골 별칭"),
+    question: str = typer.Option(..., "--question", help="후속 질문"),
+    kind: str = typer.Option("followup", "--kind", help="followup|revisit"),
+    order_id: str | None = typer.Option(None, "--order-id", help="부모 주문 ID(미지정 시 최신 주문)"),
+    llm: bool = typer.Option(False, "--llm", help="ANTHROPIC_API_KEY가 있을 때 LLM 답변 생성"),
+    db: str = typer.Option(order_flow.DEFAULT_DB, "--db", help="주문 DB 경로"),
+) -> None:
+    """저장 리포트 사실만 재사용해 후속 텍스트 답변 주문을 만든다."""
+    result = order_flow.run_followup(
+        alias=alias,
+        question=question,
+        kind=kind,
+        order_id=order_id,
+        use_llm=llm,
+        db_path=db,
+    )
+    if not result.get("ok"):
+        typer.echo("게이트: FAIL - " + str(result.get("reason") or "후속 답변 실패"))
+        rules = sorted({str(f.get("rule")) for f in result.get("failures", []) if f.get("rule")})
+        if rules:
+            typer.echo("failures: " + ",".join(rules[:12]))
+        raise typer.Exit(code=1)
+    typer.echo(f"order_id={result['order_id']} parent_order_id={result['parent_order_id']} state={result['state']}")
+    typer.echo(result["answer"])
 
 
 @app.command()
