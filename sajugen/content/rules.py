@@ -754,9 +754,11 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
     topics: list[str] = []
     detail_parts: list[str] = []
     has_house = _has_any(text, ("집", "아파트", "매매", "부동산", "이사", "거처"))
-    has_region = _has_any(text, ("김포", "계양"))
-    has_group = _has_any(text, ("청마", "로타리", "클럽", "창립", "모임", "단체", "봉사"))
-    has_helper = _has_any(text, ("도와", "도움", "협조", "귀인", "장재화", "조력"))
+    has_region = _has_any(
+        text, ("지역", "거주지", "생활권", "생활 동선", "동네", "어디로 이사")
+    )
+    has_group = _has_any(text, ("로타리", "클럽", "창립", "모임", "단체", "봉사"))
+    has_helper = _has_any(text, ("도와", "도움", "협조", "귀인", "조력"))
     has_contract = _has_any(text, ("계약", "매매", "대출", "가격", "손해", "명의", "잔금"))
     has_land_asset = _has_any(text, ("땅", "토지", "자산", "재산", "부동산", "땅값"))
     has_children = _has_any(text, ("자식복", "자식", "자녀", "아이"))
@@ -770,13 +772,12 @@ def _consult_context(concern_text: str | None) -> dict[str, object]:
             "집은 마음이 끌리는 곳보다 생활 거리와 실제 버틸 힘을 먼저 보아야 합니다."
         )
     if has_region:
-        topics.append("김포와 계양 같은 지역 비교")
+        topics.append("지역 비교")
         detail_parts.append(
             "지역은 이름보다 낮과 저녁의 동선, 병원과 장보기, 주변 사람의 도움을 같이 확인해야 합니다."
         )
     if has_group:
-        label = "청마로타리클럽 창립" if ("청마" in text and "로타리" in text) else "모임 창립"
-        topics.append(label)
+        topics.append("모임 창립" if "창립" in text else "모임과 단체 운영")
         detail_parts.append("모임 창립은 역할과 돈 관리를 작게 나누어 시작해야 오래 갑니다.")
     if has_helper:
         topics.append("도움을 주겠다는 사람의 신뢰")

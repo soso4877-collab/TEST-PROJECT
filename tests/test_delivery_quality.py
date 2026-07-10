@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sajugen.content import delivery_quality as dq  # noqa: E402
@@ -11,12 +13,12 @@ from sajugen.content import delivery_quality as dq  # noqa: E402
 def _premium_text() -> str:
     lead = (
         "자미두수로 보면 집과 터전의 판단이 강하고, 돈과 계약은 서류 확인이 먼저입니다. "
-        "이사는 김포와 계양을 모두 놓고 생활 거리와 병원, 사람의 도움을 같이 보아야 합니다. "
+        "이사는 두 지역의 생활권을 놓고 이동 거리와 병원, 사람의 도움을 같이 보아야 합니다. "
         "로타리 클럽 창립은 모임의 역할을 작게 나누고 돈 관리는 따로 두면 좋습니다. "
         "배우자의 도움은 받을 수 있지만 명의와 큰돈은 직접 확인해야 합니다. "
         "올해 하반기에는 매매 조건을 고르고, 내년 상반기에는 실제 거처를 굳히는 판단 지점이 옵니다. "
         "먼저 가격과 계약 조건을 적고, 서두르지 말고 사람의 말보다 문서를 확인하세요. "
-        "청마라는 이름은 이전 맥락으로만 짧게 참고하면 충분합니다. "
+        "합성 모임이라는 이름은 요청 맥락으로만 짧게 참고하면 충분합니다. "
     )
     filler = (
         "이 풀이에서는 집 문제와 사람 문제를 분리해서 봅니다. "
@@ -94,19 +96,19 @@ def test_premium_without_customer_context_reports_layout_and_repetition_only():
 
 
 def test_premium_integrated_question_passes_when_axes_and_ziwei_are_present():
-    concern = "아파트 매매와 김포 이사, 로타리 클럽 창립, 도와주는 사람과 시기가 궁금합니다"
+    concern = "아파트 매매와 지역 이사, 로타리 클럽 창립, 도와주는 사람과 시기가 궁금합니다"
     r = dq.analyze(
         _premium_text(),
         pages=27,
         product="integrated",
         concern=concern,
-        expected_context_terms=["청마"],
+        expected_context_terms=["합성 모임"],
     )
     assert r["clean"] is True, r
     assert r["premium"] is True
     assert r["missing_axes"] == []
     assert r["ziwei"]["ok"] is True
-    assert r["expected_context_hits"]["청마"] == 1
+    assert r["expected_context_hits"]["합성 모임"] == 1
     assert r["ziwei"]["cross_domains"]
 
 
@@ -117,7 +119,7 @@ def test_generated_premium_context_report_passes_with_domain_term_repetition_war
 
     saju = engine.build(1966, 8, 1, 2, 0, is_male=False, horoscope_date="2026-06-01")
     concern = (
-        "집 매매와 김포 이주, 계양과 비교, 청마로타리클럽 창립, "
+        "집 매매와 두 지역의 생활권 비교, 합성 모임 창립, "
         "도와주는 사람 도움 여부, 계약 주의점과 시기가 궁금합니다"
     )
     rep = builder.build_report(
@@ -135,12 +137,12 @@ def test_generated_premium_context_report_passes_with_domain_term_repetition_war
         product="integrated",
         premium=True,
         concern=concern,
-        expected_context_terms=["청마"],
+        expected_context_terms=["모임 창립"],
     )
     assert r["clean"] is True, r
     assert r["missing_axes"] == []
     assert r["ziwei"]["ok"] is True
-    assert r["expected_context_hits"]["청마"] == 1
+    assert r["expected_context_hits"]["모임 창립"] >= 1
     assert "domain_term_repetition" in {w["rule"] for w in r["warnings"]}
     assert "repetitive_phrasing" not in {f["rule"] for f in r["failures"]}
 
@@ -342,11 +344,15 @@ def test_ziwei_name_only_without_cross_domains_fails_premium():
     assert len(r["ziwei"]["cross_domains"]) < 2
 
 
-def test_customer_specific_context_requires_source_or_expected_context():
-    r = dq.analyze(_premium_text(), pages=27, product="integrated")
-    rules = {f["rule"] for f in r["failures"]}
-    assert "unbacked_context_terms" in rules
-    assert r["context_provenance"]["unbacked_terms"] == ["청마"]
+def test_customer_specific_context_uses_explicit_expected_terms():
+    r = dq.analyze(
+        _premium_text(),
+        pages=27,
+        product="integrated",
+        expected_context_terms=["합성 모임"],
+    )
+    assert r["context_provenance"]["unbacked_terms"] == []
+    assert r["expected_context_hits"]["합성 모임"] == 1
 
 
 def test_repetitive_ai_like_word_and_absolute_guarantee_fail():
@@ -439,15 +445,71 @@ def test_guarantee_lint_catches_hard_outcome_that_safe_lint_misses():
 
 def test_expected_context_missing_fails_and_overuse_warns():
     missing = dq.analyze(
-        _premium_text(), pages=27, premium=True, expected_context_terms=["청마", "새이름"]
+        _premium_text(),
+        pages=27,
+        premium=True,
+        expected_context_terms=["합성 모임", "새이름"],
     )
     assert "새이름" in missing["missing_context_terms"]
     assert missing["clean"] is False
 
-    overused_text = _premium_text() + " 청마 청마 청마 청마"
-    overused = dq.analyze(overused_text, pages=27, premium=True, expected_context_terms=["청마"])
-    assert overused["overused_context_terms"]["청마"] > 3
+    overused_text = _premium_text() + " 합성 모임 합성 모임 합성 모임 합성 모임"
+    overused = dq.analyze(
+        overused_text,
+        pages=27,
+        premium=True,
+        expected_context_terms=["합성 모임"],
+    )
+    assert overused["overused_context_terms"]["합성 모임"] > 3
     assert overused["warnings"]
+
+
+def test_parental_approval_consult_axis_blocks_generic_and_passes_direct_answer():
+    concern = "부모님 반대가 있는데 관계를 어떻게 이어가야 할까요"
+    generic = dq.consult_direct_result(_premium_text(), concern)
+    assert generic["ok"] is False
+    assert "parental_approval" in generic["missing_topic_axes"]
+
+    direct_text = _premium_text() + (
+        " 부모와 가족의 반대 이유를 나누고, 두 사람이 먼저 같은 답을 준비하세요. "
+        "가족과 인사할 시기와 설득 순서를 정한 뒤 허락을 서두르지 않는 편이 좋습니다. "
+        "이 과정을 함께 지켜야 관계를 안정적으로 이어갈 신뢰가 생깁니다."
+    )
+    direct = dq.consult_direct_result(direct_text, concern)
+    assert direct["ok"] is True, direct
+    assert direct["missing_topic_axes"] == []
+
+
+@pytest.mark.parametrize(
+    ("question", "axis"),
+    [
+        ("어머니가 반대해요", "parental_approval"),
+        ("아버지의 허락이 필요해요", "parental_approval"),
+        ("가족과 결혼을 상의하고 싶어요", "parental_approval"),
+        ("혼인 준비를 시작해도 될까요", "marriage_commitment"),
+        ("배우자와 상견례 시기가 궁금해요", "marriage_commitment"),
+        ("3년 만난 관계의 다음 단계가 궁금해요", "longterm_relationship"),
+        ("몇 년째 오래 만난 연애를 유지할까요", "longterm_relationship"),
+    ],
+)
+def test_relationship_question_axis_equivalence_classes(question, axis):
+    result = dq.analyze(_premium_text(), concern=question)
+    assert axis in result["required_axes"]
+    assert "timing" in result["required_axes"]
+    assert "action" in result["required_axes"]
+
+
+def test_existing_reunion_timing_action_consult_axes_remain_green():
+    concern = "헤어진 연인과 재회는 언제, 어떻게 연락해야 할까요"
+    text = _premium_text() + (
+        " 재회는 상대와 연락을 다시 시작할 시기를 나누어 보세요. "
+        "먼저 짧게 안부를 묻고 같은 갈등이 반복되면 서두르지 말아야 합니다."
+    )
+    result = dq.consult_direct_result(text, concern)
+    assert result["ok"] is True, result
+    assert {"love_reunion", "timing", "action"}.issubset(
+        set(dq.analyze(text, concern=concern)["required_axes"])
+    )
 
 
 def test_pipeline_passes_product_and_concern_to_pdf_verify(monkeypatch):

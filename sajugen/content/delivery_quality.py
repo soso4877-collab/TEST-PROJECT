@@ -94,8 +94,9 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
             "집",
             "아파트",
             "매매",
-            "김포",
-            "계양",
+            "지역",
+            "거주지",
+            "생활권",
             "부동산",
             "거처",
             "땅",
@@ -107,8 +108,10 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
             "아파트",
             "매매",
             "계약",
-            "김포",
-            "계양",
+            "지역",
+            "거주지",
+            "생활권",
+            "동선",
             "부동산",
             "거처",
             "터전",
@@ -121,7 +124,7 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
         "evidence": ("로타리", "클럽", "창립", "모임", "단체", "봉사", "사람", "역할"),
     },
     "helper_people": {
-        "triggers": ("도와", "도움", "협조", "귀인", "사람", "장재화", "배우자", "조력"),
+        "triggers": ("도와", "도움", "협조", "귀인", "사람", "배우자", "조력"),
         "evidence": ("도움", "협조", "사람", "배우자", "조력", "맡기", "확인", "거리"),
     },
     "money_contract": {
@@ -193,6 +196,20 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
             "배우자 기준",
         ),
     },
+    "parental_approval": {
+        "triggers": ("부모", "어머니", "엄마", "아버지", "가족", "반대", "허락"),
+        # '시간·신뢰' 같은 일반 연애어만으로는 부모 반대 직답으로 인정하지 않는다.
+        "evidence": ("부모", "어머니", "엄마", "아버지", "가족", "반대", "설득", "인사", "허락"),
+    },
+    "marriage_commitment": {
+        "triggers": ("결혼", "혼인", "배우자", "상견례"),
+        "evidence": ("결혼", "혼인", "배우자", "상견례", "결혼 준비"),
+    },
+    "longterm_relationship": {
+        "triggers": ("3년", "몇 년", "오래 만난", "장기", "오랜 연애"),
+        # 단독 '반복'은 모든 관계 글에 흔하므로 장기 관계의 직접 근거로 쓰지 않는다.
+        "evidence": ("3년", "몇 년", "오래", "장기", "권태", "다음 단계", "관계를 유지", "이어 온 시간"),
+    },
     "relationship_intent": {
         "triggers": ("썸", "호감", "진심", "상대방", "마음"),
         "evidence": ("썸", "호감", "진심", "상대", "마음", "표현", "속도"),
@@ -254,7 +271,7 @@ _ZIWEI_DOMAIN_TERMS = {
     "money": ("돈", "재물", "재산", "자산", "계약", "매매", "가격", "땅", "토지"),
     "work": ("일", "직업", "역할", "창립", "운영"),
     "people": ("사람", "관계", "배우자", "도움", "협조"),
-    "move": ("이동", "밖", "김포", "계양", "나가", "옮"),
+    "move": ("이동", "밖", "지역", "거주지", "생활권", "동선", "나가", "옮"),
 }
 
 _NEAR_TERM_TIMING_TERMS = (
@@ -305,9 +322,9 @@ _FRONTLOAD_TERMS = {
     "action": ("먼저", "확인", "주의", "조심", "기다", "다가", "말", "정하", "피하", "서두르"),
 }
 
-# Customer-specific context that is easy to hallucinate and must be grounded in
-# the order concern or explicit expected_context_terms.
-_PROVENANCE_CONTEXT_TERMS = ("청마",)
+# 고객별 고유명은 전역 상수로 축적하지 않는다. 필요한 이름은 호출자가
+# expected_context_terms 로 전달해 주문별로 존재·반복 횟수를 검사한다.
+_PROVENANCE_CONTEXT_TERMS: tuple[str, ...] = ()
 
 
 def _is_premium(product: str | None, premium: bool) -> bool:
@@ -331,6 +348,8 @@ def _required_axes(concern: str | None) -> set[str]:
     text = concern or ""
     axes = {axis for axis, spec in _AXES.items() if _hit_terms(text, spec["triggers"])}
     if axes:
+        # 부모 반대·결혼 이행·장기 관계를 포함한 모든 인식 질문은 설명만으로 끝내지
+        # 않고 언제 무엇을 할지까지 답해야 한다. 기존 축과 같은 timing/action 규칙 유지.
         axes.add("timing")
         axes.add("action")
     if "love_reunion" in axes:
@@ -382,9 +401,19 @@ def consult_direct_result(text: str, concern: str | None) -> dict:
     if not _hit_terms(body, _FRONTLOAD_TERMS["action"]):
         missing.append("action")
     topic_axes = sorted(a for a in _required_axes(concern) if a not in {"timing", "action"})
-    if topic_axes and not any(_hit_terms(body, _AXES[a]["evidence"]) for a in topic_axes):
+    missing_topic_axes = [
+        axis for axis in topic_axes if not _hit_terms(body, _AXES[axis]["evidence"])
+    ]
+    if missing_topic_axes:
         missing.append("question_topic")
-    return {"ok": not missing, "skipped": False, "missing": missing, "dense_chars": dense}
+    return {
+        "ok": not missing,
+        "skipped": False,
+        "missing": missing,
+        "dense_chars": dense,
+        "required_topic_axes": topic_axes,
+        "missing_topic_axes": missing_topic_axes,
+    }
 
 
 def _near_term_timing_result(text: str, required_axes: set[str]) -> dict:

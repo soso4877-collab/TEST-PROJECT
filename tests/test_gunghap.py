@@ -776,7 +776,9 @@ def test_relationship_layout_retries_only_low_density_without_recomposing(monkey
     )
 
     assert render_calls == [("13.8pt", "1.68"), ("13.6pt", "1.64")]
-    assert len(compose_calls) == len(g._REL_SECTIONS)
+    # 질문이 비면 consult 는 skipped 로 생략하고 나머지 관계 섹션만 한 번씩 작성한다.
+    assert "consult" not in compose_calls
+    assert len(compose_calls) == len(g._REL_SECTIONS) - 1
     assert len(verify_calls) == 2
     assert result["layout_attempts"][0]["low_density_only"] is True
     assert result["layout_attempts"][1]["gate_pass"] is True

@@ -272,8 +272,8 @@ def test_marriage_concern_answers_conditions_money_and_caution(monkeypatch):
 def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
     _no_key(monkeypatch)
     concern = (
-        "김포와 계양 중 어디로 이사해야 하고 장재화님 도움을 받아도 될까요. "
-        "청마로타리클럽 창립과 매매 계약 시기가 궁금합니다"
+        "두 지역 중 어디로 이사해야 하고 도움을 주겠다는 사람을 믿어도 될까요. "
+        "합성 모임 창립과 매매 계약 시기가 궁금합니다"
     )
     rep = builder.build_report(
         _saju(),
@@ -286,9 +286,8 @@ def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
     for term in (
         "2026년 하반기부터 2027년 상반기까지",
         "집과 이사",
-        "김포",
-        "계양",
-        "청마로타리클럽 창립",
+        "지역 비교",
+        "모임 창립",
         "도움을 주겠다는 사람",
         "계약",
         "직접 확인",
@@ -297,7 +296,7 @@ def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
     ):
         assert term in consult, term
     assert "명리에서는 이 문제를 시기의 흐름으로" not in consult  # 구 정형 부재 앵커
-    assert "장재화" not in consult
+    assert "합성 모임" not in consult
     assert rep.guard.clean is True
 
 
