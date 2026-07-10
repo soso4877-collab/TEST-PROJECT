@@ -36,7 +36,14 @@
    선택 모듈에 속하지 않는 섹션만 결정론적으로 제외한다. 재배열 없음 — 설계 문서의
    `core→love→…→gunghap→consult→tail` 추상 순서는 현행과 불일치라 적용하지 않는다(이중 레짐 금지:
    같은 선택은 명시/미지정과 무관하게 같은 문서). 이로써 미지정/5모듈 전체 = 현행 완전 동일이 자동 성립.
-   미선택 모듈 섹션 유입·중복 ID = 조립 실패(예외). sparse 병합은 같은 모듈 안에서만.
+   미선택 모듈 섹션 유입·중복 ID = 조립 실패(예외).
+   **sparse 병합 (v3 정정 2026-07-10 — Codex 3차 정지 보고 타당·권장안 채택)**: 병합은 **필터링 후 현행 로직
+   그대로**(경계 제한 없음). 근거: 필터링이 병합보다 먼저라 병합 입력은 전부 선택 모듈 소속 — "모듈 경계 병합
+   금지"의 목적(비선택 콘텐츠 유입 방지)은 필터링이 이미 보장하고, 병합은 얇은 섹션 레이아웃 압축일 뿐이다.
+   현행 tail 무조건 병합(integrated.py:132-133)·personal/relationship 그룹 병합(140-144)·기존 회귀
+   (test_integrated_product.py:289) 전부 불변. **단, 게이트 모듈 커버리지(missing/unexpected_module_sections)
+   판정은 병합 전 섹션 목록 기준**으로 한다(병합 후 ID 소실로 선택 모듈이 누락으로 오탐되는 것 방지 —
+   판정 시점을 테스트로 고정).
 4. **게이트 연동**: `delivery_quality`에 모듈 수 N 기반 하한(승인 공식) — 기존 `_min_pages/_min_text_chars` 매핑에
    integrated 모듈 프로필 편입. verify에 `selected_modules` 전달·관측. 실패 룰 신설: `missing_module_sections`·
    `unexpected_module_sections`(기존 delivery_quality_clean 안에 편입 — GATE_KEYS 우회 경로 금지). 부재 시 조용한
