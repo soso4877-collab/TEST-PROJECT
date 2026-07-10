@@ -1,5 +1,49 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## Q7 1단계 착수 점검 정지 — 2026-07-10
+
+### 현재 상태
+
+- 브랜치: `codex/gunghap-relationship-quality`
+- 시작·현재 HEAD: `7fa5d57` (`Q7 1단계 TASK_PACKET 발주 — 모듈 레지스트리·조립·게이트`)
+- 원격 대비: ahead 16. 세션 시작 워킹트리는 깨끗했고, 구현 파일 수정·commit·push·deploy는 없다. 상태 기록 검증 중 외부에서 `handoff/codex-q7-stage1.md` v2 정정 diff가 추가됐다.
+- Q7 1단계 코드는 미착수다. 레지스트리·work 제공자·조립·게이트·테스트 변경은 모두 0줄이다.
+
+### 이번 세션에서 완료한 태스크
+
+- `handoff/codex-q7-stage1.md`와 승인 설계 `handoff/codex-q7-design.md`를 읽고 1단계 범위와 금지 경계를 대조했다.
+- `sajugen/integrated.py`, `sajugen/content/rules.py`, `sajugen/content/delivery_quality.py`, `sajugen/render/verify.py`와 기존 integrated 테스트를 읽어 현행 조립·게이트 소비 경로를 실측했다.
+- 합성 2인·무LLM·무렌더 프로브로 현행 섹션 ID 순서를 확인했다: `personal_intro → personal_nature → personal_work → personal_flow → personal_ziwei → personal_consult → integrated_full_depth → relationship_overview`.
+- 패킷의 고정 순서(`core → love → job → wealth → health → gunghap → personal_consult → tail`)를 적용하면 `flow/ziwei`와 `personal_consult` 위치가 바뀌어, 동시에 요구된 “modules 미지정/5모듈 전체 = 현행 섹션 ID 리스트·본문 동일”을 만족할 수 없음을 확인했다.
+- 결과물이 달라지는 플랜 모순이므로 임의 구현하지 않고 정지 보고했다. 상태 기록 중 패킷 v2가 현행 순서 필터링 방식으로 모순을 해소했지만, 이번 종료 세션에서는 구현을 재개하지 않았다.
+
+### 이번 세션 수정 파일과 기존 잔존 파일 구분
+
+- 이번 Codex 세션 수정 파일: `implementation-notes.md` 1개(현재 상태 기록만).
+- 외부 동시 변경: `handoff/codex-q7-stage1.md`가 v2로 정정됐다. 설계의 추상 고정 순서를 폐기하고 “현행 순서에서 미선택 모듈만 필터링”하도록 변경해 하위호환 모순을 해소한 diff이며, Codex가 수정하지 않았다.
+- 기존 잔존 문서: `handoff/codex-q7-design.md`는 HEAD에 이미 있던 승인 설계이며 수정하지 않았다.
+- 구현 후보인 `sajugen/integrated.py`, `sajugen/content/rules.py`, `sajugen/content/delivery_quality.py`, `sajugen/render/verify.py`, 관련 테스트는 수정하지 않았다.
+- `sajugen/calc/`, `sajugen/input/`, CLI, admin, 상태머신·발송 차단은 모두 무변경이다.
+
+### 검증·미검증
+
+- 읽기 전용 `git status -sb`와 `git diff --name-only`로 구현 코드 diff 0을 확인했다. 현재 문서 diff는 외부 v2 패킷과 이 상태 기록 2파일이다.
+- 합성 무렌더 조립 프로브는 exit 0이었다. LLM 호출·PDF 재생성·실렌더·ignored 영역 접근은 하지 않았다.
+- 코드 변경이 없어 전체 pytest·린트는 실행하지 않았다. Q7 신규 회귀와 기준환경 `728 passed / 4 skipped` 비교도 미실행이다.
+
+### 미완 지점과 다음 스텝
+
+1. 다음 구현 세션은 외부에서 정정된 `handoff/codex-q7-stage1.md` v2 전체를 다시 읽고, 현행 순서 필터링 규칙을 source of truth로 확정한다.
+2. 레지스트리·work 제공자·부분 조합 조립·모듈 게이트·content 메타 배선을 구현한다.
+3. 5모듈 완전 동일성, N=1~5 분량 경계, missing/unexpected, gunghap 1인 차단/2인 통과, job/wealth 분리 양방 테스트를 추가한다.
+4. 대상 테스트와 전체 pytest, Ruff, `git diff --check`, calc/input diff 0을 검증하고 교차리뷰 라운드9에 넘긴다.
+
+### 세션 종료
+
+Codex Q7 1단계 착수 점검·모순 정지 보고·상태 기록 역할을 종료한다. 다음 세션은 정정된 v2 패킷을 기준으로 새 구현 세션에서 재개한다.
+
+---
+
 - E10 인접 탐색: 패킷에 열거되지 않은 `tests/test_relationship_quality_contracts.py` 1줄에서도 대상 이름 잔존을 확인해 tracked 수용 기준에 따라 동일 치환했다.
 
 ## 웨이브2 현재 상태
