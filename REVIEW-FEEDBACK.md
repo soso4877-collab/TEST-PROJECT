@@ -1,3 +1,107 @@
+# 교차 리뷰 — 2026-07-10 (라운드 9 재검, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `0b3134f` 위) · 구현자: Codex · 지시문: `handoff/codex-q7-r9-fixup.md` (R9-1 수정 라운드)
+
+## 최종 판정: **승인(PASS)** — R9-1 종결. Q7 1단계 전 항목 GREEN, 미해결 0. 다음 = 운영자 checkpoint commit 결정.
+
+Codex 완료보고를 믿지 않고 기준환경 직접 재실행 + diff 실측 + 라운드9 동일 프로브 재실행.
+
+### ⓪ 범위 무결성
+- HEAD `0b3134f` 불변. **허용 밖 동결 7파일 SHA-256 전부 라운드9 동결값과 일치**(Get-FileHash 재계산) — 수정은 승인된 2파일(`sajugen/modules.py`·`tests/test_integrated_modules.py`)뿐. 예상 밖 변경 파일 0.
+
+### ① 기준환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **753 passed / 4 skipped / exit 0** (240.9s). 라운드9 기준선 745/4 → **+8 = 신규 R9-1 테스트 완전 일치**(감소 0, 은닉 약화 0). Codex의 "확정 불가" 예상값 확정.
+- `pytest -q -k golden` → **28 passed** (calc/input diff 0 유지).
+
+### ② R9-1 구현 실측 (수정 패킷 §3·§4 대조)
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 불변식 구현 | `module_coverage`가 맵의 (주장 모듈, 섹션ID) 쌍마다 `_modules_for_unmapped_section` 소유자 대조 — **기존 복원 경로 재사용, 로직 복제 0**. 거부 쌍은 effective에서 제외 후 기존 미배정 단일 경로로 재귀속(mapped_ids 미포함 → 이중 계상 구조적 불가) | ✓ |
+| 게이트 형상 | 새 failure 룰·GATE 키 0. `misattributed_section_ids`는 coverage dict 관측 필드만(원인 분리 — claimed/section/owners 구조) | ✓ |
+| 프로브 재실행(라운드9 동일 스크립트) | P1 위조 맵 → **unexpected=['health']**(구: []), P3 fake ID → **unknown=['fake_zone']**, P4 관계 세탁 → **unexpected=['gunghap']**, P5 analyze 경유 → **unexpected_module_sections failure 발생**. P2 대조군 동작 불변 | ✓ |
+| 통과측 무오탐(신규 프로브 G1~G4) | legacy 대표맵·work 이중 소유·core/tail 등록 ID 전수 자기 소유·5모듈 조립기 형태 맵 → **전부 CLEAN**(misattributed 포함 0) | ✓ |
+| 신규 테스트 8건 | 차단측 P1(+P2 대조)·P3/P4 parametrize·missing 우회(missing+unexpected 동시 실패)·analyze 경유 + 통과측 legacy/work 이중/raw·personal_ prefix 이웃(A-4) — 동작 단언(change-detector 아님) | ✓ |
+| 리뷰어 독립 이웃 검사 | core/tail의 부당 주장(core가 personal_love 주장)·미지원 모듈 키의 유효 ID 주장·중복 주장 — 코드 경로상 전부 거부→재귀속으로 수렴(claimed_module 무관 동일 로직이라 P1 케이스가 대변) | ✓ |
+| Ruff | 수정 2파일 `All checks passed!` / exit 0 | ✓ |
+| PII·금지경계 | 합성 ID만, 금지파일 침범 0, ignored 비접촉, commit/push/PDF/sajugen LLM 호출 없음 | ✓ |
+
+### ③ 미검증 (정직 승계 — 변동 없음)
+- 실렌더·부분 조합 실제 조판·LLM-on 문안: 미실행(별도 승인 영역).
+- 메타 없던 손상 레거시 번들의 실누락 증명: 대표맵 복원의 구조적 한계 유지(R9-1은 위조 주장 차단으로 부분 축소).
+
+### 실행한 검증 명령
+```
+Get-FileHash SHA256 (동결 7 + 수정 2)                     → 동결 7 전부 MATCH, 수정 2만 변경
+./.venv/Scripts/python.exe -m pytest tests/ -q           → 753 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed
+./.venv/Scripts/python.exe -m ruff check (수정 2파일)      → All checks passed / exit 0
+./.venv/Scripts/python.exe ownership_probe.py (P1~P5 재실행) → 전부 차단 전환 확인
+./.venv/Scripts/python.exe ownership_probe_pass_side.py (G1~G4) → 전부 CLEAN
+```
+
+---
+---
+
+# 교차 리뷰 — 2026-07-10 (라운드 9, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `0b3134f` 위) · 구현자: Codex · 지시문: `handoff/codex-q7-stage1.md` v3 (Q7 1단계 모듈 레지스트리·조립·게이트) · 패킷: `handoff/tasks/q7-stage1-modules-20260710.md`
+
+## 최종 판정: **수정 요청(changes_requested)** — v3 수용기준·회귀·범위·게이트 비악화 전 항목 GREEN. 단 패킷이 라운드9에 위임한 module_sections 소유권 사각 판정 = **보완 필요(R9-1, 유일 미해결)**. R9-1 수정 + 양방 회귀 후 재검이 PASS 조건.
+
+Codex 완료보고를 믿지 않고 기준환경 직접 재실행 + diff 전량 실측 + 합성 프로브.
+
+### ⓪ 전제 무결성
+- HEAD `0b3134f` 일치. 패킷 동결 SHA-256 10건(제품 9파일 + 지시문 v3) 전부 MATCH — PowerShell `Get-FileHash -Algorithm SHA256` 재계산 대조. 리뷰 대상 = 패킷이 동결한 그 물건.
+
+### ① 기준환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **745 passed / 4 skipped / exit 0** (195.59s). 기준선 728/4 → **+17 = 신규 test_integrated_modules 수집분 완전 일치**(감소 0, 은닉 약화 0). 패킷의 "확정 불가" 예상값을 확정.
+- `pytest -q -k golden` → **28 passed**. `git diff --name-only calc·input·cli·admin·order_flow·store·app` → 출력 없음(계산·주문 경로 불변).
+
+### ② 항목별 실측 (v3 §2 구현항목·§3 수용기준)
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 레지스트리 | `sajugen/modules.py` 신규 — schema v1, 5모듈 정규 순서 고정(입력 순서 무관), 빈/중복/미등록 fail-closed(ValueError). calc/input 미참조 | ✓ |
+| work 제공자 분리 | `rules.py` `work_job`/`work_wealth` 독립 노출 + `work=_join(*selected_work)` 기본값 `("job","wealth")` = 옛 바이트 동일. **실룰 회귀**(test 2번)가 base==explicit·job≠wealth·결합=단독+단독 바이트 고정 | ✓ |
+| 조립 일반화 | `_assemble_sections`: 현행 순서 필터링(재배열 없음)→병합 전 module_sections/premerge_ids 캡처→현행 sparse 병합 그대로. 미등록 유입·중복 ID·unexpected 모듈 = 조립 ValueError. **closing/appendix/colophon 순서 이웃**: 기존 `insert(0)` → 자연 순회로 바뀌었으나 SECTION_SPECS 실순서(closing<appendix_terms<colophon)에서 동작 동일 + **Q7 이전 알고리즘 인라인 독립 오라클 테스트**(test 4번)가 바이트 고정 | ✓ |
+| 병합 전 판정 | 커버리지 판정 입력 = 조립기의 병합 전 목록(PDF 역추정 아님). sparse 병합으로 최종 ID에서 love/work/health가 사라져도 오탐 0 회귀(test 9번) | ✓ |
+| 게이트 연동 | `_min_pages/_min_text_chars`에 `module_minimums` 편입(5모듈=30p/10000자 유지). missing/unexpected가 `delivery_quality_clean` failures로 편입 — **GATE_KEYS 20키 무변경**(우회 경로·완화·기준 하향 0). 비integrated 상품은 `skipped=True` 관측 명시, integrated 레거시 미전달=5모듈 복원(skipped 아님 — test_integrated_product 단언) | ✓ |
+| 파라미터 관통 | build→_render_integrated→verify→content.json 저장→재렌더 복원까지 배선(test 12·13번 kwargs 캡처로 증명). schema version 불일치 재렌더 = ValueError(fail-closed). 팬텀 파라미터 0 | ✓ |
+| builder LLM 제외 | `include_section_ids`로 선택 밖 챕터를 LLM 작성 후보에서 제외, 미등록 include는 ValueError. None=옛 호출 그대로 | ✓ |
+| gunghap 경계 | 1인+gunghap 선택 → ValueError(조립 전 차단), 2인 통과, 미선택 시 관계 compose 미호출(test 5·7번) | ✓ |
+| N 경계표 | N=1..5 × (하한-1 차단 / 하한 통과) 파라미터라이즈(test 11번) — 승인 공식 min(30,12+4N)/min(10000,1000+2000N) | ✓ |
+| Ruff | 신규 2파일 GREEN(exit 0). 전체 29건 = 전부 기존 부채. 수정 7파일 HEAD 대비 21→18로 **신규 위반 0 + 기존 3건 해소**(미사용 `re` import, F821 pytest×2) | ✓ |
+| PII·금지경계 | 테스트 = 익명 ID(DOC_A/B)·합성 생일만. 금지파일 침범 0, ignored 비접촉 | ✓ |
+
+### ③ R9-1 (수정 요구 — 유일 미해결): module_coverage가 구조화 맵의 소유권 주장을 교차검증하지 않음
+패킷 §판정4가 라운드9에 위임한 사각. **합성 프로브로 실존 확정**(modules.py 로직 직접 호출 + analyze 경유, PII 0):
+- P1 위조 맵: `["love"]` 선택 + 맵이 `personal_health`를 love 소유로 주장(평면 목록에도 실존) → missing/unexpected/unknown **전부 [] = 세탁 통과**.
+- P2 대조군(정직 맵, 같은 평면 목록): unexpected=`['health']` 정상 차단 — 즉 레지스트리 복원 경로(`_modules_for_unmapped_section`)는 작동하지만 **맵이 선점 주장한 ID는 검증 없이 신뢰**됨.
+- P3 미등록 `fake_zone`을 맵이 주장 → unknown 미탐. P4 관계 섹션(`relationship_overview`)을 love가 주장 → unexpected 미탐. **missing도 가짜 ID 주장으로 우회 가능 = 커버리지 게이트 양쪽 룰 전체가 위조 맵에 무력화**.
+- P5 `delivery_quality.analyze` 경유 최종 확인: P1 시나리오에서 module 계열 failure 0.
+
+**판정 근거(보완 필요)**: (a) 이 게이트의 존재 이유가 비선택 콘텐츠 유입 차단인데 유일한 독립 기준(레지스트리)을 복원 경로에만 반쪽 사용 — 게이트 주석의 "조용한 통과 금지"(fail-closed, 방법론 B-2)와 코드 실태 불일치. (b) 실경로: 정상 빌드는 조립기 예외가 선차단하므로 발현 경로는 content.json 손상/변조/미래 구현 버그의 재렌더뿐 — 그러나 verify 게이트는 바로 그 "자기 생성 메타의 버그"를 잡으라고 있는 방어선(팬텀 파트너 QI-2026-07-04-01 계열). (c) 보완 = 레지스트리 dict 조회 몇 줄, 오탐 없음 → B-8(어설픈 게이트 회피) 비저촉. (d) 커밋 전 = 가장 싼 수정 시점, 2단계(CLI/admin)가 이 메타를 더 만지기 전에 닫아야 함.
+
+**수정 방향(Codex, `sajugen/modules.py` + `tests/test_integrated_modules.py` 한정 예상)**: `module_coverage`에서 맵이 주장한 각 섹션 ID의 레지스트리 소유자(`_modules_for_unmapped_section` 상당)를 주장 모듈과 대조 — 불일치는 unexpected/unknown으로 격상. work는 job/wealth 이중 소유 허용, core/tail 주장은 항상 허용. 양방 회귀 동반: (차단) P1·P3·P4 시나리오, (통과) 조립기 산출 맵·legacy 대표맵·work 이중 소유·기존 17건 GREEN 유지.
+
+### ④ 미검증 (Codex 보고와 동일 — 정직 승계)
+- 실렌더(실제 부분 조합 PDF 조판·페이지 수)·LLM-on 문안: 미실행(승인 필요 — 렌더 브리지·게이트는 합성/모의로 검증됨).
+- 메타 없던 레거시 손상 번들의 실누락 증명: 대표 커버리지 맵 복원의 구조적 한계(패킷 명시 승계). R9-1 보완이 이 한계도 부분 축소.
+- 실제 새 codex exec 프로세스의 hook 주입: 외부 전송 보안 검토 차단으로 확정 불가(패킷 승계).
+
+### 실행한 검증 명령
+```
+Get-FileHash SHA256 (동결 10파일)                        → 전부 MATCH, HEAD 0b3134f
+./.venv/Scripts/python.exe -m pytest tests/ -q          → 745 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden → 28 passed
+./.venv/Scripts/python.exe -m ruff check (신규 2파일)     → All checks passed / exit 0
+./.venv/Scripts/python.exe -m ruff check (수정 7파일)     → 18건 = HEAD 21건의 부분집합(신규 0)
+./.venv/Scripts/python.exe ownership_probe.py (합성 P1~P5) → R9-1 사각 실존 확정
+git diff --name-only calc·input·cli·admin·order·store    → 출력 없음
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-10 (라운드 8, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `5bd8cb1` 위) · 구현자: Codex · 지시문: `handoff/codex-pii-anonymize-e10.md` v2 (E10 실명 익명화 전수)

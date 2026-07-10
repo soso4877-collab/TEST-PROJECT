@@ -1,5 +1,70 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## Q7 1단계 라운드9 재검 — 2026-07-10 (검증 세션, 리뷰어 Claude)
+
+- 판정: **PASS**. R9-1 종결, Q7 1단계 미해결 0. 정본 = `REVIEW-FEEDBACK.md` 최상단 "라운드9 재검" 절.
+- 기준환경 확정: 전체 pytest **753 passed / 4 skipped / exit 0**(745+8, 감소 0) — 새 기준선. 골든 28. 허용 밖 동결 7파일 SHA 불변 실측, 수정 2파일 Ruff GREEN.
+- 프로브: 라운드9 동일 스크립트 재실행으로 P1·P3·P4·P5 전부 차단 전환 확인 + 통과측 G1~G4 오탐 0.
+- 이 세션 수정 = 상태·리뷰 4파일만. 제품 코드 비접촉, commit/push/PDF/sajugen LLM 호출 없음.
+- 커밋 완료(2026-07-10 운영자 지시, 분리안 3커밋): `065c987` feat(제품 9파일) / `fbdb296` chore(handoff 공존 3파일) / docs(기록·manifest). manifest = done + archive 동결.
+- 다음: Q7 2단계(CLI/admin)는 별도 승인·패킷 발주. push는 지시 대기.
+
+---
+
+## Q7 1단계 교차리뷰 라운드9 — 2026-07-10 (검증 세션, 리뷰어 Claude)
+
+- 판정: **changes_requested**. v3 수용기준 전 항목 GREEN이나 R9-1(module_sections 소유권 교차검증 사각) 1건 보완 필요. 정본 = `REVIEW-FEEDBACK.md` 라운드9 절.
+- 기준환경 확정: 전체 pytest **745 passed / 4 skipped / exit 0**(728+17, 감소 0), 골든 28, 동결 SHA 10건 MATCH, Ruff 신규 위반 0.
+- 이 세션 수정 파일 = 상태·리뷰 4개만(`REVIEW-FEEDBACK.md`·`sajugen/STATE.md`·`implementation-notes.md`·`handoff/current/manifest.json`). Q7 제품 코드·테스트 9개는 SHA 동결 그대로 비수정. commit/push/PDF 재생성/sajugen 런타임 LLM 호출 없음.
+- 다음: Codex가 R9-1만 수정(예상 범위 `sajugen/modules.py`+`tests/test_integrated_modules.py`, 양방 회귀 동반) → 라운드9 재검 → PASS 후 사용자 checkpoint commit 결정.
+
+---
+
+## Q7 1단계 구현 후보 검증·SHA 인계 — 2026-07-10
+
+### 현재 상태
+
+- 브랜치 `codex/gunghap-relationship-quality`, HEAD `0b3134fe7ef508dde6f4d45952a132016a687fc8`, upstream 대비 ahead 20 / behind 0.
+- 승인 source of truth는 `handoff/codex-q7-stage1.md` v3다. v2 이후 sparse 병합의 현행 유지와 병합 전 커버리지 판정까지 정정된 커밋이 HEAD에 포함돼 있다.
+- Q7 1단계 제품 구현 후보는 미커밋 상태다: tracked modified 7개 + 신규 2개. 이전 최상단의 “Q7 코드 미착수” 기록은 과거 정지 시점의 이력이며 현재 상태가 아니다.
+- 상태 판정은 `review_requested`다. 라운드9와 기준환경 4-skip 전체 검증 전에는 `verified`·`done`이 아니다.
+
+### 실측한 구현 범위
+
+- `sajugen/modules.py`: schema v1 레지스트리, 5모듈 정규화, 섹션 소유권, 병합 전 커버리지, N별 하한 계산.
+- `sajugen/content/rules.py`·`builder.py`: job/wealth 제공자 분리와 선택 밖 개인 장 생성 제외.
+- `sajugen/integrated.py`: 현행 순서 필터링 후 sparse 병합, 병합 전 ID/모듈 맵 보존, 선택 메타 저장·복원.
+- `sajugen/content/delivery_quality.py`·`render/verify.py`: 모듈 하한과 missing/unexpected fail-closed 게이트 배선.
+- 관련 테스트 3파일: 5모듈 완전 동일성, N=1..5 경계, missing/unexpected, gunghap 1인/2인, job/wealth 분리, 메타 재렌더 회귀.
+- `sajugen/calc/**`, `sajugen/input/**`, CLI, admin, order/state-machine 변경은 0이다. Q7 2단계는 미착수다.
+
+### 검증 증거
+
+- Q7 대상 3파일: `43 passed`, exit 0.
+- 신규 모듈 테스트 단독: `17 passed`, exit 0.
+- 전체: `.\.venv\Scripts\python.exe -m pytest tests\ -q` → `718 passed / 31 skipped`, exit 0. Q7 전 기준환경 `728/4` + 신규 17의 예상 `745/4`는 총 수집 수 749로 산술 일치하지만 기준환경 재실행 전이라 확정 불가다.
+- 신규 두 파일 Ruff: `All checks passed!`, exit 0. 전체 `ruff check .`는 기존 부채 29건으로 exit 1이므로 전체 Ruff GREEN은 주장하지 않는다.
+- `git diff --check` → exit 0(LF→CRLF 안내만). calc/input/CLI/admin/order 경로 diff 0.
+- Phase2A 공존 계약 테스트: `tests/test_ai_harness_contract.py` → `25 passed`, exit 0. `git check-ignore --no-index`로 실행 산출물은 ignored(exit 0), 루트 manifest는 추적 가능(exit 1)을 확인했다.
+- 로컬 SessionStart relay: `relay-context.mjs --format claude` → exit 0, verified task/status/SHA/next actor/action의 structured JSON 출력. 실제 새 `codex exec` 실주입은 외부 전송 보안 검토에서 차단돼 확정 불가다.
+
+### 이번 SHA 인계 적용과 기존 Q7 변경의 구분
+
+- 이 세션은 위 Q7 제품 코드·테스트 9개의 내용을 수정하지 않았다. 인계 패킷에 적용 전 SHA-256을 동결했다.
+- 이번 세션 변경은 `handoff/current/.gitignore`, `handoff/current/README.md`, `tests/test_ai_harness_contract.py`, `handoff/tasks/q7-stage1-modules-20260710.md`, `implementation-notes.md`, `sajugen/STATE.md`, `handoff/current/manifest.json`과 AI-Brain의 sajugen 포인터 정합화다.
+- 기존 Phase2A 런타임은 유지한다. 실행 폴더·task/LATEST/log/run-manifest는 계속 ignored이고 루트 `manifest.json`만 SHA 역할 교대 포인터로 추적 가능하다.
+- commit, push, PR, deploy, PDF 재생성, LLM 호출은 실행하지 않았다.
+
+### 미완 지점과 다음 행동
+
+1. 신선 Claude 세션이 `handoff/tasks/q7-stage1-modules-20260710.md`와 v3 지시문을 기준으로 라운드9 교차리뷰한다.
+2. 기준환경 전체 pytest 예상 `745 passed / 4 skipped`를 직접 확정한다.
+3. `module_sections`에 잘못된 모듈↔섹션 소유권을 합성 주입하면 현재 게이트가 탐지하지 못하는 사각을 라운드9에서 판정한다.
+4. PASS 뒤 사용자가 Q7 checkpoint commit 여부를 결정한다. 그 전에는 Q7 2단계·실렌더를 시작하지 않는다.
+5. 현재 `REVIEW-FEEDBACK.md`는 Q7 이전 이력이며 Q7 라운드9 PASS 근거가 아니다.
+
+---
+
 ## Q7 1단계 착수 점검 정지 — 2026-07-10
 
 ### 현재 상태

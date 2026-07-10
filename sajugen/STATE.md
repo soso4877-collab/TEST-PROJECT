@@ -1,5 +1,47 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 재검 PASS — 이 블록 먼저 읽기) =====
+>   [판정] 라운드9 재검(Claude 신선 컨텍스트) = **PASS**. R9-1(module_coverage 소유권 교차검증) Codex 수정
+>     완료·종결, Q7 1단계 미해결 0. 정본 = `REVIEW-FEEDBACK.md` 최상단 "라운드9 재검" 절.
+>   [기준환경 확정] `pytest tests/ -q` → **753 passed / 4 skipped / exit 0**(라운드9 745/4 + R9-1 신규 8 완전
+>     일치, 감소 0). 골든 28 GREEN. **새 기준선 = 753/4**(감소=회귀). 수정은 승인 2파일(modules.py·
+>     test_integrated_modules.py)뿐 — 허용 밖 동결 7파일 SHA 불변 실측. Ruff 수정 2파일 GREEN.
+>   [R9-1 종결 증거] 라운드9 동일 프로브 재실행: P1 위조 맵 unexpected=['health']·P3 unknown=['fake_zone']·
+>     P4 unexpected=['gunghap']·P5 analyze failure 발생(전부 구 세탁 → 차단 전환). 통과측 G1~G4(legacy·work
+>     이중·core/tail·5모듈 조립기 맵) 오탐 0. misattributed_section_ids 관측 필드 추가(게이트 키 신설 없음).
+>   [커밋 완료 2026-07-10 운영자 지시] 분리안 3커밋: `065c987` feat(Q7 1단계 제품 9파일, +1175/-43) /
+>     `fbdb296` chore(handoff 공존 배선 3파일) / docs(패킷·리뷰·상태·manifest — 이 커밋). manifest = done
+>     (archive `handoff/archive/q7-stage1-modules-20260710.json` 동결).
+>   [다음] Q7 2단계(CLI `--module`·admin 추천 UI)는 별도 승인·패킷으로 발주. 실렌더·LLM-on 문안은 계속
+>     미검증(별도 승인 영역). push는 지시 대기.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
+>   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목
+>     GREEN이나, 패킷이 위임한 소유권 사각 판정 = 보완 필요 **R9-1 1건**(유일 미해결). 상세 `REVIEW-FEEDBACK.md` 최상단.
+>   [기준환경 확정] `pytest tests/ -q` → **745 passed / 4 skipped / exit 0**(기준선 728/4 + 신규 17 완전 일치, 감소 0).
+>     골든 28 GREEN. 동결 SHA-256 10건 전부 MATCH(HEAD `0b3134f`). Ruff 신규 2파일 GREEN·수정 7파일 신규 위반 0
+>     (기존 부채 3건 해소, 전체 기존 부채 29건 별건).
+>   [R9-1] `module_coverage`가 구조화 맵의 소유권 주장을 레지스트리와 교차검증하지 않음 — 위조 맵이 missing/
+>     unexpected/unknown 전부 우회(합성 프로브 P1~P5로 확정, 정직 맵 대조군은 정상 차단). 수정 방향: 맵 주장 ID의
+>     레지스트리 소유자 대조(불일치=격상) + 양방 회귀. 예상 수정 범위 `sajugen/modules.py`+`tests/test_integrated_modules.py`.
+>   [다음] Codex가 REVIEW-FEEDBACK 라운드9 R9-1만 수정 → 재검(라운드9 재검 PASS) → 사용자 checkpoint commit 결정.
+>     그 전 commit·Q7 2단계(CLI/admin)·실렌더·sajugen 런타임 LLM 호출 금지. manifest = changes_requested/next_actor=codex.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 구현 후보·라운드9 요청 — 이 블록 먼저 읽기) =====
+>   [현재] 브랜치 `codex/gunghap-relationship-quality`, HEAD `0b3134f`, upstream 대비 ahead 20. 승인 패킷
+>     `handoff/codex-q7-stage1.md` v3 기준 Q7 1단계 구현 후보가 미커밋 워킹트리에 존재한다(tracked 7개 + 신규 2개).
+>   [범위] 모듈 schema/레지스트리, job·wealth 제공자 분리, 현행 순서 필터링+기존 sparse 병합, 병합 전 커버리지,
+>     N별 페이지·문자 하한, missing/unexpected 차단, content 메타 저장·복원. calc/input/CLI/admin/order 경로 diff 0.
+>   [검증] Q7 대상 43 passed, 신규 모듈 17 passed, 샌드박스 전체 **718 passed / 31 skipped / exit 0**,
+>     `git diff --check` GREEN, 신규 두 파일 Ruff GREEN. 기준환경 예상 **745 passed / 4 skipped**는 라운드9 재실행 전
+>     **확정 불가**. 전체 Ruff는 기존 부채 29건으로 GREEN 아님.
+>   [판정] `review_requested`. `verified`·`done` 아님. `REVIEW-FEEDBACK.md`에는 아직 Q7 라운드9가 없다.
+>   [SHA 인계] `handoff/current/manifest.json` → `handoff/tasks/q7-stage1-modules-20260710.md`. 기존 Phase2A
+>     `handoff/current` 런타임과 파일 단위 공존하며 task/LATEST/실행 폴더/log/run-manifest는 계속 ignored다.
+>   [다음] 신선 Claude 라운드9 + 기준환경 전체 pytest → PASS 뒤 사용자 checkpoint commit 판단. Q7 2단계
+>     CLI/admin, 실렌더, LLM 호출은 별도 승인 전 금지. 라운드9는 잘못된 `module_sections` 소유권을 현재 게이트가
+>     탐지하지 못하는 사각도 판정한다. commit/push/deploy도 지시 대기.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-10 E10 익명화 완료·라운드8 PASS — 이 블록 먼저 읽기) =====
 >   [E10 커밋] 실명 익명화 전수(Codex 구현·라운드8 PASS) = `5f6413d`. 운영 코드 3파일 주석·도크스트링 +
 >     테스트 15파일 픽스처 + 문서 8종 매핑 일관 치환(로직 0 — pytest 증감 0으로 증명). 패킷 자기 정화(N1~N7
