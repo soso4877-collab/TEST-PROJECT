@@ -12,8 +12,23 @@
 >   [커밋 완료 2026-07-10 운영자 지시] 분리안 3커밋: `065c987` feat(Q7 1단계 제품 9파일, +1175/-43) /
 >     `fbdb296` chore(handoff 공존 배선 3파일) / docs(패킷·리뷰·상태·manifest — 이 커밋). manifest = done
 >     (archive `handoff/archive/q7-stage1-modules-20260710.json` 동결).
->   [다음] Q7 2단계(CLI `--module`·admin 추천 UI)는 별도 승인·패킷으로 발주. 실렌더·LLM-on 문안은 계속
->     미검증(별도 승인 영역). push는 지시 대기.
+>   [push 완료 2026-07-10] `c8b48ad..6c0d673` → origin, ahead 0.
+>   [Q7 2단계 발주 2026-07-10] 패킷 `handoff/tasks/q7-stage2-cli-20260710.md`(승인, SHA `d46581db…`) =
+>     **CLI `--module`만**. admin 추천 UI·주문 플로우 integrated_full 편입·Q6 자동 추천은 **3단계 이연**
+>     (운영자 결정 — 현행 주문 플로우는 1인 전용이라 상대 입력·modules 소비처 없음 = 지금 저장하면 팬텀
+>     메타 A-5 위반). manifest = q7-stage2-cli-20260710 / planned / next_actor=codex. 수정 허용은
+>     integrated.py CLI 부분+test_integrated_modules.py 2파일, 기준선 753/4, 검증 = 라운드10.
+>   [라운드10 PASS 2026-07-11] Q7 2단계 CLI `--module` 구현(Codex, 2파일 +121/-12) 교차리뷰 승인. 기준환경
+>     **758 passed / 4 skipped / exit 0**(753+5, 감소 0) = 새 기준선. 골든 28. 실 프로세스 차단 3종(fake/중복/
+>     1인 gunghap) exit 1 실측. 정본 = REVIEW-FEEDBACK.md 최상단 라운드10 절.
+>   [절차 이탈 기록(비블로커)] Codex 광역 rg에서 ignored render/out/** 일부가 읽기 전용 검색 결과에 포함
+>     (수정·전재 없음, 자진 보고). 재발 방지: 이후 Codex 패킷 0절에 ignored 제외 글롭 필수 명시.
+>     docs/16 기록 여부 = 운영자 결정 대기.
+>   [2단계 커밋·push 완료 2026-07-11 운영자 지시] `ff002ee` feat(CLI --module 2파일) + docs(기록·manifest —
+>     이 커밋). manifest = done(archive 동결). origin push 완료. **Q7 전체(1·2단계) 종결.**
+>   [다음] 3단계(admin 추천·주문 플로우 integrated_full 편입)는 별도 설계·승인 후 발주. 이후 Codex 패킷
+>     0절에 "검색 시 ignored 제외 글롭 필수" 재발 방지 문구 포함(라운드10 ③). 절차 이탈의 docs/16 기록
+>     여부는 운영자 결정 대기. 실렌더·LLM-on 문안은 계속 미검증(별도 승인 영역).
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목

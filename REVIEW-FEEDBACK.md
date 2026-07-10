@@ -1,3 +1,48 @@
+# 교차 리뷰 — 2026-07-11 (라운드 10, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `6c0d673` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage2-cli-20260710.md` (Q7 2단계 CLI `--module`)
+
+## 최종 판정: **승인(PASS)** — 2단계 수용기준 전 항목 GREEN, 코드 미해결 0. 단 ③ 절차 이탈 1건(비블로커, 데이터 경계) 기록 — 운영자 확인 필요.
+
+Codex 완료보고를 믿지 않고 기준환경 직접 재실행 + diff 전량 실측 + 실 프로세스 차단 프로브.
+
+### ⓪ 범위 무결성
+- HEAD `6c0d673` 불변. 수정 = 승인 2파일(`sajugen/integrated.py` +28/-11 CLI gen 부분만, `tests/test_integrated_modules.py` +93/-1)뿐. STATE.md·manifest 변경은 발주 세션(Claude) 선행분 — Codex 비접촉(보고와 일치). 1단계 조립·게이트·레지스트리·render 커맨드 diff 0.
+
+### ① 기준환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **758 passed / 4 skipped / exit 0** (203.2s). 기준선 753/4 → **+5 = 신규 CLI 테스트 완전 일치**(감소 0, 은닉 약화 0). Codex "환산 예상" 확정.
+- `pytest -q -k golden` → **28 passed**. calc/input diff 0. 대상 파일 단독 30 passed 직접 재실행.
+
+### ② 항목별 실측 (패킷 §2·§3)
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| `--module` 반복 옵션 | 기본 None → `build_integrated_full(modules=None)` = 5모듈 하위호환(kwargs 캡처 단언). 기존 gen 호출 형태 무변경 | ✓ |
+| 검증 레지스트리 위임 | CLI 자체 정규화·보정 0 — 원값 그대로 전달, ValueError → stderr 원인 + `typer.Exit(1)`. 조용한 보정·부분 진행 없음 | ✓ |
+| 관측 출력 | `modules: love,job (schema v1)` — `result["modules"]` SSOT만 사용, 자체 재계산 금지 준수. 메타 없는 구 테스트 더블 하위호환 가드 | ✓ |
+| 실 프로세스 차단 프로브(리뷰어 독립) | `--module fake`/중복/`gunghap`+1인 실 CLI 실행 → **전부 exit 1 + 원인 메시지, PDF 미산출**(3종 모두 계산·렌더 진입 전 실패 — 안전 확인 후 실행) | ✓ |
+| 신규 테스트 5건 | 하위호환(None 전달)/조합(원값 전달+정규화 출력)/차단 3종 parametrize — 렌더만 끄고 **실제 레지스트리 검증 경로** 사용(모의 아님), PII 0 | ✓ |
+| Ruff | 수정 2파일 `All checks passed!` / exit 0 | ✓ |
+
+### ③ 절차 이탈 1건 (비블로커 — Codex 자진 보고, 운영자 확인 필요)
+Codex 초기 광역 rg 검색에서 제외 패턴 누락으로 **ignored `sajugen/render/out/**` 일부가 읽기 전용 검색 결과에 포함**됨(계약 4a 데이터 경계 — 해당 영역은 실고객 산출물 55파일이 있는 구역). 수정·재생성·추가 접근·내용 전재는 없었고 자진 보고됨. 코드 산출물과 무관(비블로커). **재발 방지 권고**: 이후 Codex 패킷 0절에 "검색 시 ignored 제외 글롭 필수(`--glob '!render/out/**'` 등)" 명시 + docs/16 기록 여부는 운영자 결정.
+
+### ④ 미검증 (정직 승계)
+- 성공 경로 실 CLI(실렌더 동반)·LLM-on 문안: 미실행(별도 승인 영역 — 성공 경로는 CliRunner+렌더 오프로만 검증).
+- admin·주문 플로우: 3단계 이연(범위 밖).
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 758 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed
+./.venv/Scripts/python.exe -m pytest (대상 파일 단독)      → 30 passed
+./.venv/Scripts/python.exe -m ruff check (수정 2파일)      → All checks passed / exit 0
+실 CLI 차단 3종 프로브                                     → 전부 exit 1·원인 메시지·PDF 미산출
+git status / git diff                                     → 승인 2파일 한정, calc/input 0
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-10 (라운드 9 재검, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `0b3134f` 위) · 구현자: Codex · 지시문: `handoff/codex-q7-r9-fixup.md` (R9-1 수정 라운드)

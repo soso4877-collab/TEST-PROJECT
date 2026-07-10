@@ -1,5 +1,15 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## Q7 2단계 라운드10 — 2026-07-11 (검증 세션, 리뷰어 Claude)
+
+- 판정: **PASS**. CLI `--module` 배선(2파일) 수용기준 전 항목 GREEN. 정본 = `REVIEW-FEEDBACK.md` 라운드10 절.
+- 기준환경 확정: 전체 pytest **758 passed / 4 skipped / exit 0**(753+5, 감소 0) — 새 기준선. 골든 28, Ruff 2파일 GREEN, 실 프로세스 차단 3종 exit 1 실측.
+- 절차 이탈 1건(비블로커): Codex 광역 rg가 ignored render/out/** 일부를 검색 결과에 포함(수정·전재 없음, 자진 보고). 재발 방지 권고 기록, docs/16 여부 운영자 결정 대기.
+- 커밋 완료(2026-07-11 운영자 지시, 분리안 2커밋): `ff002ee` feat(CLI 2파일) / docs(기록·manifest). manifest = done + archive. push 완료. Q7 1·2단계 종결.
+- 다음: 3단계(admin·주문 플로우 편입)는 별도 설계·승인. 이후 Codex 패킷에 ignored 제외 글롭 필수 문구 포함.
+
+---
+
 ## Q7 1단계 라운드9 재검 — 2026-07-10 (검증 세션, 리뷰어 Claude)
 
 - 판정: **PASS**. R9-1 종결, Q7 1단계 미해결 0. 정본 = `REVIEW-FEEDBACK.md` 최상단 "라운드9 재검" 절.
