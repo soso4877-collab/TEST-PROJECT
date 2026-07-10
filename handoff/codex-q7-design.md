@@ -16,7 +16,10 @@
 | `gunghap` | `relationship_*` 전부 | 2인 이상 입력 필수. 관계 모듈 내부 `relationship_consult` 직답 게이트를 유지한다. |
 | `peak/tail`(항상) | 선택 모듈 전체를 묶는 `personal_consult`, `closing`, `appendix_terms`, `colophon` | `personal_consult`는 선택 영역마다 근거 1개 이상을 답하고, 관계 consult와 역할을 중복하지 않는다. |
 
-최종 순서는 `core → love → job → wealth → health → gunghap → personal_consult → tail`로 고정한다. 미선택 모듈 섹션 유입, 중복 ID, 순서 역전은 조립 실패다. 현재 sparse 병합은 같은 모듈 안에서만 허용하고 모듈 경계를 넘는 병합은 금지한다. `--module` 미지정은 하위호환을 위해 5개 전부를 선택해 현 `integrated_full`과 같은 의미를 유지한다.
+최종 순서는 `core → love → job → wealth → health → gunghap → personal_consult → tail`로 고정한다.
+**[정정 2026-07-10 — 1단계 패킷 v2가 우선]** 위 추상 순서는 현행 조립 순서(도입→영역→흐름→개인화 피크
+consult→관계→마무리, `sections_schema.py:10` 의도된 독서 곡선)와 불일치해 폐기. 정규 순서 = 현행 순서의
+필터링(재배열 없음) — `handoff/codex-q7-stage1.md` §2.3 참조. 미선택 모듈 섹션 유입, 중복 ID, 순서 역전은 조립 실패다. 현재 sparse 병합은 같은 모듈 안에서만 허용하고 모듈 경계를 넘는 병합은 금지한다. `--module` 미지정은 하위호환을 위해 5개 전부를 선택해 현 `integrated_full`과 같은 의미를 유지한다.
 
 ## 분량·게이트 연동
 

@@ -29,9 +29,14 @@
 2. **work 제공자 분리**: `rules.py:1748`의 `_join("job","wealth")`를 유지하되 T["job"]·T["wealth"]를 독립 노출해
    `job`/`wealth` 모듈이 따로 선택 가능하게. **기존 work 섹션 출력 바이트 불변**(5모듈 전체=현행과 동일 문자열 —
    회귀로 고정).
-3. **조립 일반화**: `_assemble_sections`를 `modules: list[str]` 파라미터(기본 None=5모듈 전체)로 일반화 —
-   최종 순서 `core → love → job → wealth → health → gunghap → personal_consult → tail` 고정, 미선택 모듈 섹션 유입·
-   중복 ID·순서 역전 = 조립 실패(예외). sparse 병합은 같은 모듈 안에서만.
+3. **조립 일반화** (v2 정정 2026-07-10 — Codex 정지 보고 타당, 설계 문서의 추상 고정 순서 폐기):
+   `_assemble_sections`를 `modules: list[str]` 파라미터(기본 None=5모듈 전체)로 일반화.
+   **정규 순서 = 현행 순서의 필터링**: 현행 조립 순서(sections_schema 개인 순서 → relationship 순서 → closing/tail —
+   `sections_schema.py:10` 주석의 의도된 독서 곡선 "도입→빌드업→개인화 피크(consult)→마무리")를 그대로 두고,
+   선택 모듈에 속하지 않는 섹션만 결정론적으로 제외한다. 재배열 없음 — 설계 문서의
+   `core→love→…→gunghap→consult→tail` 추상 순서는 현행과 불일치라 적용하지 않는다(이중 레짐 금지:
+   같은 선택은 명시/미지정과 무관하게 같은 문서). 이로써 미지정/5모듈 전체 = 현행 완전 동일이 자동 성립.
+   미선택 모듈 섹션 유입·중복 ID = 조립 실패(예외). sparse 병합은 같은 모듈 안에서만.
 4. **게이트 연동**: `delivery_quality`에 모듈 수 N 기반 하한(승인 공식) — 기존 `_min_pages/_min_text_chars` 매핑에
    integrated 모듈 프로필 편입. verify에 `selected_modules` 전달·관측. 실패 룰 신설: `missing_module_sections`·
    `unexpected_module_sections`(기존 delivery_quality_clean 안에 편입 — GATE_KEYS 우회 경로 금지). 부재 시 조용한
