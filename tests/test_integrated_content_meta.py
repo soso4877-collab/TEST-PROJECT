@@ -41,6 +41,9 @@ def test_save_writes_provenance_meta(tmp_path):
     assert data["premium"] is True
     assert data["model"] == "claude-sonnet-4-6"
     assert data["layout_variant"]["body_font_size"] == "14.5pt"
+    assert data["modules"] == ["love", "job", "wealth", "health", "gunghap"]
+    assert data["module_schema_version"] == integrated.MODULE_SCHEMA_VERSION
+    assert data["module_sections"]["gunghap"] == ["relationship_overview"]
 
 
 def test_save_defaults_when_meta_omitted(tmp_path):
@@ -85,3 +88,5 @@ def test_read_backcompat_old_bundle(tmp_path, monkeypatch):
     assert out["premium"] is True
     assert out["model"] == "rule"
     assert out["layout_variant"] is None
+    assert out["modules"] == ["love", "job", "wealth", "health", "gunghap"]
+    assert out["module_schema_version"] == integrated.MODULE_SCHEMA_VERSION

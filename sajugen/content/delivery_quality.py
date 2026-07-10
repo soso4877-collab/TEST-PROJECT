@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
+from .. import modules as integrated_modules
 from . import safe_lint
 
 MIN_PREMIUM_PAGES = 20
@@ -339,23 +340,29 @@ def _is_premium(product: str | None, premium: bool) -> bool:
     return bool(premium or (product or "").strip().lower() in _PREMIUM_PRODUCTS)
 
 
-def _min_pages(product: str | None) -> int:
+def _min_pages(
+    product: str | None, selected_modules: Iterable[str] | None = None
+) -> int:
     product_key = (product or "").strip().lower()
     if product_key in _GUNGHAP_PRODUCTS:
         return MIN_GUNGHAP_PAGES
     if product_key in _INTEGRATED_FULL_PRODUCTS:
-        return MIN_INTEGRATED_FULL_PAGES
+        return integrated_modules.module_minimums(selected_modules)[0]
     if product_key in _FOLLOWUP_PRODUCTS:
         return MIN_FOLLOWUP_PAGES
     return MIN_PREMIUM_PAGES
 
 
-def _min_text_chars(product: str | None) -> int:
+def _min_text_chars(
+    product: str | None, selected_modules: Iterable[str] | None = None
+) -> int:
     product_key = (product or "").strip().lower()
     if product_key in _GUNGHAP_PRODUCTS:
         return MIN_GUNGHAP_TEXT_CHARS
     if product_key in _FOLLOWUP_PRODUCTS:
         return MIN_FOLLOWUP_TEXT_CHARS
+    if product_key in _INTEGRATED_FULL_PRODUCTS:
+        return integrated_modules.module_minimums(selected_modules)[1]
     return MIN_PREMIUM_TEXT_CHARS
 
 
@@ -542,6 +549,8 @@ def _finding_message(finding: dict) -> dict:
         "premium_text_chars": "납품 본문 글자 수가 상품 기준보다 적습니다.",
         "premium_low_density_pages": "본문 밀도가 낮은 페이지가 있습니다.",
         "missing_customer_context": "고객 질문(고민)이 이 상품의 품질 검사까지 전달되지 않았습니다.",
+        "missing_module_sections": "선택한 질문 영역 모듈의 본문 섹션이 누락되었습니다.",
+        "unexpected_module_sections": "선택하지 않은 질문 영역 모듈의 본문 섹션이 유입되었습니다.",
         "missing_question_axes": "질문 축에 대한 답변 근거가 부족합니다.",
         "missing_near_term_timing": "연애/재회 질문에 필요한 가까운 시기 기준이 부족합니다.",
         "missing_love_reunion_action": "연애/재회 질문에 필요한 행동 기준과 주의 기준이 부족합니다.",
@@ -555,7 +564,7 @@ def _finding_message(finding: dict) -> dict:
         "overused_expected_context": "요청된 맥락 단어가 과도하게 반복됩니다.",
     }
     out = {"rule": rule, "message": messages.get(rule, "납품 품질 기준을 충족하지 못했습니다.")}
-    for key in ("value", "minimum", "axes"):
+    for key in ("value", "minimum", "axes", "modules", "section_ids"):
         if key in finding:
             out[key] = finding[key]
     if "pages" in finding:
@@ -573,6 +582,9 @@ def analyze(
     concern: str | None = None,
     expected_context_terms: list[str] | None = None,
     context_required: bool = False,
+    selected_modules: Iterable[str] | None = None,
+    module_sections: Mapping[str, Iterable[str]] | None = None,
+    premerge_section_ids: Iterable[str] | None = None,
 ) -> dict:
     """Return customer-delivery quality findings.
 
@@ -592,14 +604,48 @@ def analyze(
     failures: list[dict] = []
     warnings: list[dict] = []
 
+    product_key = (product or "").strip().lower()
+    module_coverage: dict[str, object]
+    if product_key in _INTEGRATED_FULL_PRODUCTS:
+        # v3: 커버리지는 sparse 병합 뒤의 PDF 제목이 아니라 조립기가 넘긴 병합 전 ID 맵으로
+        # 판정한다. 모듈 인자가 없는 레거시는 5모듈 전체 계약으로 복원하며 skipped가 아니다.
+        module_coverage = integrated_modules.module_coverage(
+            selected_modules, module_sections, premerge_section_ids
+        )
+        missing_modules = list(module_coverage["missing_modules"])
+        unexpected_modules = list(module_coverage["unexpected_modules"])
+        unknown_section_ids = list(module_coverage["unknown_section_ids"])
+        if missing_modules:
+            failures.append({"rule": "missing_module_sections", "modules": missing_modules})
+        if unexpected_modules or unknown_section_ids:
+            failures.append(
+                {
+                    "rule": "unexpected_module_sections",
+                    "modules": unexpected_modules,
+                    "section_ids": unknown_section_ids,
+                }
+            )
+    else:
+        module_coverage = {
+            "selected_modules": [],
+            "module_sections": {},
+            "missing_modules": [],
+            "unexpected_modules": [],
+            "unknown_section_ids": [],
+            "premerge_section_ids": [],
+            "checked_before_sparse_merge": False,
+            "skipped": True,
+        }
+    effective_selected_modules = module_coverage["selected_modules"] or selected_modules
+
     if context_required and is_premium and not has_customer_context:
         # 고객 질문 필수 상품인데 concern 이 delivery_quality 까지 도달하지 않음 =
         # 질문축 검사가 no-op 된 상태. false-pass 방지(조용한 통과 금지).
         failures.append({"rule": "missing_customer_context", "product": product})
 
     if is_premium:
-        min_pages = _min_pages(product)
-        min_text_chars = _min_text_chars(product)
+        min_pages = _min_pages(product, effective_selected_modules)
+        min_text_chars = _min_text_chars(product, effective_selected_modules)
         if pages is not None and pages < min_pages:
             failures.append(
                 {
@@ -694,8 +740,16 @@ def analyze(
         "min_gunghap_text_chars": MIN_GUNGHAP_TEXT_CHARS,
         "min_integrated_full_text_chars": MIN_PREMIUM_TEXT_CHARS,
         "min_followup_text_chars": MIN_FOLLOWUP_TEXT_CHARS,
-        "minimum_pages": _min_pages(product) if is_premium else None,
-        "minimum_text_chars": _min_text_chars(product) if is_premium else None,
+        "minimum_pages": (
+            _min_pages(product, effective_selected_modules) if is_premium else None
+        ),
+        "minimum_text_chars": (
+            _min_text_chars(product, effective_selected_modules) if is_premium else None
+        ),
+        "selected_modules": module_coverage["selected_modules"],
+        "module_schema_version": integrated_modules.MODULE_SCHEMA_VERSION,
+        "module_sections": module_coverage["module_sections"],
+        "module_coverage": module_coverage,
         "failures": failures,
         "warnings": warnings,
         "failure_messages": [_finding_message(f) for f in failures],

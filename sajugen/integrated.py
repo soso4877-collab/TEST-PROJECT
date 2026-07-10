@@ -8,7 +8,6 @@ one report before rendering, so no hand-edited HTML/PDF baseline is needed.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,6 +15,7 @@ import typer
 
 from . import config as cfg
 from . import gunghap
+from . import modules as integrated_modules
 from .calc import engine
 from .content import builder, client_tone_lint, llm_usage, postprocess
 from .refdate import default_ref_date_iso
@@ -23,6 +23,8 @@ from .render import pdf as render_pdf
 from .render import verify as render_verify
 
 PRODUCT = "integrated_full"
+MODULE_SCHEMA_VERSION = integrated_modules.MODULE_SCHEMA_VERSION
+module_schema_version = MODULE_SCHEMA_VERSION
 _LAYOUT_VARIANTS = (
     ("14.5pt", "1.8"),
     ("13.8pt", "1.68"),
@@ -113,6 +115,27 @@ def _copy_section(section, *, prefix: str | None = None):
     )
 
 
+class _AssemblyResult(list[object]):
+    """기존 list 계약을 유지하며 병합 전 모듈 커버리지 증거를 함께 보존한다."""
+
+    def __init__(
+        self,
+        sections: list[object],
+        *,
+        premerge_section_ids: list[str],
+        module_sections: dict[str, list[str]],
+    ) -> None:
+        super().__init__(sections)
+        self.premerge_section_ids = premerge_section_ids
+        self.module_sections = module_sections
+
+    @property
+    def sections(self) -> list[object]:
+        """신규 메타 소비처용 명시적 이름. 값 자체는 기존과 같은 list다."""
+
+        return self
+
+
 def _compact_sparse_sections(sections: list[object]) -> list[object]:
     compacted: list[object] = []
     for section in sections:
@@ -194,26 +217,71 @@ def _receiver_person(people_in: list[tuple], receiver_name: str | None) -> tuple
     raise ValueError("receiver must match one of --person names")
 
 
-def _assemble_sections(personal_report, relationship_sections: list[object]) -> list[object]:
-    personal_drop = {"cover", "toc", "appendix_terms", "colophon"}
-    closing = []
-    body = []
+def _assemble_sections(
+    personal_report,
+    relationship_sections: list[object],
+    modules: list[str] | tuple[str, ...] | None = None,
+) -> _AssemblyResult:
+    """현행 독서 순서를 필터링하고, 그 뒤에만 레거시 sparse 병합을 적용한다.
+
+    v3 불변식은 커버리지 판정 자료를 병합 전에 잡는 것이다. 병합은 섹션 ID를 없앨 수
+    있으므로 ``module_sections``는 필터링 직후 목록에서 만들고 이후 절대 재계산하지 않는다.
+    """
+
+    selected = integrated_modules.normalize_modules(modules)
+    personal_drop = {"cover", "toc"}
+    closing_ids = {"closing", "appendix_terms", "colophon"}
+    closing: list[object] = []
+    body: list[object] = []
+    module_sections = integrated_modules.empty_module_sections()
     for section in personal_report.sections:
         if section.id in personal_drop:
-            if section.id in {"appendix_terms", "colophon"}:
-                closing.append(_copy_section(section))
             continue
-        if section.id == "closing":
-            closing.insert(0, _copy_section(section))
+        if section.id not in integrated_modules.PERSONAL_SECTION_IDS:
+            raise ValueError(f"unregistered integrated personal section: {section.id}")
+        owners = integrated_modules.personal_section_modules(section.id, selected)
+        if not owners:
+            # 등록은 됐지만 선택되지 않은 love/work/health 섹션은 여기서 결정론적으로 제외한다.
             continue
-        body.append(_copy_section(section, prefix="personal"))
-    relationship = [
-        _copy_section(section, prefix="relationship") for section in relationship_sections
-    ]
+        if section.id not in closing_ids:
+            copied = _copy_section(section, prefix="personal")
+            body.append(copied)
+        else:
+            copied = _copy_section(section)
+            closing.append(copied)
+        for module_id in owners:
+            module_sections[module_id].append(copied.id)
+
+    relationship: list[object] = []
+    if "gunghap" in selected:
+        for section in relationship_sections:
+            copied = _copy_section(section, prefix="relationship")
+            relationship.append(copied)
+            module_sections["gunghap"].append(copied.id)
+
     sections = body + relationship + closing
+    section_ids = [section.id for section in sections]
+    duplicates = sorted(
+        section_id for section_id in set(section_ids) if section_ids.count(section_id) > 1
+    )
+    if duplicates:
+        raise ValueError(f"duplicate integrated section ids: {duplicates}")
+
+    unexpected = [
+        module_id
+        for module_id in integrated_modules.SELECTABLE_MODULES
+        if module_id not in selected and module_sections[module_id]
+    ]
+    if unexpected:
+        raise ValueError(f"unexpected integrated module sections: {unexpected}")
+
     for section in sections:
         section.final_text = _integrated_style_safe_text(section.final_text)
-    return _compact_sparse_sections(sections)
+    return _AssemblyResult(
+        sections=_compact_sparse_sections(sections),
+        premerge_section_ids=section_ids,
+        module_sections=module_sections,
+    )
 
 
 def _integrated_style_safe_text(text: str) -> str:
@@ -294,8 +362,23 @@ def _save_integrated_content(
     T5.3/B-6·B-7: 재렌더 재현성·이력 메타(ref_date·premium·model·layout_variant)를 스키마에
     추가한다. 읽기 측은 전부 하위호환 기본값을 쓰므로 이 필드 없는 구 파일도 그대로 로드된다."""
     identity = result["identity"]
+    selected_modules = integrated_modules.normalize_modules(result.get("modules"))
+    module_sections = integrated_modules.normalize_module_sections(result.get("module_sections"))
+    premerge_section_ids = result.get("premerge_section_ids")
+    if premerge_section_ids is None:
+        premerge_section_ids = list(
+            dict.fromkeys(
+                section_id for values in module_sections.values() for section_id in values
+            )
+        )
     bundle = {
         "product": PRODUCT,
+        # Q7: 재렌더가 compose 당시와 같은 선택·커버리지 하한을 재현하도록 모듈 메타를
+        # 본문과 함께 저장한다. 병합 전 목록도 저장해야 sparse 병합으로 사라진 ID를 오탐하지 않는다.
+        "modules": list(selected_modules),
+        "module_schema_version": MODULE_SCHEMA_VERSION,
+        "premerge_section_ids": list(premerge_section_ids),
+        "module_sections": module_sections,
         "receiver": result["receiver"],
         "names": [p["name"] for p in result["people"]],
         "ref_year": ref_year,
@@ -338,6 +421,9 @@ def _render_integrated(
     brand: str,
     out_name: str,
     out_dir: str | Path | None,
+    selected_modules: list[str] | tuple[str, ...] | None = None,
+    module_sections: dict[str, list[str]] | None = None,
+    premerge_section_ids: list[str] | tuple[str, ...] | None = None,
     ref_date: str | None = None,
 ) -> tuple[str, dict, list]:
     """assemble 된 report 를 _LAYOUT_VARIANTS 로 렌더+게이트(compose 없음). build·재렌더 공용.
@@ -377,6 +463,10 @@ def _render_integrated(
             ref_date=ref_date,
             role_perspective=role_specs,
             honorific=role_specs,
+            # Q7 커버리지는 렌더 후 PDF 제목을 역추정하지 않고 조립기의 병합 전 목록을 쓴다.
+            selected_modules=selected_modules,
+            module_sections=module_sections,
+            premerge_section_ids=premerge_section_ids,
         )
         low_density_only = _integrated_only_low_density_failure(verify_result)
         layout_only = _layout_only_failure(verify_result)  # P6: orphan 스필 포함(무과금 재렌더)
@@ -411,6 +501,22 @@ def render_integrated_from_content(
 
     template/CSS 를 바꿨을 때 API 과금 없이 기존 고객 본문을 새 레이아웃으로 다시 렌더한다."""
     data = json.loads(Path(content_path).read_text(encoding="utf-8"))
+    stored_schema_version = data.get("module_schema_version", MODULE_SCHEMA_VERSION)
+    if stored_schema_version != MODULE_SCHEMA_VERSION:
+        raise ValueError(
+            "unsupported integrated module schema version: "
+            f"{stored_schema_version} (expected {MODULE_SCHEMA_VERSION})"
+        )
+    # 모듈 필드가 없던 구 번들은 선택 기능 이전 산출물이므로 5모듈 전체로 복원한다.
+    # 이는 skipped가 아니라 당시 조립 계약을 명시적으로 적용하는 하위호환 경로다.
+    selected_modules = integrated_modules.normalize_modules(data.get("modules"))
+    module_sections = integrated_modules.normalize_module_sections(data.get("module_sections"))
+    premerge_section_ids = list(
+        data.get("premerge_section_ids")
+        or dict.fromkeys(
+            section_id for values in module_sections.values() for section_id in values
+        )
+    )
     report = SimpleNamespace(
         sections=[
             SimpleNamespace(
@@ -435,6 +541,9 @@ def render_integrated_from_content(
         brand=brand or data.get("brand", "sajudoryeong"),
         out_name=out,
         out_dir=out_dir,
+        selected_modules=selected_modules,
+        module_sections=module_sections,
+        premerge_section_ids=premerge_section_ids,
         # T5.3 영속 ref_date 로 재렌더도 같은 월 시제 앵커 — 구 파일(필드 없음)은 연중 기본.
         ref_date=data.get("ref_date"),
     )
@@ -449,6 +558,10 @@ def render_integrated_from_content(
         "premium": data.get("premium", True),
         "model": data.get("model", "rule"),
         "layout_variant": data.get("layout_variant"),
+        "modules": list(selected_modules),
+        "module_schema_version": stored_schema_version,
+        "module_sections": module_sections,
+        "premerge_section_ids": premerge_section_ids,
     }
 
 
@@ -464,12 +577,17 @@ def build_integrated_full(
     render: bool = True,
     out_dir: str | Path | None = None,
     ref_date: str | None = None,
+    modules: list[str] | tuple[str, ...] | None = None,
 ) -> dict:
+    selected_modules = integrated_modules.normalize_modules(modules)
+    receiver = _receiver_person(people_in, receiver_name)
+    if "gunghap" in selected_modules and len(people_in) < 2:
+        raise ValueError("gunghap module requires at least two people")
+
     # 월 시제 닻(QI-2026-07-04-02 관계 상품 확장): 개인 장(build_report)·관계 장(build_gunghap)·
     # verify·content.json 영속에 같은 기준 일자를 배선. 미지정 시 기존 하드코딩과 동일한
     # 연중 기본(6월 13일) — 실주문은 생성 당일을 전달할 것.
     ref_date = ref_date or f"{ref_year}-06-13"
-    receiver = _receiver_person(people_in, receiver_name)
     receiver_name = receiver[0]
     y, mo, da, hh, mi = receiver[1]
     saju = engine.build(
@@ -490,26 +608,48 @@ def build_integrated_full(
         concern=situation,
         closing_sign=cfg.brand(brand)["closing_sign"],
         ref_date=ref_date,
+        # work 챕터의 기존 ID와 가드 경로는 유지하고, 내부 제공자 텍스트만 선택한다.
+        work_modules=integrated_modules.work_provider_modules(selected_modules),
+        # 선택 밖 개인 챕터는 LLM 작성 후보에서도 제외해 비용과 비선택 문안 생성을 막는다.
+        include_section_ids=integrated_modules.included_personal_sections(selected_modules),
     )
-    relationship_result = gunghap.build_gunghap(
-        people_in,
-        situation=situation,
-        ref_year=ref_year,
-        ref_date=ref_date,
-        out_name=out_name,
-        brand=brand,
-        mode="relationship",
-        use_llm=use_llm,
-        receiver_perspective=True,
-        receiver_name=receiver_name,
-        product=PRODUCT,
-        render=False,
-    )
-    sections = _assemble_sections(personal_report, relationship_result["sections"])
-    if not use_llm:
+
+    # gunghap 미선택 경로는 관계 compose를 호출하지 않는다. 이 분기가 있어야 1인 입력의
+    # love/job/wealth/health 조합이 가능하고, 선택하지 않은 관계 문안도 생성되지 않는다.
+    relationship_sections: list[object] = []
+    if "gunghap" in selected_modules:
+        relationship_result = gunghap.build_gunghap(
+            people_in,
+            situation=situation,
+            ref_year=ref_year,
+            ref_date=ref_date,
+            out_name=out_name,
+            brand=brand,
+            mode="relationship",
+            use_llm=use_llm,
+            receiver_perspective=True,
+            receiver_name=receiver_name,
+            product=PRODUCT,
+            render=False,
+        )
+        people = relationship_result["people"]
+        relationship_sections = relationship_result["sections"]
+    else:
+        people = [
+            {
+                "name": receiver_name,
+                "day_master": saju.myeongni.day_master,
+                "singang": saju.myeongni.singang,
+            }
+        ]
+
+    assembly = _assemble_sections(personal_report, relationship_sections, selected_modules)
+    sections = assembly.sections
+    # 이 깊이 보강장은 기존 5모듈 무LLM 산출의 하위호환 장치다. 부분 조합에는 선택 밖
+    # 영역 문단이 섞이지 않도록 넣지 않으며, None과 명시적 5모듈은 모두 같은 조건을 탄다.
+    if not use_llm and selected_modules == integrated_modules.SELECTABLE_MODULES:
         sections = _with_no_llm_depth_section(sections)
     report = SimpleNamespace(sections=sections)
-    people = relationship_result["people"]
     names = [p["name"] for p in people]
     role_specs = client_tone_lint.role_perspective_specs(names, receiver=receiver_name)
     result = {
@@ -525,6 +665,10 @@ def build_integrated_full(
         "pdf_path": "",
         "verify": {},
         "layout_attempts": [],
+        "modules": list(selected_modules),
+        "module_schema_version": MODULE_SCHEMA_VERSION,
+        "premerge_section_ids": assembly.premerge_section_ids,
+        "module_sections": assembly.module_sections,
     }
     if not render:
         return result
@@ -554,6 +698,9 @@ def build_integrated_full(
         brand=brand,
         out_name=out_name,
         out_dir=out_dir,
+        selected_modules=selected_modules,
+        module_sections=assembly.module_sections,
+        premerge_section_ids=assembly.premerge_section_ids,
         ref_date=ref_date,
     )
     result["layout_attempts"] = attempts

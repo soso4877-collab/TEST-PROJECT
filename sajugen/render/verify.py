@@ -466,11 +466,17 @@ def verify(
     role_perspective: list[dict] | None = None,
     honorific: list[dict] | None = None,
     partner_present: bool | None = None,
+    selected_modules: list[str] | tuple[str, ...] | None = None,
+    module_sections: dict[str, list[str]] | None = None,
+    premerge_section_ids: list[str] | tuple[str, ...] | None = None,
 ) -> dict:
     """렌더 PDF 게이트. name_full(전체 이름 리스트)·identity((expected_gans, expected_terms,
     subject_specs))·singang([{full,given,honor,singang}]) 가 주어지면 H1.5.3/3.2 이름 호칭·일간
     role·신강약 group/role 게이트를 본문에 추가 적용한다.
-    미전달이면 해당 게이트는 skip(clean True 기본 — 기존 호출·테스트 back-compat)."""
+    미전달이면 해당 게이트는 skip(clean True 기본 — 기존 호출·테스트 back-compat).
+
+    Q7 모듈 커버리지는 예외다. integrated_full에서 selected_modules 미전달은 5모듈 전체로,
+    module_sections 미전달은 선택 기능 이전의 전체 조립 계약으로 복원해 skipped 없이 검사한다."""
     doc = fitz.open(pdf_path)
     pages_text = [doc.load_page(i).get_text() for i in range(doc.page_count)]
     # 레이아웃 기하 게이트용 — 텍스트 블록 bbox·페이지 폭을 close 전에 캡처(2026-07-02).
@@ -628,12 +634,20 @@ def verify(
         expected_context_terms=expected_context_terms,
         # integrated_full·궁합 계열은 고객 질문 필수 → concern 부재 시 조용히 통과 금지(P1).
         context_required=delivery_quality.context_required_for(product),
+        selected_modules=selected_modules,
+        module_sections=module_sections,
+        premerge_section_ids=premerge_section_ids,
     )
     r["delivery_quality"] = dq
     r["delivery_quality_clean"] = dq["clean"]
     r["delivery_missing_axes"] = dq["missing_axes"]
     r["delivery_repetition_hits"] = dq["repetition_hits"][:20]
     r["delivery_guarantee_hits"] = dq["guarantee_hits"][:20]
+    # summary 소비처가 raw 본문 없이도 선택·커버리지 판정 시점과 결과를 관측할 수 있게 한다.
+    r["selected_modules"] = dq["selected_modules"]
+    r["module_schema_version"] = dq["module_schema_version"]
+    r["module_sections"] = dq["module_sections"]
+    r["module_coverage"] = dq["module_coverage"]
 
     # 레이아웃 기하 게이트(2026-07-02) — 좌우 여백 비대칭·콘텐츠 넘침(텍스트 게이트가 못 잡는 시각 결함).
     geom_hits = _layout_geometry_hits(pages_text, pages_blocks, page_rects)

@@ -99,6 +99,8 @@ def build_report(
     closing_sign: str | None = None,
     is_leap: bool = False,
     ref_date: str | None = None,
+    work_modules: tuple[str, ...] | list[str] | None = None,
+    include_section_ids: set[str] | frozenset[str] | None = None,
 ) -> Report23:
     # 기준 연도 방어(2026-06-12 버그: ref_year 미전달 시 골격이 seun 첫 해(과거)를
     # '기준 해'로 폴백 → LLM이 "지금은 2025년" 오서술). 우선순위:
@@ -208,8 +210,19 @@ def build_report(
         concern_text=concern,
         closing_sign=closing_sign,
         is_leap=is_leap,
+        # Q7: job/wealth 부분 조립도 기존 work 챕터의 동일한 LLM·3단 가드 경로를 탄다.
+        # None은 기존 개인 상품의 job+wealth 결합값이라 모든 옛 호출이 그대로 유지된다.
+        work_modules=work_modules,
     )
     drop = set(_PRODUCT_DROP.get(product, set()))
+    if include_section_ids is not None:
+        # Q7 부분 모듈은 최종 조립에서만 버리는 데 그치지 않고, 선택 밖 챕터를 LLM 작성
+        # 대상으로도 만들지 않는다. cover/toc는 기존 빌더 구조를 유지하고 조립기가 제외한다.
+        known_ids = {section_id for section_id, _title, _source in SECTION_SPECS}
+        unknown_includes = set(include_section_ids) - known_ids
+        if unknown_includes:
+            raise ValueError(f"unknown personal section includes: {sorted(unknown_includes)}")
+        drop |= known_ids - set(include_section_ids) - {"cover", "toc"}
     if unknown_time:
         # 절대규칙8: 시진 불명 시 자미 생성 금지 — 자미 전용 섹션(자미두수 명반·두 체계 교차)을
         # 생략하고 명리 단독으로 강등한다(myeongni 상품과 동일 드롭). 추정 시각(정오) 기반 명반이

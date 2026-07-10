@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -201,6 +203,10 @@ def test_integrated_full_clean_fixture_passes_gate(monkeypatch):
     assert result["gate_pass"] is True, result
     assert result["role_perspective_clean"] is True
     assert result["honorific_consistency_clean"] is True
+    # Q7 레거시 호출은 모듈 검사를 건너뛰지 않고 5모듈 전체 계약으로 관측한다.
+    assert result["selected_modules"] == ["love", "job", "wealth", "health", "gunghap"]
+    assert result["module_coverage"]["skipped"] is False
+    assert result["module_coverage"]["missing_modules"] == []
     review = hsemantic_review.review_verify_result(result)
     assert review["semantic_review_status"] == "REVIEW_REQUIRED"
     assert review["release_allowed"] is False

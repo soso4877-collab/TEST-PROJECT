@@ -24,6 +24,8 @@ from __future__ import annotations
 import hashlib
 from datetime import timedelta, timezone
 
+from .. import modules as integrated_modules
+
 # --- 표시 매핑 (계산 아님: lunar-python/iztro-py 한자 산출물을 한국어 표시로 치환) ---
 _SHISHEN_KO = {
     "比肩": "비견",
@@ -926,6 +928,7 @@ def build_all(
     concern_text: str | None = None,
     closing_sign: str | None = None,
     is_leap: bool = False,
+    work_modules: tuple[str, ...] | list[str] | None = None,
 ) -> dict[str, str]:
     m, z, x = saju.myeongni, saju.ziwei, saju.crosscheck
     # 호명 = 성 제외('김수하'→'수하님'), '당신' 금지(운영자 지시 2026-06-12).
@@ -1738,6 +1741,21 @@ def build_all(
     def _join(*keys: str) -> str:
         return "\n\n".join(T[k].strip() for k in keys if T.get(k, "").strip())
 
+    # Q7 모듈 제공자 분리: 기본값은 옛 ``_join("job", "wealth")``와 같은 순서·바이트를
+    # 유지한다. 부분 조립에서는 integrated 진입점이 선택한 제공자만 넘기며, 빈 튜플은
+    # work 섹션을 뒤 단계에서 제외할 때 쓰는 명시적 값이다. 미등록·중복은 조용히 보정하지 않는다.
+    selected_work = ("job", "wealth") if work_modules is None else tuple(work_modules)
+    unknown_work = sorted(set(selected_work) - {"job", "wealth"})
+    if unknown_work:
+        raise ValueError(f"unknown work module providers: {unknown_work}")
+    if len(selected_work) != len(set(selected_work)):
+        raise ValueError("work module providers must not contain duplicates")
+    selected_work = tuple(
+        module_id
+        for module_id in integrated_modules.SELECTABLE_MODULES
+        if module_id in selected_work and module_id in {"job", "wealth"}
+    )
+
     NT: dict[str, str] = {
         "cover": T["cover"],
         "intro": _join("summary", "howto", "keywords"),
@@ -1745,7 +1763,11 @@ def build_all(
         "nature": _join("ilgan", "sipseong", "character", "strength"),
         "frame": _join("geukguk", "shinsal"),
         "love": T["love"],
-        "work": _join("job", "wealth"),
+        # 독립 제공자는 integrated 조립과 회귀 테스트가 소비한다. 기존 개인 상품 소비자는
+        # 계속 ``work`` 하나만 읽으므로 SECTION_SPECS와 5모듈 기본 출력은 변하지 않는다.
+        "work_job": T["job"],
+        "work_wealth": T["wealth"],
+        "work": _join(*selected_work),
         "health": T["health"],
         "flow": _join("daewoon", "thisyear", "seun", "monthly"),
         "ziwei": _join("ziwei_summary", "ziwei_palaces"),
