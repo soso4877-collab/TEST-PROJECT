@@ -1,5 +1,21 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-10 질문 적응 Q1~Q7 발주 — 이 블록 먼저 읽기) =====
+>   [방향 전환] 운영자 결정: docs/23 베타 매뉴얼 **보류**, 질문 적응형 풀이가 선행(질문 미반영 = 상품 핵심 결함,
+>     베타 고객에게 부실 풀이 방지). 근거 설계 = `handoff/design-question-adaptive.md`(홈 세션 작성).
+>   [설계 검증 완료] Claude 세션이 설계의 5개 근본 지점을 코드로 재검증 → **PASS**(구조 전부 일치). 정정 6건
+>     (gunghap 로컬 관계 정의 919-929 재할당로 죽은 코드·가현/상철은 죽은 코드 내 실명, fallback.build_fallback
+>     situation 팬텀 파라미터, _GH_GUIDE:475 실명 태수/태성/순조, delivery_quality·rules에 최초 고객 키워드
+>     김포/계양/청마/장재화 하드코딩, SECTIONS 실명, _min_pages는 이미 상품 차등 구조)는 패킷 §1에 반영.
+>   [발주] `handoff/codex-question-adaptive-q1-q7.md` = Codex 실행 TASK_PACKET. 웨이브1 = Q1(궁합 consult 이식)
+>     →Q2(프레임 적응+하드와이어 스윕)→Q3(게이트 관계축+키워드 일반화) 완료 후 멈춤·교차리뷰. 웨이브2 = Q4~Q7
+>     (분량 차등·재방문 분량형·자동분류 UI·모듈 조합)은 리뷰 PASS+재승인 후.
+>   [baseline] HEAD = 지시문·리뷰 기록 정리 커밋(`d2f3a4d`, 6문서+STATE) 이후. 기준선 재실측 2026-07-10:
+>     `./.venv/Scripts/python.exe -m pytest tests/ -q` → **695 passed / 4 skipped / exit 0**(222.69s). push는 지시 대기.
+>   [다음 단계] (1) Codex가 패킷 웨이브1 실행 → (2) Claude /cross-review → (3) 운영자 커밋 → (4) 웨이브2 →
+>     (5) Q 완료 후 docs/23 베타 저장·지인 베타 2건·지현님 재발급(질문 적응 반영 상태로).
+>   [불변 유지] 계산 LLM 위임 0·factcheck 하드차단·APPROVED 물리차단·PII 0·calc/input 무변경(골든 불변).
+
 > ===== 압축/새세션 재개 앵커 (2026-07-10 후속·재방문 라인 완결·push + 발급/베타 문서 — 이 블록 먼저 읽기) =====
 >   [코드 완결·원격 반영] 후속·재방문 상담 기능 전체가 검증·커밋·push 완료. 원격 HEAD = `c8b48ad`
 >     (브랜치 `codex/gunghap-relationship-quality`, 8커밋). 구성: T0 문안규약+T0-④ 메타발화 / T1 orders·customers
