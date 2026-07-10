@@ -1,3 +1,43 @@
+# 교차 리뷰 — 2026-07-10 (라운드 7, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `985031a` 위) · 구현자: Codex · 지시문: `handoff/codex-question-adaptive-wave2.md` (R6-1+Q4~Q6+Q7 설계)
+
+## 최종 판정: **승인(PASS)** — 전 항목 패킷 정합, 게이트 강화·fail-closed 일관, 회귀 0.
+
+Codex 완료보고를 믿지 않고 기준 환경 직접 재실행 + diff 전량 실측.
+
+### ① 기준 환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **728 passed / 4 skipped / exit 0** (222.32s). 라운드6 715/4 → **+13 = 신규 테스트 완전 일치**(은닉 약화 0).
+- `pytest -k golden` → **28 passed**. `git diff calc·input` → 출력 없음(계산 불변).
+
+### ② 항목별 실측
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| **R6-1** | monkeypatch 합성 용어 주입 → `unbacked_context_terms` 차단 발생 단언 + 기본 빈 튜플 상태 명시 단언 + 비활성 사유 주석. 라운드6 발견 종결 | ✓ |
+| **Q4** | 상수 30→16 + `_min_text_chars` 상품 분기 신설(gunghap 3000/followup 2000·10p — 운영자 확정 필요 플래그 유지) + 관측 필드(minimum_pages/minimum_text_chars) 노출. 양방 경계표 테스트(15/16·2999/3000·29 유지·9999 유지·followup 9/10) + 18p 실렌더 케이스 통과 회귀. followup을 CONTEXT_REQUIRED에 편입(누락 신호 강화) | ✓ |
+| **Q5** | `--pdf` opt-in. 조립=저장 Report23 복사+consult만 교체(새 계산 0 — `engine.build` 호출 시 AssertionError 테스트로 증명). 표준 render→verify(product=followup) 경유 + 10~15p 범위 게이트 + consult 직답 게이트 + 부모 가드 미통과 거부 + 저장 일간 부재 fail-closed(레거시 차단). **최종 발급(final_render_fn)도 followup 분기에서 동일 게이트 + RuntimeError fail-closed**. 기본 텍스트 경로 반환 스키마 불변 회귀 | ✓ |
+| **Q6** | 접수 시 자동분류를 render_meta에 저장(생성 완료 후 Report23.concern_category와 이중 소스 — `question_category_state`가 우선순위 정리) + admin 드롭다운(IN_REVIEW 한정) + **GENERAL 미확정 승인 409 물리 차단**(기존 confirm 패턴 앞단) + audit note에 카테고리 값만(질문 원문 비복제 — 절대규칙 17 정합). 상태머신 전이 무변경, `test_orders`·`test_final_render_gate` GREEN | ✓ |
+| **Q7** | `handoff/codex-q7-design.md` 설계 1페이지만, 코드 0줄. 승인 대기 항목 4개 명시(B안·분량 공식·RELATION 추천·기본값 5모듈) | ✓ |
+| 기계 검증 | 변경 파일 실명 grep 0건 / calc·input·integrated.py 무변경 / 금지파일 침범 0 | ✓ |
+
+### ③ 관찰 (비블로커)
+- admin 템플릿 `action_error` 문구가 범용화("작업 차단:")되며 기존 최종발급 실패 시 "상태는 APPROVED에 머물러 있음" 안내가 사라짐 — 사소한 UX 정보 손실, 차단 동작은 동일. 다음 라운드에 문구만 보강 권고.
+
+### ④ 미검증 (Codex 보고와 동일 — 정직 승계)
+- 후속 `--pdf` 실렌더(실제 10~15p 조판)·실브라우저 UI 미확인(TestClient 회귀만). LLM 문안 미검증.
+- Q7 구현은 운영자 설계 승인 전 착수 불가(설계 게이트 정상 작동).
+
+### 실행한 검증 명령
+```
+pytest tests/ -q            → 728 passed / 4 skipped / exit 0
+pytest tests/ -q -k golden  → 28 passed
+grep 실명(변경 파일 11개)    → 0건
+git diff --name-only calc·input → 출력 없음
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-10 (라운드 6, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `3a30667` 위) · 구현자: Codex · 지시문: `handoff/codex-question-adaptive-q1-q7.md` v2 (웨이브1 Q1~Q3)
