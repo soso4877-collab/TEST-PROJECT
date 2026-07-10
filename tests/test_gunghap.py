@@ -19,10 +19,10 @@ _HANJA_GANZHI = re.compile(r"[甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳�
 
 
 def test_person_facts_known_chart():
-    p = g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026)
+    p = g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026)
     assert p["bazi"] == "丁丑 庚戌 壬寅 乙巳"
     assert p["ilju"] == "壬寅"
-    # 김태수 = 食神 + 財 → 식신생재 구조, 재성(화) 묘고 戌 보유 → 재고
+    # 김민준 = 食神 + 財 → 식신생재 구조, 재성(화) 묘고 戌 보유 → 재고
     assert p["patterns"]["sik_saeng_jae"] is True
     assert p["patterns"]["jaego"] is True
 
@@ -41,9 +41,9 @@ def test_relationship_package_import_compatibility():
 def test_timing_slot_natural_fallback():
     # H1.5.2-final: timing 폴백 슬롯이 고객용 자연문 — 내부 메모형 표현 0, 시기·역할·흐름 유지
     people = [
-        {"name": "김태수", "favorable_years": []},
-        {"name": "김태성", "favorable_years": [2026, 2027]},
-        {"name": "장순조", "favorable_years": []},
+        {"name": "김민준", "favorable_years": []},
+        {"name": "이서연", "favorable_years": [2026, 2027]},
+        {"name": "박도윤", "favorable_years": []},
     ]
     out = g._timing_slot(people)
     for bad in ("호기 해", "용신 기준 참고", "뚜렷한 해 적음", "완전히 겹치는 해는 적음"):
@@ -52,9 +52,9 @@ def test_timing_slot_natural_fallback():
         assert need in out, f"누락: {need!r} not in {out!r}"
     # 공통 호기 해가 있는 경우에도 자연문 + 내부 표현 0
     people2 = [
-        {"name": "김태수", "favorable_years": [2026]},
-        {"name": "김태성", "favorable_years": [2026, 2027]},
-        {"name": "장순조", "favorable_years": [2026]},
+        {"name": "김민준", "favorable_years": [2026]},
+        {"name": "이서연", "favorable_years": [2026, 2027]},
+        {"name": "박도윤", "favorable_years": [2026]},
     ]
     out2 = g._timing_slot(people2)
     for bad in ("호기 해", "용신 기준 참고", "뚜렷한 해 적음", "완전히 겹치는 해는 적음"):
@@ -67,17 +67,17 @@ def test_name_honor_slots(monkeypatch):
     from sajugen.content import client_tone_lint as ct
 
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    a = g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026)
-    b = g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026)
+    a = g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026)
+    b = g.person_facts("이서연", (1995, 3, 28, 16, 10), ref_year=2026)
     pslot = g._person_slot(a)
-    assert pslot.startswith("김태수 씨:")  # 첫 소개 = 성 포함 + 씨
+    assert pslot.startswith("김민준 씨:")  # 첫 소개 = 성 포함 + 씨
     pair = g._pair_slot(a, b)
-    assert "태수와 태성" in pair  # 쌍 제목 호칭
-    assert "김태수와 김태성" not in pair  # 전체이름 쌍 금지
+    assert "민준과 서연" in pair  # 쌍 제목 호칭
+    assert "김민준과 이서연" not in pair  # 전체이름 쌍 금지
     # 슬롯들은 name_policy 위반 0(첫 소개 1회 제외)
-    assert ct.name_policy_lint(pair, ["김태수", "김태성"]) == []
+    assert ct.name_policy_lint(pair, ["김민준", "이서연"]) == []
     timing = g._timing_slot([a, b])
-    assert "태수 씨는" in timing or "태수 씨" in timing
+    assert "민준 씨는" in timing or "민준 씨" in timing
 
 
 def test_finalize_strips_llm_signature_and_customer_term_collision():
@@ -95,7 +95,7 @@ def test_finalize_strips_llm_signature_and_customer_term_collision():
         "🔮 사주도령 전문 상담\n"
         "더 깊은 궁합과 시기별 흐름이 궁금하시다면 아래 링크에서 확인하세요.\n\n"
         "고객 질문: 현재 썸 관계가 궁금합니다.\n"
-        "상담 대상: 가현 씨, 상철 씨\n"
+        "상담 대상: 하은 씨, 준서 씨\n"
         "[자미두수]\n"
         "이 장에서 가장 중요한 기준은 반복 태도입니다.\n\n"
         "마지막 결정은 감정의 세기보다 상대의 반복 태도로 해야 한다. 기다릴 기준과 물러설 기준을 따로 세운다.\n\n"
@@ -138,9 +138,9 @@ def test_pdfwide_name_policy_clean_on_reused_slots():
     from sajugen.content import client_tone_lint as ct
 
     people = [
-        g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026),
-        g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026),
-        g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026),
+        g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026),
+        g.person_facts("이서연", (1995, 3, 28, 16, 10), ref_year=2026),
+        g.person_facts("박도윤", (1995, 7, 27, 8, 30), ref_year=2026),
     ]
     names = [p["name"] for p in people]
     persons = "\n".join(g._person_slot(p) for p in people)
@@ -158,23 +158,23 @@ def test_pdfwide_name_policy_clean_on_reused_slots():
     assert ct.name_policy_lint("\n".join(after_texts), names) == []
     # 호칭·쌍 정상 출현
     joined = "\n".join(after_texts)
-    assert "태수 씨" in joined and "태성 씨" in joined and "순조 씨" in joined
+    assert "민준 씨" in joined and "서연 씨" in joined and "도윤 씨" in joined
 
 
 def test_identity_spec_from_person_facts():
     # H1.5.3: 결정론 일간(임수)에서 expected 산출
     from sajugen.content import client_tone_lint as ct
 
-    p = g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026)
+    p = g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026)
     assert g._GAN_KO[p["day_master"]] == "임"
     assert ct.gan_to_term(g._GAN_KO[p["day_master"]]) == "임수"
     gans, terms, specs = g._identity_spec([p])
     assert gans == {"임"} and terms == {"임수"}
-    assert any(a == "태수 씨" for a, _ in [(al, t) for als, t in specs for al in als])
+    assert any(a == "민준 씨" for a, _ in [(al, t) for als, t in specs for al in als])
 
 
 def test_person_slot_is_hangeul():
-    p = g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026)
+    p = g.person_facts("박도윤", (1995, 7, 27, 8, 30), ref_year=2026)
     slot = g._person_slot(p)
     assert "기미" in slot or "임" in slot  # 한글 간지
     assert not _HANJA_GANZHI.search(slot), f"한자 간지 잔존: {slot}"
@@ -183,22 +183,22 @@ def test_person_slot_is_hangeul():
 
 def test_pattern_detection_chinese_shishen():
     # 십성은 한자 코드(食神 등) — 그룹 매칭이 한자 기준으로 동작해야 함
-    ts = g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026)
-    js = g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026)
+    ts = g.person_facts("이서연", (1995, 3, 28, 16, 10), ref_year=2026)
+    js = g.person_facts("박도윤", (1995, 7, 27, 8, 30), ref_year=2026)
     assert ts["patterns"]["sik_saeng_jae"] is True  # 食神+財
     assert js["patterns"]["sik_saeng_jae"] is False  # 식상 없음
     assert ts["dominant"] in ("재성", "관성", "식상", "인성", "비겁")
 
 
 def test_pair_facts_runs():
-    a = g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026)
-    b = g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026)
+    a = g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026)
+    b = g.person_facts("박도윤", (1995, 7, 27, 8, 30), ref_year=2026)
     pf = g.pair_facts(a, b)
-    assert pf.day.ganzhi == "己未"  # 상대(장순조) 일주
+    assert pf.day.ganzhi == "己未"  # 상대(박도윤) 일주
     slot = g._pair_slot(a, b)
-    # H1.5.3: 쌍 슬롯은 호칭(태수/순조)을 쓰고 전체이름+조사는 쓰지 않는다.
-    assert "태수" in slot and "순조" in slot
-    assert "김태수" not in slot and "장순조" not in slot
+    # H1.5.3: 쌍 슬롯은 호칭(민준/도윤)을 쓰고 전체이름+조사는 쓰지 않는다.
+    assert "민준" in slot and "도윤" in slot
+    assert "김민준" not in slot and "박도윤" not in slot
     assert not _HANJA_GANZHI.search(slot.replace("己未", "")) or True  # 십성은 한국어 변환됨
 
 
@@ -257,7 +257,7 @@ def test_compose_falls_back_on_quality_violation(monkeypatch):
     # 이슈4·5: LLM이 모순/오타 문장을 내면 quality_lint 가 잡아 룰 슬롯 폴백
     _fake_anthropic(monkeypatch, "두 사람은 신강한 신약의 차이가 큽니다.")
     out = g._compose(
-        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026, use_llm=True
     )
     assert "신강한 신약" not in out and out == "근거 슬롯"
 
@@ -266,14 +266,14 @@ def test_compose_falls_back_on_temporal_violation(monkeypatch):
     # 이슈6: ref_year 이하 연도를 '오기 전'으로 쓰면 temporal_lint 가 잡아 폴백
     _fake_anthropic(monkeypatch, "2026년이 오기 전까지 준비하세요.")
     out = g._compose(
-        "timing", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+        "timing", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026, use_llm=True
     )
     assert "오기 전까지" not in out and out == "근거 슬롯"
 
 
 def test_compose_does_not_use_llm_without_explicit_flag(monkeypatch):
     _fake_anthropic(monkeypatch, "LLM 문장")
-    out = g._compose("each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026)
+    out = g._compose("each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026)
     assert out == "근거 슬롯"
 
 
@@ -282,7 +282,7 @@ def test_compose_falls_back_on_absolute_guarantee(monkeypatch):
     # compose 단계에서 잡아 룰 슬롯 폴백(최종 PDF delivery 게이트에서만 BLOCKED 되던 갭 차단).
     _fake_anthropic(monkeypatch, "두 분은 무조건 잘 맞고 곧 결혼합니다.")
     out = g._compose(
-        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026, use_llm=True
     )
     assert "무조건" not in out and "결혼합니다" not in out and out == "근거 슬롯"
 
@@ -291,7 +291,7 @@ def test_compose_falls_back_on_percentage_guarantee(monkeypatch):
     # '100%' 보장형도 compose 단계에서 폴백.
     _fake_anthropic(monkeypatch, "두 분의 사업 궁합은 100% 성공합니다.")
     out = g._compose(
-        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026, use_llm=True
     )
     assert "100%" not in out and out == "근거 슬롯"
 
@@ -300,10 +300,10 @@ def test_compose_falls_back_on_transition_section_preview(monkeypatch):
     # P3: LLM이 문서 진행/섹션 예고 메타를 내면 customer_meta_lint 가 compose 단계(bad 목록)에서
     # 잡아 룰 슬롯 폴백(최종 게이트 도달 전 사전 차단).
     _fake_anthropic(
-        monkeypatch, "자미두수 명궁 이야기도 바로 이어집니다. 태수 씨는 차분히 확인합니다."
+        monkeypatch, "자미두수 명궁 이야기도 바로 이어집니다. 민준 씨는 차분히 확인합니다."
     )
     out = g._compose(
-        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026, use_llm=True
     )
     assert out == "근거 슬롯"
 
@@ -312,7 +312,7 @@ def test_compose_keeps_life_flow_continuation(monkeypatch):
     # 오탐 방지: 생활 흐름의 '이어지도록'은 compose 가드를 통과(폴백 아님).
     _fake_anthropic(monkeypatch, "흐름이 이어지도록 확인의 속도를 맞추면 좋아요.")
     out = g._compose(
-        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026, use_llm=True
     )
     assert out != "근거 슬롯"
     assert "이어지도록" in out
@@ -470,7 +470,7 @@ def test_compose_prompt_carries_month_anchor(monkeypatch):
         "근거 슬롯",
         {"ganzhi": [], "ganzhi_ko": []},
         "",
-        ["김태수"],
+        ["김민준"],
         2026,
         use_llm=True,
         ref_date="2026-07-04",
@@ -488,7 +488,7 @@ def test_compose_falls_back_on_past_month_advice(monkeypatch):
         "근거 슬롯",
         {"ganzhi": [], "ganzhi_ko": []},
         "",
-        ["김태수"],
+        ["김민준"],
         2026,
         use_llm=True,
         ref_date="2026-07-04",
@@ -504,7 +504,7 @@ def test_compose_keeps_future_month_advice(monkeypatch):
         "근거 슬롯",
         {"ganzhi": [], "ganzhi_ko": ["정유"]},
         "",
-        ["김태수"],
+        ["김민준"],
         2026,
         use_llm=True,
         ref_date="2026-07-04",
@@ -535,8 +535,8 @@ def test_build_gunghap_wires_ref_date_to_compose_and_verify(monkeypatch):
     monkeypatch.setattr(g.render_verify, "verify", fake_verify)
     monkeypatch.setattr(g, "_compose", spy_compose)
     people = [
-        ("서가현", (2002, 10, 23, 11, 40), False, False),
-        ("민상철", (1994, 6, 27, 12, 0), True, True),
+        ("서하은", (2002, 10, 23, 11, 40), False, False),
+        ("민준서", (1994, 6, 27, 12, 0), True, True),
     ]
     g.build_gunghap(people, mode="relationship", ref_date="2026-07-04")
     assert captured["verify_ref_date"] == "2026-07-04"
@@ -566,8 +566,8 @@ def test_relationship_mode_uses_sajudoryeong_gate_and_unknown_time(monkeypatch):
 
     r = g.build_gunghap(
         [
-            ("서가현", (2002, 10, 23, 11, 40), False, False),
-            ("민상철", (1994, 6, 27, 12, 0), True, True),
+            ("서하은", (2002, 10, 23, 11, 40), False, False),
+            ("민준서", (1994, 6, 27, 12, 0), True, True),
         ],
         situation="썸 관계에서 상대방의 진심, 대화 갈등, 성격 가치관 연애관, 안정적인 궁합이 궁금합니다.",
         ref_year=2026,
@@ -602,8 +602,8 @@ def test_build_gunghap_default_brand_is_sajudoryeong(monkeypatch):
     monkeypatch.setattr(g.render_verify, "verify", fake_verify)
     g.build_gunghap(
         [
-            ("서가현", (2002, 10, 23, 11, 40), False, False),
-            ("민상철", (1994, 6, 27, 12, 0), True, True),
+            ("서하은", (2002, 10, 23, 11, 40), False, False),
+            ("민준서", (1994, 6, 27, 12, 0), True, True),
         ],
         mode="relationship",
     )
@@ -626,8 +626,8 @@ def test_relationship_fallback_is_customer_facing_not_raw_fact_slot(monkeypatch)
 
     g.build_gunghap(
         [
-            ("서가현", (2002, 10, 23, 11, 40), False, False),
-            ("민상철", (1994, 6, 27, 12, 0), True, True),
+            ("서하은", (2002, 10, 23, 11, 40), False, False),
+            ("민준서", (1994, 6, 27, 12, 0), True, True),
         ],
         situation="현재 8살 연상의 남성과 썸을 타고 있고 대화와 갈등 방식이 고민입니다.",
         ref_year=2026,
@@ -652,7 +652,7 @@ def test_relationship_fallback_is_customer_facing_not_raw_fact_slot(monkeypatch)
     ):
         assert bad not in joined
     assert "출생시각이 미상" in joined or "출생시각은 미상" in joined
-    assert "가현 씨" in joined and "상철 씨" in joined
+    assert "하은 씨" in joined and "준서 씨" in joined
 
 
 def test_relationship_delivery_gate_blocks_llm_before_api(monkeypatch):
@@ -678,9 +678,9 @@ def test_relationship_delivery_gate_blocks_llm_before_api(monkeypatch):
             "고객 질문: 원문이 들어간 잘못된 context",
             {"ganzhi": [], "ganzhi_ko": []},
             "",
-            ["서가현", "민상철"],
+            ["서하은", "민준서"],
             2026,
-            fallback_text="가현 씨와 상철 씨는 반복 태도를 봐야 합니다.",
+            fallback_text="하은 씨와 준서 씨는 반복 태도를 봐야 합니다.",
             use_llm=True,
         )
     assert calls == []
@@ -690,15 +690,15 @@ def test_relationship_delivery_gate_blocks_llm_before_api(monkeypatch):
 
 def test_relationship_honorifics_normalized_to_ssi():
     out = g._normalize_gunghap_honorifics(
-        "가현 님이 먼저 묻고, 상철 님에게 확인합니다. 서가현님과 민상철 님의 속도를 봅니다.",
-        ["서가현", "민상철"],
+        "하은 님이 먼저 묻고, 준서 님에게 확인합니다. 서하은님과 민준서 님의 속도를 봅니다.",
+        ["서하은", "민준서"],
     )
-    assert "가현 님" not in out
-    assert "상철 님" not in out
-    assert "서가현님" not in out
-    assert "민상철 님" not in out
-    assert "가현 씨" in out
-    assert "상철 씨" in out
+    assert "하은 님" not in out
+    assert "준서 님" not in out
+    assert "서하은님" not in out
+    assert "민준서 님" not in out
+    assert "하은 씨" in out
+    assert "준서 씨" in out
 
 
 def test_relationship_llm_keeps_chapter_breaks_for_premium_layout(monkeypatch):
@@ -723,8 +723,8 @@ def test_relationship_llm_keeps_chapter_breaks_for_premium_layout(monkeypatch):
 
     g.build_gunghap(
         [
-            ("서가현", (2002, 10, 23, 11, 40), False, False),
-            ("민상철", (1994, 6, 27, 12, 0), True, True),
+            ("서하은", (2002, 10, 23, 11, 40), False, False),
+            ("민준서", (1994, 6, 27, 12, 0), True, True),
         ],
         mode="relationship",
         brand="sajudoryeong",
@@ -767,8 +767,8 @@ def test_relationship_layout_retries_only_low_density_without_recomposing(monkey
 
     result = g.build_gunghap(
         [
-            ("서가현", (2002, 10, 23, 11, 40), False, False),
-            ("민상철", (1994, 6, 27, 12, 0), True, True),
+            ("서하은", (2002, 10, 23, 11, 40), False, False),
+            ("민준서", (1994, 6, 27, 12, 0), True, True),
         ],
         mode="relationship",
         brand="sajudoryeong",
@@ -801,8 +801,8 @@ def test_business_mode_keeps_business_cover_without_premium_gate(monkeypatch):
     monkeypatch.setattr(g.render_verify, "verify", fake_verify)
     g.build_gunghap(
         [
-            ("김태수", (1997, 10, 27, 9, 46), True),
-            ("김태성", (1995, 3, 28, 16, 10), True),
+            ("김민준", (1997, 10, 27, 9, 46), True),
+            ("이서연", (1995, 3, 28, 16, 10), True),
         ],
         mode="business",
         brand="seodam",
@@ -813,16 +813,16 @@ def test_business_mode_keeps_business_cover_without_premium_gate(monkeypatch):
 
 
 def test_singang_specs_from_person_facts():
-    # H1.5.3.2: 결정론 신강약 — 태수·태성=신약, 순조=신강
+    # H1.5.3.2: 결정론 신강약 — 민준·서연=신약, 도윤=신강
     people = [
-        g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026),
-        g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026),
-        g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026),
+        g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026),
+        g.person_facts("이서연", (1995, 3, 28, 16, 10), ref_year=2026),
+        g.person_facts("박도윤", (1995, 7, 27, 8, 30), ref_year=2026),
     ]
     specs = g._singang_specs(people)
     by = {s["full"]: s["singang"] for s in specs}
-    assert by == {"김태수": "신약", "김태성": "신약", "장순조": "신강"}
-    assert specs[0]["honor"] == "태수 씨"
+    assert by == {"김민준": "신약", "이서연": "신약", "박도윤": "신강"}
+    assert specs[0]["honor"] == "민준 씨"
     # 룰경로 결정론 슬롯 자체는 group/role 오류 0
     from itertools import combinations
     from sajugen.content import client_tone_lint as ct
@@ -839,9 +839,9 @@ def test_compose_falls_back_on_singang_group(monkeypatch):
     # H1.5.3.2: LLM이 '세 사람 모두 신약'으로 일반화하면 singang_role_lint 가 잡아 폴백
     _fake_anthropic(monkeypatch, "세 사람 모두 신약이라 안정 쪽에 무게가 실립니다.")
     people = [
-        g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026),
-        g.person_facts("김태성", (1995, 3, 28, 16, 10), ref_year=2026),
-        g.person_facts("장순조", (1995, 7, 27, 8, 30), ref_year=2026),
+        g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026),
+        g.person_facts("이서연", (1995, 3, 28, 16, 10), ref_year=2026),
+        g.person_facts("박도윤", (1995, 7, 27, 8, 30), ref_year=2026),
     ]
     specs = g._singang_specs(people)
     out = g._compose(
@@ -849,7 +849,7 @@ def test_compose_falls_back_on_singang_group(monkeypatch):
         "근거 슬롯",
         {"ganzhi": [], "ganzhi_ko": []},
         "",
-        ["김태수", "김태성", "장순조"],
+        ["김민준", "이서연", "박도윤"],
         2026,
         None,
         specs,

@@ -1,5 +1,7 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+- E10 인접 탐색: 패킷에 열거되지 않은 `tests/test_relationship_quality_contracts.py` 1줄에서도 대상 이름 잔존을 확인해 tracked 수용 기준에 따라 동일 치환했다.
+
 ## 웨이브2 현재 상태
 
 - 브랜치: `codex/gunghap-relationship-quality`

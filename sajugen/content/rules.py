@@ -1762,7 +1762,7 @@ def partner_block(pf, saju, label: str = "", lunar_input: bool = False) -> str:
     """상대방·가족 명식 사실 슬롯(consult 근거 주입용) — PartnerFacts 표시 계층.
 
     생년월일 원본은 넣지 않는다(절대규칙 17 — LLM에는 파생 간지·오행·십성만).
-    label = '남편 김동황'·'장남 김태성' 식 관계+이름(없으면 '상대방').
+    label = '남편 최지호'·'장남 이서연' 식 관계+이름(없으면 '상대방').
     """
     m = saju.myeongni
     my_dm_ko = _GAN_KO.get(m.day.gan, m.day.gan)

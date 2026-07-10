@@ -80,31 +80,31 @@ def test_each_text_lint_blocks_injected_defect(text, rule):
 
 def test_conditional_lints_run_when_specs_exist():
     specs = {
-        "name_full": ["김태수"],
+        "name_full": ["김민준"],
         "identity": {
             "expected_gans": ["임"],
             "expected_terms": ["임수"],
-            "subject_specs": [(["태수 씨"], "임수")],
+            "subject_specs": [(["민준 씨"], "임수")],
         },
-        "singang": [{"full": "김태수", "given": "태수", "honor": "태수 씨", "singang": "신약"}],
+        "singang": [{"full": "김민준", "given": "민준", "honor": "민준 씨", "singang": "신약"}],
         "honorific": [
             {
                 "role": "receiver",
-                "aliases": ["김태수", "태수", "태수 씨", "태수 님"],
+                "aliases": ["김민준", "민준", "민준 씨", "민준 님"],
                 "expected_honorific": "님",
             }
         ],
         "role_perspective": [
             {
                 "role": "receiver",
-                "aliases": ["김태수", "태수", "태수 씨", "태수 님"],
+                "aliases": ["김민준", "민준", "민준 씨", "민준 님"],
                 "expected_honorific": "님",
             }
         ],
         "daewoon_current": "정미",
     }
     text = (
-        "김태수는 일간은 병화입니다. 태수 씨는 신강이고, 태수 님도 같은 흐름입니다. "
+        "김민준은 일간은 병화입니다. 민준 씨는 신강이고, 민준 님도 같은 흐름입니다. "
         "지금 병오 대운 초입에 들어서는 자리입니다. "
     ) + _DIRECT
     result = answer_gate.check(

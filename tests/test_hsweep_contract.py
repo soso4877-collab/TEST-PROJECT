@@ -32,8 +32,8 @@ class FakeBackend:
 
 # ── 1) PII: API 로 나가는 것에 이름·날짜가 없어야 한다(가장 중요) ──
 def test_mask_for_api_removes_name_and_birth():
-    masked = hsweep.mask_for_api("김태수님 1997-10-27 09:46 태생", ["김태수"])
-    assert "김태수" not in masked
+    masked = hsweep.mask_for_api("김민준님 1997-10-27 09:46 태생", ["김민준"])
+    assert "김민준" not in masked
     assert "1997-10-27" not in masked and "09:46" not in masked
 
 
@@ -41,20 +41,20 @@ def test_mask_for_api_masks_korean_birthdate_with_self_civil_not_timing():
     # self_civils 정밀 마스킹: 한글 형식 생년월일은 막되(_DATE_RX 미커버) 사주 시기 참조
     # (같은 'N월 D일'이라도 생일이 아닌 것)는 오마스킹하지 않는다.
     text = "1997년 10월 27일생입니다. 그리고 2026년 3월 5일에 좋은 흐름이 옵니다."
-    masked = hsweep.mask_for_api(text, ["김태수"], self_civils=["1997-10-27 09:46"])
+    masked = hsweep.mask_for_api(text, ["김민준"], self_civils=["1997-10-27 09:46"])
     assert "1997년 10월 27일" not in masked  # 생일 한글형 마스킹됨
     assert "3월 5일" in masked  # 시기 참조는 보존(오마스킹 금지)
 
 
 def test_outgoing_payload_never_contains_pii():
     # 정상 마스킹된 페이지로 스윕 → FakeBackend 가 받은 어떤 system/user 에도 PII 없음.
-    pages = [hsweep.mask_for_api("김태수님의 재물 흐름 1997-10-27 분석", ["김태수"])]
+    pages = [hsweep.mask_for_api("김민준님의 재물 흐름 1997-10-27 분석", ["김민준"])]
     be = FakeBackend()
-    hsweep.sweep("x.pdf", ["김태수"], backend=be, masked_pages=pages)
+    hsweep.sweep("x.pdf", ["김민준"], backend=be, masked_pages=pages)
     assert be.calls, "백엔드가 호출돼야 한다"
     for c in be.calls:
         blob = c["system"] + c["user"]
-        assert "김태수" not in blob
+        assert "김민준" not in blob
         assert not hsweep._DATE_RX.search(blob), "날짜/시각이 전송되면 안 된다"
 
 
@@ -62,7 +62,7 @@ def test_belt_blocks_send_when_name_survives_masking():
     # 마스킹 누락 시나리오(페이지에 이름 잔존) → 전송 벨트가 예외로 차단(fail-closed).
     be = FakeBackend()
     with pytest.raises(hsweep.PIILeakBlocked):
-        hsweep.sweep("x.pdf", ["김태수"], backend=be, masked_pages=["김태수 잔존 텍스트"])
+        hsweep.sweep("x.pdf", ["김민준"], backend=be, masked_pages=["김민준 잔존 텍스트"])
     assert be.calls == [], "차단 시 아무 것도 전송되지 않아야 한다"
 
 
@@ -85,7 +85,7 @@ def test_empty_names_list_also_fail_closed():
 def test_refute_and_judge_payloads_carry_no_pii_from_rationale():
     # 렌즈가 rationale 에 이름을 되뱉어도 refute/judge 로 나가는 페이로드에 이름이 없어야 한다
     # (parse 스크럽 + _safe_call 벨트 이중 방어). lens 만이 아니라 다운스트림까지 검증.
-    leaky = '[{"page":2,"severity":"high","rule":"x","rationale":"김태수 관련 메타"}]'
+    leaky = '[{"page":2,"severity":"high","rule":"x","rationale":"김민준 관련 메타"}]'
 
     class Seq(FakeBackend):
         def complete(self, *, model, system, user):
@@ -97,10 +97,10 @@ def test_refute_and_judge_payloads_carry_no_pii_from_rationale():
             return leaky, 20, 20  # lens
 
     be = Seq()
-    hsweep.sweep("x.pdf", ["김태수"], backend=be, masked_pages=["안전 본문"])
+    hsweep.sweep("x.pdf", ["김민준"], backend=be, masked_pages=["안전 본문"])
     assert len(be.calls) > len(hsweep.LENS_IDS), "refute/judge 단계까지 도달해야 검증됨"
     for c in be.calls:
-        assert "김태수" not in c["system"] + c["user"], "다운스트림 페이로드에 이름 유출"
+        assert "김민준" not in c["system"] + c["user"], "다운스트림 페이로드에 이름 유출"
 
 
 def test_main_refuses_without_names_and_without_lock(monkeypatch):
@@ -147,12 +147,12 @@ def test_report_is_advisory_and_has_no_gate_field():
 def test_findings_schema_has_no_freetext_customer_field():
     # 모델이 본문을 되뱉어도 파서가 스키마 밖 필드를 버린다(고객 본문 자유텍스트 유입 차단).
     malicious = (
-        '[{"page":3,"severity":"high","rule":"x","rationale":"ok","verbatim":"김태수 원문"}]'
+        '[{"page":3,"severity":"high","rule":"x","rationale":"ok","verbatim":"김민준 원문"}]'
     )
-    parsed = hsweep._parse_findings(malicious, "narrator_tone", ["김태수"])
+    parsed = hsweep._parse_findings(malicious, "narrator_tone", ["김민준"])
     assert parsed and set(parsed[0].keys()) == {"lens", "page", "severity", "rule", "rationale"}
     assert "verbatim" not in parsed[0]
-    assert "김태수" not in parsed[0]["rationale"]  # rationale free-text 스크럽
+    assert "김민준" not in parsed[0]["rationale"]  # rationale free-text 스크럽
 
 
 # ── 4) 모델 이질성: 렌즈 ≠ judge ──

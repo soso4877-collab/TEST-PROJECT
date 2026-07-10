@@ -197,7 +197,7 @@ def test_term_hits_report_only():
 
 
 # ───────────────── H1.5.3: 이름 호칭 정책 ─────────────────
-_FULL = ["김태수", "김태성", "장순조"]
+_FULL = ["김민준", "이서연", "박도윤"]
 
 
 def _np(s):
@@ -207,67 +207,67 @@ def _np(s):
 def test_name_policy_detects_violations():
     # 조사·부호·명사형·단독·쌍·붙은씨 모두 검출(최신 실제 문형 포함)
     for s in [
-        "김태수는 임인일주입니다",
-        "김태성은 무오일주입니다",
-        "장순조는 기미일주입니다",
-        "김태수를",
-        "김태수의",
-        "김태수에게",
-        "김태수, 먼저",
-        "김태수: 본문",
-        "김태수의 자리",
-        "김태성의 살아나는 결",
-        "김태수 사주",
-        "김태수 명식",
-        "태수씨는 옵니다",
+        "김민준은 임인일주입니다",
+        "이서연은 무오일주입니다",
+        "박도윤은 기미일주입니다",
+        "김민준을",
+        "김민준의",
+        "김민준에게",
+        "김민준, 먼저",
+        "김민준: 본문",
+        "김민준의 자리",
+        "이서연의 살아나는 결",
+        "김민준 사주",
+        "김민준 명식",
+        "민준씨는 옵니다",
     ]:
         assert _np(s), f"미검출: {s}"
     # 쌍(본문 전체이름) — 양쪽 다 잡힘
-    assert _np("김태수와 김태성")
-    assert _np("김태수와 장순조")
-    assert _np("김태성과 장순조")
+    assert _np("김민준과 이서연")
+    assert _np("김민준과 박도윤")
+    assert _np("이서연과 박도윤")
 
 
 def test_name_policy_standalone_line():
-    assert _np("김태수")  # 줄 단독 전체이름
+    assert _np("김민준")  # 줄 단독 전체이름
 
 
 def test_name_policy_allows():
-    assert _np("김태수 · 김태성 · 장순조") == []  # 표지 가운뎃점 나열
-    assert _np("김태수 씨는 임인일주입니다") == []  # 첫 소개 1회
-    assert _np("태수 씨는 임인일주입니다") == []
-    assert _np("태수 씨 명식") == []
-    assert _np("태수와 태성") == []
-    assert _np("태수와 순조") == []
-    assert _np("태성과 순조") == []
+    assert _np("김민준 · 이서연 · 박도윤") == []  # 표지 가운뎃점 나열
+    assert _np("김민준 씨는 임인일주입니다") == []  # 첫 소개 1회
+    assert _np("민준 씨는 임인일주입니다") == []
+    assert _np("민준 씨 명식") == []
+    assert _np("민준과 서연") == []
+    assert _np("민준과 도윤") == []
+    assert _np("서연과 도윤") == []
 
 
 def test_name_policy_first_intro_once_pdf_wide():
-    one = "김태수 씨는 임인일주입니다. 돈의 흐름을 봅니다."
+    one = "김민준 씨는 임인일주입니다. 돈의 흐름을 봅니다."
     assert ct.name_policy_lint(one, _FULL) == []  # 1회 허용
-    two = "김태수 씨는 임인일주입니다. 그리고 김태수 씨는 돈을 봅니다."
+    two = "김민준 씨는 임인일주입니다. 그리고 김민준 씨는 돈을 봅니다."
     hits = [h["kind"] for h in ct.name_policy_lint(two, _FULL)]
     assert "중복소개" in hits  # 2회째 위반
 
 
 def test_normalize_names():
     cases = {
-        "김태수는": "태수 씨는",
-        "김태수를": "태수 씨를",
-        "김태수의": "태수 씨의",
-        "김태수에게": "태수 씨에게",
-        "김태수, 먼저": "태수 씨, 먼저",
-        "김태수:": "태수 씨:",
-        "김태수 사주": "태수 씨 사주",
-        "김태수 명식": "태수 씨 명식",
-        "김태수와 김태성": "태수와 태성",
-        "김태수와 장순조": "태수와 순조",
-        "김태성과 장순조": "태성과 순조",
-        "태수씨는": "태수 씨는",
-        "태성씨가": "태성 씨가",
-        "순조씨를": "순조 씨를",
-        "김태성은": "태성 씨는",
-        "김태수 · 김태성 · 장순조": "김태수 · 김태성 · 장순조",  # 표지 보존
+        "김민준은": "민준 씨는",
+        "김민준을": "민준 씨를",
+        "김민준의": "민준 씨의",
+        "김민준에게": "민준 씨에게",
+        "김민준, 먼저": "민준 씨, 먼저",
+        "김민준:": "민준 씨:",
+        "김민준 사주": "민준 씨 사주",
+        "김민준 명식": "민준 씨 명식",
+        "김민준과 이서연": "민준과 서연",
+        "김민준과 박도윤": "민준과 도윤",
+        "이서연과 박도윤": "서연과 도윤",
+        "민준씨는": "민준 씨는",
+        "서연씨가": "서연 씨가",
+        "도윤씨를": "도윤 씨를",
+        "이서연은": "서연 씨는",
+        "김민준 · 이서연 · 박도윤": "김민준 · 이서연 · 박도윤",  # 표지 보존
     }
     for src, exp in cases.items():
         got = ct.normalize_names(src, _FULL)
@@ -278,15 +278,15 @@ def test_normalize_names():
             assert ct.name_policy_lint(ct.normalize_names(src, _FULL), _FULL) == [], src
     # 2회째 'FULL 씨'만 호칭화(첫 소개 보존)
     assert (
-        ct.normalize_names("김태수 씨는 좋고 김태수 씨는 또", _FULL)
-        == "김태수 씨는 좋고 태수 씨는 또"
+        ct.normalize_names("김민준 씨는 좋고 김민준 씨는 또", _FULL)
+        == "김민준 씨는 좋고 민준 씨는 또"
     )
 
 
 # ───────────────── H1.5.3: 일간 role 오류 ─────────────────
-# 개인(태수) 단일 주체 — expected 임수.
+# 개인(민준) 단일 주체 — expected 임수.
 _EG, _ET = {"임"}, {"임수"}
-_SPECS = [(["김태수", "태수", "태수님", "태수 씨", "자기 자신", "나 자신", "본인", "자신"], "임수")]
+_SPECS = [(["김민준", "민준", "민준님", "민준 씨", "자기 자신", "나 자신", "본인", "자신"], "임수")]
 
 
 def _ir(s):
@@ -303,17 +303,17 @@ def test_identity_role_detects():
         "일간 병화",
         "경금 일간",
         "중심 글자는 계수",
-        "태수님은 계수",
-        "태수 씨는 계수",
-        "김태수는 계수",
-        "태수님은 무토",
+        "민준님은 계수",
+        "민준 씨는 계수",
+        "김민준은 계수",
+        "민준님은 무토",
         "자기 자신은 계수",
         "나 자신은 계수",
-        "태수 씨 일간은 계수",
-        "태수 씨의 일간은 계수",
-        "김태수 일간 계수",
-        "김태수의 일간은 계수",
-        "태수 씨 일간은 무토",
+        "민준 씨 일간은 계수",
+        "민준 씨의 일간은 계수",
+        "김민준 일간 계수",
+        "김민준의 일간은 계수",
+        "민준 씨 일간은 무토",
     ]:
         assert _ir(s), f"미검출: {s}"
 
@@ -322,16 +322,16 @@ def test_identity_role_allows():
     for s in [
         "일간 임수",
         "임수 일간",
-        "태수님은 임수",
-        "태수 씨 일간은 임수",
-        "김태수의 일간은 임수",
+        "민준님은 임수",
+        "민준 씨 일간은 임수",
+        "김민준의 일간은 임수",
         "계사 월운",
         "계묘 대운",
         "지장간 계",
         "운에서 계가 들어온다",
         "연주 지장간에 계가 있다",
         "올해는 계수 기운이 들어와",
-        "태수 씨는 계수 대운에",
+        "민준 씨는 계수 대운에",
     ]:
         assert _ir(s) == [], f"오탐: {s} → {_ir(s)}"
 
@@ -340,53 +340,53 @@ def test_identity_role_gunghap_subject_specific():
     # 궁합 합집합(임수/무토/기토)에서도 주체별 정확 판정 — 합집합 우회 방지
     eg, et = {"임", "무", "기"}, {"임수", "무토", "기토"}
     specs = [
-        (["김태수", "태수", "태수 씨"], "임수"),
-        (["김태성", "태성", "태성 씨"], "무토"),
-        (["장순조", "순조", "순조 씨"], "기토"),
+        (["김민준", "민준", "민준 씨"], "임수"),
+        (["이서연", "서연", "서연 씨"], "무토"),
+        (["박도윤", "도윤", "도윤 씨"], "기토"),
     ]
 
     def ir2(s):
         return ct.identity_role_lint(s, eg, et, specs)
 
-    assert ir2("태수 씨 일간은 무토입니다")  # 태수≠무토 → 위반
-    assert ir2("태수 씨 일간은 계수입니다")  # 위반
-    assert ir2("태성 씨 일간은 무토입니다") == []  # 태성=무토 → 통과
-    assert ir2("순조 씨 일간은 기토입니다") == []  # 순조=기토 → 통과
-    assert ir2("태수 씨 일간은 임수입니다") == []  # 통과
+    assert ir2("민준 씨 일간은 무토입니다")  # 민준≠무토 → 위반
+    assert ir2("민준 씨 일간은 계수입니다")  # 위반
+    assert ir2("서연 씨 일간은 무토입니다") == []  # 서연=무토 → 통과
+    assert ir2("도윤 씨 일간은 기토입니다") == []  # 도윤=기토 → 통과
+    assert ir2("민준 씨 일간은 임수입니다") == []  # 통과
 
 
 def test_normalize_names_pdfwide():
     # H1.5.3.1: 섹션 여러 개에 걸친 'FULL 씨' 반복을 PDF 전체 기준 첫 소개 1회만 보존
     texts = [
-        "김태수 씨는 임인일주입니다. 김태성 씨는 무오일주입니다.",
-        "김태수 씨의 재물 흐름은 좋고, 김태성 씨는 틀을 세웁니다.",
-        "김태수와 김태성은 함께 움직입니다. 장순조 씨는 중심입니다.",
-        "장순조 씨의 역할은 버팀목입니다.",
+        "김민준 씨는 임인일주입니다. 이서연 씨는 무오일주입니다.",
+        "김민준 씨의 재물 흐름은 좋고, 이서연 씨는 틀을 세웁니다.",
+        "김민준과 이서연은 함께 움직입니다. 박도윤 씨는 중심입니다.",
+        "박도윤 씨의 역할은 버팀목입니다.",
     ]
     out = ct.normalize_names_pdfwide(texts, _FULL)
     # 첫 text의 첫 소개는 보존
-    assert "김태수 씨는" in out[0] and "김태성 씨는" in out[0]
+    assert "김민준 씨는" in out[0] and "이서연 씨는" in out[0]
     # 2회째부터 호칭으로 강등
-    assert "태수 씨의" in out[1] and "김태수 씨의" not in out[1]
-    assert "태성 씨는" in out[1] and "김태성 씨는" not in out[1]
-    assert "태수와 태성" in out[2] and "김태수와 김태성" not in out[2]
-    assert "장순조 씨는" in out[2]  # 장순조 첫 소개(여기서 처음)
-    assert "순조 씨의" in out[3] and "장순조 씨의" not in out[3]
+    assert "민준 씨의" in out[1] and "김민준 씨의" not in out[1]
+    assert "서연 씨는" in out[1] and "이서연 씨는" not in out[1]
+    assert "민준과 서연" in out[2] and "김민준과 이서연" not in out[2]
+    assert "박도윤 씨는" in out[2]  # 박도윤 첫 소개(여기서 처음)
+    assert "도윤 씨의" in out[3] and "박도윤 씨의" not in out[3]
     # PDF 전체 합치면 name_policy 위반 0
     assert ct.name_policy_lint("\n".join(out), _FULL) == []
     # 가운뎃점 보존 / 붙은씨·명사형 보정
-    assert ct.normalize_names_pdfwide(["김태수 · 김태성 · 장순조"], _FULL) == [
-        "김태수 · 김태성 · 장순조"
+    assert ct.normalize_names_pdfwide(["김민준 · 이서연 · 박도윤"], _FULL) == [
+        "김민준 · 이서연 · 박도윤"
     ]
-    assert ct.normalize_names_pdfwide(["태수씨는 옵니다"], _FULL) == ["태수 씨는 옵니다"]
-    assert ct.normalize_names_pdfwide(["김태수 사주가 좋다"], _FULL) == ["태수 씨 사주가 좋다"]
+    assert ct.normalize_names_pdfwide(["민준씨는 옵니다"], _FULL) == ["민준 씨는 옵니다"]
+    assert ct.normalize_names_pdfwide(["김민준 사주가 좋다"], _FULL) == ["민준 씨 사주가 좋다"]
 
 
 # ───────────────── H1.5.3.2: 신강약 group/role ─────────────────
 _SG_SPECS = [
-    {"full": "김태수", "given": "태수", "honor": "태수 씨", "singang": "신약"},
-    {"full": "김태성", "given": "태성", "honor": "태성 씨", "singang": "신약"},
-    {"full": "장순조", "given": "순조", "honor": "순조 씨", "singang": "신강"},
+    {"full": "김민준", "given": "민준", "honor": "민준 씨", "singang": "신약"},
+    {"full": "이서연", "given": "서연", "honor": "서연 씨", "singang": "신약"},
+    {"full": "박도윤", "given": "도윤", "honor": "도윤 씨", "singang": "신강"},
 ]
 
 
@@ -408,32 +408,32 @@ def test_singang_group_and_role_detects():
         "세 사람 모두 신약이거나 안정 쪽에 무게가 있습니다",
         "세 사람 모두 신강입니다",
         "전원 신강입니다",
-        "순조 씨는 신약입니다",
-        "장순조는 신약입니다",
-        "태수 씨는 신강입니다",
-        "김태수는 신강입니다",
-        "태성 씨는 신강입니다",
-        "김태성은 신강입니다",
-        "순조 씨의 사주는 신약입니다",
-        "순조 씨의 명식은 신약입니다",
-        "순조 씨의 힘의 강약은 신약입니다",
-        "태수 씨의 사주는 신강입니다",
-        "김태수의 명식은 신강입니다",
+        "도윤 씨는 신약입니다",
+        "박도윤은 신약입니다",
+        "민준 씨는 신강입니다",
+        "김민준은 신강입니다",
+        "서연 씨는 신강입니다",
+        "이서연은 신강입니다",
+        "도윤 씨의 사주는 신약입니다",
+        "도윤 씨의 명식은 신약입니다",
+        "도윤 씨의 힘의 강약은 신약입니다",
+        "민준 씨의 사주는 신강입니다",
+        "김민준의 명식은 신강입니다",
     ]:
         assert _sg(s), f"미검출: {s}"
 
 
 def test_singang_allows():
     for s in [
-        "태수 씨는 신약입니다",
-        "태성 씨는 신약입니다",
-        "순조 씨는 신강입니다",
-        "태수 씨와 태성 씨는 모두 신약이고, 순조 씨는 신강입니다",
-        "태수 씨와 태성 씨 모두 신약이고, 순조 씨는 신강입니다",
-        "태수 씨와 태성 씨는 신약이고, 순조 씨는 신강입니다",
-        "순조 씨의 사주는 신강입니다",
-        "태수 씨의 명식은 신약입니다",
-        "태수 씨와 태성 씨는 환경을 잘 만날 때 힘이 나고, 순조 씨는 스스로 버티는 힘이 강합니다",
+        "민준 씨는 신약입니다",
+        "서연 씨는 신약입니다",
+        "도윤 씨는 신강입니다",
+        "민준 씨와 서연 씨는 모두 신약이고, 도윤 씨는 신강입니다",
+        "민준 씨와 서연 씨 모두 신약이고, 도윤 씨는 신강입니다",
+        "민준 씨와 서연 씨는 신약이고, 도윤 씨는 신강입니다",
+        "도윤 씨의 사주는 신강입니다",
+        "민준 씨의 명식은 신약입니다",
+        "민준 씨와 서연 씨는 환경을 잘 만날 때 힘이 나고, 도윤 씨는 스스로 버티는 힘이 강합니다",
         "세 사람 모두 재고를 갖고 있습니다",
         "세 사람 모두 역할을 나눠야 합니다",
     ]:
@@ -441,19 +441,19 @@ def test_singang_allows():
 
 
 def test_name_honor_helpers():
-    assert ct.given_name("김태수") == "태수"
-    assert ct.given_name("장순조") == "순조"
-    assert ct.honor("김태수") == "태수 씨"
-    assert ct.intro("김태수") == "김태수 씨"
-    assert ct.pair_label("김태수", "김태성") == "태수와 태성"
-    assert ct.pair_label("김태성", "장순조") == "태성과 순조"
+    assert ct.given_name("김민준") == "민준"
+    assert ct.given_name("박도윤") == "도윤"
+    assert ct.honor("김민준") == "민준 씨"
+    assert ct.intro("김민준") == "김민준 씨"
+    assert ct.pair_label("김민준", "이서연") == "민준과 서연"
+    assert ct.pair_label("이서연", "박도윤") == "서연과 도윤"
     assert ct.gan_to_term("임") == "임수"
 
 
 def test_gunghap_person_slot_natural():
     from sajugen import gunghap as g
 
-    p = g.person_facts("김태수", (1997, 10, 27, 9, 46), ref_year=2026)
+    p = g.person_facts("김민준", (1997, 10, 27, 9, 46), ref_year=2026)
     slot = g._person_slot(p)
     for bad in ("오행 분포", "십성축", "포지션", "신강약"):
         assert bad not in slot, f"슬롯 잔존: {bad!r} in {slot}"
@@ -469,7 +469,7 @@ def test_personal_rules_body_natural(monkeypatch):
     from sajugen.content.sections_schema import _STATIC_OK
 
     saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
-    rep = builder.build_report(saju, use_llm=False, ref_year=2026, name="김태수")
+    rep = builder.build_report(saju, use_llm=False, ref_year=2026, name="김민준")
     body = "\n".join(s.final_text for s in rep.sections if s.id not in _STATIC_OK)
     assert ct.loanword_lint(body) == [], ct.loanword_lint(body)
     assert ct.raw_calc_headwords(body) == [], ct.raw_calc_headwords(body)
@@ -486,7 +486,7 @@ def test_love_consult_rule_text_tone_clean(monkeypatch):
         saju,
         use_llm=False,
         ref_year=2026,
-        name="김태수",
+        name="김민준",
         concern="전남친과 재회 시기 언제가 좋을까요",
     )
     text = rep.section("consult").final_text
@@ -510,7 +510,7 @@ def test_new_love_and_marriage_consult_rule_text_tone_clean(monkeypatch):
             saju,
             use_llm=False,
             ref_year=2026,
-            name="김태수",
+            name="김민준",
             concern=concern,
         )
         text = rep.section("consult").final_text

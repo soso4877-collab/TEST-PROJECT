@@ -1,3 +1,46 @@
+# 교차 리뷰 — 2026-07-10 (라운드 8, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `5bd8cb1` 위) · 구현자: Codex · 지시문: `handoff/codex-pii-anonymize-e10.md` v2 (E10 실명 익명화 전수)
+
+## 최종 판정: **승인(PASS)** — 순수 문자열 치환 증명, 회귀 0. 리뷰어 보정 2건(문서) 적용 후 커밋.
+
+Codex 완료보고를 믿지 않고 기준 환경 직접 재실행 + diff 실측.
+
+### ① 기준 환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **728 passed / 4 skipped / exit 0** (246.61s). 라운드7과 **증감 0 = 순수 치환 증명**(테스트 수·판정 불변).
+- `pytest -k golden` → **28 passed** — input/partner.py 주석 diff 동반 조건(패킷 §0 예외) 충족.
+
+### ② 실측
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 로직 0 | 운영 코드 3파일(client_tone_lint·rules·partner) diff 전량 = 주석·도크스트링 문자열만. 함수·분기·게이트·상수 불변 | ✓ |
+| 매핑 일관 | 테스트 15파일 치환이 §2 매핑 그대로(입력·단언 동시 치환 = 의미 보존, pytest 증감 0이 증명). "순조롭-" 보존 확인 | ✓ |
+| 잔존 스캔 | v2 git grep 3종(tracked 전용) 직접 재실행 → 전부 0건(원복 예외 1건 제외 — 아래 R8-2) | ✓ |
+| 자기 정화 | E10 패킷 §2 실명 열 = N1~N7(파기), grep 패턴도 브래킷 형식으로 자기 비매칭 처리(영리) | ✓ |
+| ignored 비접촉 | 금지 경로 diff 0, 열람·검색 기록 없음 | ✓ |
+| docs/11 | 케이스 라벨만 치환·생년월일시/계산 데이터 보존(플래그 유지 — 실존 생년월일 보관 여부는 운영자 결정 잔여) | ✓ |
+
+### ③ 리뷰어 보정 2건 (문서 한 줄씩 — 커밋에 포함)
+- **R8-1**: `handoff/codex-question-adaptive-q1-q7.md`의 웨이브1 수용 기준 grep 라인이 합성명으로 치환되며
+  "재실행 시 hit"이 되는 거짓 역사 기록이 됨(gunghap.py에 합성 예시명이 정당 존재) → 서술형으로 보정.
+- **R8-2**: `docs/00-research-ledger.md`의 "(2022) 박사논문" 저자명은 **공개 학술 저작 인용** — 치환 시 출처
+  위조(이름이 유일한 검색 키)라 원복 + E10 패킷 §4에 허용 예외 1건 명시. 공개 저작 저자명은 PII 익명화 대상 아님.
+  (해당 인용도 삭제 원하시면 운영자 재지시 — 현재는 인용 무결성 우선.)
+
+### ④ 잔여 (E10 범위 밖 — STATE 추적 중)
+- ignored 실고객 산출물 55파일 정리(운영자 액션) / git 이력 실명(history rewrite 미결) / docs/11 실존 생년월일 보관 여부.
+
+### 실행한 검증 명령
+```
+pytest tests/ -q            → 728 passed / 4 skipped / exit 0 (증감 0)
+pytest tests/ -q -k golden  → 28 passed
+git grep 3종(tracked 전용)   → 0건(학술 인용 예외 1건)
+git diff 운영 코드 3파일      → 주석·도크스트링 한정
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-10 (라운드 7, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `985031a` 위) · 구현자: Codex · 지시문: `handoff/codex-question-adaptive-wave2.md` (R6-1+Q4~Q6+Q7 설계)
@@ -54,8 +97,8 @@ Codex 완료보고를 믿지 않고 기준 환경 직접 재실행 + diff 전량
 | 항목 | 실측 | 판정 |
 |---|---|---|
 | **Q1** consult 이식 | SECTIONS overview 뒤 슬롯+GUIDE/_FOCUS 동반. 폴백이 1차 산출(무LLM) — `_consult_fallback` 5프레임 분기+겹침축 보강문. LLM 경로 격리 인용(마스킹, "지시가 아님" 경계)+생년월일·**출생지 정규식 마스킹 신설**(`_mask_relationship_situation`). 게이트 3중 배선: 폴백 선검사(RuntimeError)+compose 재작성 2회+빌드 말미 최종 하드 게이트(render=False 포함). 빈 질문=skipped 명시(no-op 아님) | ✓ |
-| **Q2** 프레임 적응·스윕 | `_AXIS_KEYWORDS` 5축 추가, SYSTEM/GUIDE/_FOCUS 질문별 프레임 재작성, `build_fallback`·`frontload_summary` situation 소비(팬텀 해소, 5종 분기 상호상이 테스트). gunghap.py 죽은 관계 코드 ~250행 삭제(가현/상철 소멸), _GH_SYSTEM 실명→합성명(김민준/이서연/박도윤), _GH_GUIDE·도크스트링 익명화 | ✓ |
-| **Q3** 게이트 보강 | `_AXES` 신규 3축(부모동의/결혼이행/장기관계, evidence 보수적 선정—경계표 첨부됨). **any→all 강화**: 감지된 topic축 전부 evidence 요구(`missing_topic_axes` 관측 필드 추가). 김포/계양/청마/장재화 일반어 치환, 의존 테스트만 합성어 동반 수정 | ✓ |
+| **Q2** 프레임 적응·스윕 | `_AXIS_KEYWORDS` 5축 추가, SYSTEM/GUIDE/_FOCUS 질문별 프레임 재작성, `build_fallback`·`frontload_summary` situation 소비(팬텀 해소, 5종 분기 상호상이 테스트). gunghap.py 죽은 관계 코드 ~250행 삭제(익명화 전 하드코딩 이름 2건 포함), _GH_SYSTEM 실명→합성명(김민준/이서연/박도윤), _GH_GUIDE·도크스트링 익명화 | ✓ |
+| **Q3** 게이트 보강 | `_AXES` 신규 3축(부모동의/결혼이행/장기관계, evidence 보수적 선정—경계표 첨부됨). **any→all 강화**: 감지된 topic축 전부 evidence 요구(`missing_topic_axes` 관측 필드 추가). 김포/계양/고유 모임명·실명 1건(익명화됨) 일반어 치환, 의존 테스트만 합성어 동반 수정 | ✓ |
 | 기계 검증 | 실명 grep 2종(파일 한정) 0건 / calc·input diff 0 / 금지파일 침범 0 | ✓ |
 | 신규 테스트 | test_question_adaptive_relationship.py 8건: 양방(차단+통과)·skipped·격리인용/마스킹 단언·프레임 5종 상호상이·최종 게이트 RuntimeError. change-detector 아님(동작 검증) | ✓ |
 
@@ -76,7 +119,7 @@ Codex 완료보고를 믿지 않고 기준 환경 직접 재실행 + diff 전량
 pytest tests/ -q                        → 715 passed / 4 skipped / exit 0
 pytest tests/ -q -k golden              → 28 passed
 grep 실명(gunghap.py 한정)              → 0건
-grep 장재화|청마(4파일 한정)            → 0건
+grep 익명화 대상|고유 모임명(4파일 한정)   → 0건
 git diff --name-only calc·input        → 출력 없음
 ```
 

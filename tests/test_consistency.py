@@ -47,7 +47,7 @@ def _mixed_daewoon_pdf_input():
 
 def test_current_framed_extracts_current_daewoon():
     # B 패턴: '{간지} 대운 초입' (실제 결함 문장 형태)
-    assert "병오" in c.current_framed("지금 태수님은 병오 대운 초입에 들어서는 자리입니다")
+    assert "병오" in c.current_framed("지금 민준님은 병오 대운 초입에 들어서는 자리입니다")
     # A 패턴: '지금은 {간지} 대운'
     assert "정미" in c.current_framed("지금은 정미 대운을 지나는 시기입니다")
     # 미래/과거 단순 언급(현재 맥락 없음)은 잡지 않음
@@ -118,7 +118,7 @@ def test_builder_report_daewoon_single_and_consistent(monkeypatch):
     from sajugen.content import builder
 
     saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
-    rep = builder.build_report(saju, use_llm=False, ref_year=2026, name="김태수")
+    rep = builder.build_report(saju, use_llm=False, ref_year=2026, name="김민준")
     assert rep.guard.daewoon_consistent is True
     assert "정미 대운 하나입니다" in rep.section("flow").final_text  # 단일 사실 주입
     allcur = set()
@@ -147,7 +147,7 @@ def test_builder_reverts_section_that_frames_wrong_daewoon(monkeypatch):
 
     monkeypatch.setattr(llm_sections, "get_backend", lambda: _FakeBackend())
     saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
-    rep = builder.build_report(saju, use_llm=True, ref_year=2026, name="김태수")
+    rep = builder.build_report(saju, use_llm=True, ref_year=2026, name="김민준")
     closing = rep.section("closing").final_text
     assert "병오 대운 초입" not in closing  # 잘못된 현재 대운 서술 → 골격 폴백
     assert rep.guard.daewoon_consistent is True

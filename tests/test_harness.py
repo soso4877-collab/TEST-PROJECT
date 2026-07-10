@@ -633,7 +633,7 @@ def test_hverify_calls_verify_on_rendered_pdf(tmp_path, monkeypatch):
     from sajugen import config as cfg
     from sajugen.render import pdf as render_pdf
 
-    body = "태수 씨는 차분한 사람입니다. 흐름을 봅니다. " * 30
+    body = "민준 씨는 차분한 사람입니다. 흐름을 봅니다. " * 30
     secs = [SimpleNamespace(id="a", title="결", source_keys=["m"], final_text=body)]
     bp = dict(cfg.brand("seodam"))
     path = render_pdf.render_pdf(

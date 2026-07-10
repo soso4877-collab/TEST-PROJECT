@@ -173,7 +173,7 @@ def _scan_context(text: str, start: int) -> tuple[bool, str, str]:
         if any(r in tok for r in _RELATIONS):
             continue
         name = tok  # 마지막(날짜에 가장 가까운) 후보 채택
-    # 이름이 날짜 '뒤'에 오는 형식("1995년 3월 28일 오후 4시 10분 김태성")도 지원
+    # 이름이 날짜 '뒤'에 오는 형식("1995년 3월 28일 오후 4시 10분 이서연")도 지원
     return is_lunar, relation, name
 
 

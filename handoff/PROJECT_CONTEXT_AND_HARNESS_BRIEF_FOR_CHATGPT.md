@@ -177,7 +177,7 @@ test-project/
 **핵심 확정 지점**
 - 사주팔자: `myeongni.build()` (lunar-python EightChar, 진태양시 기준) — 1회 확정.
 - 대운/세운/월운: `myeongni.build()` + `advanced.seun_worun()`(lunar-python 출력 노출, 추정 금지) — 1회 확정.
-- **current_daewoon**: `myeongni.current_daewoon(m, ref_year)` = `start_year <= ref_year`인 마지막 대운(단일 현재 대운). 2026 기준 김태수 → 정미(26~35).
+- **current_daewoon**: `myeongni.current_daewoon(m, ref_year)` = `start_year <= ref_year`인 마지막 대운(단일 현재 대운). 2026 기준 김민준 → 정미(26~35).
 - 자미두수 명반: `ziwei.build()` (iztro_py).
 - **LLM이 계산값을 새로 만들 수 없는 구조**: `factcheck`가 본문의 간지·자미 별을 허용 토큰 집합과 대조해 집합 밖이면 하드 차단. 계산은 전부 calc/ 결정론. (절대규칙 1·13)
 
@@ -252,7 +252,7 @@ test-project/
 | `술(술)` 중복괄호 | p5 | 슬롯이 `_gz_ko` 변환 후 `한자(한글)`형을 또 한글화 → `한글(한글)` | postprocess/rules | postprocess에 `X(X)` 축약 규칙 or 슬롯 생성부 점검 |
 | `진(진)` 중복괄호 | p7 | 동일 | postprocess/rules | 동일 |
 | `신강한 신약의 차이` | p7 | LLM 카피 모순(신강/신약 혼용) | LLM/rules | 프롬프트 강화 + phrase/모순 lint(신규) |
-| `김태수, 재수는 …`(오타) | p12 | LLM 오타(재무→재수) | LLM | phrase blacklist lint(신규) + 재작성 |
+| `김민준, 재수는 …`(오타) | p12 | LLM 오타(재무→재수) | LLM | phrase blacklist lint(신규) + 재작성 |
 | `2026년이 오기 전까지` | p17 | ref_year(2026)가 "현재"인데 미래처럼 서술 = 시제 오류 | LLM/rules | ref_year 시제 lint(신규) + 골격 닻 강화 |
 
 ---
@@ -327,7 +327,7 @@ test-project/
 **6 이슈를 현재 테스트가 잡는가?**
 | 이슈 | 잡히나 | 비고 |
 |---|---|---|
-| `김태수, 재수는`(오타) | ❌ | phrase/오타 lint 없음 |
+| `김민준, 재수는`(오타) | ❌ | phrase/오타 lint 없음 |
 | `신강한 신약`(모순) | ❌ | 모순/의미 lint 없음 |
 | `2026년이 오기 전까지`(시제) | ❌ | temporal lint 없음 |
 | `있습니다.` 단독 페이지 | ❌ | orphan page 검출 없음 |
@@ -342,7 +342,7 @@ test-project/
 
 | 이슈 | 원인 추정 | 가장 낮은 위험 수정 위치 | 테스트 추가 | 이번 커밋 포함? |
 |---|---|---|---|---|
-| p12 `김태수, 재수는` | LLM 오타(재무) | phrase blacklist lint(신규, content) + 재작성 트리거 | 블랙리스트 단어→재작성/폴백 단위테스트 | 권장 후속(별도) |
+| p12 `김민준, 재수는` | LLM 오타(재무) | phrase blacklist lint(신규, content) + 재작성 트리거 | 블랙리스트 단어→재작성/폴백 단위테스트 | 권장 후속(별도) |
 | p7 `신강한 신약의 차이` | LLM 모순 | 모순쌍 lint(신강↔신약 동시등장) + 프롬프트 | 합성문장 위반 테스트 | 권장 후속 |
 | p17 `2026년이 오기 전까지` | ref_year 시제 | temporal lint(ref_year보다 과거를 미래로/그 반대) + rules 닻 | ref_year 기준 문장 테스트 | 권장 후속 |
 | p5/p7 `술(술)`,`진(진)` | `한글(한글)` 중복 | postprocess에 `([가-힣]+)\((\1)\)`→`\1` 규칙(저위험) | 중복괄호 정제 단위테스트 | **이번/근접 커밋 가능(저위험)** |

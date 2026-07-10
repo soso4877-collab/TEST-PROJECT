@@ -19,16 +19,16 @@
 - **v2 정정 사유**: v1의 통합 grep 0건 기준은 (a) "청마"가 "요청마다"의 부분문자열이라 무관 코드 오탐(admin.py:44),
   (b) `sajugen/input/partner.py:176` 주석과 충돌(input/ 무변경 규칙), (c) 테스트 픽스처 ~250행 대량 수정 강요 —
   3중 결함으로 실행 불가였음(Codex 정지 보고 2026-07-10, 전건 실측 확인). v2는 대상 지점 열거형 기준으로 교체.
-- **실명 확정(운영자 2026-07-10)**: 김태수·김태성·장순조·김동황·장재화·가현·상철 = 전부 실제 사람 이름(PII).
+- **실명 확정(운영자 2026-07-10)**: 실명 7건(익명화됨) = 전부 실제 사람 이름(PII).
   살아있는 경로의 실명은 이번 Q2·Q3에서 제거하고, 주석·도크스트링·테스트 픽스처의 실명 전수 익명화는
   **별도 태스크 E10**(웨이브1 교차리뷰 뒤 발주)으로 분리한다 — 이 패킷에서 손대지 않는다.
 - 테스트 기준선(기준환경, 전 리소스): `./.venv/Scripts/python.exe -m pytest tests/ -q` → **695 passed / 4 skipped / exit 0**(222.69s, 2026-07-10). passed 감소 = 회귀. Codex 샌드박스는 skip 수가 다를 수 있음(E3 리소스 부재) — 완료 근거는 "기준선 대비 감소 0 + 신규 테스트만큼 증가".
 - **이미 완료(재발주 금지)**: 후속·재방문 T0~T4(문안규약·orders/customers 스키마·followup 게이트·슬림 compose·CLI/상태머신), customer-purge CLI(E9), 수정 라운드 A/B/C. 교차리뷰 라운드1~5 PASS.
 - 설계 문서 `handoff/design-question-adaptive.md`는 Claude 세션이 2026-07-10 코드로 재검증 완료(PASS). 단 아래 **정정 6건**이 있으니 설계 원문의 file:line 대신 이 절을 우선한다:
-  1. `gunghap.py` 로컬 관계 정의들(`_REL_SYSTEM`:480, `_REL_SECTIONS`:490, `_REL_TAIL_FILLERS`:524 — 가현/상철 실명 534-535 포함, `_relationship_frontload_summary`:900 등)은 **919-929에서 relationship 패키지 구현으로 재할당되어 전부 죽은 코드**. 실행로는 `sajugen/relationship/` 패키지가 유일.
+  1. `gunghap.py` 로컬 관계 정의들(`_REL_SYSTEM`:480, `_REL_SECTIONS`:490, `_REL_TAIL_FILLERS`:524 — 익명화 전 하드코딩 이름 2건 포함, `_relationship_frontload_summary`:900 등)은 **919-929에서 relationship 패키지 구현으로 재할당되어 전부 죽은 코드**. 실행로는 `sajugen/relationship/` 패키지가 유일.
   2. `relationship/fallback.py:27` `build_fallback(section_id, people, situation)` — situation을 **받기만 하고 미사용**(팬텀 파라미터).
-  3. `gunghap.py:475` `_GH_GUIDE["pairs"]`에 실명 하드코딩("태수와 태성, 태수와 순조, 태성과 순조") — business 모드는 살아있는 경로.
-  4. `content/delivery_quality.py` `_AXES`(90-)·`_PROVENANCE_CONTEXT_TERMS`(310)와 `content/rules.py:_consult_context`(756-765)에 최초 고객 건 특정 키워드 하드코딩: "김포"·"계양"·"청마"·"장재화"(사람 이름 추정, PII-인접).
+  3. `gunghap.py:475` `_GH_GUIDE["pairs"]`에 익명화 전 실명 3건 하드코딩(현재 합성명 예시: "민준과 서연, 민준과 도윤, 서연과 도윤") — business 모드는 살아있는 경로.
+  4. `content/delivery_quality.py` `_AXES`(90-)·`_PROVENANCE_CONTEXT_TERMS`(310)와 `content/rules.py:_consult_context`(756-765)에 최초 고객 건 특정 키워드 하드코딩: "김포"·"계양"·"청마"·실명 1건(익명화됨, PII-인접).
   5. 관계 섹션 리스트 실명 = `relationship/context.py:28` `SECTIONS`(14개, consult 슬롯 없음). `_consult_context` 토픽은 10개(설계 원문 "9토픽"은 오기).
   6. 분량 게이트는 이미 상품 차등 구조(`delivery_quality._min_pages`:317-323): gunghap 계열 30 / integrated_full 30 / 그 외 프리미엄 20. Q4는 새 메커니즘이 아니라 **값·매핑 조정**.
 
@@ -66,35 +66,36 @@
 - `fallback.build_fallback`(27)의 situation 팬텀 해소 — 소비 배선 + "situation이 다르면 출력이 달라진다" 분기 테스트(방법론 A-5).
 - `frontload_summary`(fallback.py:59) 고정 썸 결론 → 질문 유형별 분기(또는 축 기반 재작성).
 - `TAIL_FILLERS`(fallback.py:9-24)의 썸 프레임 문장들(고백·새 만남 전제) → 유형 중립화 또는 유형별 분기.
-- 죽은 코드 정리: `gunghap.py`의 재할당(919-929)으로 죽은 로컬 정의 일괄 삭제(_REL_SYSTEM:480, _REL_SECTIONS:490, _REL_TAIL_FILLERS:524 — **가현/상철 실명 포함**, _relationship_frontload_summary:900, 인접 로컬 fallback 텍스트 등 — 삭제 전 참조 0 확인).
-- `_GH_GUIDE["pairs"]`(gunghap.py:475) 실명(태수/태성/순조) 제거 — 사람 수 무관 일반 서술("각 쌍의 궁합을…")로.
-- **gunghap.py:441-443 business 시스템 프롬프트의 실명 호칭 예시**("김태수 씨/김태성 씨/장순조 씨", "태수와 태성…")
-  → 합성 예시명(예: "김민준 씨/이서연 씨" 등 임의 합성)으로 교체 — 실명 확정이라 현재 매 business LLM 호출마다
+- 죽은 코드 정리: `gunghap.py`의 재할당(919-929)으로 죽은 로컬 정의 일괄 삭제(_REL_SYSTEM:480, _REL_SECTIONS:490, _REL_TAIL_FILLERS:524 — **익명화 전 하드코딩 이름 2건 포함**, _relationship_frontload_summary:900, 인접 로컬 fallback 텍스트 등 — 삭제 전 참조 0 확인).
+- `_GH_GUIDE["pairs"]`(gunghap.py:475)의 익명화 전 실명 3건 제거 — 사람 수 무관 일반 서술("각 쌍의 궁합을…")로.
+- **gunghap.py:441-443 business 시스템 프롬프트의 익명화된 호칭 예시**("김민준 씨/이서연 씨/박도윤 씨", "민준과 서연…")
+  → 합성 예시명(예: "김민준 씨/이서연 씨" 등 임의 합성)으로 교체 — 익명화 전 예시가 실명이어서 매 business LLM 호출마다
   타 고객 실명이 전송되는 상태(살아있는 경로 최우선 제거). gunghap.py:4 도크스트링의 실명도 익명화
   ("3인 사업 궁합 실요청" 수준으로).
 
 **수용 기준(양방)**:
 - 표 테스트: situation 5종(썸/장기·결혼/부모 반대/재회/빈 값) × 산출 프레임 매핑이 전부 다르게 분기.
-- `grep -nE "가현|상철|태수|태성|순조" sajugen/gunghap.py` → **0건**. **파일 한정 grep이다** — sajugen/·tests/ 통합
-  grep 사용 금지: 테스트 픽스처·타 파일 주석의 실명은 E10 범위(§웨이브1 범위 제외 참조).
+- 익명화 전 실명 5건(N1~N3·N6~N7) 파일 한정 grep(sajugen/gunghap.py) → **0건**(웨이브1 당시 기준 — E10 치환 후
+  이 파일에는 합성 예시명이 정당하게 존재하므로 합성명 grep 재실행은 무의미. 라운드8 서술형 보정). **파일 한정
+  grep이다** — sajugen/·tests/ 통합 grep 사용 금지: 테스트 픽스처·타 파일 주석의 실명은 E10 범위(§웨이브1 범위 제외 참조).
 - 기존 관계 골든·회귀(695 기준선) 무감소.
 
 ### Q3 직답 게이트 관계축 보강 + 최초 고객 키워드 일반화
 **대상**: `content/delivery_quality.py`, `content/rules.py`(_consult_context 트리거만 — consult 골격 로직 유지).
 - `_AXES`(90-)에 신규 축: `parental_approval`(부모/가족 반대 — triggers: 부모, 어머니, 엄마, 아버지, 가족, 반대, 허락 / evidence: 부모, 가족, 반대, 설득, 인사, 시간, 신뢰), `marriage_commitment`(결혼 이행 — triggers: 결혼, 혼인, 배우자, 상견례 / evidence: 결혼, 생활, 조건, 시기, 준비), `longterm_relationship`(장기 관계 — triggers: 3년, 몇 년, 오래 만난, 장기 / evidence: 권태, 반복, 다음 단계, 유지). 축·용어는 구현 시 조정 가능하되 **경계값·동치류 분석표**(어떤 질문이 어느 축에 걸리는지, 커버 안 함은 사유)를 보고에 첨부.
 - `_required_axes`(330-338)의 timing/action 자동 포함 규칙에 신규 축 편입 여부를 명시적으로 결정(주석 근거).
-- **최초 고객 특정 키워드 일반화**: `_AXES` 안 "김포"·"계양"·"청마"·"장재화", `_PROVENANCE_CONTEXT_TERMS`(310) "청마", `rules.py:756-765`의 동일 키워드와 `:778` "청마로타리클럽" 라벨 — 실명("장재화")·고유 모임명("청마")은 **제거**하고 일반어(지역 비교, 모임·단체, 도움 주는 사람)로 대체. 지명(김포/계양)은 일반 "지역 비교" 로직으로 흡수. 이 문자열을 **직접 고정(assert·주입)하는 테스트 케이스만** 동반 수정: `tests/test_delivery_quality.py`·`tests/test_llm_sections.py`의 해당 케이스를 합성 일반어로 치환(그 외 테스트 파일의 실명 픽스처는 건드리지 않는다 — E10 범위).
+- **최초 고객 특정 키워드 일반화**: `_AXES` 안 "김포"·"계양"·고유 모임명·실명 1건(익명화됨), `_PROVENANCE_CONTEXT_TERMS`(310)의 고유 모임명, `rules.py:756-765`의 동일 키워드와 `:778`의 고유 모임 라벨 — 익명화 전 실명·고유 모임명은 **제거**하고 일반어(지역 비교, 모임·단체, 도움 주는 사람)로 대체. 지명(김포/계양)은 일반 "지역 비교" 로직으로 흡수. 이 문자열을 **직접 고정(assert·주입)하는 테스트 케이스만** 동반 수정: `tests/test_delivery_quality.py`·`tests/test_llm_sections.py`의 해당 케이스를 합성 일반어로 치환(그 외 테스트 파일의 실명 픽스처는 건드리지 않는다 — E10 범위).
 
 **수용 기준(양방)**:
 - (차단) "부모님 반대" 질문 + 부모/가족 서술 0인 제네릭 연애 본문 → `consult_direct_result` 실패.
 - (통과) 동일 질문 + 부모 축 evidence 포함 본문 → 통과.
 - (회귀) 기존 love_reunion·timing·action 축 케이스 전부 기존 판정 유지.
-- `grep -nE "장재화|청마" sajugen/content/delivery_quality.py sajugen/content/rules.py tests/test_delivery_quality.py tests/test_llm_sections.py` → **0건**. (파일 한정 — "청마"는 "요청마다"의 부분문자열이라 통합 grep은 admin.py:44 등 무관 코드를 오탐한다. 통합 grep 사용 금지.)
+- 익명화 대상·고유 모임명 파일 한정 grep → **0건**. (고유 모임명은 "요청마다"의 부분문자열이라 통합 grep은 admin.py:44 등 무관 코드를 오탐한다. 통합 grep 사용 금지.)
 
 **웨이브1 범위 제외 (모순 방지 — 이 패킷에서 절대 손대지 않음, 전부 E10로 이관)**:
-- `sajugen/input/partner.py:176` 주석("김태성" 예시) — input/ 무변경 영역. E10에서 주석만 수정하되 골든 재확인 동반.
+- `sajugen/input/partner.py:176` 주석("이서연" 예시) — input/ 무변경 영역. E10에서 주석만 수정하되 골든 재확인 동반.
 - `sajugen/admin.py:44` "요청마다" — 실명 아님(부분문자열 오탐). 수정 대상 아예 아님.
-- `client_tone_lint.py` 도크스트링·주석 예시(태수/태성), `rules.py:1764` 도크스트링("김동황"·"김태성").
+- `client_tone_lint.py` 도크스트링·주석 예시(민준/서연), `rules.py:1764` 도크스트링("최지호"·"이서연").
 - 테스트 픽스처 입력 데이터의 실명(~250행, 14개 테스트 파일) — 대량 기계 치환은 별도 패킷이 안전.
 - **E10 = "실명 익명화 전수" 별도 패킷**: 웨이브1 교차리뷰 PASS 뒤 발주 확정(운영자 2026-07-10 결정).
 

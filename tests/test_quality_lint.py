@@ -26,10 +26,10 @@ def test_quality_flags_singang_contradiction():
 
 # ── 이슈5: 재무→재수 오타 ──
 def test_quality_flags_jaesu_typo():
-    assert q.lint("김태수, 재수는 돈의 흐름을 읽는 사람입니다.")
+    assert q.lint("김민준, 재수는 돈의 흐름을 읽는 사람입니다.")
     assert q.lint("재수는 재물의 창고예요.")
     # 이름 앵커
-    hits = q.lint("김태수, 재수가 핵심이에요.", names=["김태수"])
+    hits = q.lint("김민준, 재수가 핵심이에요.", names=["김민준"])
     assert any(h["type"] == "name_typo" for h in hits)
     # 정상 '재수(운)'은 미검출
     assert q.is_clean("올해는 재수가 좋은 흐름이에요.")
@@ -50,7 +50,7 @@ def test_quality_flags_customer_framing_phrases():
 
 
 def test_quality_flags_internal_meta_labels():
-    hits = q.lint("고객 질문: 현재 썸 관계가 궁금합니다.\n상담 대상: 가현 씨, 상철 씨\n[자미두수]\n이 장에서 봅니다.")
+    hits = q.lint("고객 질문: 현재 썸 관계가 궁금합니다.\n상담 대상: 하은 씨, 준서 씨\n[자미두수]\n이 장에서 봅니다.")
     assert any(h["type"] == "internal_meta_label" for h in hits)
 
 
@@ -68,7 +68,7 @@ def test_customer_meta_lint_allows_customer_facing_explanation():
 def test_quality_flags_relationship_raw_fact_slot_leak():
     text = (
         "두 사람 사이에서 실제로 맞물리는 부분은 다음과 같습니다.\n"
-        "가현 씨 기준 상철 씨는 십성으로 비견입니다.\n"
+        "하은 씨 기준 준서 씨는 십성으로 비견입니다.\n"
         "일지 삼합 반합(수), 같은 방향으로 모이는 협업의 결입니다.\n"
         "자미두수로는 사람과 관계, 돈과 생활, 일의 자리를 함께 봅니다.\n"
         "명궁은 명궁, 신궁은 명궁입니다.\n"
@@ -111,7 +111,7 @@ def test_ziwei_skeleton_has_no_template_residue(monkeypatch):
     from sajugen.content import builder
 
     saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")
-    rep = builder.build_report(saju, use_llm=False, ref_year=2026, name="김태수")
+    rep = builder.build_report(saju, use_llm=False, ref_year=2026, name="김민준")
     ztext = rep.section("ziwei").final_text
     for bad in ("[핵심 궁]", "[그 밖의 궁]", "명궁(명궁)", "주성은 주성 없음", "주성 없음(공궁)"):
         assert bad not in ztext, f"자미 잔재 발견: {bad!r}"
@@ -129,7 +129,7 @@ def test_love_consult_rule_text_quality_and_temporal_clean(monkeypatch):
         saju,
         use_llm=False,
         ref_year=2026,
-        name="김태수",
+        name="김민준",
         concern="전남친과 재회 시기 언제가 좋을까요",
     )
     text = rep.section("consult").final_text

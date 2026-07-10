@@ -8,7 +8,7 @@
 ## 0. 프로토콜 (Codex 운영 계약 — 이번 승인 범위)
 - 역할: **구현자**(이 문서가 승인된 TASK). 수정 허용 파일은 각 태스크에 명시된 것만.
 - **상시 금지(승인받아도 금지)**: PDF 재생성, LLM(Anthropic API 포함) 호출, `git commit`, `push`, deploy.
-- **데이터 경계**: `harness/profiles/local/**` 비열람. 실 PII 인용 금지. 신규 테스트는 **합성 PII-free**(이름 예: `합성갑`·`합성을`, 실명 `김태수/김태성/장순조` 재사용 금지 — 신규 코드에서).
+- **데이터 경계**: `harness/profiles/local/**` 비열람. 실 PII 인용 금지. 신규 테스트는 **합성 PII-free**(이름 예: `합성갑`·`합성을`, 기존 실명 3건은 익명화됐으며 재사용 금지 — 신규 코드에서).
 - **가드 불변**: `content/` 변경은 3단 가드(safe_lint/factcheck/trace) 완화·우회 금지(절대규칙 12).
 - **완료 근거**: `--no-tests` 아님. 아래 §3 전체 pytest 실행본 + passed 수 + 마지막 HEAD SHA(커밋하지 말 것, 워킹트리 상태로 보고). `/done` 형식.
 

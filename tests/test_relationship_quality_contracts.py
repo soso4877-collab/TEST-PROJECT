@@ -47,7 +47,7 @@ def _install_counting_anthropic(monkeypatch):
     ("fallback_text", "raw_fragment", "must_be_removed_by_finalize"),
     [
         ("고객 질문: 원문 노출", "원문 노출", True),
-        ("상담 대상: 가현 씨", "가현", True),
+        ("상담 대상: 하은 씨", "하은", True),
         ("이 장에서 가장 중요한 기준은 반복 태도입니다.", "이 장에서", True),
         ("사주도령 전문 상담 안내입니다", "전문 상담", False),
         ("내부 근거 자료입니다", "근거 자료", False),

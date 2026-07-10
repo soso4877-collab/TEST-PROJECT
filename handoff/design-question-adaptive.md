@@ -18,7 +18,7 @@
 **궁합 relationship이 막힌 지점 (4중 중 프롬프트 주입만 절반, LLM-on 한정 "참고용"):**
 - `relationship/context.py:_question_axes`(175) — situation을 고정 축으로 붕괴. `_AXIS_KEYWORDS`(79)에 "결혼/엄마/부모/반대/장기" 트리거 **없음** → 기본값 3축 반환.
 - 동 `SYSTEM`(13)·`GUIDE`(45) — 질문 체크리스트·지침이 "썸·초기연애"로 하드와이어. LLM 켜도 역-가중.
-- `relationship/fallback.py` + `_relationship_frontload_summary`(gunghap.py 900) — situation 무시 고정 템플릿. `_REL_TAIL_FILLERS`(gunghap 524)에 **하드코딩 타인 이름 "가현 씨/상철 씨"**.
+- `relationship/fallback.py` + `_relationship_frontload_summary`(gunghap.py 900) — situation 무시 고정 템플릿. `_REL_TAIL_FILLERS`(gunghap 524)에 **익명화 전 하드코딩 타인 이름 2건**.
 - `_REL_SECTIONS`(context.py 28) 14섹션에 **consult(질문 직답) 슬롯 없음**.
 - `delivery_quality._AXES` — "부모 반대" 축 자체가 없어, `love_reunion` 축 evidence가 제네릭 연애 템플릿으로도 충족 → **게이트가 질문 미반영을 통과시킴**(정적 GREEN인데 실경로 부실).
 - 참고: `use_llm` 기본 False(gunghap 1101, CLI 1318) — 기본 산출은 폴백 전용이라 situation이 본문에 닿을 통로 자체가 없음.

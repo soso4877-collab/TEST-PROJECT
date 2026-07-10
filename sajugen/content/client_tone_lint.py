@@ -263,7 +263,7 @@ def term_hits(text: str) -> list[dict]:
 
 
 # ───────────────── H1.5.3: 이름 호칭 정책 ─────────────────
-# 고객 본문 산문은 짧은 호칭("태수 씨")을 쓰고, 전체 이름("김태수")은 첫 소개 1회만 허용.
+# 고객 본문 산문은 짧은 호칭("민준 씨")을 쓰고, 전체 이름("김민준")은 첫 소개 1회만 허용.
 # 표지/명식표/근거표/가운뎃점 나열은 예외(verify가 구역으로 분리). 복성 set는 rules와 동일(로컬 사본).
 _DOUBLE_SURNAMES = {"남궁", "황보", "제갈", "선우", "독고", "사공", "서문", "동방", "어금", "망절"}
 # 이름 뒤 조사(호칭화 검출·순화 공유). 긴 꼬리 먼저.
@@ -271,7 +271,7 @@ _NAME_TAIL = r"에게|에서|한테|으로|은|는|이|가|을|를|의|과|와|�
 
 
 def given_name(full: str) -> str:
-    """성 제외 이름 — '김태수'→'태수', 복성 4자→뒤 2자. 2자 이하/비정형은 그대로."""
+    """성 제외 이름 — '김민준'→'민준', 복성 4자→뒤 2자. 2자 이하/비정형은 그대로."""
     n = (full or "").strip()
     if n.endswith(("님", "씨")):
         n = n[:-1].strip()
@@ -283,17 +283,17 @@ def given_name(full: str) -> str:
 
 
 def honor(full: str) -> str:
-    """본문 일반 호칭 — '태수 씨'."""
+    """본문 일반 호칭 — '민준 씨'."""
     return f"{given_name(full)} 씨"
 
 
 def intro(full: str) -> str:
-    """첫 소개 호칭 — '김태수 씨'(성 포함, 사람당 1회)."""
+    """첫 소개 호칭 — '김민준 씨'(성 포함, 사람당 1회)."""
     return f"{full} 씨"
 
 
 def pair_label(a: str, b: str) -> str:
-    """쌍 제목 — '태수와 태성'(받침 인식 와/과)."""
+    """쌍 제목 — '민준과 서연'(받침 인식 와/과)."""
     ga, gb = given_name(a), given_name(b)
     gwa = "과" if _has_batchim(ga) else "와"
     return f"{ga}{gwa} {gb}"
@@ -319,7 +319,7 @@ def name_policy_lint(text: str, full_names: list[str]) -> list[dict]:
     """고객 본문에서 전체 이름 오용 검출(빈 리스트면 통과).
 
     허용: 사람당 첫 'FULL 씨' 1회, 'A · B · C' 가운뎃점 나열(표지). 그 외 FULL 출현은 위반.
-    검출 종류: 조사·부호(,:)·명사형(FULL 명사)·단독·붙은씨(태수씨).
+    검출 종류: 조사·부호(,:)·명사형(FULL 명사)·단독·붙은씨(민준씨).
     """
     text = text or ""
     out: list[dict] = []
@@ -352,7 +352,7 @@ def name_policy_lint(text: str, full_names: list[str]) -> list[dict]:
                 out.append({"type": "name_policy", "match": full + na, "kind": "명사"})
                 continue
             out.append({"type": "name_policy", "match": full, "kind": "단독"})
-    # 붙은 씨(태수씨) — given+씨 직결, 앞이 한글이면 전체이름 일부라 제외
+    # 붙은 씨(민준씨) — given+씨 직결, 앞이 한글이면 전체이름 일부라 제외
     for full in full_names:
         g = given_name(full)
         if not g:
@@ -366,7 +366,7 @@ def _normalize_text(text: str, full_names: list[str], ssi_seen: set) -> str:
     """한 텍스트의 전체 이름을 호칭으로 순화. ssi_seen(이미 첫 소개한 이름 집합)을 공유해
     PDF 전체 기준 '첫 FULL 씨 1회'를 보장한다(단일 텍스트면 빈 set 전달 → 텍스트당 1회)."""
     text = text or ""
-    # 쌍 먼저: 'FULL_a 와/과 FULL_b' → 'given_a와/과 given_b'(예 김태수와 김태성 → 태수와 태성).
+    # 쌍 먼저: 'FULL_a 와/과 FULL_b' → 'given_a와/과 given_b'(예 김민준과 이서연 → 민준과 서연).
     for a in full_names:
         for b in full_names:
             if a and b and a != b:
@@ -379,7 +379,7 @@ def _normalize_text(text: str, full_names: list[str], ssi_seen: set) -> str:
         if not full:
             continue
         g = given_name(full)
-        # 붙은 씨 띄우기: 태수씨는 → 태수 씨는
+        # 붙은 씨 띄우기: 민준씨는 → 민준 씨는
         text = re.sub(r"(?<![가-힣])" + re.escape(g) + r"씨", g + " 씨", text)
         src = text
         rx = re.compile(re.escape(full) + r"(\s*씨)?(" + _NAME_TAIL + r")?")
@@ -413,7 +413,7 @@ def normalize_names_pdfwide(texts: list[str], full_names: list[str]) -> list[str
     """여러 섹션 텍스트를 순서대로 순화하되 '첫 FULL 씨'를 PDF 전체에서 사람당 1회만 보존(H1.5.3.1).
 
     섹션 단위 normalize_names 는 텍스트마다 첫 소개를 남겨 PDF-wide 중복소개가 생긴다 →
-    이 함수가 ssi_seen 을 공유해 2회째부터 호칭(태수 씨)으로 강등. render 직전 최종 보증용.
+    이 함수가 ssi_seen 을 공유해 2회째부터 호칭(민준 씨)으로 강등. render 직전 최종 보증용.
     """
     ssi_seen: set = set()
     return [_normalize_text(t, full_names, ssi_seen) for t in texts]

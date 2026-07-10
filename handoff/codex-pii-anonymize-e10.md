@@ -14,16 +14,16 @@
 - 시작 HEAD·기준선 = 웨이브2 리뷰 PASS 후 값으로 갱신해 착수(착수 지시문에 명시됨).
 
 ## 2. 치환 매핑 (결정론 — 전 파일 일관 적용)
-| 실명 | 합성명 | 비고 |
+| 폐기된 식별자 | 합성명 | 비고 |
 |---|---|---|
-| 김태수 / 태수 | 김민준 / 민준 | 웨이브1 _GH_SYSTEM 합성 예시와 통일 |
-| 김태성 / 태성 | 이서연 / 서연 | 동일 |
-| 장순조 / 순조 | 박도윤 / 도윤 | **"순조롭-"(순조롭게/순조로운)은 일반어 — 치환 금지** |
-| 김동황 | 최지호 | rules.py:1764 도크스트링 |
-| 장재화 | (이미 코드 제거) | 문서 잔존분만 익명 표기 |
-| 가현 | 하은 | 테스트 픽스처 |
-| 상철 | 준서 | 테스트 픽스처 |
-- 호칭·조사 파생형("태수 씨"·"태수와 태성"·"김태수는")도 매핑대로 일괄 치환하되, 조사 받침 정합(은/는·와/과)을 깨뜨리지 않는지 치환 후 해당 assert 재확인.
+| N1(파기) | 김민준 / 민준 | 웨이브1 _GH_SYSTEM 합성 예시와 통일 |
+| N2(파기) | 이서연 / 서연 | 동일 |
+| N3(파기) | 박도윤 / 도윤 | **"순조롭-"(순조롭게/순조로운)은 일반어 — 치환 금지** |
+| N4(파기) | 최지호 | rules.py:1764 도크스트링 |
+| N5(파기) | (이미 코드 제거) | 문서 잔존분만 익명 표기 |
+| N6(파기) | 하은 | 테스트 픽스처 |
+| N7(파기) | 준서 | 테스트 픽스처 |
+- 호칭·조사 파생형("민준 씨"·"민준과 서연"·"김민준은")도 매핑대로 일괄 치환하되, 조사 받침 정합(은/는·와/과)을 깨뜨리지 않는지 치환 후 해당 assert 재확인.
 
 ## 3. 대상 (2026-07-10 실측 기준)
 1. **테스트 픽스처·단언 ~250행**: `tests/test_client_tone.py`·`test_consistency.py`·`test_followup_gate.py`·`test_gate_contract.py`·`test_gunghap.py`·`test_harness.py`·`test_hsweep_contract.py`·`test_llm_usage.py`·`test_partner.py`·`test_quality_lint.py`·`test_render_verify.py`·`test_repetition.py`·`test_sdk_retry_policy.py`·`test_style_lint.py`. 이름은 입력 데이터이자 단언 문자열 — 매핑 일관 치환이면 의미 불변.
@@ -36,10 +36,12 @@
 - **골든 전수**: `pytest -k golden` GREEN(입력값·계산 무변경 증명. partner.py는 주석만이지만 input/ diff라 필수).
 - 잔존 스캔 (**v2 정정 2026-07-10: git grep = tracked 파일 전용.** raw `grep -r`은 gitignored
   `sajugen/render/out/**` 실고객 산출물까지 읽어 Codex 실데이터 접근 금지와 충돌 — Codex 정지 보고 실측 확인):
-  `git grep -nE "김태수|김태성|장순조|김동황|장재화" -- sajugen tests docs handoff "*.md"` → 0건.
-  `git grep -nE "태수|태성|가현|상철" -- sajugen tests` → 0건.
-  `git grep -n "순조" -- sajugen tests | grep -v "순조롭\|순조로"` → 0건.
+  `git grep -nE "김[태]수|김[태]성|장[순]조|김[동]황|장[재]화" -- sajugen tests docs handoff "*.md"` → 0건.
+  `git grep -nE "태[수]|태[성]|가[현]|상[철]" -- sajugen tests` → 0건.
+  `git grep -n "순[조]" -- sajugen tests | grep -v "순조롭\|순조로"` → 0건.
   ("청마"는 코드에서 이미 제거 — 문서 잔존분만 확인. "요청마다" 오탐 주의.)
+  **허용 예외 1건(라운드8 확정)**: `docs/00-research-ledger.md`의 "김[태]수(2022) 박사논문" = 공개 학술 저작의
+  저자명 인용 — 출처 추적성 보존이 우선이라 익명화 대상 아님(치환 시 인용 위조). grep1은 이 1건만 허용.
 - **ignored 영역 접근·수정 절대 금지**: `sajugen/render/out/`·`tmp/`·`synthetic-tmp/`·`data/`·`*.content.json` —
   실고객 산출물 포함. 열람·grep·수정 전부 금지(그 안의 실명 정리는 운영자 별도 액션, 이 패킷 범위 밖).
 - 치환 전후 `git diff --stat`으로 로직 파일 변경이 문자열 행에 한정됨을 보고.

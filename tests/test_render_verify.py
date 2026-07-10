@@ -146,17 +146,17 @@ def test_report_template_keeps_paragraph_tails_together():
 def test_customer_body_pages_keeps_keyword_pages():
     # '오행/명식/십성'이 있어도 본문 페이지를 제외하면 안 된다(치명 구멍 방지).
     pages = [
-        "표지 김태수 · 김태성 · 장순조",  # p1 표지(제외)
+        "표지 김민준 · 이서연 · 박도윤",  # p1 표지(제외)
         "목차\n제 1 장 ...",  # 목차(제외)
-        "오행을 함께 보면, 김태수는 임인일주입니다. " * 5,  # 본문(유지) — 오행 단어 있어도
-        "명식과 십성을 보면 태수 씨 일간은 계수입니다. " * 5,  # 본문(유지)
+        "오행을 함께 보면, 김민준은 임인일주입니다. " * 5,  # 본문(유지) — 오행 단어 있어도
+        "명식과 십성을 보면 민준 씨 일간은 계수입니다. " * 5,  # 본문(유지)
         "본문에 나온 용어 풀이 ...",  # 부록(제외)
     ]
     body, allowed = v._customer_body_pages(pages)
-    assert "김태수는 임인일주입니다" in body  # 오행 동반 본문 유지
-    assert "태수 씨 일간은 계수입니다" in body  # 명식/십성 동반 본문 유지
+    assert "김민준은 임인일주입니다" in body  # 오행 동반 본문 유지
+    assert "민준 씨 일간은 계수입니다" in body  # 명식/십성 동반 본문 유지
     assert "표지" not in body and "목차" not in body and "용어 풀이" not in body
-    assert "김태수 · 김태성 · 장순조" in allowed  # 표지는 제외 영역
+    assert "김민준 · 이서연 · 박도윤" in allowed  # 표지는 제외 영역
 
 
 def _render_sections(secs, out_name, input_civil="테스트"):
@@ -170,15 +170,15 @@ def _render_sections(secs, out_name, input_civil="테스트"):
     return render_pdf.render_pdf(report, fake_saju, out_name, name="", brand=bp)
 
 
-_FULL = ["김태수", "김태성", "장순조"]
-_IDSPEC = ({"임"}, {"임수"}, [(["김태수", "태수", "태수 씨", "자기 자신"], "임수")])
+_FULL = ["김민준", "이서연", "박도윤"]
+_IDSPEC = ({"임"}, {"임수"}, [(["김민준", "민준", "민준 씨", "자기 자신"], "임수")])
 
 
 def test_verify_gate_fails_on_name_and_identity_violation():
     # 단어(오행·명식·십성) 동반 본문에서도 이름·일간 위반을 잡아 gate_pass=False.
     secs = [
-        _sn("a", "각자의 결", "오행을 함께 보면, 김태수는 임인일주입니다. " * 25),
-        _sn("b", "중심 글자", "오행과 명식을 함께 보면, 태수 씨 일간은 계수입니다. " * 25),
+        _sn("a", "각자의 결", "오행을 함께 보면, 김민준은 임인일주입니다. " * 25),
+        _sn("b", "중심 글자", "오행과 명식을 함께 보면, 민준 씨 일간은 계수입니다. " * 25),
     ]
     path = _render_sections(secs, "test_h153_violation.pdf")
     r = v.verify(path, ref_year=2026, names=_FULL, name_full=_FULL, identity=_IDSPEC)
@@ -189,19 +189,19 @@ def test_verify_gate_fails_on_name_and_identity_violation():
 
 def test_verify_gate_allows_cover_middot_names():
     # 본문은 호칭만(위반 0), 표지에 'A · B · C' 전체이름 → 허용(allowed_hits)·gate_pass 영향 없음.
-    body = "태수 씨는 차분한 사람입니다. 태성 씨와 순조 씨가 곁에서 받쳐 줍니다. " * 30
+    body = "민준 씨는 차분한 사람입니다. 서연 씨와 도윤 씨가 곁에서 받쳐 줍니다. " * 30
     secs = [_sn("a", "세 사람", body), _sn("b", "함께", body)]
-    path = _render_sections(secs, "test_h153_cover.pdf", input_civil="김태수 · 김태성 · 장순조")
+    path = _render_sections(secs, "test_h153_cover.pdf", input_civil="김민준 · 이서연 · 박도윤")
     r = v.verify(path, ref_year=2026, names=_FULL, name_full=_FULL, identity=_IDSPEC)
     assert r["name_policy_clean"] is True, r["name_policy_hits"]
     assert r["identity_role_clean"] is True, r["identity_role_hits"]
-    assert set(r["name_policy_allowed_hits"]) >= {"김태수", "김태성", "장순조"}
+    assert set(r["name_policy_allowed_hits"]) >= {"김민준", "이서연", "박도윤"}
     assert r["gate_pass"] is True, r
 
 
 def test_verify_backcompat_no_spec():
     # spec 미전달 시 이름·일간 게이트는 skip(clean True 기본).
-    secs = [_sn("a", "장", "김태수는 좋은 사람입니다. " * 40)]
+    secs = [_sn("a", "장", "김민준은 좋은 사람입니다. " * 40)]
     path = _render_sections(secs, "test_h153_backcompat.pdf")
     r = v.verify(path)  # name_full·identity 미전달
     assert r["name_policy_clean"] is True
@@ -216,9 +216,9 @@ def _sn(sid, title, text):
 
 # ───────────────── H1.5.3.2: 신강약 group/role 게이트 ─────────────────
 _SG = [
-    {"full": "김태수", "given": "태수", "honor": "태수 씨", "singang": "신약"},
-    {"full": "김태성", "given": "태성", "honor": "태성 씨", "singang": "신약"},
-    {"full": "장순조", "given": "순조", "honor": "순조 씨", "singang": "신강"},
+    {"full": "김민준", "given": "민준", "honor": "민준 씨", "singang": "신약"},
+    {"full": "이서연", "given": "서연", "honor": "서연 씨", "singang": "신약"},
+    {"full": "박도윤", "given": "도윤", "honor": "도윤 씨", "singang": "신강"},
 ]
 
 
@@ -231,7 +231,7 @@ def test_verify_gate_fails_on_singang_group():
 
 
 def test_verify_gate_fails_on_singang_subject():
-    secs = [_sn("a", "결", "순조 씨는 신약입니다. 차분하게 흐름을 봅니다. " * 25)]
+    secs = [_sn("a", "결", "도윤 씨는 신약입니다. 차분하게 흐름을 봅니다. " * 25)]
     path = _render_sections(secs, "test_h1532_subject.pdf")
     r = v.verify(path, ref_year=2026, names=_FULL, name_full=_FULL, singang=_SG)
     assert r["singang_role_clean"] is False, r["singang_role_hits"]
@@ -239,7 +239,7 @@ def test_verify_gate_fails_on_singang_subject():
 
 
 def test_verify_gate_allows_singang_split():
-    body = "태수 씨와 태성 씨는 신약이고, 순조 씨는 신강입니다. 역할을 나눠 맡으면 좋습니다. " * 25
+    body = "민준 씨와 서연 씨는 신약이고, 도윤 씨는 신강입니다. 역할을 나눠 맡으면 좋습니다. " * 25
     secs = [_sn("a", "결", body)]
     path = _render_sections(secs, "test_h1532_split.pdf")
     r = v.verify(path, ref_year=2026, names=_FULL, name_full=_FULL, singang=_SG)

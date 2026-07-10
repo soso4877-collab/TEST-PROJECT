@@ -130,7 +130,7 @@ def test_redact_surfaces_unknown_clean_and_count_fields():
 def test_redact_never_leaks_hits_text_or_nonbool_clean():
     # PII 가드(관측 확대 ↔ PII-0 동반): suffix 확장이 문구 보유 *_hits 필드나 문자열형
     # *_clean 을 원문 노출하면 안 된다. *_hits 는 curated _summarize_hits 경로만.
-    pii = "김태수 1997-10-27"
+    pii = "김민준 1997-10-27"
     r = _synthetic_verified(
         exotic_hits=[pii],  # 비-curated *_hits(문구) — suffix 확장 대상 아님
         weird_clean=pii,  # 문자열형 _clean — isinstance(bool/int) 가드로 제외

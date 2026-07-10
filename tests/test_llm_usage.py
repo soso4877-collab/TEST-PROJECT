@@ -102,7 +102,7 @@ def test_gunghap_compose_records_usage(monkeypatch):
 
     llm_usage.reset()
     g._compose(
-        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김태수"], 2026, use_llm=True
+        "each", "근거 슬롯", {"ganzhi": [], "ganzhi_ko": []}, "", ["김민준"], 2026, use_llm=True
     )
     s = llm_usage.snapshot()
     assert s == {"input_tokens": 111, "output_tokens": 22, "calls": 1}
