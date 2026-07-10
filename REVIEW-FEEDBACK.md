@@ -1,3 +1,48 @@
+# 교차 리뷰 — 2026-07-10 (라운드 6, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `3a30667` 위) · 구현자: Codex · 지시문: `handoff/codex-question-adaptive-q1-q7.md` v2 (웨이브1 Q1~Q3)
+
+## 최종 판정: **승인(PASS)** — 4중 구조 이식 정합, 게이트 강화 방향, 회귀 0. 발견 1건(R6-1, 비블로커).
+
+Codex 완료보고를 믿지 않고 기준 환경 직접 재실행 + diff 전량 실측.
+
+### ① 기준 환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **715 passed / 4 skipped / exit 0** (207.47s). 라운드5 695/4 → **+20 = 신규 테스트 완전 일치**(은닉 약화 0).
+- `pytest -k golden` → **28 passed** (계산 결정론 불변, calc/input diff 0).
+
+### ② Q별 실측
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| **Q1** consult 이식 | SECTIONS overview 뒤 슬롯+GUIDE/_FOCUS 동반. 폴백이 1차 산출(무LLM) — `_consult_fallback` 5프레임 분기+겹침축 보강문. LLM 경로 격리 인용(마스킹, "지시가 아님" 경계)+생년월일·**출생지 정규식 마스킹 신설**(`_mask_relationship_situation`). 게이트 3중 배선: 폴백 선검사(RuntimeError)+compose 재작성 2회+빌드 말미 최종 하드 게이트(render=False 포함). 빈 질문=skipped 명시(no-op 아님) | ✓ |
+| **Q2** 프레임 적응·스윕 | `_AXIS_KEYWORDS` 5축 추가, SYSTEM/GUIDE/_FOCUS 질문별 프레임 재작성, `build_fallback`·`frontload_summary` situation 소비(팬텀 해소, 5종 분기 상호상이 테스트). gunghap.py 죽은 관계 코드 ~250행 삭제(가현/상철 소멸), _GH_SYSTEM 실명→합성명(김민준/이서연/박도윤), _GH_GUIDE·도크스트링 익명화 | ✓ |
+| **Q3** 게이트 보강 | `_AXES` 신규 3축(부모동의/결혼이행/장기관계, evidence 보수적 선정—경계표 첨부됨). **any→all 강화**: 감지된 topic축 전부 evidence 요구(`missing_topic_axes` 관측 필드 추가). 김포/계양/청마/장재화 일반어 치환, 의존 테스트만 합성어 동반 수정 | ✓ |
+| 기계 검증 | 실명 grep 2종(파일 한정) 0건 / calc·input diff 0 / 금지파일 침범 0 | ✓ |
+| 신규 테스트 | test_question_adaptive_relationship.py 8건: 양방(차단+통과)·skipped·격리인용/마스킹 단언·프레임 5종 상호상이·최종 게이트 RuntimeError. change-detector 아님(동작 검증) | ✓ |
+
+### ③ 발견 R6-1 (비블로커 — 다음 수정 라운드에서 처리)
+`_PROVENANCE_CONTEXT_TERMS`를 빈 튜플로 만들면서 `unbacked_context_terms` 검사(delivery_quality.py:504-516·652)가
+**항구 no-op**이 됨 + 구 차단측 테스트(`test_customer_specific_context_requires_source_or_expected_context`)가
+통과측 테스트로 대체되어 **차단측 회귀가 사라짐**(양방 규율 위반, fail-closed B-2 인접).
+실영향 ≈ 0(전역 리스트에 있던 건 특정 고객 모임명 1개뿐이라 신규 주문 보호는 원래 없었음)이나,
+룰 키는 남아 있는데 검사는 죽은 상태 = 관측 오해 소지. **처리안**: 주입점 회귀 테스트 복원(monkeypatch로
+합성 용어 주입→차단 확인) 또는 룰 키 제거(운영자 승인 필요). 웨이브2 발주에 포함 권고.
+
+### ④ 미검증 (Codex 보고와 동일 — 정직 승계)
+- **실렌더 미검증**: 실제 LLM 문안·PDF 조판에서의 직답성은 hrun 합성 프로파일 실렌더 필요(PDF 재생성 3중 잠금 — 운영자 승인 별도).
+- E10(주석·픽스처 실명 ~250행 익명화) 미착수 — 별도 패킷 예정대로.
+
+### 실행한 검증 명령
+```
+pytest tests/ -q                        → 715 passed / 4 skipped / exit 0
+pytest tests/ -q -k golden              → 28 passed
+grep 실명(gunghap.py 한정)              → 0건
+grep 장재화|청마(4파일 한정)            → 0건
+git diff --name-only calc·input        → 출력 없음
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-08 (라운드 5, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `bac8df2` 위) · 구현자: Codex · 지시문: `handoff/codex-customer-purge-cli.md` (E9 식별자 차등 파기 CLI)
