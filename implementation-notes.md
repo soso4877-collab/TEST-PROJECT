@@ -1,4 +1,88 @@
-# 구현 상태 기록 — 2026-07-10 질문 적응형 풀이 웨이브1
+# 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
+
+## 웨이브2 현재 상태
+
+- 브랜치: `codex/gunghap-relationship-quality`
+- 현재 HEAD: `fea0e7a` (`Q7 설계 4항목·Q4 문자 하한 운영자 승인 기록`)
+- 구현 커밋: `fec5321` (`R6-1 + Q4~Q6 + Q7 설계`)
+- 교차리뷰 라운드7 PASS 기록: `a568170`
+- 원격 대비: ahead 11. 상태 기록 직전 워킹트리는 깨끗했으며, 이 문서만 현재 세션에서 수정한다.
+- 완료 태스크: R6-1, Q4, Q5, Q6 구현. Q7은 승인된 1페이지 설계까지만 완료하고 코드 구현은 하지 않았다.
+- 운영자 승인 완료: Q4 문자 하한(gunghap 3000자·followup 2000자), Q7 B안·분량 공식·RELATION 추천·기본 5모듈 전체.
+
+## 웨이브2 완료 내용
+
+- R6-1: `_PROVENANCE_CONTEXT_TERMS=()` 기본 비활성 상태는 유지하면서 합성 용어 monkeypatch로 `unbacked_context_terms` 차단 분기를 고정했다.
+- Q4: gunghap 하한을 16쪽/3000자로 분리하고 followup 10쪽/2000자 상품을 추가했다. integrated_full 30쪽/10000자와 premium 10000자는 유지했다.
+- Q4: 15쪽·2999자 차단, 16쪽·3000자 통과, 기존 30쪽 하한에서 막히던 18쪽 gunghap 통과를 양방 회귀로 고정했다.
+- Q5: `gen-followup --pdf` opt-in 경로를 추가했다. 저장 Report23과 질문 카테고리별 `love/work/health` 근거 장을 재사용하고 새 consult만 조립한다.
+- Q5: 연도·주제 범위 밖 질문, 10~15쪽 범위 위반, 저장 일간 부재를 주문 생성 전에 차단한다. 최종 발급도 저장 `bazi` 기반 identity 스펙과 동일 render_verify/delivery_quality를 사용하며 새 계산은 0회다.
+- Q5: `--pdf`가 없는 기존 텍스트 주문의 반환·저장 경로는 유지했다.
+- Q6: 접수 concern을 7종 QuestionCategory로 자동분류해 주문 메타에 저장하고 관리자 상세에 표시했다.
+- Q6: 운영자 확정 POST가 Report23/후속 메타와 audit_log를 갱신한다. concern 있음+GENERAL+미확정 주문은 승인 409, 빈 질문·비GENERAL 주문은 기존 승인 흐름을 유지한다.
+- Q6: APPROVED/DELIVERED 상태머신 전이 규칙은 변경하지 않았다.
+- Q7: `handoff/codex-q7-design.md`에 모듈 레지스트리 B안, 조립 경계, 분량 공식, 게이트, CLI/admin 계약과 2안 비교를 작성했다. `sajugen/integrated.py` 변경은 0줄이다.
+
+## 웨이브2 구현 파일 전체 목록
+
+- `sajugen/content/delivery_quality.py`: R6-1 주입점 주석, 상품별 페이지·문자 하한, followup 질문 필수 게이트.
+- `sajugen/followup/compose.py`: PDF용 저장 섹션 조립, 카테고리별 근거 장 선택, consult 직답·부모 가드 차단.
+- `sajugen/order_flow.py`: 후속 PDF 표준 렌더/검증, 저장 일간 identity 복원, 분류 상태·운영자 확정·GENERAL 승인 전제조건.
+- `sajugen/cli.py`: `gen-followup --pdf` opt-in 인터페이스.
+- `sajugen/admin.py`: 질문 분류 상세 컨텍스트, 확정 POST, 승인 전제조건.
+- `sajugen/web_templates/admin_detail.html.j2`: 7종 분류 표시·확정 드롭다운·차단 안내.
+- `tests/test_delivery_quality.py`: R6-1 차단 회귀와 Q4 상품별 경계표.
+- `tests/test_followup_pdf.py`: PDF 통과/범위 밖/페이지 초과/일간 부재/텍스트 회귀/CLI 배선.
+- `tests/test_orders.py`: 접수 자동분류 저장 회귀.
+- `tests/test_question_category_admin.py`: GENERAL 차단·운영자 확정·빈 질문/비GENERAL/텍스트 후속 양방 회귀.
+- `handoff/codex-q7-design.md`: Q7 승인 전 설계 1페이지.
+- `implementation-notes.md`: 현재 웨이브2 상태 기록(이번 사용자 요청으로 추가).
+
+## 기존 잔존 파일과 분리
+
+- `REVIEW-FEEDBACK.md`와 `sajugen/STATE.md`는 구현 파일이 아니라 별도 커밋 `a568170`·`fea0e7a`의 교차리뷰/운영자 승인 기록이다.
+- `handoff/codex-question-adaptive-wave2.md`는 시작 HEAD `985031a`에 이미 있던 승인 TASK_PACKET이며 이번 구현 파일이 아니다.
+- 웨이브1 Q1~Q3 코드는 커밋 `6126d7a`에 이미 존재했으며 웨이브2에서 재구현하지 않았다.
+- `handoff/codex-pii-anonymize-e10.md`와 E10 실명 익명화 대상은 별도 패킷으로 유지했고 웨이브2에서 수정하지 않았다.
+- `sajugen/calc/`, `sajugen/input/`, `sajugen/integrated.py`, 상태머신 허용 전이표는 무변경이다.
+
+## 검증 증거
+
+- Codex 샌드박스: `./.venv/Scripts/python.exe -m pytest tests/ -q` -> `701 passed, 31 skipped`, exit 0. 수정 전 688/31 대비 신규 13건 증가, passed 감소 0.
+- 기준환경 교차리뷰: 같은 전체 명령 -> `728 passed, 4 skipped`, exit 0. 기준선 715/4 대비 신규 13건 증가, passed 감소 0.
+- 기준환경 골든: `pytest -k golden` -> `28 passed`.
+- 변경 Python 파일 Ruff -> `All checks passed!`; `py_compile` -> exit 0.
+- `git diff --check` -> exit 0(LF→CRLF 안내만).
+- `git diff --name-only -- sajugen/calc sajugen/input sajugen/integrated.py` -> 출력 없음.
+
+## 확인하지 못한 것
+
+- 후속 `--pdf`의 실제 10~15쪽 실렌더·조판·다운로드 동선은 미검증이다. 테스트에서는 렌더 엔진을 모의했다.
+- 실제 LLM 호출과 LLM-on 문안은 미검증이다.
+- Codex는 금지사항에 따라 `harness/profiles/local/**`를 열지 않았고 표준 hrun을 실행하지 않았다.
+- 실제 브라우저 수동 UI 검수는 미실행이며 FastAPI TestClient 회귀만 통과했다.
+
+## 남은 위험
+
+- 실제 저장 섹션 길이에 따라 후속 PDF가 15쪽을 넘으면 fail-closed로 차단된다. 운영상 10~15쪽 안에 안정적으로 들어오는지는 승인된 합성 실렌더가 필요하다.
+- 저장 `bazi`가 없는 레거시 부모 주문은 identity 게이트를 비활성화하지 않고 후속 PDF를 차단한다. 레거시 처리 정책은 별도 결정이 필요하다.
+- admin `action_error` 문구 범용화로 최종 발급 실패 시 “APPROVED 상태 잔류” 안내가 사라진 비블로커가 라운드7에 기록돼 있다.
+- Q7 설계는 승인됐지만 구현은 E10 완료 뒤 별도 TASK_PACKET으로 1단계(레지스트리·조립/게이트)와 2단계(CLI/admin)로 나눠야 한다.
+
+## 다음 스텝
+
+1. E10 익명화 패킷을 기준선 `728 passed / 4 skipped`, HEAD `fea0e7a`에서 별도 실행한다.
+2. E10 교차리뷰·커밋 뒤 Q7 1단계 구현 패킷을 발주한다.
+3. 운영자 승인 시 후속 `--pdf` 합성 실렌더로 실제 페이지 수·조판·게이트를 확인한다.
+4. push는 별도 지시 전까지 하지 않는다.
+
+## 웨이브2 세션 종료
+
+Codex 웨이브2 구현·상태 기록 역할을 종료한다. 현재 세션은 `implementation-notes.md`만 미커밋으로 남기고 다음 작업자에게 인계한다.
+
+---
+
+## 웨이브1 기록
 
 ## 현재 상태
 
