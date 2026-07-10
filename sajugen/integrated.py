@@ -728,6 +728,11 @@ def gen(
     person: list[str] = typer.Option(..., "--person", help="이름,YYYY-MM-DD,HH:MM,성별 (반복)"),
     receiver: str | None = typer.Option(None, "--receiver", help="수신자 이름"),
     situation: str = typer.Option("", "--situation", help="합성/운영 상황 맥락"),
+    module: list[str] | None = typer.Option(
+        None,
+        "--module",
+        help="질문 영역 모듈(반복): love|job|wealth|health|gunghap. 미지정=5모듈 전체",
+    ),
     ref_year: int = typer.Option(2026, "--ref-year"),
     ref_date: str = typer.Option(
         None,
@@ -743,18 +748,30 @@ def gen(
     # build_integrated_full 의 None→6-13 폴백은 유지(테스트 결정론) — 여기서만 today.
     if ref_date is None:
         ref_date = default_ref_date_iso()
-    result = build_integrated_full(
-        people,
-        receiver_name=receiver,
-        situation=situation,
-        ref_year=ref_year,
-        ref_date=ref_date,
-        out_name=out,
-        brand=brand,
-        use_llm=llm,
-        render=True,
-    )
+    try:
+        result = build_integrated_full(
+            people,
+            receiver_name=receiver,
+            situation=situation,
+            ref_year=ref_year,
+            ref_date=ref_date,
+            out_name=out,
+            brand=brand,
+            use_llm=llm,
+            render=True,
+            modules=module,
+        )
+    except ValueError as exc:
+        # 레지스트리·입력 경계의 원인을 숨기지 않고 실패 종료한다. 모듈 목록을 CLI에서
+        # 보정하면 잘못된 주문이 다른 문서로 진행될 수 있으므로 원문을 그대로 보여 준다.
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
     typer.echo(f"PDF: {result['pdf_path']} ({len(result['people'])}인)")
+    # 실제 빌더 결과의 정규화 메타만 관측한다. 구 테스트 더블처럼 Q7 메타가 없는 반환값은
+    # 자체 재계산하지 않아 기존 gen 호출 계약과 모듈 SSOT를 모두 보존한다.
+    if result.get("modules") is not None:
+        schema_version = result.get("module_schema_version", MODULE_SCHEMA_VERSION)
+        typer.echo(f"modules: {','.join(result['modules'])} (schema v{schema_version})")
     typer.echo(llm_usage.format_line())  # 사용량 관측(2026-07-05) — hrun 이 파싱해 summary 로
 
 

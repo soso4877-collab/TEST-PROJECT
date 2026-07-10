@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Q7 1단계 모듈 레지스트리·조립·게이트의 양방 계약.
+"""Q7 모듈 레지스트리·조립·게이트와 CLI 배선의 양방 계약.
 
 실 PDF나 LLM을 만들지 않고 합성 섹션으로 조립 경계를 검증한다. 특히 v3의 핵심인
 "필터링 → 병합 전 커버리지 기록 → 현행 sparse 병합" 순서를 결과 메타로 고정한다.
@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from typer.testing import CliRunner
 
 from sajugen import integrated
 from sajugen import modules as integrated_modules
@@ -36,6 +37,34 @@ def _people(count: int = 2) -> list[tuple]:
         ("DOC_B", (1991, 2, 2, 11, 0), False),
     ]
     return people[:count]
+
+
+def _cli_person_args(count: int = 2) -> list[str]:
+    """PII 없는 합성 인원을 반복 ``--person`` 인자 형태로 펼친다."""
+
+    people = (
+        "DOC_A,1990-01-01,10:00,남",
+        "DOC_B,1991-02-02,11:00,여",
+    )
+    return [part for person in people[:count] for part in ("--person", person)]
+
+
+def _patch_cli_build_without_render(monkeypatch) -> list[dict]:
+    """CLI kwargs를 관측하면서 실제 레지스트리 검증을 타고 렌더만 끈다."""
+
+    original_build = integrated.build_integrated_full
+    calls: list[dict] = []
+
+    def fake_build(people, **kwargs):
+        call = {"people": people, "kwargs": dict(kwargs)}
+        calls.append(call)
+        result = original_build(people, **{**kwargs, "render": False})
+        result["pdf_path"] = "fake.pdf"
+        call["result_modules"] = result["modules"]
+        return result
+
+    monkeypatch.setattr(integrated, "build_integrated_full", fake_build)
+    return calls
 
 
 def _patch_sources(monkeypatch) -> dict:
@@ -132,6 +161,69 @@ def _analyze_module_map(
         module_sections=module_sections,
         premerge_section_ids=premerge_section_ids,
     )
+
+
+def test_cli_gen_without_module_passes_none_and_preserves_legacy_call(monkeypatch):
+    # 미지정은 빈 목록이 아니라 None이어야 기존 5모듈 기본값과 같은 단일 경로를 탄다.
+    _patch_sources(monkeypatch)
+    calls = _patch_cli_build_without_render(monkeypatch)
+
+    result = CliRunner().invoke(integrated.app, ["gen", *_cli_person_args()])
+
+    assert result.exit_code == 0, result.output
+    assert calls[0]["kwargs"]["modules"] is None
+    assert calls[0]["kwargs"]["render"] is True
+    assert calls[0]["result_modules"] == list(integrated_modules.SELECTABLE_MODULES)
+    assert "PDF: fake.pdf (2인)" in result.output
+    assert "modules: love,job,wealth,health,gunghap (schema v1)" in result.output
+
+
+def test_cli_gen_forwards_repeated_modules_and_prints_result_metadata(monkeypatch):
+    # CLI는 반복값을 보정하지 않고 그대로 넘기며, 출력은 빌더가 정규화한 결과 메타만 쓴다.
+    _patch_sources(monkeypatch)
+    calls = _patch_cli_build_without_render(monkeypatch)
+
+    result = CliRunner().invoke(
+        integrated.app,
+        [
+            "gen",
+            *_cli_person_args(),
+            "--module",
+            "love",
+            "--module",
+            "job",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert calls[0]["kwargs"]["modules"] == ["love", "job"]
+    assert calls[0]["result_modules"] == ["love", "job"]
+    assert "modules: love,job (schema v1)" in result.output
+
+
+@pytest.mark.parametrize(
+    ("module_args", "person_count", "cause"),
+    [
+        (["--module", "fake"], 2, "unknown"),
+        (["--module", "love", "--module", "love"], 2, "duplicates"),
+        (["--module", "gunghap"], 1, "at least two"),
+    ],
+)
+def test_cli_gen_blocks_invalid_module_requests_without_pdf(
+    monkeypatch, module_args, person_count, cause
+):
+    # 미등록·중복·관계 인원 부족은 빌더 원인을 보존한 exit 1이며 성공 라인을 남기지 않는다.
+    calls = _patch_cli_build_without_render(monkeypatch)
+
+    result = CliRunner().invoke(
+        integrated.app,
+        ["gen", *_cli_person_args(person_count), *module_args],
+    )
+
+    assert result.exit_code == 1
+    assert cause in result.output.lower()
+    assert "PDF:" not in result.output
+    assert len(calls) == 1
 
 
 def test_module_selection_normalizes_to_one_deterministic_order():
