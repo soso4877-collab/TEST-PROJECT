@@ -5,8 +5,8 @@
 ### 현재 상태
 
 - 브랜치: `codex/gunghap-relationship-quality`
-- 시작·현재 HEAD: `7fa5d57` (`Q7 1단계 TASK_PACKET 발주 — 모듈 레지스트리·조립·게이트`)
-- 원격 대비: ahead 16. 세션 시작 워킹트리는 깨끗했고, 구현 파일 수정·commit·push·deploy는 없다. 상태 기록 검증 중 외부에서 `handoff/codex-q7-stage1.md` v2 정정 diff가 추가됐다.
+- 시작 HEAD: `7fa5d57` (`Q7 1단계 TASK_PACKET 발주 — 모듈 레지스트리·조립·게이트`). 현재 HEAD: `3be5d96` (`Q7 1단계 착수 점검 정지 기록`).
+- 현재 원격 대비: ahead 18. 세션 시작 워킹트리는 깨끗했고 구현 파일 수정·push·deploy는 없다. 상태 기록 중 외부에서 패킷 v2 커밋 `c4443a1`과 상태 기록 커밋 `3be5d96`을 생성했으며, Codex는 commit을 실행하지 않았다.
 - Q7 1단계 코드는 미착수다. 레지스트리·work 제공자·조립·게이트·테스트 변경은 모두 0줄이다.
 
 ### 이번 세션에서 완료한 태스크
@@ -19,15 +19,15 @@
 
 ### 이번 세션 수정 파일과 기존 잔존 파일 구분
 
-- 이번 Codex 세션 수정 파일: `implementation-notes.md` 1개(현재 상태 기록만).
-- 외부 동시 변경: `handoff/codex-q7-stage1.md`가 v2로 정정됐다. 설계의 추상 고정 순서를 폐기하고 “현행 순서에서 미선택 모듈만 필터링”하도록 변경해 하위호환 모순을 해소한 diff이며, Codex가 수정하지 않았다.
+- 이번 Codex 세션 수정 파일: `implementation-notes.md` 1개(현재 상태 기록만). 내용은 외부 프로세스가 `3be5d96`으로 커밋했으며 Codex는 커밋하지 않았다.
+- 외부 동시 변경: `handoff/codex-q7-stage1.md`가 `c4443a1`에서 v2로 정정됐다. 설계의 추상 고정 순서를 폐기하고 “현행 순서에서 미선택 모듈만 필터링”하도록 변경해 하위호환 모순을 해소했으며, Codex가 수정하지 않았다.
 - 기존 잔존 문서: `handoff/codex-q7-design.md`는 HEAD에 이미 있던 승인 설계이며 수정하지 않았다.
 - 구현 후보인 `sajugen/integrated.py`, `sajugen/content/rules.py`, `sajugen/content/delivery_quality.py`, `sajugen/render/verify.py`, 관련 테스트는 수정하지 않았다.
 - `sajugen/calc/`, `sajugen/input/`, CLI, admin, 상태머신·발송 차단은 모두 무변경이다.
 
 ### 검증·미검증
 
-- 읽기 전용 `git status -sb`와 `git diff --name-only`로 구현 코드 diff 0을 확인했다. 현재 문서 diff는 외부 v2 패킷과 이 상태 기록 2파일이다.
+- 읽기 전용 `git status -sb`와 `git diff --name-only`로 구현 코드 diff 0을 확인했다. 외부 두 커밋 반영 뒤 워킹트리는 깨끗했으며, 이 최종 정합 보정으로 `implementation-notes.md`만 다시 미커밋 상태다.
 - 합성 무렌더 조립 프로브는 exit 0이었다. LLM 호출·PDF 재생성·실렌더·ignored 영역 접근은 하지 않았다.
 - 코드 변경이 없어 전체 pytest·린트는 실행하지 않았다. Q7 신규 회귀와 기준환경 `728 passed / 4 skipped` 비교도 미실행이다.
 
