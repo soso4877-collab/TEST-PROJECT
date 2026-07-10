@@ -5,7 +5,7 @@
 - 허용 9개 파일 존재.
 - 두 JSON Schema 구조(draft 2020-12·required·additionalProperties:false·필수 필드·enum·DIFF_VERDICT 부재).
 - ai-harness.ps1 정적 계약(플래그 토큰 포함·--bare 부재·정책 packet·제외 5경로 미열람·Preflight 선행·금지 호출 부재).
-- handoff/current/.gitignore 격리(git check-ignore).
+- handoff/current/.gitignore 격리와 루트 SHA manifest 추적 예외(git check-ignore).
 - DryRun(best-effort): 실호출 없이 종료코드 0 + 런타임 산출물 미생성.
 """
 
@@ -443,19 +443,26 @@ def test_ps_derives_allowed_files_from_task_scope():
 
 def test_gitignore_isolation():
     r = subprocess.run(
-        ["git", "check-ignore", "handoff/current/RUN_EXAMPLE/plan-verdict.json"],
+        ["git", "check-ignore", "--no-index", "handoff/current/RUN_EXAMPLE/plan-verdict.json"],
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
     assert r.returncode == 0, "런타임 산출물은 ignored여야 함"
     r2 = subprocess.run(
-        ["git", "check-ignore", "handoff/current/README.md"],
+        ["git", "check-ignore", "--no-index", "handoff/current/README.md"],
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
     assert r2.returncode == 1, "README.md는 추적 가능해야 함"
+    r3 = subprocess.run(
+        ["git", "check-ignore", "--no-index", "handoff/current/manifest.json"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert r3.returncode == 1, "루트 manifest.json은 SHA 인계 포인터로 추적 가능해야 함"
 
 
 def test_dryrun_best_effort():

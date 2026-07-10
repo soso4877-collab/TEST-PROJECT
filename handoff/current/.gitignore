@@ -1,5 +1,7 @@
-# handoff/current 런타임 산출물 격리 — 실행 폴더·LATEST.txt·로그·manifest 비커밋.
-# 이 디렉터리에서 추적하는 것은 자기 자신(.gitignore)과 README.md 뿐이다.
+# handoff/current 공존 경계:
+# - Phase 2A 실행 폴더·task.md·LATEST.txt·로그·run-manifest.json은 비커밋.
+# - 루트 manifest.json만 Claude↔Codex SHA 인계 포인터로 추적 가능.
 *
-!.gitignore
-!README.md
+!/.gitignore
+!/README.md
+!/manifest.json
