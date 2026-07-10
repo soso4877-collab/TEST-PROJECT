@@ -34,9 +34,14 @@
 ## 4. 수용 기준
 - 전체 pytest exit 0, **기준선(착수 시점 값) 대비 passed 감소 0**(테스트 수 불변 — 치환만).
 - **골든 전수**: `pytest -k golden` GREEN(입력값·계산 무변경 증명. partner.py는 주석만이지만 input/ diff라 필수).
-- 잔존 스캔: `grep -rnE "김태수|김태성|장순조|김동황|장재화" sajugen/ tests/ docs/ handoff/ *.md` → 0건.
-  `grep -rnE "태수|태성|가현|상철" sajugen/ tests/` → 0건. `grep -rn "순조" sajugen/ tests/ | grep -v "순조롭\|순조로"` → 0건.
+- 잔존 스캔 (**v2 정정 2026-07-10: git grep = tracked 파일 전용.** raw `grep -r`은 gitignored
+  `sajugen/render/out/**` 실고객 산출물까지 읽어 Codex 실데이터 접근 금지와 충돌 — Codex 정지 보고 실측 확인):
+  `git grep -nE "김태수|김태성|장순조|김동황|장재화" -- sajugen tests docs handoff "*.md"` → 0건.
+  `git grep -nE "태수|태성|가현|상철" -- sajugen tests` → 0건.
+  `git grep -n "순조" -- sajugen tests | grep -v "순조롭\|순조로"` → 0건.
   ("청마"는 코드에서 이미 제거 — 문서 잔존분만 확인. "요청마다" 오탐 주의.)
+- **ignored 영역 접근·수정 절대 금지**: `sajugen/render/out/`·`tmp/`·`synthetic-tmp/`·`data/`·`*.content.json` —
+  실고객 산출물 포함. 열람·grep·수정 전부 금지(그 안의 실명 정리는 운영자 별도 액션, 이 패킷 범위 밖).
 - 치환 전후 `git diff --stat`으로 로직 파일 변경이 문자열 행에 한정됨을 보고.
 
 ## 5. 완료 보고
