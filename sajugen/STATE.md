@@ -1,5 +1,18 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-10 E10 익명화 완료·라운드8 PASS — 이 블록 먼저 읽기) =====
+>   [E10 커밋] 실명 익명화 전수(Codex 구현·라운드8 PASS) = `5f6413d`. 운영 코드 3파일 주석·도크스트링 +
+>     테스트 15파일 픽스처 + 문서 8종 매핑 일관 치환(로직 0 — pytest 증감 0으로 증명). 패킷 자기 정화(N1~N7
+>     파기). 리뷰어 보정 2건: R8-1(q1-q7 역사 grep 기준 서술형), R8-2(docs/00 공개 학술 인용 저자명 원복 —
+>     출처 위조 방지, 패킷 §4 허용 예외 1건 명시).
+>   [검증] 기준환경 pytest → **728 passed / 4 skipped / exit 0**(증감 0), 골든 28 GREEN(partner.py 주석 diff
+>     동반 조건 충족). 기준선 = **728/4** 유지. v2 git grep 3종 0건(학술 인용 예외 1).
+>   [PII 잔여 3건(운영자 액션·미결)] ① ignored 산출물 55파일(render/out — 파일명에 실명 로마자) 정리
+>     ② git 이력 실명(history rewrite 여부) ③ docs/11 실존 생년월일 보관 여부(골든 참조 케이스).
+>   [다음 단계] (1) Q7 구현 발주(1단계 레지스트리·조립/게이트 — 설계·4항목 승인 완료 상태) (2) 후속 --pdf
+>     실렌더 확인(운영자 승인 시) (3) PII 잔여 3건 운영자 결정 (4) Q7 완료 후 docs/23 베타 저장·지인 베타·
+>     지현님 재발급. push는 지시 대기.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-10 질문 적응 웨이브1 완료·라운드6 PASS — 이 블록 먼저 읽기) =====
 >   [웨이브1 커밋] Q1~Q3 구현(Codex)·교차리뷰 라운드6 PASS(Claude)·커밋 `6126d7a`. 구성: Q1 궁합 consult
 >     이식(폴백 5프레임+LLM 격리인용·출생지 마스킹+최종 하드 게이트, 빈 질문 skipped) / Q2 프레임 적응+
@@ -8,7 +21,7 @@
 >     타당 — 통합 grep 3중 결함, 파일 한정으로 교체).
 >   [검증] 기준환경 pytest → **715 passed / 4 skipped / exit 0**(기준선 695/4+신규 20, 감소 0), 골든 28
 >     GREEN(calc/input 무변경). 새 기준선 = **715/4**(감소=회귀). 실명 grep(파일 한정) 0건.
->   [실명 확정] 김태수·김태성·장순조·김동황·장재화·가현·상철 = 전부 실제 사람(운영자 확인). 살아있는 경로
+>   [실명 확정] 실명 7건(익명화됨) = 전부 실제 사람(운영자 확인). 살아있는 경로
 >     실명은 웨이브1에서 제거 완료. 주석·도크스트링·테스트 픽스처 ~250행 = **E10 익명화 패킷**(미발주,
 >     웨이브1 뒤 발주 확정). git 원격 이력의 실명은 history rewrite 별도 운영자 결정.
 >   [발견 R6-1(비블로커)] `_PROVENANCE_CONTEXT_TERMS` 빈 튜플화로 unbacked_context_terms 검사 항구 no-op +
@@ -49,9 +62,9 @@
 >   [방향 전환] 운영자 결정: docs/23 베타 매뉴얼 **보류**, 질문 적응형 풀이가 선행(질문 미반영 = 상품 핵심 결함,
 >     베타 고객에게 부실 풀이 방지). 근거 설계 = `handoff/design-question-adaptive.md`(홈 세션 작성).
 >   [설계 검증 완료] Claude 세션이 설계의 5개 근본 지점을 코드로 재검증 → **PASS**(구조 전부 일치). 정정 6건
->     (gunghap 로컬 관계 정의 919-929 재할당로 죽은 코드·가현/상철은 죽은 코드 내 실명, fallback.build_fallback
->     situation 팬텀 파라미터, _GH_GUIDE:475 실명 태수/태성/순조, delivery_quality·rules에 최초 고객 키워드
->     김포/계양/청마/장재화 하드코딩, SECTIONS 실명, _min_pages는 이미 상품 차등 구조)는 패킷 §1에 반영.
+>     (gunghap 로컬 관계 정의 919-929 재할당로 죽은 코드·익명화 전 하드코딩 이름 2건, fallback.build_fallback
+>     situation 팬텀 파라미터, _GH_GUIDE:475 익명화 전 실명 3건, delivery_quality·rules에 최초 고객 키워드
+>     김포/계양/고유 모임명/실명 1건(익명화됨) 하드코딩, SECTIONS 실명, _min_pages는 이미 상품 차등 구조)는 패킷 §1에 반영.
 >   [발주] `handoff/codex-question-adaptive-q1-q7.md` = Codex 실행 TASK_PACKET. 웨이브1 = Q1(궁합 consult 이식)
 >     →Q2(프레임 적응+하드와이어 스윕)→Q3(게이트 관계축+키워드 일반화) 완료 후 멈춤·교차리뷰. 웨이브2 = Q4~Q7
 >     (분량 차등·재방문 분량형·자동분류 UI·모듈 조합)은 리뷰 PASS+재승인 후.
@@ -664,7 +677,7 @@
 >   [신규] sajugen/gunghap.py — 다인(2인+) 사업 궁합 리포트: 결정론 개인 사실(격국·용신 재사용 + 식신생재·
 >   재고 신규 탐지) + 쌍별 partner_pillars 관계 + 세운 호기 겹침 → 궁합 전용 compose(3인 허용토큰 factcheck·
 >   가정어 가드·반복 백스톱·서담선생) → tagged PDF. 한글 간지 전용(천간지지 한자→한글 변환). CLI
->   `python -m sajugen.gunghap gen --person '이름,YYYY-MM-DD,HH:MM' ...`. 실주문(김태수·김태성·장순조)
+>   `python -m sajugen.gunghap gen --person '이름,YYYY-MM-DD,HH:MM' ...`. 실주문(실명 3건, 익명화됨)
 >   gunghap_3in_v3.pdf 13p, 식신생재·재고·포지션·시기 반영. test_gunghap 5건. pytest 167 PASS.
 >   재정비 플랜: ~/.claude/plans/subprocess-run-recursive-rivest.md)
 > [2026-06-14 PDF 결함 2종 수정 — 플랜 ~/.claude/plans/claude-code-plan-cuddly-petal.md 1·2단계만]
@@ -853,7 +866,7 @@ Phase5 4단계 구간2·3·4 본문생성(2026-06-11): llm_sections 에 compose(
   - 기호 정규화 선반영(454faea): —·를 가드 전 결정론 변환(폴백 2→0), 구조 상한 12.
   - 기호 잔존 0(915dc5b): intro 제목 줄표·부록 불릿 14줄·합성어 가운뎃점 29곳 제거,
     _hanja_clean 가운뎃점 전부 쉼표화. 회귀 앵커(전 섹션 —·0).
-  - 종합 실측(서담선생·태수님·1997-10-27): polished 12/12·fallback 0·clean, 44p·676KB,
+  - 종합 실측(서담선생·민준님·1997-10-27): polished 12/12·fallback 0·clean, 44p·676KB,
     veraPDF ['7.1-3'], 231s. 전수 감사 전 항목 0(줄표/가운뎃점/당신/점수/메타발화/비유어),
     '기운' 92→23·'의 결' 49→2, 호명 103회. 전체 pytest 135+ PASS.
     산출물: sajugen/render/out/final_19971027_seodam.pdf.
