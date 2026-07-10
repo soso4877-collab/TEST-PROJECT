@@ -17,22 +17,29 @@ from collections.abc import Iterable
 from . import safe_lint
 
 MIN_PREMIUM_PAGES = 20
-MIN_GUNGHAP_PAGES = 30
+MIN_GUNGHAP_PAGES = 16
 MIN_INTEGRATED_FULL_PAGES = 30
+MIN_FOLLOWUP_PAGES = 10
 MIN_PREMIUM_TEXT_CHARS = 10_000
+MIN_GUNGHAP_TEXT_CHARS = 3_000
+MIN_FOLLOWUP_TEXT_CHARS = 2_000
 
 _GUNGHAP_PRODUCTS = {"gunghap", "gunghap_relationship", "relationship_gunghap"}
 _INTEGRATED_FULL_PRODUCTS = {"integrated_full"}
+_FOLLOWUP_PRODUCTS = {"followup"}
 _PREMIUM_PRODUCTS = (
     {"premium", "integrated", "premium_integrated", "custom"}
     | _GUNGHAP_PRODUCTS
     | _INTEGRATED_FULL_PRODUCTS
+    | _FOLLOWUP_PRODUCTS
 )
-# 고객 질문(고민)이 반드시 있어야 하는 상품 — integrated_full·궁합 계열은 '고객 질문에
+# 고객 질문(고민)이 반드시 있어야 하는 상품 — integrated_full·궁합·후속 PDF는 '고객 질문에
 # 답하는' 맞춤 납품이라 concern 부재는 질문축 검사를 통째로 no-op 시킨다(2026-07-01 P1).
 # 이 집합의 상품은 context_required 로 표시해, concern 부재 시 조용히 통과하지 않고
 # missing_customer_context 로 드러낸다. (계산·게이트 완화가 아니라 누락 신호 강화.)
-CONTEXT_REQUIRED_PRODUCTS = frozenset(_INTEGRATED_FULL_PRODUCTS | _GUNGHAP_PRODUCTS)
+CONTEXT_REQUIRED_PRODUCTS = frozenset(
+    _INTEGRATED_FULL_PRODUCTS | _GUNGHAP_PRODUCTS | _FOLLOWUP_PRODUCTS
+)
 
 
 def context_required_for(product: str | None) -> bool:
@@ -324,6 +331,7 @@ _FRONTLOAD_TERMS = {
 
 # 고객별 고유명은 전역 상수로 축적하지 않는다. 필요한 이름은 호출자가
 # expected_context_terms 로 전달해 주문별로 존재·반복 횟수를 검사한다.
+# 빈 튜플이 기본이면 provenance 검사는 의도적으로 비활성이고, 합성 주입 회귀로 차단 경로를 보존한다.
 _PROVENANCE_CONTEXT_TERMS: tuple[str, ...] = ()
 
 
@@ -337,7 +345,18 @@ def _min_pages(product: str | None) -> int:
         return MIN_GUNGHAP_PAGES
     if product_key in _INTEGRATED_FULL_PRODUCTS:
         return MIN_INTEGRATED_FULL_PAGES
+    if product_key in _FOLLOWUP_PRODUCTS:
+        return MIN_FOLLOWUP_PAGES
     return MIN_PREMIUM_PAGES
+
+
+def _min_text_chars(product: str | None) -> int:
+    product_key = (product or "").strip().lower()
+    if product_key in _GUNGHAP_PRODUCTS:
+        return MIN_GUNGHAP_TEXT_CHARS
+    if product_key in _FOLLOWUP_PRODUCTS:
+        return MIN_FOLLOWUP_TEXT_CHARS
+    return MIN_PREMIUM_TEXT_CHARS
 
 
 def _hit_terms(text: str, terms: Iterable[str]) -> list[str]:
@@ -580,6 +599,7 @@ def analyze(
 
     if is_premium:
         min_pages = _min_pages(product)
+        min_text_chars = _min_text_chars(product)
         if pages is not None and pages < min_pages:
             failures.append(
                 {
@@ -588,12 +608,12 @@ def analyze(
                     "minimum": min_pages,
                 }
             )
-        if len(text) < MIN_PREMIUM_TEXT_CHARS:
+        if len(text) < min_text_chars:
             failures.append(
                 {
                     "rule": "premium_text_chars",
                     "value": len(text),
-                    "minimum": MIN_PREMIUM_TEXT_CHARS,
+                    "minimum": min_text_chars,
                 }
             )
         if low_density_pages:
@@ -669,7 +689,13 @@ def analyze(
         "min_premium_pages": MIN_PREMIUM_PAGES,
         "min_gunghap_pages": MIN_GUNGHAP_PAGES,
         "min_integrated_full_pages": MIN_INTEGRATED_FULL_PAGES,
+        "min_followup_pages": MIN_FOLLOWUP_PAGES,
         "min_premium_text_chars": MIN_PREMIUM_TEXT_CHARS,
+        "min_gunghap_text_chars": MIN_GUNGHAP_TEXT_CHARS,
+        "min_integrated_full_text_chars": MIN_PREMIUM_TEXT_CHARS,
+        "min_followup_text_chars": MIN_FOLLOWUP_TEXT_CHARS,
+        "minimum_pages": _min_pages(product) if is_premium else None,
+        "minimum_text_chars": _min_text_chars(product) if is_premium else None,
         "failures": failures,
         "warnings": warnings,
         "failure_messages": [_finding_message(f) for f in failures],

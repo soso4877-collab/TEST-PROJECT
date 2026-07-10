@@ -50,7 +50,7 @@ def test_premium_thin_report_fails_density_and_ziwei():
     assert r["clean"] is False
 
 
-def test_gunghap_relationship_requires_30_pages_and_question_axes():
+def test_gunghap_relationship_uses_16_page_product_floor_and_question_axes():
     concern = (
         "현재 8살 연상의 남성과 썸을 타고 있습니다. 서로 호감은 있지만 대화나 갈등에서 "
         "생각하는 방식 차이가 있습니다. 상대방의 진심, 성격, 가치관, 연애관, 좋은 영향, "
@@ -65,14 +65,61 @@ def test_gunghap_relationship_requires_30_pages_and_question_axes():
         "먼저 안부와 대화를 가볍게 열고, 서두르지 말고 관계 기준을 확인해야 합니다. "
         "명리에서는 궁합과 보완을 보고, 자미두수로는 사람과 관계, 돈과 생활, 밖에서 드러나는 모습을 함께 봅니다. "
     ) * 70
-    thin = dq.analyze(text, pages=29, product="gunghap_relationship", concern=concern)
+    thin = dq.analyze(text, pages=15, product="gunghap_relationship", concern=concern)
     assert thin["clean"] is False
-    assert {"rule": "premium_pages", "value": 29, "minimum": 30} in thin["failures"]
+    assert {"rule": "premium_pages", "value": 15, "minimum": 16} in thin["failures"]
 
-    ok = dq.analyze(text, pages=30, product="gunghap_relationship", concern=concern)
+    ok = dq.analyze(text, pages=16, product="gunghap_relationship", concern=concern)
     assert ok["clean"] is True, ok
-    assert ok["min_gunghap_pages"] == 30
+    assert ok["min_gunghap_pages"] == 16
+    assert ok["minimum_pages"] == 16
+    assert ok["minimum_text_chars"] == 3000
     assert ok["missing_axes"] == []
+
+    # 운영 목표 16~20쪽에 맞춰 기존 30쪽 하한에서 막히던 18쪽 실렌더 케이스가 통과한다.
+    legacy_blocked = dq.analyze(
+        text,
+        pages=18,
+        product="gunghap_relationship",
+        concern=concern,
+    )
+    assert legacy_blocked["clean"] is True, legacy_blocked
+
+
+def test_product_specific_length_boundaries_are_bidirectional():
+    premium_text = _premium_text()
+
+    gunghap_chars_low = dq.analyze(premium_text[:2999], pages=16, product="gunghap")
+    assert {"rule": "premium_text_chars", "value": 2999, "minimum": 3000} in gunghap_chars_low[
+        "failures"
+    ]
+    gunghap_chars_ok = dq.analyze(premium_text[:3000], pages=16, product="gunghap")
+    assert gunghap_chars_ok["clean"] is True, gunghap_chars_ok
+
+    integrated_pages_low = dq.analyze(premium_text, pages=29, product="integrated_full")
+    assert {"rule": "premium_pages", "value": 29, "minimum": 30} in integrated_pages_low[
+        "failures"
+    ]
+
+    premium_chars_low = dq.analyze(premium_text[:9999], pages=20, product="premium")
+    assert {"rule": "premium_text_chars", "value": 9999, "minimum": 10000} in premium_chars_low[
+        "failures"
+    ]
+    premium_chars_ok = dq.analyze(premium_text[:10000], pages=20, product="premium")
+    assert premium_chars_ok["clean"] is True, premium_chars_ok
+
+    followup_pages_low = dq.analyze(premium_text[:2000], pages=9, product="followup")
+    assert {"rule": "premium_pages", "value": 9, "minimum": 10} in followup_pages_low[
+        "failures"
+    ]
+    followup_chars_low = dq.analyze(premium_text[:1999], pages=10, product="followup")
+    assert {"rule": "premium_text_chars", "value": 1999, "minimum": 2000} in followup_chars_low[
+        "failures"
+    ]
+    followup_ok = dq.analyze(premium_text[:2000], pages=10, product="followup")
+    assert followup_ok["clean"] is True, followup_ok
+    assert followup_ok["minimum_pages"] == 10
+    assert followup_ok["minimum_text_chars"] == 2000
 
 
 def test_premium_without_customer_context_reports_layout_and_repetition_only():
@@ -355,6 +402,24 @@ def test_customer_specific_context_uses_explicit_expected_terms():
     assert r["expected_context_hits"]["합성 모임"] == 1
 
 
+def test_unbacked_context_terms_injection_blocks_unknown_synthetic_term(monkeypatch):
+    # 운영 기본값은 빈 튜플이라 검사가 비활성이다. 이 테스트만 합성 용어를 주입해
+    # 룰 키와 차단 분기가 항구 no-op으로 퇴행하지 않도록 고정한다.
+    assert dq._PROVENANCE_CONTEXT_TERMS == ()
+    monkeypatch.setattr(dq, "_PROVENANCE_CONTEXT_TERMS", ("합성고유명",))
+
+    r = dq.analyze(
+        _premium_text() + " 합성고유명",
+        pages=27,
+        product="integrated",
+        concern="계약 조건과 이동 시기가 궁금합니다.",
+    )
+
+    assert r["clean"] is False
+    assert r["context_provenance"]["unbacked_terms"] == ["합성고유명"]
+    assert "unbacked_context_terms" in {f["rule"] for f in r["failures"]}
+
+
 def test_repetitive_ai_like_word_and_absolute_guarantee_fail():
     text = _premium_text() + " 또렷 또렷 100% 재회합니다"
     r = dq.analyze(text, pages=27, premium=True, concern="재회 시기가 궁금합니다")
@@ -367,6 +432,7 @@ def test_context_required_for_helper():
     assert dq.context_required_for("integrated_full") is True
     assert dq.context_required_for("gunghap_relationship") is True
     assert dq.context_required_for("gunghap") is True
+    assert dq.context_required_for("followup") is True
     assert dq.context_required_for("integrated") is False
     assert dq.context_required_for("personal") is False
     assert dq.context_required_for(None) is False

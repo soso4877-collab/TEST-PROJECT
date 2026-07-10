@@ -90,15 +90,17 @@ def gen_followup(
     kind: str = typer.Option("followup", "--kind", help="followup|revisit"),
     order_id: str | None = typer.Option(None, "--order-id", help="부모 주문 ID(미지정 시 최신 주문)"),
     llm: bool = typer.Option(False, "--llm", help="ANTHROPIC_API_KEY가 있을 때 LLM 답변 생성"),
+    pdf: bool = typer.Option(False, "--pdf", help="저장 사실로 10~15쪽 슬림 PDF도 생성"),
     db: str = typer.Option(order_flow.DEFAULT_DB, "--db", help="주문 DB 경로"),
 ) -> None:
-    """저장 리포트 사실만 재사용해 후속 텍스트 답변 주문을 만든다."""
+    """저장 리포트 사실만 재사용해 후속 텍스트 또는 슬림 PDF 주문을 만든다."""
     result = order_flow.run_followup(
         alias=alias,
         question=question,
         kind=kind,
         order_id=order_id,
         use_llm=llm,
+        pdf=pdf,
         db_path=db,
     )
     if not result.get("ok"):
@@ -108,6 +110,8 @@ def gen_followup(
             typer.echo("failures: " + ",".join(rules[:12]))
         raise typer.Exit(code=1)
     typer.echo(f"order_id={result['order_id']} parent_order_id={result['parent_order_id']} state={result['state']}")
+    if pdf:
+        typer.echo(f"draft_pdf={result['draft_pdf']}")
     typer.echo(result["answer"])
 
 

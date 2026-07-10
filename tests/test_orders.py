@@ -8,6 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sajugen import order_flow  # noqa: E402
 from sajugen.models.report import (  # noqa: E402
     BirthInput,
     CalendarVerification,
@@ -57,6 +58,30 @@ def test_create_sets_received_and_audit(store):
     aud = store.audit(oid)
     assert aud[0].action == "create" and aud[0].to_state == "RECEIVED"
     assert store.get_report(oid).order_id == oid  # order_id 발급 반영
+
+
+def test_create_order_persists_deterministic_question_category(tmp_path):
+    db = tmp_path / "classified-orders.sqlite"
+    order_id, warnings = order_flow.create_order(
+        birth="2000-01-01 12:00",
+        gender="male",
+        name="",
+        concern="이직 준비 순서가 궁금합니다.",
+        brand="default",
+        db_path=str(db),
+    )
+
+    assert warnings == []
+    classified_store = OrderStore(db)
+    try:
+        report = classified_store.get_report(order_id)
+        assert report.render_meta["question_category"] == {
+            "value": "직업",
+            "confirmed": False,
+            "source": "auto",
+        }
+    finally:
+        classified_store.close()
 
 
 # ─────────────────── 정상 경로 ───────────────────

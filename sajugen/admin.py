@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from . import order_flow
+from .content.question_router import QuestionCategory
 from .input import time_correction as tc
 from .store.orders import ApprovalRequired, IllegalTransition, OrderState, OrderStore
 
@@ -141,6 +142,7 @@ def _detail_response(
     meta = report.render_meta
     sections = (report.content or {}).get("sections", [])
     guard = meta.get("guard", {})
+    category_state = order_flow.question_category_state(report)
     return templates.TemplateResponse(
         request,
         "admin_detail.html.j2",
@@ -160,6 +162,8 @@ def _detail_response(
             "edit_section_id": edit_section_id,
             "edit_text": edit_text,
             "action_error": action_error,
+            "question_category": category_state,
+            "question_categories": [category.value for category in QuestionCategory],
         },
         status_code=status_code,
     )
@@ -203,8 +207,16 @@ def approve(request: Request, order_id: str, confirm: str = Form("")):
         except KeyError:
             raise HTTPException(status_code=404, detail=f"주문 없음: {order_id}")
         needs_review = bool(getattr(report.safety_flags, "needs_review", False))
+        category_state = order_flow.question_category_state(report)
     finally:
         st.close()
+    if category_state["needs_confirmation"]:
+        return _detail_response(
+            request,
+            order_id,
+            status_code=409,
+            action_error="전반으로 자동분류된 질문은 카테고리를 먼저 확정해야 승인할 수 있습니다.",
+        )
     if needs_review and not confirm.strip():
         return _detail_response(
             request,
@@ -265,6 +277,22 @@ def deliver(request: Request, order_id: str):
 
 
 # ───────────────── 섹션 직접 수정 ─────────────────
+
+
+@router.post("/orders/{order_id}/question-category")
+def confirm_question_category(
+    order_id: str,
+    category: str = Form(...),
+):
+    try:
+        order_flow.confirm_question_category(order_id, category, db_path=_db())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except order_flow.EditNotAllowed as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return RedirectResponse(f"/admin/orders/{order_id}", status_code=303)
 
 
 @router.post("/orders/{order_id}/sections/{section_id}")

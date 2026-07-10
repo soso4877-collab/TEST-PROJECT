@@ -15,11 +15,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import SimpleNamespace
+from uuid import uuid4
 
 from . import config as cfg
 from . import pipeline
 from .calc import engine
-from .content import builder, factcheck, masking, safe_lint
+from .content import builder, delivery_quality, factcheck, masking, question_router, safe_lint
 from .content.sections_schema import Report23
 from .input import normalize as norm
 from .input import time_correction as tc
@@ -37,6 +39,7 @@ from .render import verify as render_verify
 from .store.orders import OrderState, OrderStore
 
 DEFAULT_DB = "data/orders.sqlite"
+MAX_FOLLOWUP_PAGES = 15
 
 
 class EditNotAllowed(Exception):
@@ -56,6 +59,119 @@ def _required_brand_name(value: object) -> str:
     if not name:
         raise ValueError("brand is required")
     return name
+
+
+def _stored_input_civil(report: UnifiedReport) -> str:
+    """저장 메타를 우선하고, 없으면 저장된 양력일·시각만 이어 표지 문자열을 만든다."""
+    saved = str((report.render_meta or {}).get("input_civil") or "").strip()
+    if saved:
+        return saved
+    solar = (report.calendar_verification.solar_date or report.birth.input_date or "").strip()
+    if report.birth.birth_time:
+        return f"{solar} {report.birth.birth_time}".strip()
+    return solar
+
+
+def _stored_day_master(report: UnifiedReport) -> str:
+    """저장된 사주팔자 문자열의 세 번째 기둥에서 일간을 복원한다(새 계산 0)."""
+    bazi = str((report.render_meta or {}).get("bazi") or "").strip().split()
+    if len(bazi) < 3 or not bazi[2]:
+        raise ValueError("stored day master is required for followup PDF")
+    return bazi[2][0]
+
+
+def _render_followup_pdf(
+    report: Report23,
+    *,
+    render_context: dict,
+    concern: str,
+    out_name: str,
+) -> tuple[str, dict]:
+    """저장 본문 전용 슬림 PDF를 표준 render→verify 경로로 렌더한다.
+
+    이름·명식 스펙을 새로 계산하지 않는다. 표지는 저장된 input_civil만 사용하고,
+    followup 상품의 10~15쪽 범위와 기존 verify 게이트를 모두 통과해야 한다.
+    """
+    brand = cfg.brand(_required_brand_name(render_context.get("brand")))
+    day_master = str(render_context.get("day_master") or "").strip()
+    if not day_master:
+        raise ValueError("stored day master is required for followup PDF")
+    name = str(render_context.get("name") or "").strip() or None
+    identity = builder.personal_identity_spec(
+        SimpleNamespace(myeongni=SimpleNamespace(day_master=day_master)),
+        name,
+    )
+    if not identity[0] or not identity[1]:
+        raise ValueError("stored day master is unsupported for followup PDF")
+    pdf_path = render_pdf.render_pdf(
+        report,
+        _CoverMeta(input_civil=str(render_context.get("input_civil") or "")),
+        out_name=out_name,
+        name=None,
+        unknown_time=bool(render_context.get("unknown_time")),
+        brand=brand,
+    )
+    verify = dict(
+        render_verify.verify(
+            pdf_path,
+            ref_year=render_context.get("ref_year"),
+            names=[name] if name else None,
+            identity=identity,
+            product="followup",
+            concern=concern,
+            ref_date=render_context.get("ref_date") or None,
+            partner_present=report.partner_present,
+        )
+    )
+    pages = verify.get("pages")
+    page_range_clean = bool(
+        isinstance(pages, int)
+        and delivery_quality.MIN_FOLLOWUP_PAGES <= pages <= MAX_FOLLOWUP_PAGES
+    )
+    verify["followup_page_range"] = {
+        "value": pages,
+        "minimum": delivery_quality.MIN_FOLLOWUP_PAGES,
+        "maximum": MAX_FOLLOWUP_PAGES,
+    }
+    verify["followup_page_range_clean"] = page_range_clean
+    verify["followup_gate_pass"] = bool(verify.get("gate_pass") and page_range_clean)
+    return pdf_path, verify
+
+
+def question_category_state(report: UnifiedReport) -> dict:
+    """주문 상세·승인에서 공유하는 질문 분류 상태를 반환한다."""
+    render_meta = report.render_meta or {}
+    followup_meta = dict(render_meta.get("followup", {}))
+    concern = str(
+        followup_meta.get("masked_question") or report.birth.concern_text or ""
+    ).strip()
+    meta = dict(render_meta.get("question_category", {}))
+    category = str(meta.get("value") or "").strip()
+    if not category and followup_meta:
+        category = str(followup_meta.get("category") or "").strip()
+    if report.content:
+        try:
+            stored = Report23.model_validate(report.content).concern_category
+            if stored:
+                category = stored.strip()
+        except Exception:
+            # 생성 중의 부분 content나 레거시 저장본은 접수 메타를 사용한다.
+            pass
+    allowed = {item.value for item in question_router.QuestionCategory}
+    if category not in allowed:
+        category = question_router.classify(concern).value
+    confirmed = bool(meta.get("confirmed") or followup_meta.get("category_confirmed"))
+    return {
+        "value": category,
+        "confirmed": confirmed,
+        "source": str(meta.get("source") or "auto"),
+        "has_concern": bool(concern),
+        "needs_confirmation": bool(
+            concern
+            and category == question_router.QuestionCategory.GENERAL.value
+            and not confirmed
+        ),
+    }
 
 
 # ───────────────── 접수(동기) ─────────────────
@@ -90,6 +206,7 @@ def create_order(
     warnings = list(nd.warnings) if nd.input_kind == "lunar" else []
 
     is_male = gender.strip().lower() in ("male", "m", "남", "남자")
+    auto_category = question_router.classify(concern).value
     report = UnifiedReport(
         order_id="",
         birth=BirthInput(
@@ -106,6 +223,13 @@ def create_order(
         ),
         report_plan=ReportPlan(product=product),
         render_meta={
+            # 접수 직후부터 관리자 상세에 보이도록 자동분류를 저장한다. 생성 완료 뒤에는
+            # 동일 분류가 Report23.concern_category에 들어가며 운영자 확정 POST가 그 필드를 갱신한다.
+            "question_category": {
+                "value": auto_category,
+                "confirmed": False,
+                "source": "auto",
+            },
             # 백그라운드 생성·재시도가 그대로 쓰는 파라미터(양력 정규화 완료본)
             "gen_params": {
                 "year": nd.year,
@@ -270,10 +394,13 @@ def run_followup(
     db_path: str = DEFAULT_DB,
     backend=None,
     today=None,
+    pdf: bool = False,
 ) -> dict:
     """저장 report_json 기반 후속 답변 주문 생성.
 
-    계산은 건너뛰고 부모 주문의 저장 사실만 재사용한다. 게이트 실패 시 새 주문을 만들지 않는다.
+    계산은 건너뛰고 부모 주문의 저장 사실만 재사용한다. 기본은 기존 텍스트 답변이며,
+    pdf=True일 때만 저장 섹션과 새 consult를 조립한 슬림 PDF를 표준 게이트로 검증한다.
+    게이트 실패 시 새 주문을 만들지 않는다.
     """
     clean_alias = (alias or "").strip()
     if not clean_alias:
@@ -287,44 +414,135 @@ def run_followup(
             from .content import llm_sections
 
             backend = llm_sections.get_backend() if use_llm else llm_sections.RuleBackend()
-        result = followup_compose.compose(parent, question, backend=backend, today=today)
+        result = followup_compose.compose(
+            parent,
+            question,
+            backend=backend,
+            today=today,
+            pdf=pdf,
+        )
         if not result.get("ok"):
             return result
+
+        pdf_report = result.pop("pdf_report", None)
+        pdf_path = ""
+        pdf_verify: dict = {}
+        render_context: dict = {}
+        if pdf:
+            if not isinstance(pdf_report, Report23):
+                return {
+                    **result,
+                    "ok": False,
+                    "answer": "",
+                    "reason": "후속 PDF 조립 결과 없음",
+                    "failures": [{"source": "followup", "rule": "missing_pdf_report"}],
+                }
+            parent_params = dict((parent.render_meta or {}).get("gen_params", {}))
+            try:
+                render_context = {
+                    "brand": parent_params.get("brand"),
+                    "unknown_time": bool(parent_params.get("unknown_time")),
+                    "input_civil": _stored_input_civil(parent),
+                    "day_master": _stored_day_master(parent),
+                    "name": parent.birth.name,
+                    "ref_year": result.get("ref_year"),
+                    "ref_date": result.get("ref_date"),
+                }
+                pdf_path, pdf_verify = _render_followup_pdf(
+                    pdf_report,
+                    render_context=render_context,
+                    concern=question,
+                    out_name=f"draft_followup_{uuid4().hex}.pdf",
+                )
+            except Exception as exc:
+                return {
+                    **result,
+                    "ok": False,
+                    "answer": "",
+                    "reason": f"후속 PDF 생성 실패({type(exc).__name__})",
+                    "failures": [{"source": "render", "rule": "followup_pdf_error"}],
+                }
+            if not pdf_verify.get("followup_gate_pass"):
+                return {
+                    **result,
+                    "ok": False,
+                    "answer": "",
+                    "reason": "후속 PDF 게이트 실패",
+                    "failures": [
+                        {
+                            "source": "render_verify",
+                            "rule": "followup_pdf_gate",
+                            "gate_pass": bool(pdf_verify.get("gate_pass")),
+                            "page_range_clean": bool(
+                                pdf_verify.get("followup_page_range_clean")
+                            ),
+                        }
+                    ],
+                }
 
         answer = result["answer"]
         masked_question = result.get("masked_question", "")
         category = result.get("category", "전반")
+        followup_meta = {
+            "parent_order_id": parent_id,
+            "category": category,
+            "masked_question": masked_question,
+        }
+        if pdf:
+            followup_meta.update(
+                {
+                    "pdf": True,
+                    "brand": render_context["brand"],
+                    "unknown_time": render_context["unknown_time"],
+                    "day_master": render_context["day_master"],
+                    "ref_year": render_context["ref_year"],
+                    "ref_date": render_context["ref_date"],
+                }
+            )
+        report_updates = {
+            "order_id": "",
+            "content": pdf_report.model_dump() if pdf else {},
+            "customer_questions": [
+                CustomerQuestion(
+                    raw=masked_question,
+                    domain=_followup_domain(category),
+                    answer_text=answer,
+                    answer_status="draft",
+                )
+            ],
+            "derived_interpretation": {
+                **dict(parent.derived_interpretation or {}),
+                "followup_answer": answer,
+            },
+            "render_meta": {"followup": followup_meta},
+            "safety_flags": SafetyFlags(
+                safe_lint_total=0,
+                factcheck_total=0,
+                grounding_ok=True,
+                needs_review=False,
+            ),
+        }
+        if pdf:
+            report_updates.update(
+                {
+                    "report_plan": parent.report_plan.model_copy(
+                        update={
+                            "product": "followup",
+                            "sections": [section.id for section in pdf_report.sections],
+                        }
+                    ),
+                    "render_meta": {
+                        "followup": followup_meta,
+                        "draft_pdf": pdf_path,
+                        "input_civil": render_context["input_civil"],
+                        "verify": pdf_verify,
+                        "guard": pdf_report.guard.model_dump(),
+                    },
+                }
+            )
         report = parent.model_copy(
             deep=True,
-            update={
-                "order_id": "",
-                "content": {},
-                "customer_questions": [
-                    CustomerQuestion(
-                        raw=masked_question,
-                        domain=_followup_domain(category),
-                        answer_text=answer,
-                        answer_status="draft",
-                    )
-                ],
-                "derived_interpretation": {
-                    **dict(parent.derived_interpretation or {}),
-                    "followup_answer": answer,
-                },
-                "render_meta": {
-                    "followup": {
-                        "parent_order_id": parent_id,
-                        "category": category,
-                        "masked_question": masked_question,
-                    }
-                },
-                "safety_flags": SafetyFlags(
-                    safe_lint_total=0,
-                    factcheck_total=0,
-                    grounding_ok=True,
-                    needs_review=False,
-                ),
-            },
+            update=report_updates,
         )
         new_id = st.create(
             report,
@@ -336,17 +554,86 @@ def run_followup(
         st.transition(new_id, OrderState.CALC_OK, actor="system", note="calculation skipped")
         st.transition(new_id, OrderState.DRAFTED, actor="system", note="followup answer gate pass")
         st.transition(new_id, OrderState.IN_REVIEW, actor="system", note="followup ready for review")
-        return {
+        response = {
             **result,
             "order_id": new_id,
             "parent_order_id": parent_id,
             "state": st.get_state(new_id).value,
         }
+        if pdf:
+            response.update({"pdf": True, "draft_pdf": pdf_path, "verify": pdf_verify})
+        return response
     finally:
         st.close()
 
 
 # ───────────────── 검수 중 본문 수정 ─────────────────
+
+
+def confirm_question_category(
+    order_id: str,
+    category: str,
+    *,
+    actor: str = "admin",
+    db_path: str = DEFAULT_DB,
+) -> str:
+    """IN_REVIEW 주문의 Report23 질문 카테고리를 운영자가 확정한다.
+
+    상태 전이는 하지 않고 report_json과 감사 로그만 갱신한다. 감사 note에는 7종
+    카테고리 값만 기록해 질문 원문이 영속 로그로 복제되지 않게 한다.
+    """
+    try:
+        selected = question_router.QuestionCategory(category)
+    except ValueError as exc:
+        allowed = ", ".join(item.value for item in question_router.QuestionCategory)
+        raise ValueError(f"알 수 없는 질문 카테고리: {category} (허용: {allowed})") from exc
+
+    st = OrderStore(db_path)
+    try:
+        if st.get_state(order_id) != OrderState.IN_REVIEW:
+            raise EditNotAllowed("질문 카테고리 확정은 IN_REVIEW(검수 중) 상태에서만 가능합니다")
+        report = st.get_report(order_id)
+        followup_meta = dict((report.render_meta or {}).get("followup", {}))
+        content = report.content
+        if content:
+            report23 = Report23.model_validate(content).model_copy(
+                update={"concern_category": selected.value}
+            )
+            content = report23.model_dump()
+        elif not followup_meta:
+            raise KeyError(f"본문 없음(생성 미완료): {order_id}")
+        if followup_meta:
+            followup_meta.update(
+                {
+                    "category": selected.value,
+                    "category_confirmed": True,
+                }
+            )
+        report = report.model_copy(
+            update={
+                "content": content,
+                "render_meta": {
+                    **report.render_meta,
+                    **({"followup": followup_meta} if followup_meta else {}),
+                    "question_category": {
+                        "value": selected.value,
+                        "confirmed": True,
+                        "source": "admin",
+                    },
+                },
+            }
+        )
+        st.save_report(order_id, report, actor=actor)
+        st.add_audit(
+            order_id,
+            action="confirm_question_category",
+            actor=actor,
+            section="concern_category",
+            note=selected.value,
+        )
+        return selected.value
+    finally:
+        st.close()
 
 
 def edit_section(
@@ -419,7 +706,6 @@ def final_render_fn(report: UnifiedReport) -> str:
     r23 = Report23.model_validate(report.content)
     meta = report.render_meta
     p = meta.get("gen_params", {})
-    bp = cfg.brand(_required_brand_name(p.get("brand")))
 
     # 안전·사실 재검증 벨트(렌더 전 빠른 차단) — 검수 수정 본문 포함 전 섹션 재검증.
     # match(본문 조각)는 노출하지 않고 카운트만 집계(절대규칙 17 / T1.3).
@@ -436,7 +722,36 @@ def final_render_fn(report: UnifiedReport) -> str:
             f"최종 안전·사실 재검증 실패(safe_lint={belt_safe}, factcheck={belt_fact})"
         )
 
+    # 후속 PDF는 저장 Report23만 재렌더한다. 개인 최종본 경로의 engine.build를 타지 않아
+    # 최초 리포트 이후 새 계산이 0회라는 followup 경계를 최종 발급에서도 보존한다.
+    followup_meta = meta.get("followup", {})
+    if bool(followup_meta.get("pdf")):
+        concern = str(followup_meta.get("masked_question") or "")
+        pdf_path, verify = _render_followup_pdf(
+            r23,
+            render_context={
+                "brand": followup_meta.get("brand"),
+                "unknown_time": bool(followup_meta.get("unknown_time")),
+                "input_civil": str(meta.get("input_civil") or ""),
+                "day_master": followup_meta.get("day_master"),
+                "name": report.birth.name,
+                "ref_year": followup_meta.get("ref_year"),
+                "ref_date": followup_meta.get("ref_date"),
+            },
+            concern=concern,
+            out_name=f"final_{report.order_id}.pdf",
+        )
+        if not verify.get("followup_gate_pass"):
+            page_range = verify.get("followup_page_range", {})
+            raise RuntimeError(
+                "최종 후속 PDF 게이트 실패("
+                f"gate={bool(verify.get('gate_pass'))}, pages={page_range.get('value')}, "
+                f"range={bool(verify.get('followup_page_range_clean'))})"
+            )
+        return pdf_path
+
     # draft 와 동일 스펙 복원 — saju 재계산(정책 매핑·horoscope→ref_year 를 pipeline 과 일치).
+    bp = cfg.brand(_required_brand_name(p.get("brand")))
     name = p.get("name") or None
     horoscope = p.get("horoscope") or ""
     ref_year = None

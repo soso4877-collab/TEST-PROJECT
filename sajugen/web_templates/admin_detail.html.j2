@@ -26,6 +26,7 @@
   th, td { border: 1px solid #ccc; padding: 4px 8px; text-align: left; }
   th { background: #f3f0ea; }
   textarea { width: 100%; min-height: 110px; font-family: inherit; font-size: 13px; }
+  select { padding: 5px 8px; font-family: inherit; }
   .actions form { display: inline-block; margin-right: 8px; }
   button { padding: 5px 14px; }
   ul.check { font-size: 13px; }
@@ -43,7 +44,7 @@
 {% endif %}
 
 {% if action_error %}
-<div class="panel red">최종 발급 실패: {{ action_error }} (상태는 APPROVED 에 머물러 있습니다. 조치 후 재시도)</div>
+<div class="panel red">작업 차단: {{ action_error }}</div>
 {% endif %}
 
 {% if state == "CALC_MISMATCH" %}
@@ -66,6 +67,31 @@
   LLM: {{ "사용" if gen_params.use_llm else "룰 전용" }}<br>
   {% if meta.normalize_warnings %}정규화 경고: {{ meta.normalize_warnings | join(" / ") }}<br>{% endif %}
   {% if report.birth.concern_text %}고민/질문: {{ report.birth.concern_text }}{% endif %}
+</div>
+
+<h3>질문 자동분류</h3>
+<div class="panel{% if question_category.needs_confirmation %} red{% endif %}">
+  {% if question_category.has_concern %}
+    현재 카테고리: <b>{{ question_category.value }}</b> /
+    {{ "운영자 확정" if question_category.confirmed else "자동분류" }}
+    {% if question_category.needs_confirmation %}
+      <br>전반 분류는 저신뢰입니다. 아래에서 카테고리를 확정해야 승인할 수 있습니다.
+    {% endif %}
+    {% if state == "IN_REVIEW" %}
+    <form method="post" action="/admin/orders/{{ order_id }}/question-category" style="margin-top:8px">
+      <label>운영자 확인:
+        <select name="category">
+        {% for category in question_categories %}
+          <option value="{{ category }}"{% if category == question_category.value %} selected{% endif %}>{{ category }}</option>
+        {% endfor %}
+        </select>
+      </label>
+      <button type="submit">질문 카테고리 확정</button>
+    </form>
+    {% endif %}
+  {% else %}
+    질문 없음
+  {% endif %}
 </div>
 
 {% if meta.bazi %}
