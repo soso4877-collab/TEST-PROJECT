@@ -1,3 +1,146 @@
+# HANDOFF — 2026-07-10 (Codex customer-purge CLI까지 완료)
+
+프로젝트: `C:\Users\pc\test-project` (sajugen — 사주+자미 종합 PDF 리포트 생성기)
+브랜치: `codex/gunghap-relationship-quality` · HEAD `c8b48ad`
+역할: Codex 구현 세션 인계. 커밋/푸시/PDF 재생성/LLM 호출 없음.
+
+## 현재 상태
+- 후속·재방문 상담 T0~T4와 수정 라운드 A/B/C는 커밋 완료 상태.
+- 남은 코드 작업으로 발주된 `handoff/codex-customer-purge-cli.md`도 구현 완료 후 커밋됨: `c8b48ad feat(sajugen): 단골 식별자 차등 파기 CLI customer-purge (E9)`.
+- 현재 `git status -sb` 기준 코드 변경은 없음. 워킹트리 변경은 `HANDOFF.md`뿐이고, 리뷰/지시문 문서가 미추적 상태로 남아 있음.
+- 미추적 파일: `REVIEW-FEEDBACK.md`, `handoff/codex-customer-purge-cli.md`, `handoff/codex-followup-fixups.md`, `handoff/codex-ilji-tension-followup.md`, `handoff/codex-metadiscourse-t0-4.md`, `handoff/design-question-adaptive.md`.
+
+## 완료한 것
+- T0/T0-④: 상담 유도형·면책 선언형·의료 회피형 메타발화 제거, 월운 표기 규약, 상대시제 절기경계 lint 및 회귀.
+- T1~T4: customers/orders 후속 스키마, 후속 답변 게이트, 저장 사실 기반 컴포저, `customer-find`/`gen-followup` CLI와 상태머신 배선.
+- 수정 라운드 A/B/C: 메타발화 제거 검증, `.claude/rules/content.md` 의료 규칙 문서 정합, `compose.py` allowed_years 빈 경계와 "내년" 상대연도 factcheck 백스톱 회귀.
+- E9 추가 작업: `customer-purge --alias ... [--yes] [--db ...]` CLI. `OrderStore.purge_identifier(alias)`만 호출해 `customers.name_masked`만 NULL 처리하고, `purged_at` 기록·orders/report_json/alias 보존. `tests/test_customer_purge.py`로 `--yes`, 확인 프롬프트, 없는 alias exit 1, report 보존을 검증.
+
+## 최근 검증 증거
+- Codex 샌드박스 최종: `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **668 passed / 31 skipped / exit 0**.
+- Codex 샌드박스 골든: `.\.venv\Scripts\python.exe -m pytest tests/ -q -k golden` → **28 passed / 671 deselected / exit 0**.
+- 신규 customer-purge 단독: `.\.venv\Scripts\python.exe -m pytest tests/test_customer_purge.py -q` → **3 passed / exit 0**.
+- `git diff --check` → exit 0, LF→CRLF 경고만 있음.
+- `git diff --name-only -- calc input sajugen/calc sajugen/input` → 출력 없음(계산/input 무변경).
+- 기준환경 교차리뷰 기대값: 라운드4 기준 **692 passed / 4 skipped** 대비 customer-purge 신규 테스트 3개 증가 → **695 passed / 4 skipped** 예상.
+
+## 수정 파일 구분
+- 이번 customer-purge 커밋 핵심: `sajugen/cli.py`, `tests/test_customer_purge.py`.
+- 후속 기능 커밋 핵심: `sajugen/followup/*`, `sajugen/store/orders.py`, `sajugen/order_flow.py`, `sajugen/cli.py`, 관련 `tests/test_followup_*.py`.
+- 문안·정책 정합 커밋 핵심: `sajugen/content/rules.py`, `sajugen/content/llm_sections.py`, `sajugen/content/temporal_lint.py`, `.claude/rules/content.md`, `docs/03-engine-validation-plan.md`, 관련 테스트.
+- 현재 미커밋 수정 파일: `HANDOFF.md`만.
+
+## 확인하지 못한 것 / 남은 위험
+- Codex는 PDF 재생성, LLM 호출, `harness/profiles/local/**` 열람을 하지 않음.
+- 기준환경 4-skip 전체 검증은 라운드5 교차리뷰에서 실행 필요.
+- 운영 DB에 대한 실제 `customer-purge` 실행은 별도 운영자 승인·백업 후 진행 필요.
+- 미추적 리뷰/지시문 문서들은 커밋 포함 여부를 운영자가 결정해야 함. `HANDOFF.md`도 이전 2026-07-07 메모와 이번 2026-07-10 메모가 같이 미커밋 상태.
+
+## 다음 행동
+1. 라운드5 교차리뷰: `customer-purge` diff와 `tests/test_customer_purge.py`를 기준환경에서 검증한다.
+2. 기준환경 전체 테스트 예상: **695 passed / 4 skipped**(라운드4 692/4 + 신규 3).
+3. 리뷰 PASS 후 `HANDOFF.md`와 미추적 handoff/review 문서의 커밋 포함 여부를 결정한다.
+4. 운영 반영 전에는 실제 DB 백업 후 `python -m sajugen.cli customer-purge --alias <alias> --yes --db <운영DB>` 경로를 사용한다.
+
+---
+
+# HANDOFF — 2026-07-07 (Codex 후속·재방문 상담 T0~T4 구현)
+
+프로젝트: `C:\Users\pc\test-project` (sajugen — 사주+자미 종합 PDF 리포트 생성기)
+브랜치: `codex/gunghap-relationship-quality` · HEAD `f38d1e3`
+요청 패킷: `C:\Users\pc\.claude\plans\ai-brain-50-decisions-2026-07-07-sajugen-shimmering-popcorn.md`
+역할: Codex 구현 세션. 패킷은 재해석하지 않고 T0부터 T4까지 순서대로 실행. 모순/범위 이탈로 판단해 멈춘 항목 없음.
+
+## 현재 상태
+- T0~T4 구현 완료. 커밋/푸시/PDF 재생성/LLM 호출 없음.
+- 최종 전체 테스트 GREEN: `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **660 passed / 31 skipped / exit 0** (`142.48s`).
+- T0 완료 시점 별도 보고 기준도 충족: 전체 테스트 GREEN + `상담에서` grep 0건.
+- `git diff --check` exit 0. 단, 기존 파일 개행 정책에 따른 LF→CRLF 경고만 출력됨.
+
+## 완료한 것
+- T0 문구 교체·월 표기 규약·상대시제 절기경계: `상담에서` 원천 문구 제거, 월 표기 `간지월(절기명 - 양력 M/D~M/D)` 고정, 상대시제 절기경계 lint 추가, LLM prompt/docs/tests 갱신.
+- T1 고객 축: `customers` 테이블과 `orders.alias/parent_order_id/kind` additive migration, 고객 연결/식별자 삭제 API, 주문 스키마 회귀 추가.
+- T2 후속 답변 가드: `sajugen/followup/answer_gate.py` 추가, 23년 리포트 미참조·출처 없는 답변·금칙/형식 결함 차단 테스트 추가.
+- T3 후속 상담 합성: `sajugen/followup/compose.py` 추가, 저장된 Report23만 근거로 follow-up 입력을 구성하고 follow-up 질문·출처 슬롯을 보존.
+- T4 운영 경로: `OrderStore.issue_final_text`, `order_flow.run_followup`, CLI `customer-find`/`gen-followup` 추가. 기존 단일 `gen` 호출 테스트는 Typer 다중 명령 구조에 맞춰 보정.
+
+## 검증 증거
+- T0 후: `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **631 passed / 31 skipped / exit 0**.
+- T1 후: `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **634 passed / 31 skipped / exit 0**.
+- T2 후: `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **651 passed / 31 skipped / exit 0**.
+- T3 후: `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **656 passed / 31 skipped / exit 0**.
+- T4 최종: `.\.venv\Scripts\python.exe -m pytest tests/ -q` → **660 passed / 31 skipped / exit 0**.
+- grep: `rg -n "상담에서" sajugen -g '*.py' -g '*.md' -g '!render/out/**'` → **0건**.
+- whitespace: `git diff --check` → **exit 0**. LF→CRLF 경고만 있음.
+
+## 수정 파일
+- 기존 파일: `docs/03-engine-validation-plan.md`, `sajugen/calc/advanced.py`, `sajugen/cli.py`, `sajugen/content/llm_sections.py`, `sajugen/content/rules.py`, `sajugen/content/temporal_lint.py`, `sajugen/order_flow.py`, `sajugen/store/orders.py`, `tests/test_gunghap.py`, `tests/test_p5.py`, `tests/test_quality_lint.py`, `tests/test_temporal_month.py`.
+- 신규 파일: `sajugen/followup/__init__.py`, `sajugen/followup/answer_gate.py`, `sajugen/followup/compose.py`, `tests/test_followup_compose.py`, `tests/test_followup_flow.py`, `tests/test_followup_gate.py`, `tests/test_followup_schema.py`, `tests/test_month_notation.py`.
+- 기존 더티/미추적 주의: `HANDOFF.md`, `REVIEW-FEEDBACK.md`, `handoff/codex-ilji-tension-followup.md`는 이번 구현 전부터 존재하던 기록물/미추적 파일이다. 이번 섹션만 새로 추가했다.
+
+## 확인하지 못한 것 / 남은 위험
+- `scripts/hrun.py` PDF 산출 검증은 실행하지 않음. Codex 금지 범위와 로컬 harness profile 열람 금지 때문에 `harness/profiles/local/**`도 읽지 않음.
+- LLM 호출과 PDF 재생성은 하지 않음.
+- DB migration은 additive/idempotent 테스트로 검증했지만, 실제 운영 DB 적용은 별도 승인·백업 후 실행 필요.
+
+## 다음 행동
+1. 신선 컨텍스트 검증 세션에서 이 diff와 위 테스트 증거를 교차리뷰한다.
+2. 교차리뷰 GREEN 후 의미 단위 커밋을 T0 → T1 → T2 → T3 → T4 순서로 나눌지 결정한다.
+3. 운영 산출 검증이 필요하면 Codex 금지 범위를 벗어나므로 운영자 승인 세션에서 `hrun.py`를 별도 실행한다.
+
+---
+
+# HANDOFF — 2026-07-07
+
+프로젝트: `C:\Users\pc\test-project` (sajugen — 사주+자미 종합 PDF 리포트 생성기)
+브랜치: `codex/gunghap-relationship-quality` · HEAD `f38d1e3` · origin 대비 **ahead 2**(미push)
+세션 시작 커밋: `786ac29` → 현재 `f38d1e3` (이번 라운드 신규 2커밋: `75c65f1` 기능 + `f38d1e3` FIX)
+역할 분리: 구현 = Codex(GPT), 계획·검증 = Claude(이 세션). 참조 [[feedback-claude-plan-verify-codex-implements]].
+
+## 완료한 것 (검증자 신선 컨텍스트 실측 — 최종 판정 PASS)
+
+### 기능: 궁합 일지 상호작용 판정 확장 (형·해·파·원진) + consult 대칭 배선
+- 커밋 `75c65f1` — 육해·육파·원진·자형(辰午酉亥)·子卯상형을 `sajugen/calc/partner.py`에 추가(삼형 완전판은 defer, 寅巳=해만). 소비처 배선: `sajugen/gunghap.py:_pair_slot`(궁합 상품) + `sajugen/content/rules.py:partner_block`(개인 consult 경로) 대칭. `docs/03-engine-validation-plan.md §1-1`에 채택표를 SSOT로 기록(코드보다 먼저). 표 docs↔code 1:1 + 표준 명리 정설 부합 확인.
+- 커밋 `f38d1e3` (FIX) — render-gate 블로커 해소: 신규 해(害) 문안의 외래어 "리듬"→"흐름". `business` 폴백은 `normalize_loanwords`를 미경유(`sajugen/gunghap.py:1016` 조기 반환)라 외래어가 PDF로 직행 → `loanword_clean=False`로 육해 쌍 business 궁합 빌드가 하드게이트 실패였음. 근본원인 2층(감지 갭)도 동봉: 가드 유닛 테스트의 normalize 사전적용 은폐 정정 + "리듬 스윕"(`tests/test_raw_term_sweep.py`)에 두 소비처 실제 출력 추가.
+
+### 이 결함을 잡은 경로 (교훈)
+초기 코드-레벨 리뷰의 "no blocker" 판정은 불완전(정적/유닛 GREEN). **운영자 지시로 돌린 합성 실렌더가 실경로 결함(loanword)을 포착.** "정적/유닛 GREEN ≠ 실경로 안전" — vault 기록 대상.
+
+## 수정한 주요 파일 (전체 경로)
+- `C:\Users\pc\test-project\sajugen\calc\partner.py` (표·PartnerFacts 필드·독립 판정)
+- `C:\Users\pc\test-project\sajugen\gunghap.py` (`_pair_slot` 소비 + 해 문안 흐름)
+- `C:\Users\pc\test-project\sajugen\content\rules.py` (`partner_block` 소비 + 해 문안 흐름)
+- `C:\Users\pc\test-project\sajugen\relationship\context.py` (`_RAW_REPLACEMENTS` 순화)
+- `C:\Users\pc\test-project\docs\03-engine-validation-plan.md` (§1-1 채택표)
+- `C:\Users\pc\test-project\tests\test_partner.py` · `tests\test_gunghap.py` · `tests\test_couple_language.py` · `tests\test_raw_term_sweep.py`
+
+## 실행한 검증 명령과 결과 (검증자 전 리소스 환경)
+- `PYTHONUTF8=1 ./.venv/Scripts/python.exe -m pytest tests/ -q -rs` → **654 passed / 4 skipped / exit 0** (skip 4건은 전부 E2E opt-in — 운영자 승인/`SAJUGEN_RUN_E2E` 게이트).
+- 변경 관련 파일만: `pytest tests/test_partner.py tests/test_gunghap.py tests/test_raw_term_sweep.py tests/test_couple_language.py -q` → **74 passed / 0 skipped** (변경 검증 테스트가 실제 실행됨 = GREEN 착시 아님).
+- 합성 3인 business 룰전용 렌더(PII 0, `build_gunghap(render=True)`) → **`gate_pass=True` · `loanword_clean=True` · false GATE_KEYS=[]** (블로커 해소 실측).
+- 집계 주의: Codex 구현 환경은 627 passed / 31 skipped(합계 658 동일) — 샌드박스 리소스 부재(chromium/veraPDF/API키/KASI)로 27건 추가 skip. **기준 환경 = 검증자 654/4.**
+
+## 확인하지 못한 것 / 남은 위험
+- **미push**: origin 대비 ahead 2. 유실 방어용 push는 운영자 지시 시.
+- **main 전진·실발송 미완**: feat는 베이스라인(main) 아님. main ff·실발송 전 운영자 최종 검수 게이트 남음.
+- **비블로커 관찰**: 합성 렌더에서 `domain_term_repetition` **경고**(결·구조·자리 반복) — `delivery_quality_clean=True`(게이트 아님), 룰전용 미니 리포트라 과장. `_ILJI_TENSION_KO`의 "결/구조" 의존 문안 다양화는 선택 개선(미착수).
+- **자형/상형 실렌더 톤 미확인**: 합성 렌더는 子·未·酉(해·원진·파)만 커버. 자형(辰辰 등)·상형(子卯)의 실렌더 문안 인상은 미검수(문안 register 동일이라 위험 낮음, 필요 시 합성 프로파일 추가).
+- **미커밋 프로세스 산출물**: `C:\Users\pc\test-project\REVIEW-FEEDBACK.md`(검증 판정 기록), `C:\Users\pc\test-project\handoff\codex-ilji-tension-followup.md`(Codex 지시문) — untracked. 커밋 여부는 운영자 판단.
+
+## 다음 행동 (구체적 첫 스텝부터)
+1. (선택) `git push origin codex/gunghap-relationship-quality` — 유실 방어(운영자 지시 시).
+2. main 전진 원하면: pytest 전체 GREEN 확인 후 `main`을 이 feat로 fast-forward(머지 커밋 없이 선형). 계산(`calc/`) 변경 포함이라 골든 회귀는 654에 포함됨.
+3. 관계 품질 추가 작업 후보(미착수): 자미 관계자리 실데이터 배선(`relationship/context.py:_ziwei_context` 고정 템플릿 탈피), 정량 궁합 지표(내부 grounding 한정), relationship 2인 골든 프로파일 추가. 착수 전 플랜 모드 + 운영자 승인.
+
+## 참고할 vault 노트 / 문서
+- `C:\Users\pc\test-project\REVIEW-FEEDBACK.md` (이 라운드 검증 판정 전문)
+- `C:\Users\pc\test-project\handoff\codex-ilji-tension-followup.md` (TASK 1·2 + §5 FIX 지시문)
+- `C:\Users\pc\test-project\docs\03-engine-validation-plan.md` §1-1 (형·해·파·원진 채택표 SSOT)
+- `C:\Users\pc\test-project\docs\16-quality-incident-ledger.md` (품질 사고 장부 — 이 loanword 건 기록 대상)
+- [[feedback-claude-plan-verify-codex-implements]] · [[할루시네이션-방어]]
+
+---
+
 # HANDOFF — 2026-07-06
 
 프로젝트: `C:\Users\pc\test-project` (sajugen — 사주+자미 종합 PDF 리포트 생성기)

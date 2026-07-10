@@ -1,6 +1,26 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-07 후속·재방문 상담 T0~T4 구현 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-10 후속·재방문 라인 완결·push + 발급/베타 문서 — 이 블록 먼저 읽기) =====
+>   [코드 완결·원격 반영] 후속·재방문 상담 기능 전체가 검증·커밋·push 완료. 원격 HEAD = `c8b48ad`
+>     (브랜치 `codex/gunghap-relationship-quality`, 8커밋). 구성: T0 문안규약+T0-④ 메타발화 / T1 orders·customers
+>     스키마+멱등 migration / T2 followup 게이트 서브셋 / T3 슬림 compose+범위밖 백스톱 / T4 CLI+상태머신 /
+>     customer-purge CLI(E9 식별자 차등 파기) / docs/22 발급 런북.
+>   [검증] 기준환경(전 리소스) `./.venv/Scripts/python.exe -m pytest tests/ -q` → **695 passed / 4 skipped / exit 0**,
+>     골든 28 GREEN(계산 불변). 교차리뷰 라운드1~5 전부 PASS(Claude 검증, `REVIEW-FEEDBACK.md` 라운드별 기록).
+>     기준선=695/4(감소=회귀). Codex 샌드박스는 skip 상이(E3 리소스 부재) — 완료 근거는 기준환경만.
+>   [수정 라운드 반영] A=메타발화 면책·의료 보일러 제거(문맥형 775·"병을 진단하는 자리가 아니라"·완화형 1659·1668 유지),
+>     B=`.claude/rules/content.md:12` 두 층 분리(의료 단정 금지 유지·"문구 고정" 폐지), C=`followup/compose.py`
+>     allowed_years 빈 경계 factcheck 백스톱 명문화.
+>   [미커밋(의도 제외)] `HANDOFF.md`·`REVIEW-FEEDBACK.md`·`handoff/codex-*.md` 4종(지시문·리뷰로그 — 운영자 판단).
+>   [문서 상태] `docs/22-issuance-runbook.md` = 커밋·push 완료. **`docs/23-beta-operating-manual.md`(초보자 베타 실행
+>     매뉴얼) = 플랜 파일에 초안만 있고 repo 미저장(2026-07-10 ExitPlanMode 거부됨 — 저장 여부 운영자 대기).**
+>     매뉴얼 초안 위치: `C:\Users\pc\.claude\plans\ai-brain-...-shimmering-popcorn.md`.
+>   [결정] main 전진=보류(운영자 선택: 베타 먼저). 발송 베이스라인 불변.
+>   [다음 단계] (1) 지인 베타 2건 실발급 = docs/22·23 절차, 운영자 액션(사람 발송). (2) 피드백 3문항(와닿음/불신/가격)
+>     → 수정 항목 나오면 Claude가 지시문→Codex→교차리뷰 라운드6. **현재 Codex에 넘길 코드 작업 없음.**
+>   [불변 유지] 계산 LLM 위임 0·factcheck 하드차단·APPROVED 물리차단·PII 0.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-07 후속·재방문 상담 T0~T4 구현 완료) =====
 >   [TASK_PACKET 실행 완료] `C:\Users\pc\.claude\plans\ai-brain-50-decisions-2026-07-07-sajugen-shimmering-popcorn.md`
 >     기준으로 T0→T1→T2→T3→T4 순서 실행. 패킷 재해석 없음. 모순/범위 이탈로 멈춘 항목 없음.
 >   [T0] "상담에서" 원천 문구 제거, 월 표기 `간지월(절기명 - 양력 M/D~M/D)` 고정, 상대시제 절기경계 lint
