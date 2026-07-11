@@ -15,6 +15,7 @@ from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from . import modules as integrated_modules
 from . import order_flow
 from .content.question_router import QuestionCategory
 from .input import time_correction as tc
@@ -143,6 +144,7 @@ def _detail_response(
     sections = (report.content or {}).get("sections", [])
     guard = meta.get("guard", {})
     category_state = order_flow.question_category_state(report)
+    module_state = order_flow.module_selection_state(report)
     return templates.TemplateResponse(
         request,
         "admin_detail.html.j2",
@@ -164,6 +166,15 @@ def _detail_response(
             "action_error": action_error,
             "question_category": category_state,
             "question_categories": [category.value for category in QuestionCategory],
+            "module_selection": module_state,
+            "module_options": tuple(
+                module_id
+                for module_id in integrated_modules.SELECTABLE_MODULES
+                if module_id != "gunghap"
+            ),
+            "recommended_modules": integrated_modules.recommended_modules_for_category(
+                category_state["value"]
+            ),
         },
         status_code=status_code,
     )
@@ -286,6 +297,26 @@ def confirm_question_category(
 ):
     try:
         order_flow.confirm_question_category(order_id, category, db_path=_db())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except order_flow.EditNotAllowed as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return RedirectResponse(f"/admin/orders/{order_id}", status_code=303)
+
+
+@router.post("/orders/{order_id}/module-selection")
+def confirm_module_selection(
+    order_id: str,
+    modules: list[str] | None = Form(None),
+):
+    try:
+        order_flow.confirm_module_selection(
+            order_id,
+            modules or [],
+            db_path=_db(),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except order_flow.EditNotAllowed as exc:

@@ -875,6 +875,61 @@ def confirm_question_category(
         st.close()
 
 
+def confirm_module_selection(
+    order_id: str,
+    modules: list[str] | tuple[str, ...],
+    *,
+    actor: str = "admin",
+    db_path: str = DEFAULT_DB,
+) -> tuple[str, ...]:
+    """생성 전 integrated_full 주문의 모듈 목록을 검증해 저장한다.
+
+    레지스트리 정규화를 그대로 사용하므로 빈 목록·미등록·중복은 fail-closed다. 1인 주문
+    관리자 경로에서는 gunghap을 한 번 더 거부한다. 상태 전이는 하지 않으며 감사 note에는
+    정규화된 모듈 ID만 기록해 고객 입력을 복제하지 않는다.
+    """
+
+    st = OrderStore(db_path)
+    try:
+        state = st.get_state(order_id)
+        if state != OrderState.NORMALIZED:
+            raise EditNotAllowed(
+                "모듈 확정은 생성 전 NORMALIZED 상태에서만 가능합니다"
+            )
+        report = st.get_report(order_id)
+        selection = module_selection_state(report)
+        if selection["product"] != integrated.PRODUCT:
+            raise ValueError("모듈 확정은 integrated_full 주문에만 사용할 수 있습니다")
+        selected = integrated_modules.normalize_modules(modules)
+        if "gunghap" in selected:
+            raise ValueError("1인 integrated_full 주문에서는 gunghap 모듈을 선택할 수 없습니다")
+
+        render_meta = dict(report.render_meta or {})
+        gen_params = dict(render_meta.get("gen_params", {}))
+        gen_params["modules"] = list(selected)
+        render_meta["gen_params"] = gen_params
+        report_plan = report.report_plan.model_copy(
+            update={"sections": list(selected)}
+        )
+        saved = report.model_copy(
+            update={
+                "render_meta": render_meta,
+                "report_plan": report_plan,
+            }
+        )
+        st.save_report(order_id, saved, actor=actor)
+        st.add_audit(
+            order_id,
+            action="confirm_module_selection",
+            actor=actor,
+            section="modules",
+            note=",".join(selected),
+        )
+        return selected
+    finally:
+        st.close()
+
+
 def edit_section(
     order_id: str, section_id: str, text: str, *, actor: str = "admin", db_path: str = DEFAULT_DB
 ) -> list[dict]:

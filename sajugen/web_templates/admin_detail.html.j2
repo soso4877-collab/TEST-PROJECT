@@ -94,6 +94,43 @@
   {% endif %}
 </div>
 
+{% if module_selection.product == "integrated_full" %}
+<h3>모듈 추천·확정</h3>
+<div class="panel{% if module_selection.needs_confirmation %} red{% endif %}">
+  현재 상태:
+  <b>{{ "확정" if module_selection.confirmed else "미확정" }}</b>
+  {% if module_selection.confirmed %}
+    / 저장 모듈: {{ module_selection.modules | join(", ") }}
+  {% endif %}<br>
+  {% if recommended_modules %}
+    질문 카테고리 추천: {{ recommended_modules | join(", ") }}
+  {% else %}
+    질문 카테고리 추천 없음 — 운영자 선택이 필요합니다.
+  {% endif %}
+  {% if module_selection.needs_confirmation %}
+    <br>추천은 참고 표시이며 자동 선택되지 않습니다. 하나 이상 직접 선택해 확정하세요.
+  {% endif %}
+
+  {% if state == "NORMALIZED" %}
+  <form method="post" action="/admin/orders/{{ order_id }}/module-selection" style="margin-top:8px">
+    {% for module_id in module_options %}
+      <label style="margin-right:12px">
+        <input type="checkbox" name="modules" value="{{ module_id }}"{% if module_id in module_selection.modules %} checked{% endif %}>
+        {{ module_id }}{% if module_id in recommended_modules %} <span class="tag">추천</span>{% endif %}
+      </label>
+    {% endfor %}
+    <button type="submit">모듈 확정 저장</button>
+  </form>
+  {% endif %}
+
+  {% if module_selection.confirmed and state == "NORMALIZED" %}
+  <form method="post" action="/admin/orders/{{ order_id }}/retry" style="margin-top:8px">
+    <button type="submit">확정 모듈로 재시도</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if meta.bazi %}
 <h3>계산·게이트</h3>
 <div class="panel">

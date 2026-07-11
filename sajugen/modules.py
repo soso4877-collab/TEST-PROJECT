@@ -69,6 +69,29 @@ _PERSONAL_SECTION_MODULE: dict[str, str] = {
     for section_id in MODULE_REGISTRY[module_id]["personal_section_ids"]
 }
 
+# Q6 질문 분류는 한국어 enum 값을 저장한다. 추천은 운영자 판단을 돕는 표시값일 뿐이며,
+# 이 매핑 함수는 주문 메타를 읽거나 쓰지 않는다. 1인 integrated_full에서는 상대 정보가
+# 없으므로 대인 질문도 개인 관계 영역인 love만 추천하고 gunghap은 추천하지 않는다.
+_RECOMMENDED_MODULES_BY_CATEGORY: dict[str, tuple[str, ...]] = {
+    "연애": ("love",),
+    "직업": ("job",),
+    "재물": ("wealth",),
+    "건강": ("health",),
+    "대인": ("love",),
+    "시기": (),
+    "전반": (),
+}
+
+
+def recommended_modules_for_category(category: str) -> tuple[str, ...]:
+    """Q6 질문 카테고리에 맞는 운영자 참고용 모듈 튜플을 반환한다.
+
+    미지정·미등록 값은 빈 튜플이다. 반환값을 자동 선택이나 주문 저장에 연결하지 않아
+    모듈 확정은 반드시 관리자 POST를 거치게 한다.
+    """
+
+    return _RECOMMENDED_MODULES_BY_CATEGORY.get(str(category or "").strip(), ())
+
 
 def normalize_modules(modules: Iterable[str] | None) -> tuple[str, ...]:
     """선택 모듈을 검증하고 레지스트리 정규 순서의 튜플로 반환한다.

@@ -18,6 +18,7 @@ from sajugen import integrated
 from sajugen import modules as integrated_modules
 from sajugen.calc import engine
 from sajugen.content import delivery_quality, rules
+from sajugen.content.question_router import QuestionCategory
 from sajugen.input import time_correction as tc
 
 
@@ -300,6 +301,28 @@ def test_module_selection_normalizes_to_one_deterministic_order():
         integrated_modules.normalize_modules(["unknown"])
     with pytest.raises(ValueError, match="duplicates"):
         integrated_modules.normalize_modules(["love", "love"])
+
+
+@pytest.mark.parametrize(
+    ("category", "expected"),
+    [
+        (QuestionCategory.LOVE.value, ("love",)),
+        (QuestionCategory.JOB.value, ("job",)),
+        (QuestionCategory.WEALTH.value, ("wealth",)),
+        (QuestionCategory.HEALTH.value, ("health",)),
+        (QuestionCategory.RELATION.value, ("love",)),
+        (QuestionCategory.TIMING.value, ()),
+        (QuestionCategory.GENERAL.value, ()),
+    ],
+)
+def test_recommended_modules_cover_every_question_category(category, expected):
+    # 추천은 표시용 순수 함수이며 7종 질문 카테고리를 결정론 표로 전수 고정한다.
+    assert integrated_modules.recommended_modules_for_category(category) == expected
+
+
+@pytest.mark.parametrize("category", ["", "미등록"])
+def test_recommended_modules_return_empty_for_unspecified_or_unknown_category(category):
+    assert integrated_modules.recommended_modules_for_category(category) == ()
 
 
 def test_rules_expose_job_and_wealth_providers_without_changing_full_work_bytes():

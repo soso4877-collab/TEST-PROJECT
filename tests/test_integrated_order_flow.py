@@ -113,18 +113,11 @@ def _create_confirmed_order(db: Path, *, retry: bool = False) -> str:
         brand="default",
         db_path=str(db),
     )
+    order_flow.confirm_module_selection(order_id, ["love"], db_path=str(db))
     store = OrderStore(db)
     try:
         report = store.get_report(order_id)
-        meta = dict(report.render_meta)
-        params = dict(meta["gen_params"])
-        params["modules"] = ["love"]
-        meta["gen_params"] = params
-        store.save_report(
-            order_id,
-            report.model_copy(update={"render_meta": meta}),
-            actor="admin",
-        )
+        assert report.report_plan.sections == ["love"]
         if retry:
             store.transition(order_id, OrderState.CALC_MISMATCH, actor="system")
     finally:
