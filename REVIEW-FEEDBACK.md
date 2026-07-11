@@ -1,3 +1,31 @@
+# 교차 리뷰 — 2026-07-11 (라운드 15, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `81ebf3d` 위) · 구현자: Codex · 지시문: `handoff/tasks/audit-a1-mutation-hardening-20260711.md` (감사 A-1, 테스트 전용)
+
+## 최종 판정: **승인(PASS)** — 감사 생존 변이 M1·단일점 M3의 차단측 배치 완료, 변이 재검으로 격추 실증. 절차 이탈 0.
+
+### 실측
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 범위 | `tests/test_render_verify.py` +91만. **제품 코드 diff 0**(`git diff --name-only -- sajugen/render/` 출력 없음) | ✓ |
+| pytest | **831 passed / 4 skipped / exit 0**(기준선 829/4 + 신규 2, 감소 0, 골든 28 포함). Ruff GREEN | ✓ |
+| M1 차단측 | fitz 정밀 합성 PDF로 임계 양방(하한-1 차단/경계 통과), `MIN_TEXT_CHARS` 상수 참조 + `max(1,…)`로 0-무력화 변이가 반드시 단언 실패하는 설계. 다른 게이트 키 비단언(과단언 회피) 명시 | ✓ |
+| M3 이중화 | 실렌더 PDF + 비선택 모듈 유입 주입 → `delivery_quality_clean`·`gate_pass`·`unexpected_module_sections` 전용 단언 — 단일 감지점 의존 해소 | ✓ |
+| **변이 재검(리뷰어 직접 재실행)** | M1 변이(1500→0) 주입 → **1 failed**(신규 테스트 격추) / M3 변이(clean→True) 주입 → **1 failed**. 각각 `git restore` 원복·제품 diff 0 재확인 | ✓ |
+| 도크스트링 | 검증/비검증 범위 명시(B-4) + 감사 근거 인용 | ✓ |
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q          → 831 passed / 4 skipped / exit 0
+변이 M1·M3 주입 → pytest test_render_verify.py → 각 1 failed → git restore 원복
+./.venv/Scripts/python.exe -m ruff check (테스트 1파일)  → All checks passed
+```
+
+감사 2026-07 후속 중 코드 몫(A-1) 종결. 잔여 = A-2(55파일 정리)·A-3(hsweep 파일럿) 운영자 액션, A-4 차기 감사.
+
+---
+---
+
 # 교차 리뷰 — 2026-07-11 (라운드 14, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `6105ed9` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-given-guard-20260711.md` v2 (동명 given 커플 접수 차단)

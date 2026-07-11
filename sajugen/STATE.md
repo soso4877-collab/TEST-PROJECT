@@ -105,8 +105,26 @@
 >   [커밋·push·main 전진 완료 2026-07-11 운영자 지시] `5519899` feat(given 가드 2파일) + docs(기록·
 >     manifest — 이 커밋). manifest = done(archive). feat push + **main fast-forward 전진·push**(Q7 완결 +
 >     829/4 GREEN = 컨벤션 충족, 선형 유지). **Q7 프로젝트 종결.**
->   [잔존 선택 항목] LLM-on 정상 쌍 N=5 실측(과금, 위험 낮음 — 필요 시 승인)·LLM-on 문안 육안 검수
->     (render/out/q7_synth_n4_llm.pdf — 운영자만 가능). PII 잔여 3건(ignored 55파일 정리 등)은 별도 트랙.
+>   [잔존 선택 항목] LLM-on 정상 쌍 N=5 실측(과금, 위험 낮음 — 필요 시 승인). LLM-on 문안 육안 검수는
+>     **운영자 완료(2026-07-11)** — 디벨롭 희망 다수이나 완성 우선 결정. PII 잔여 3건은 별도 트랙.
+>   [월 감사 2026-07 완료 2026-07-11] 보고서 = handoff/reports/audit-2026-07/audit.md(로컬 전용).
+>     기계 게이트 전 GREEN(골든 28·deadparam 0·레지스트리 동기화), 문서-코드 불일치 0, 7월 QI 재발방지
+>     전수 닫힘(열림 2 = 55파일 정리·hsweep 파일럿, 둘 다 운영자 액션). **변이 4건 중 M1 생존**:
+>     MIN_TEXT_CHARS(통이미지 차단) 1500→0 완화를 전체 829 테스트가 못 잡음 — 차단측 부재.
+>     M3(delivery aggregate no-op)는 격추이나 감지 단일점. 후속 A-1 = 차단측 보강 소형 발주(결정 대기).
+>   [A-1 발주 2026-07-11] 패킷 = `handoff/tasks/audit-a1-mutation-hardening-20260711.md`(승인, SHA
+>     `788fc78f…`) — **테스트 전용**(test_render_verify.py 1파일, 제품 코드 무변경): M1 차단측(text_layer
+>     임계 양방, MIN_TEXT_CHARS 상수 참조) + M3 이중화(verify 경유 delivery 차단 전용) + 변이 재검 2건
+>     RED 증거 의무. manifest = planned/next_actor=codex, 검증 = 라운드15, 기준선 829/4.
+>   [라운드15 PASS 2026-07-11] A-1 구현(Codex, 테스트 1파일 +91·제품 diff 0) 교차리뷰 승인. 기준환경
+>     **831 passed / 4 skipped / exit 0**(829+2, 감소 0) = 새 기준선. **변이 재검 리뷰어 직접 재실행:
+>     M1(임계→0)·M3(clean→True) 주입 시 신규 테스트가 각각 격추(1 failed) 후 원복** — 감사 생존 변이 0.
+>     감사 후속 코드 몫 종결. 정본 = REVIEW-FEEDBACK 라운드15 절.
+>   [A-1 커밋·push·main 전진 완료 2026-07-11 운영자 지시] `3f36b39` test(A-1) + docs(기록·manifest —
+>     이 커밋). manifest = done(archive). feat push + main ff 전진·push(831/4 GREEN·선형 유지).
+>     **감사 2026-07 코드 후속 전부 종결.**
+>   [다음] 베타 트랙 착수 — docs/23 베타 운영 기준 초안(작성 중, 운영자 검토 대기). 잔여 운영자 액션:
+>     A-2 ignored 55파일 정리·A-3 hsweep 파일럿(첫 발송물)·PII 잔여 ②③.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목

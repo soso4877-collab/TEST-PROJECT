@@ -1,5 +1,14 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## 감사 A-1 라운드15 — 2026-07-11 (검증 세션, 리뷰어 Claude)
+
+- 판정: **PASS**. 테스트 전용(test_render_verify.py +91, 제품 diff 0) — M1 차단측(text_layer 임계 양방)·M3 이중화(verify 경유 delivery 전용). 정본 = `REVIEW-FEEDBACK.md` 라운드15 절.
+- 기준환경 확정: **831 passed / 4 skipped / exit 0**(829+2, 감소 0) — 새 기준선. 변이 재검 직접 재실행으로 M1·M3 격추 실증(원복 완료). **감사 2026-07 생존 변이 0, 코드 후속 종결.**
+- 커밋 완료(2026-07-11 운영자 지시): `3f36b39` test(A-1) / docs(기록·manifest). manifest = done + archive. feat push + main ff 전진·push. 감사 코드 후속 종결.
+- 다음: 베타 트랙 — docs/23 초안 작성.
+
+---
+
 ## Q7 given 가드 라운드14 — 2026-07-11 (검증 세션, 리뷰어 Claude)
 
 - 판정: **PASS**. v2 패킷(정지→정정 경유) 그대로 — given_name 출력 동등성 술어, 접수 전 차단, 경계표 차단 5·통과 4 고정. 정본 = `REVIEW-FEEDBACK.md` 라운드14 절.
