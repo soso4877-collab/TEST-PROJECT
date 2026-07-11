@@ -18,6 +18,7 @@ from . import gunghap
 from . import modules as integrated_modules
 from .calc import engine
 from .content import builder, client_tone_lint, llm_usage, postprocess
+from .input import time_correction as tc
 from .refdate import default_ref_date_iso
 from .render import pdf as render_pdf
 from .render import verify as render_verify
@@ -578,6 +579,10 @@ def build_integrated_full(
     out_dir: str | Path | None = None,
     ref_date: str | None = None,
     modules: list[str] | tuple[str, ...] | None = None,
+    longitude: float = tc.SEOUL_LON,
+    latitude: float = tc.SEOUL_LAT,
+    policy: tc.ZasiPolicy = tc.ZasiPolicy.JST_2300,
+    horoscope_date: str | None = None,
 ) -> dict:
     selected_modules = integrated_modules.normalize_modules(modules)
     receiver = _receiver_person(people_in, receiver_name)
@@ -590,6 +595,9 @@ def build_integrated_full(
     ref_date = ref_date or f"{ref_year}-06-13"
     receiver_name = receiver[0]
     y, mo, da, hh, mi = receiver[1]
+    # 주문 경로의 진태양시 좌표·자시 정책·대한 기준일을 결정론 엔진까지 빠짐없이
+    # 전달한다. 기본값은 Q7 이전 동작(서울/JST_2300/해당 연도 6월 1일)과 같아
+    # 기존 CLI와 라이브러리 호출의 산출을 바꾸지 않는다.
     saju = engine.build(
         y,
         mo,
@@ -597,7 +605,10 @@ def build_integrated_full(
         hh,
         mi,
         is_male=bool(receiver[2]),
-        horoscope_date=f"{ref_year}-06-01",
+        longitude=longitude,
+        latitude=latitude,
+        policy=policy,
+        horoscope_date=horoscope_date or f"{ref_year}-06-01",
     )
     personal_report = builder.build_report(
         saju,
@@ -652,6 +663,22 @@ def build_integrated_full(
     report = SimpleNamespace(sections=sections)
     names = [p["name"] for p in people]
     role_specs = client_tone_lint.role_perspective_specs(names, receiver=receiver_name)
+    crosscheck = getattr(saju, "crosscheck", None)
+    personal_guard = getattr(personal_report, "guard", None)
+    guard_data = (
+        personal_guard.model_dump()
+        if hasattr(personal_guard, "model_dump")
+        else dict(personal_guard or {})
+    )
+    calc_consistent = all(
+        bool(getattr(crosscheck, field, True))
+        for field in (
+            "bazi_consistent",
+            "month_branch_ok",
+            "year_branch_ok",
+            "kasi_consistent",
+        )
+    )
     result = {
         "product": PRODUCT,
         "report": report,
@@ -669,6 +696,21 @@ def build_integrated_full(
         "module_schema_version": MODULE_SCHEMA_VERSION,
         "premerge_section_ids": assembly.premerge_section_ids,
         "module_sections": assembly.module_sections,
+        # 주문 플로우가 기존 UnifiedReport/Report23 상태머신을 그대로 재사용하도록
+        # 개인 빌더의 검증·사실 허용 메타와 계산 교차검증 결과를 함께 반환한다.
+        # 키 추가만 하므로 기존 CLI 출력과 조립 본문은 변하지 않는다.
+        "guard": guard_data,
+        "allow_tokens": dict(getattr(personal_report, "allow_tokens", {}) or {}),
+        "concern_category": getattr(personal_report, "concern_category", None),
+        "partner_present": getattr(personal_report, "partner_present", len(people) > 1),
+        "calc_consistent": calc_consistent,
+        "crosscheck_warnings": list(getattr(crosscheck, "warnings", []) or []),
+        "bazi": str(getattr(crosscheck, "bazi_myeongni", "") or ""),
+        "input_civil": str(getattr(saju, "input_civil", "") or ""),
+        "near_term_boundary": bool(getattr(crosscheck, "near_term_boundary", False)),
+        "ref_year": ref_year,
+        "ref_date": ref_date,
+        "horoscope_date": horoscope_date or f"{ref_year}-06-01",
     }
     if not render:
         return result

@@ -84,6 +84,117 @@ def test_create_order_persists_deterministic_question_category(tmp_path):
         classified_store.close()
 
 
+def test_integrated_full_create_stores_empty_modules_and_question_category(tmp_path):
+    db = tmp_path / "integrated-full-orders.sqlite"
+    order_id, warnings = order_flow.create_order(
+        birth="2000-01-01 12:00",
+        gender="male",
+        name="DOC_A",
+        product="integrated_full",
+        concern="이직 준비 순서가 궁금합니다.",
+        brand="default",
+        db_path=str(db),
+    )
+
+    assert warnings == []
+    full_store = OrderStore(db)
+    try:
+        report = full_store.get_report(order_id)
+        assert full_store.get_state(order_id) == OrderState.NORMALIZED
+        assert report.report_plan.product == "integrated_full"
+        assert report.render_meta["gen_params"]["modules"] == []
+        assert report.render_meta["question_category"]["value"] == "직업"
+        assert order_flow.module_selection_state(report) == {
+            "product": "integrated_full",
+            "modules": [],
+            "confirmed": False,
+            "needs_confirmation": True,
+        }
+    finally:
+        full_store.close()
+
+
+def test_integrated_full_unknown_time_creates_no_order_but_integrated_is_unchanged(tmp_path):
+    full_db = tmp_path / "unknown-full.sqlite"
+    with pytest.raises(ValueError, match="known birth time"):
+        order_flow.create_order(
+            birth="2000-01-01",
+            gender="male",
+            name="DOC_A",
+            product="integrated_full",
+            brand="default",
+            db_path=str(full_db),
+        )
+    full_store = OrderStore(full_db)
+    try:
+        assert full_store.list_orders() == []
+    finally:
+        full_store.close()
+
+    legacy_db = tmp_path / "unknown-integrated.sqlite"
+    order_id, _warnings = order_flow.create_order(
+        birth="2000-01-01",
+        gender="male",
+        name="DOC_A",
+        product="integrated",
+        brand="default",
+        db_path=str(legacy_db),
+    )
+    legacy_store = OrderStore(legacy_db)
+    try:
+        report = legacy_store.get_report(order_id)
+        assert report.birth.birth_time is None
+        assert report.render_meta["gen_params"]["unknown_time"] is True
+        assert "modules" not in report.render_meta["gen_params"]
+    finally:
+        legacy_store.close()
+
+
+@pytest.mark.parametrize("retry", [False, True])
+def test_unconfirmed_integrated_full_generation_and_retry_keep_state(tmp_path, retry):
+    db = tmp_path / f"unconfirmed-{retry}.sqlite"
+    order_id, _warnings = order_flow.create_order(
+        birth="2000-01-01 12:00",
+        gender="male",
+        name="DOC_A",
+        product="integrated_full",
+        brand="default",
+        db_path=str(db),
+    )
+    if retry:
+        retry_store = OrderStore(db)
+        try:
+            retry_store.transition(order_id, OrderState.CALC_MISMATCH, actor="system")
+        finally:
+            retry_store.close()
+        order_flow.retry_calc(order_id, db_path=str(db))
+
+    blocked_calls = {"count": 0}
+
+    def forbidden_generate(*args, **kwargs):
+        blocked_calls["count"] += 1
+        raise AssertionError("unconfirmed integrated_full must not generate")
+
+    before_store = OrderStore(db)
+    try:
+        before = before_store.get_state(order_id)
+    finally:
+        before_store.close()
+    order_flow.run_generation(order_id, generate_fn=forbidden_generate, db_path=str(db))
+
+    after_store = OrderStore(db)
+    try:
+        assert after_store.get_state(order_id) == before == OrderState.NORMALIZED
+        blocked = [entry for entry in after_store.audit(order_id) if entry.action == "generation_blocked"]
+        assert len(blocked) == 1
+        assert blocked[0].note == "integrated_full modules unconfirmed"
+        assert "DOC_A" not in blocked[0].note
+        assert "2000-01-01" not in blocked[0].note
+    finally:
+        after_store.close()
+    assert blocked_calls["count"] == 0
+
+
 # ─────────────────── 정상 경로 ───────────────────
 
 

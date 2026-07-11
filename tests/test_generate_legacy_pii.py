@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from sajugen import app as app_mod  # noqa: E402
 from sajugen.pipeline import GenResult  # noqa: E402
+from sajugen.store.orders import OrderState, OrderStore  # noqa: E402
 
 
 @pytest.fixture
@@ -37,6 +38,67 @@ def client(tmp_path, monkeypatch):
 
 
 _FORM = {"birth": "1990-05-20 14:30", "name": "홍길동", "gender": "male", "brand": "seodam"}
+
+
+def test_generate_form_exposes_integrated_full_product(client):
+    r = client.get("/")
+    assert r.status_code == 200
+    assert '<option value="integrated_full">' in r.text
+
+
+def test_generate_integrated_full_creates_waiting_order(client, tmp_path, monkeypatch):
+    db = tmp_path / "integrated-full-app.sqlite"
+    monkeypatch.setenv("SAJUGEN_ORDERS_DB", str(db))
+    r = client.post(
+        "/generate",
+        data={
+            "birth": "2000-01-01 12:00",
+            "name": "DOC_A",
+            "gender": "male",
+            "product": "integrated_full",
+            "concern": "이직 준비 순서가 궁금합니다.",
+            "brand": "default",
+        },
+        follow_redirects=False,
+    )
+
+    assert r.status_code == 303
+    order_id = r.headers["location"].rstrip("/").split("/")[-1]
+    store = OrderStore(db)
+    try:
+        report = store.get_report(order_id)
+        assert store.get_state(order_id) == OrderState.NORMALIZED
+        assert report.render_meta["gen_params"]["modules"] == []
+        assert report.render_meta["question_category"]["value"] == "직업"
+        blocked = [entry for entry in store.audit(order_id) if entry.action == "generation_blocked"]
+        assert len(blocked) == 1
+    finally:
+        store.close()
+
+
+def test_generate_integrated_full_unknown_time_returns_422_without_order(
+    client, tmp_path, monkeypatch
+):
+    db = tmp_path / "integrated-full-unknown-app.sqlite"
+    monkeypatch.setenv("SAJUGEN_ORDERS_DB", str(db))
+    r = client.post(
+        "/generate",
+        data={
+            "birth": "2000-01-01",
+            "name": "DOC_A",
+            "gender": "male",
+            "product": "integrated_full",
+            "brand": "default",
+        },
+        follow_redirects=False,
+    )
+
+    assert r.status_code == 422
+    store = OrderStore(db)
+    try:
+        assert store.list_orders() == []
+    finally:
+        store.close()
 
 
 def test_generate_filename_has_no_birthdate(client):

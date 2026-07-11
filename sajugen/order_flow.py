@@ -15,14 +15,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
 
 from . import config as cfg
+from . import integrated
+from . import modules as integrated_modules
 from . import pipeline
 from .calc import engine
 from .content import builder, delivery_quality, factcheck, masking, question_router, safe_lint
-from .content.sections_schema import Report23
+from .content.sections_schema import GuardReport, Report23, Section
 from .input import normalize as norm
 from .input import time_correction as tc
 from .models.report import (
@@ -34,6 +37,7 @@ from .models.report import (
     UnifiedReport,
 )
 from .followup import compose as followup_compose
+from .refdate import default_ref_date_iso
 from .render import pdf as render_pdf
 from .render import verify as render_verify
 from .store.orders import OrderState, OrderStore
@@ -174,6 +178,194 @@ def question_category_state(report: UnifiedReport) -> dict:
     }
 
 
+def module_selection_state(report: UnifiedReport) -> dict:
+    """integrated_full 주문의 생성용 모듈 확정 상태를 결정론으로 반환한다.
+
+    3-A 접수는 고객에게 모듈을 받지 않고 빈 목록을 저장한다. 3-B 관리자 UI가 같은
+    ``gen_params.modules``에 확정값을 기록하기 전까지 생성·재시도는 fail-closed다.
+    """
+
+    render_meta = report.render_meta or {}
+    params = dict(render_meta.get("gen_params", {}))
+    product = str(params.get("product") or report.report_plan.product or "").strip()
+    raw_modules = params.get("modules")
+    modules = (
+        [str(module_id).strip() for module_id in raw_modules if str(module_id).strip()]
+        if isinstance(raw_modules, (list, tuple))
+        else []
+    )
+    confirmed = bool(modules)
+    return {
+        "product": product,
+        "modules": modules,
+        "confirmed": confirmed,
+        "needs_confirmation": bool(product == integrated.PRODUCT and not confirmed),
+    }
+
+
+def _integrated_report23(result: dict) -> Report23:
+    """integrated 조립 결과를 주문 편집·안전 벨트가 소비하는 Report23으로 변환한다."""
+
+    raw_guard = result.get("guard")
+    if hasattr(raw_guard, "model_dump"):
+        raw_guard = raw_guard.model_dump()
+    if not isinstance(raw_guard, dict) or not raw_guard:
+        raise RuntimeError("integrated_full guard metadata missing")
+    raw_sections = result.get("sections")
+    if not isinstance(raw_sections, list) or not raw_sections:
+        raise RuntimeError("integrated_full sections missing")
+    sections: list[Section] = []
+    for raw in raw_sections:
+        final_text = str(getattr(raw, "final_text", "") or "")
+        sections.append(
+            Section(
+                id=str(getattr(raw, "id", "") or ""),
+                title=str(getattr(raw, "title", "") or ""),
+                source_keys=list(getattr(raw, "source_keys", []) or []),
+                # 조립기는 검증 완료된 최종 문장만 복사한다. 주문 검수 편집 스키마의
+                # 필수 rule_text에는 같은 안전 본문을 넣어 새 사실을 만들지 않는다.
+                rule_text=str(getattr(raw, "rule_text", final_text) or final_text),
+                final_text=final_text,
+                polished=bool(getattr(raw, "polished", False)),
+                guard_violations=list(getattr(raw, "guard_violations", []) or []),
+            )
+        )
+    return Report23(
+        sections=sections,
+        guard=GuardReport.model_validate(raw_guard),
+        concern_category=result.get("concern_category"),
+        allow_tokens=dict(result.get("allow_tokens") or {}),
+        partner_present=bool(result.get("partner_present", False)),
+    )
+
+
+def _integrated_identity_json(identity: object) -> list:
+    """identity 3-튜플을 UnifiedReport JSON에 안전한 순서 고정 목록으로 바꾼다."""
+
+    if not isinstance(identity, (list, tuple)) or len(identity) != 3:
+        raise RuntimeError("integrated_full identity metadata missing")
+    return [
+        sorted(str(value) for value in identity[0]),
+        sorted(str(value) for value in identity[1]),
+        list(identity[2]),
+    ]
+
+
+def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
+    """확정된 1인 모듈 주문을 native integrated_full 빌더로 생성한다."""
+
+    ref_date = default_ref_date_iso()
+    horoscope = str(params.get("horoscope") or "").strip()
+    try:
+        ref_year = int(horoscope[:4]) if horoscope else int(ref_date[:4])
+    except (TypeError, ValueError):
+        ref_year = int(ref_date[:4])
+    policy = tc.ZasiPolicy.YAJASI_SPLIT if params.get("yajasi") else tc.ZasiPolicy.JST_2300
+    result = integrated.build_integrated_full(
+        [
+            (
+                str(params.get("name") or ""),
+                (
+                    int(params["year"]),
+                    int(params["month"]),
+                    int(params["day"]),
+                    int(params["hour"]),
+                    int(params["minute"]),
+                ),
+                bool(params.get("is_male")),
+            )
+        ],
+        receiver_name=str(params.get("name") or "") or None,
+        situation=str(params.get("concern") or ""),
+        ref_year=ref_year,
+        ref_date=ref_date,
+        out_name=f"draft_{order_id}.pdf",
+        brand=_required_brand_name(params.get("brand")),
+        use_llm=bool(params.get("use_llm")),
+        render=True,
+        modules=list(params.get("modules") or []),
+        longitude=float(params.get("longitude", tc.SEOUL_LON)),
+        latitude=float(params.get("latitude", tc.SEOUL_LAT)),
+        policy=policy,
+        horoscope_date=horoscope or f"{ref_year}-06-01",
+    )
+    content_path = str(result.get("content_path") or "").strip()
+    if not content_path or not Path(content_path).is_file():
+        raise RuntimeError("integrated_full content persistence missing")
+    report23 = _integrated_report23(result)
+    verify = dict(result.get("verify") or {})
+    guard = report23.guard.model_dump()
+    calc_consistent = bool(result.get("calc_consistent"))
+    reasons: list[str] = []
+    if not calc_consistent:
+        reasons.append("integrated_full calculation crosscheck mismatch")
+    if not verify.get("gate_pass"):
+        reasons.append("integrated_full render gate failed")
+    if not report23.guard.clean:
+        reasons.append("integrated_full content guard failed")
+
+    people = list(result.get("people") or [])
+    names = [str(person.get("name") or "") for person in people if person.get("name")]
+    if not names:
+        raise RuntimeError("integrated_full names metadata missing")
+    identity_json = _integrated_identity_json(result.get("identity"))
+    singang = list(result.get("singang") or [])
+    role_perspective = list(result.get("role_perspective") or [])
+    honorific = list(result.get("honorific") or [])
+    if (
+        not identity_json[0]
+        or not identity_json[1]
+        or not identity_json[2]
+        or not singang
+        or not role_perspective
+        or not honorific
+    ):
+        raise RuntimeError("integrated_full gate spec metadata missing")
+    selected_modules = integrated_modules.normalize_modules(result.get("modules"))
+    requested_modules = integrated_modules.normalize_modules(params.get("modules"))
+    module_sections = dict(result.get("module_sections") or {})
+    premerge_section_ids = list(result.get("premerge_section_ids") or [])
+    coverage = verify.get("module_coverage")
+    if (
+        selected_modules != requested_modules
+        or result.get("module_schema_version") != integrated.MODULE_SCHEMA_VERSION
+        or not module_sections
+        or not premerge_section_ids
+        or not isinstance(coverage, dict)
+        or coverage.get("skipped") is not False
+    ):
+        raise RuntimeError("integrated_full module gate metadata invalid")
+    full_meta = {
+        "content_path": content_path,
+        "names": names,
+        "receiver": str(result.get("receiver") or ""),
+        "ref_year": int(result.get("ref_year", ref_year)),
+        "ref_date": str(result.get("ref_date") or ref_date),
+        "identity": identity_json,
+        "singang": singang,
+        "role_perspective": role_perspective,
+        "honorific": honorific,
+        "selected_modules": list(selected_modules),
+        "module_schema_version": result.get("module_schema_version"),
+        "module_sections": module_sections,
+        "premerge_section_ids": premerge_section_ids,
+    }
+    return SimpleNamespace(
+        pdf_path=str(result.get("pdf_path") or ""),
+        ok=not reasons,
+        reasons=reasons,
+        verify=verify,
+        guard=guard,
+        crosscheck_warnings=list(result.get("crosscheck_warnings") or []),
+        bazi=str(result.get("bazi") or ""),
+        report=report23,
+        calc_consistent=calc_consistent,
+        input_civil=str(result.get("input_civil") or ""),
+        near_term_boundary=bool(result.get("near_term_boundary")),
+        integrated_full_meta=full_meta,
+    )
+
+
 # ───────────────── 접수(동기) ─────────────────
 
 
@@ -200,6 +392,10 @@ def create_order(
     iy, imo, ida = (int(x) for x in parts[0].split("-"))
     unknown_time = len(parts) < 2
     hh, mi = (12, 0) if unknown_time else (int(x) for x in parts[1].split(":"))
+    if product == integrated.PRODUCT and unknown_time:
+        # 자미 강등이 아직 없는 integrated_full은 정오 추정으로 조용히 진행하지 않는다.
+        # 예외는 OrderStore 생성 전에 올려 주문이 물리적으로 남지 않게 한다.
+        raise ValueError("integrated_full requires a known birth time")
 
     # 음력/윤달 입력은 KASI 1차 기준으로 양력 정규화(app.py /generate 와 동일 규칙)
     nd = norm.normalize_date(iy, imo, ida, is_lunar=lunar, is_leap=leap)
@@ -250,6 +446,9 @@ def create_order(
                 "brand": _required_brand_name(brand),
                 # 윤달 고지(자미 15일 분할법, 절대규칙5) — 음력 윤달생만(T4.4)
                 "is_leap": bool(leap and lunar),
+                # 3-B 관리자 확정 전의 명시적 빈 상태다. 기존 상품에는 키를 추가하지 않아
+                # 저장 JSON과 재생성 입력의 하위호환을 보존한다.
+                **({"modules": []} if product == integrated.PRODUCT else {}),
             },
             "normalize_warnings": warnings,
         },
@@ -281,27 +480,44 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
     try:
         report = st.get_report(order_id)
         p = dict(report.render_meta.get("gen_params", {}))
-        try:
-            r = gen(
-                p["year"],
-                p["month"],
-                p["day"],
-                p["hour"],
-                p["minute"],
-                is_male=p["is_male"],
-                longitude=p.get("longitude", tc.SEOUL_LON),
-                latitude=p.get("latitude", tc.SEOUL_LAT),
-                policy=(tc.ZasiPolicy.YAJASI_SPLIT if p.get("yajasi") else tc.ZasiPolicy.JST_2300),
-                horoscope_date=p.get("horoscope") or None,
-                use_llm=bool(p.get("use_llm")),
-                out_name=f"draft_{order_id}.pdf",
-                name=p.get("name") or None,
-                unknown_time=bool(p.get("unknown_time")),
-                product=p.get("product", "integrated"),
-                concern=p.get("concern") or None,
-                brand=_required_brand_name(p.get("brand")),
-                is_leap=bool(p.get("is_leap")),
+        selection = module_selection_state(report)
+        if selection["needs_confirmation"]:
+            # 생성과 재시도가 공유하는 물리 차단점이다. 상태는 그대로 두고, 감사에는
+            # 상품/원인만 남겨 이름·생년월일·질문 원문이 복제되지 않게 한다.
+            st.add_audit(
+                order_id,
+                action="generation_blocked",
+                note="integrated_full modules unconfirmed",
             )
+            return
+        try:
+            if selection["product"] == integrated.PRODUCT:
+                r = _run_integrated_generation(p, order_id)
+            else:
+                r = gen(
+                    p["year"],
+                    p["month"],
+                    p["day"],
+                    p["hour"],
+                    p["minute"],
+                    is_male=p["is_male"],
+                    longitude=p.get("longitude", tc.SEOUL_LON),
+                    latitude=p.get("latitude", tc.SEOUL_LAT),
+                    policy=(
+                        tc.ZasiPolicy.YAJASI_SPLIT
+                        if p.get("yajasi")
+                        else tc.ZasiPolicy.JST_2300
+                    ),
+                    horoscope_date=p.get("horoscope") or None,
+                    use_llm=bool(p.get("use_llm")),
+                    out_name=f"draft_{order_id}.pdf",
+                    name=p.get("name") or None,
+                    unknown_time=bool(p.get("unknown_time")),
+                    product=p.get("product", "integrated"),
+                    concern=p.get("concern") or None,
+                    brand=_required_brand_name(p.get("brand")),
+                    is_leap=bool(p.get("is_leap")),
+                )
         except Exception as e:  # 생성 실패 — 상태는 그대로(재시도 가능), 감사만 기록
             # 예외 문자열에 생년월일이 섞여 audit_log(영속)에 남지 않도록 마스킹(T1.3/E-2).
             try:
@@ -343,6 +559,11 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                     "guard": guard,
                     "reasons": list(r.reasons),
                     "crosscheck_warnings": list(r.crosscheck_warnings),
+                    **(
+                        {"integrated_full": dict(r.integrated_full_meta)}
+                        if hasattr(r, "integrated_full_meta")
+                        else {}
+                    ),
                 },
                 # 절입 ±2분 근접(T2.2/G-2) = 계산 검수 플래그 충전(관리자 화면 near_term_boundary)
                 "calendar_verification": report.calendar_verification.model_copy(
@@ -410,6 +631,25 @@ def run_followup(
         st.get_customer(clean_alias)
         parent_id = order_id or st.latest_order_for_alias(clean_alias)
         parent = st.get_report(parent_id)
+        parent_params = dict((parent.render_meta or {}).get("gen_params", {}))
+        parent_product = str(
+            parent_params.get("product") or parent.report_plan.product or ""
+        ).strip()
+        if parent_product == integrated.PRODUCT:
+            # 부분 조합 저장본은 질문 영역의 근거 장이 없을 수 있고 현 compose는 이를
+            # 조용히 건너뛴다. 별도 지원 단계 전까지 텍스트·PDF를 같은 지점에서 막는다.
+            return {
+                "ok": False,
+                "answer": "",
+                "reason": "integrated_full parent followup is not supported",
+                "failures": [
+                    {
+                        "source": "followup",
+                        "rule": "integrated_full_parent_unsupported",
+                    }
+                ],
+                "skipped": [],
+            }
         if backend is None:
             from .content import llm_sections
 
@@ -437,7 +677,6 @@ def run_followup(
                     "reason": "후속 PDF 조립 결과 없음",
                     "failures": [{"source": "followup", "rule": "missing_pdf_report"}],
                 }
-            parent_params = dict((parent.render_meta or {}).get("gen_params", {}))
             try:
                 render_context = {
                     "brand": parent_params.get("brand"),
@@ -748,6 +987,91 @@ def final_render_fn(report: UnifiedReport) -> str:
                 f"gate={bool(verify.get('gate_pass'))}, pages={page_range.get('value')}, "
                 f"range={bool(verify.get('followup_page_range_clean'))})"
             )
+        return pdf_path
+
+    # native integrated_full은 저장 Report23 본문을 같은 integrated 렌더러와 같은
+    # identity·singang·role·모듈 커버리지 스펙으로 재검증한다. 메타가 하나라도 없으면
+    # 개인 Report23 경로로 강등하지 않고 발급을 차단한다(B-1 no-op 재발 방지).
+    if str(p.get("product") or "") == integrated.PRODUCT:
+        full_meta = meta.get("integrated_full")
+        if not isinstance(full_meta, dict):
+            raise RuntimeError("integrated_full final metadata missing")
+        required = {
+            "names",
+            "identity",
+            "singang",
+            "role_perspective",
+            "honorific",
+            "selected_modules",
+            "module_schema_version",
+            "module_sections",
+            "premerge_section_ids",
+            "ref_year",
+            "ref_date",
+        }
+        missing = sorted(required - set(full_meta))
+        if missing:
+            raise RuntimeError(f"integrated_full final metadata incomplete(count={len(missing)})")
+        if full_meta.get("module_schema_version") != integrated.MODULE_SCHEMA_VERSION:
+            raise RuntimeError("integrated_full module schema mismatch")
+        try:
+            selected_modules = integrated_modules.normalize_modules(
+                full_meta.get("selected_modules")
+            )
+            requested_modules = integrated_modules.normalize_modules(p.get("modules"))
+        except ValueError as exc:
+            raise RuntimeError("integrated_full final module metadata invalid") from exc
+        if selected_modules != requested_modules:
+            raise RuntimeError("integrated_full final module metadata mismatch")
+
+        names = [str(name) for name in full_meta.get("names") or [] if str(name)]
+        identity_raw = full_meta.get("identity")
+        singang = list(full_meta.get("singang") or [])
+        role_specs = list(full_meta.get("role_perspective") or [])
+        honorific_specs = list(full_meta.get("honorific") or [])
+        module_sections = dict(full_meta.get("module_sections") or {})
+        premerge_section_ids = list(full_meta.get("premerge_section_ids") or [])
+        ref_date = str(full_meta.get("ref_date") or "").strip()
+        if (
+            not names
+            or not isinstance(identity_raw, (list, tuple))
+            or len(identity_raw) != 3
+            or not identity_raw[0]
+            or not identity_raw[1]
+            or not identity_raw[2]
+            or not singang
+            or not role_specs
+            or not honorific_specs
+            or honorific_specs != role_specs
+            or not module_sections
+            or not premerge_section_ids
+            or not ref_date
+        ):
+            raise RuntimeError("integrated_full final gate spec missing")
+        identity = (list(identity_raw[0]), list(identity_raw[1]), list(identity_raw[2]))
+        pdf_path, verify, _attempts = integrated._render_integrated(
+            SimpleNamespace(sections=r23.sections),
+            names=names,
+            ref_year=int(full_meta["ref_year"]),
+            situation=str(p.get("concern") or ""),
+            identity=identity,
+            singang=singang,
+            role_specs=role_specs,
+            brand=_required_brand_name(p.get("brand")),
+            out_name=f"final_{report.order_id}.pdf",
+            out_dir=None,
+            selected_modules=selected_modules,
+            module_sections=module_sections,
+            premerge_section_ids=premerge_section_ids,
+            ref_date=ref_date,
+        )
+        coverage = verify.get("module_coverage")
+        if (
+            not verify.get("gate_pass")
+            or not isinstance(coverage, dict)
+            or coverage.get("skipped") is not False
+        ):
+            raise RuntimeError("최종 integrated_full 모듈 게이트 실패")
         return pdf_path
 
     # draft 와 동일 스펙 복원 — saju 재계산(정책 매핑·horoscope→ref_year 를 pipeline 과 일치).

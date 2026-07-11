@@ -6,13 +6,14 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from urllib.parse import quote
 
-from fastapi import FastAPI, Form
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi import BackgroundTasks, FastAPI, Form
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 
-from . import admin
+from . import admin, integrated, order_flow
 from .input import normalize as norm
 from .input import time_correction as tc
 from .pipeline import generate
@@ -24,8 +25,8 @@ _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</t
 <body style="font-family:Malgun Gothic,sans-serif;max-width:520px;margin:40px auto">
 <h2>사주풀이 PDF 생성 (운영자)</h2>
 <p><a href="/admin">주문 검수 화면(접수·검수·승인·발급)으로 이동</a></p>
-<p style="font-size:13px;color:#555">아래 폼은 주문 기록 없이 즉시 PDF 만 받는 구형 경로입니다.
-실주문은 검수 화면에서 접수하세요.</p>
+<p style="font-size:13px;color:#555">기존 상품은 주문 기록 없이 즉시 PDF를 받는 구형 경로입니다.
+통합 전체(모듈형)는 모듈 확정을 위해 주문으로 접수됩니다.</p>
 <form method="post" action="/generate">
  <p>생년월일시(시민시각): <input name="birth" placeholder="2000-01-01 12:00 (생시 미상이면 날짜만)" required></p>
  <p><label><input type="checkbox" name="lunar"> 음력 입력</label>
@@ -34,6 +35,7 @@ _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</t
  <p>성별: <select name="gender"><option value="male">남</option>
    <option value="female">여</option></select></p>
  <p>상품: <select name="product"><option value="integrated">통합(명리+자미)</option>
+   <option value="integrated_full">통합 전체(모듈형)</option>
    <option value="myeongni">명리만</option><option value="ziwei">자미만</option></select></p>
  <p>브랜드: <input name="brand" value="sajudoryeong" placeholder="sajudoryeong·seodam·default 또는 원하는 문구"></p>
  <p>경도: <input name="longitude" value="126.978"> 위도: <input name="latitude" value="37.566"></p>
@@ -52,6 +54,7 @@ def index() -> str:
 
 @app.post("/generate")
 def gen(
+    background: BackgroundTasks,
     birth: str = Form(...),
     lunar: bool = Form(False),
     leap: bool = Form(False),
@@ -66,6 +69,36 @@ def gen(
     concern: str = Form(""),
     brand: str = Form("sajudoryeong"),
 ):
+    if product == integrated.PRODUCT:
+        # 구형 즉시 PDF 폼에서도 integrated_full만큼은 모듈 확정이 필요한 주문 상품이다.
+        # pipeline.generate로 강등하지 않고 주문을 만든 뒤, 공용 생성 진입점이 빈 모듈
+        # 상태를 fail-closed로 막게 한다. 기존 세 상품의 즉시 PDF 동작은 아래에서 유지한다.
+        db_path = os.environ.get("SAJUGEN_ORDERS_DB", order_flow.DEFAULT_DB)
+        try:
+            order_id, _warnings = order_flow.create_order(
+                birth=birth,
+                lunar=lunar,
+                leap=leap,
+                gender=gender,
+                longitude=longitude,
+                latitude=latitude,
+                yajasi=yajasi,
+                horoscope=horoscope,
+                use_llm=llm,
+                name=name,
+                product=product,
+                concern=concern,
+                brand=brand,
+                db_path=db_path,
+            )
+        except ValueError as exc:
+            return JSONResponse(
+                status_code=422,
+                content={"ok": False, "reasons": [str(exc)]},
+            )
+        background.add_task(order_flow.run_generation, order_id, db_path=db_path)
+        return RedirectResponse(f"/admin/orders/{order_id}", status_code=303)
+
     parts = birth.split()
     iy, imo, ida = (int(x) for x in parts[0].split("-"))
     unknown_time = len(parts) < 2

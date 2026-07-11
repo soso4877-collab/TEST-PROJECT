@@ -8,6 +8,7 @@ render/verify 배선, 10~15쪽 범위, 범위 밖 질문 차단을 합성 데이
 import sys
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -110,11 +111,21 @@ def _parent_report() -> UnifiedReport:
     )
 
 
-def _seed_parent(db: Path) -> tuple[str, str]:
+def _seed_parent(db: Path, *, product: str = "integrated") -> tuple[str, str]:
     store = OrderStore(db)
     try:
         alias = store.link_customer("SD-1000", name_masked="MASKED_SYNTHETIC")
-        parent_id = store.create(_parent_report(), alias=alias, kind="new")
+        parent = _parent_report()
+        if product != "integrated":
+            params = dict(parent.render_meta["gen_params"])
+            params["product"] = product
+            parent = parent.model_copy(
+                update={
+                    "report_plan": parent.report_plan.model_copy(update={"product": product}),
+                    "render_meta": {**parent.render_meta, "gen_params": params},
+                }
+            )
+        parent_id = store.create(parent, alias=alias, kind="new")
         return alias, parent_id
     finally:
         store.close()
@@ -322,6 +333,74 @@ def test_default_followup_path_stays_text_only(tmp_path, monkeypatch):
         child = store.get_report(result["order_id"])
         assert child.content == {}
         assert set(child.render_meta) == {"followup"}
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize("pdf", [False, True])
+def test_integrated_full_parent_blocks_text_and_pdf_before_compose(tmp_path, pdf):
+    db = tmp_path / f"integrated-full-followup-{pdf}.sqlite"
+    alias, parent_id = _seed_parent(db, product="integrated_full")
+
+    class ForbiddenBackend:
+        def compose(self, **kwargs):
+            raise AssertionError("integrated_full followup must stop before compose")
+
+    result = order_flow.run_followup(
+        alias=alias,
+        order_id=parent_id,
+        question="이직을 준비해도 될까요?",
+        pdf=pdf,
+        db_path=str(db),
+        backend=ForbiddenBackend(),
+        today="2026-07-11",
+    )
+
+    assert result == {
+        "ok": False,
+        "answer": "",
+        "reason": "integrated_full parent followup is not supported",
+        "failures": [
+            {
+                "source": "followup",
+                "rule": "integrated_full_parent_unsupported",
+            }
+        ],
+        "skipped": [],
+    }
+    store = OrderStore(db)
+    try:
+        assert [row["order_id"] for row in store.list_orders()] == [parent_id]
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize("pdf", [False, True])
+def test_gen_followup_cli_blocks_integrated_full_parent_for_text_and_pdf(tmp_path, pdf):
+    db = tmp_path / f"integrated-full-cli-{pdf}.sqlite"
+    alias, parent_id = _seed_parent(db, product="integrated_full")
+    args = [
+        "gen-followup",
+        "--alias",
+        alias,
+        "--order-id",
+        parent_id,
+        "--question",
+        "합성 질문",
+        "--db",
+        str(db),
+    ]
+    if pdf:
+        args.append("--pdf")
+
+    result = CliRunner().invoke(cli_app, args)
+
+    assert result.exit_code == 1
+    assert "integrated_full parent followup is not supported" in result.output
+    assert "integrated_full_parent_unsupported" in result.output
+    store = OrderStore(db)
+    try:
+        assert [row["order_id"] for row in store.list_orders()] == [parent_id]
     finally:
         store.close()
 

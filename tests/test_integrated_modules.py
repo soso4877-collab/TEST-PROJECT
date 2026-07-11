@@ -18,6 +18,7 @@ from sajugen import integrated
 from sajugen import modules as integrated_modules
 from sajugen.calc import engine
 from sajugen.content import delivery_quality, rules
+from sajugen.input import time_correction as tc
 
 
 def _section(section_id: str, text: str) -> SimpleNamespace:
@@ -161,6 +162,67 @@ def _analyze_module_map(
         module_sections=module_sections,
         premerge_section_ids=premerge_section_ids,
     )
+
+
+def test_integrated_calc_inputs_reach_engine_and_defaults_are_legacy_bytes(monkeypatch):
+    """신규 계산 입력은 엔진까지 도달하고, 기본값은 Q7 이전 산출과 같아야 한다."""
+
+    _patch_sources(monkeypatch)
+    calls: list[dict] = []
+    fake_saju = SimpleNamespace(
+        ref_year=2026,
+        myeongni=SimpleNamespace(day_master="甲", singang="신강"),
+    )
+
+    def fake_engine_build(*args, **kwargs):
+        calls.append({"args": args, "kwargs": dict(kwargs)})
+        return fake_saju
+
+    monkeypatch.setattr(integrated.engine, "build", fake_engine_build)
+    legacy = integrated.build_integrated_full(
+        _people(1),
+        receiver_name="DOC_A",
+        modules=["love"],
+        render=False,
+    )
+    explicit_legacy = integrated.build_integrated_full(
+        _people(1),
+        receiver_name="DOC_A",
+        modules=["love"],
+        render=False,
+        longitude=tc.SEOUL_LON,
+        latitude=tc.SEOUL_LAT,
+        policy=tc.ZasiPolicy.JST_2300,
+        horoscope_date="2026-06-01",
+    )
+    integrated.build_integrated_full(
+        _people(1),
+        receiver_name="DOC_A",
+        modules=["love"],
+        render=False,
+        longitude=129.0756,
+        latitude=35.1796,
+        policy=tc.ZasiPolicy.YAJASI_SPLIT,
+        horoscope_date="2027-03-15",
+    )
+
+    assert calls[0]["kwargs"] == calls[1]["kwargs"] == {
+        "is_male": True,
+        "longitude": tc.SEOUL_LON,
+        "latitude": tc.SEOUL_LAT,
+        "policy": tc.ZasiPolicy.JST_2300,
+        "horoscope_date": "2026-06-01",
+    }
+    assert calls[2]["kwargs"] == {
+        "is_male": True,
+        "longitude": 129.0756,
+        "latitude": 35.1796,
+        "policy": tc.ZasiPolicy.YAJASI_SPLIT,
+        "horoscope_date": "2027-03-15",
+    }
+    assert [(section.id, section.final_text) for section in legacy["sections"]] == [
+        (section.id, section.final_text) for section in explicit_legacy["sections"]
+    ]
 
 
 def test_cli_gen_without_module_passes_none_and_preserves_legacy_call(monkeypatch):
