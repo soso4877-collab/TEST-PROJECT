@@ -212,6 +212,127 @@ def test_partner_fields_without_birth_keep_exact_one_person_shape(tmp_path):
 
 
 @pytest.mark.parametrize(
+    ("name", "partner_name"),
+    [
+        pytest.param("김민준", "이민준", id="three-char-same-given"),
+        pytest.param("김민준", "김민준", id="identical-full-name"),
+        pytest.param("김민준", "이민준 ", id="partner-trailing-space"),
+        pytest.param("김민", "김민", id="identical-two-char-name"),
+        pytest.param("민준", "김민준", id="two-to-three-char-cross"),
+    ],
+)
+def test_integrated_full_given_name_collision_creates_no_order(
+    tmp_path,
+    name,
+    partner_name,
+):
+    """호칭이 충돌하는 2인 주문은 원문을 노출하지 않고 저장 전에 차단한다."""
+    db = tmp_path / "blocked-given-name.sqlite"
+
+    with pytest.raises(ValueError, match="본문 호칭이 같아") as exc_info:
+        order_flow.create_order(
+            birth="2000-01-01 12:00",
+            gender="male",
+            name=name,
+            partner_name=partner_name,
+            partner_birth="2001-02-02 13:30",
+            partner_gender="female",
+            product="integrated_full",
+            brand="default",
+            db_path=str(db),
+        )
+
+    # 오류 응답에는 판정 원인만 남기고 입력 이름·생년월일은 복제하지 않는다.
+    message = str(exc_info.value)
+    assert name.strip() not in message
+    assert partner_name.strip() not in message
+    assert "2000-01-01" not in message
+    assert "2001-02-02" not in message
+
+    blocked_store = OrderStore(db)
+    try:
+        assert blocked_store.list_orders() == []
+    finally:
+        blocked_store.close()
+
+
+@pytest.mark.parametrize(
+    ("case_id", "product", "name", "partner_name", "partner_birth", "has_partner"),
+    [
+        pytest.param(
+            "different-surname-single-given",
+            "integrated_full",
+            "김민",
+            "이민",
+            "2001-02-02 13:30",
+            True,
+            id="different-surname-single-given",
+        ),
+        pytest.param(
+            "different-given",
+            "integrated_full",
+            "김민준",
+            "이서연",
+            "2001-02-02 13:30",
+            True,
+            id="different-given",
+        ),
+        pytest.param(
+            "one-person",
+            "integrated_full",
+            "김민준",
+            "김민준",
+            "",
+            False,
+            id="one-person",
+        ),
+        pytest.param(
+            "existing-product",
+            "integrated",
+            "김민준",
+            "김민준",
+            "",
+            False,
+            id="existing-product",
+        ),
+    ],
+)
+def test_given_name_guard_preserves_non_colliding_intake(
+    tmp_path,
+    case_id,
+    product,
+    name,
+    partner_name,
+    partner_birth,
+    has_partner,
+):
+    """given_name 출력이 다르거나 가드 대상이 아니면 기존 접수를 그대로 보존한다."""
+    db = tmp_path / f"allowed-given-name-{case_id}.sqlite"
+
+    order_id, warnings = order_flow.create_order(
+        birth="2000-01-01 12:00",
+        gender="male",
+        name=name,
+        partner_name=partner_name,
+        partner_birth=partner_birth,
+        partner_gender="female",
+        product=product,
+        brand="default",
+        db_path=str(db),
+    )
+
+    assert warnings == []
+    allowed_store = OrderStore(db)
+    try:
+        assert allowed_store.get_state(order_id) == OrderState.NORMALIZED
+        report = allowed_store.get_report(order_id)
+        partner = report.render_meta["gen_params"].get("partner")
+        assert (partner is not None) is has_partner
+    finally:
+        allowed_store.close()
+
+
+@pytest.mark.parametrize(
     ("product", "partner_birth", "cause"),
     [
         ("integrated_full", "2001-02-02", "known birth time"),

@@ -24,7 +24,15 @@ from . import integrated
 from . import modules as integrated_modules
 from . import pipeline
 from .calc import engine
-from .content import builder, delivery_quality, factcheck, masking, question_router, safe_lint
+from .content import (
+    builder,
+    client_tone_lint,
+    delivery_quality,
+    factcheck,
+    masking,
+    question_router,
+    safe_lint,
+)
 from .content.sections_schema import GuardReport, Report23, Section
 from .input import normalize as norm
 from .input import time_correction as tc
@@ -448,6 +456,17 @@ def create_order(
         except (TypeError, ValueError):
             raise ValueError("partner birth input is invalid") from None
         partner_input = (piy, pimo, pida, phh, pmi)
+
+    if (
+        product == integrated.PRODUCT
+        and partner_input is not None
+        and client_tone_lint.given_name(name.strip())
+        == client_tone_lint.given_name(partner_name.strip())
+    ):
+        # 본문 호칭과 role/honorific 게이트가 쓰는 given_name을 그대로 재사용한다.
+        # 두 출력이 같으면 생성 뒤에는 사람을 구분할 수 없으므로 저장소를 열기 전에
+        # 접수를 멈춘다. 원문 이름은 오류에 넣지 않아 응답·로그의 PII 복제를 막는다.
+        raise ValueError("두 사람의 본문 호칭이 같아 구분할 수 없어 접수할 수 없습니다")
 
     # 본인과 상대 모두 같은 KASI 1차 정규화 진입점을 재사용한다.
     nd = norm.normalize_date(iy, imo, ida, is_lunar=lunar, is_leap=leap)
