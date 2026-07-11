@@ -4,6 +4,8 @@
 import sys
 from pathlib import Path
 
+import fitz
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -212,6 +214,95 @@ def _sn(sid, title, text):
     from types import SimpleNamespace
 
     return SimpleNamespace(id=sid, title=title, source_keys=["m"], final_text=text)
+
+
+def _write_exact_text_pdf(path, char_count):
+    """fitz 추출 결과가 ``char_count``자인 단일 페이지 합성 PDF를 만든다."""
+
+    # Courier 8pt에서 한 줄이 페이지 폭을 넘지 않게 나누되, 줄바꿈 문자까지 목표 길이에
+    # 포함한다. verify()는 마지막 줄바꿈을 strip하므로 payload 자체에 끝 줄바꿈은 두지 않는다.
+    line_width = 60
+    line_count = max(1, (char_count + line_width + 1) // (line_width + 1))
+    letter_count = char_count - (line_count - 1)
+    base_width, extra = divmod(letter_count, line_count)
+    lines = ["x" * (base_width + (1 if index < extra else 0)) for index in range(line_count)]
+    payload = "\n".join(lines)
+    assert len(payload) == char_count
+
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    page.insert_text((36, 36), payload, fontname="cour", fontsize=8, lineheight=1.2)
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def test_verify_text_layer_threshold_blocks_below_and_allows_boundary(tmp_path):
+    """감사 2026-07 M1: 텍스트층 하한 직전은 차단하고 경계값은 허용하는지 검증한다.
+
+    tiny 합성 PDF의 폰트 임베드·태그·기하 등 다른 게이트 통과 여부는 검증하지 않는다.
+    """
+
+    # 0으로 무력화된 상수도 차단측 단언이 잡도록 아래 PDF는 항상 1자 이상을 유지한다.
+    below_chars = max(1, v.MIN_TEXT_CHARS - 1)
+    boundary_chars = max(1, v.MIN_TEXT_CHARS)
+    below_pdf = _write_exact_text_pdf(tmp_path / "text-layer-below.pdf", below_chars)
+    boundary_pdf = _write_exact_text_pdf(tmp_path / "text-layer-boundary.pdf", boundary_chars)
+
+    below = v.verify(str(below_pdf))
+    boundary = v.verify(str(boundary_pdf))
+
+    assert below["text_chars"] == below_chars
+    assert below["text_layer_ok"] is False
+    assert below["gate_pass"] is False
+    assert boundary["text_chars"] == boundary_chars
+    assert boundary["text_layer_ok"] is True
+
+
+def test_verify_delivery_quality_blocks_unselected_module_section():
+    """감사 2026-07 M3: 비선택 모듈 유입이 delivery 결과와 gate_pass를 함께 막는지 검증한다.
+
+    다른 delivery failure의 존재 여부나 합성 문서의 전체 품질 통과 여부는 검증하지 않는다.
+    """
+
+    body = (
+        "생활의 흐름을 차분히 살피고 서로의 속도를 맞춥니다. "
+        "작은 약속을 지키며 대화를 이어 갑니다. "
+    ) * 20
+    sections = [
+        _sn("personal_intro", "큰 그림", body),
+        _sn("personal_love", "관계의 흐름", body),
+        _sn("personal_health", "생활 관리", body),
+        _sn("personal_consult", "정리", body),
+    ]
+    pdf = _render_sections(sections, "test_audit_a1_delivery_module_injection.pdf")
+    module_sections = {
+        "core": ["personal_intro"],
+        "love": ["personal_love"],
+        "job": [],
+        "wealth": [],
+        "health": [],
+        "gunghap": [],
+        "tail": ["personal_consult"],
+    }
+
+    result = v.verify(
+        pdf,
+        product="integrated_full",
+        selected_modules=["love"],
+        module_sections=module_sections,
+        premerge_section_ids=[
+            "personal_intro",
+            "personal_love",
+            "personal_health",
+            "personal_consult",
+        ],
+    )
+    failure_rules = {failure["rule"] for failure in result["delivery_quality"]["failures"]}
+
+    assert result["delivery_quality_clean"] is False
+    assert result["gate_pass"] is False
+    assert "unexpected_module_sections" in failure_rules
 
 
 # ───────────────── H1.5.3.2: 신강약 group/role 게이트 ─────────────────
