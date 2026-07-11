@@ -1,5 +1,15 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## Q7 4단계 라운드13 — 2026-07-11 (검증 세션, 리뷰어 Claude)
+
+- 판정: **PASS**. 2인 접수·gunghap 주문화(접수 additive·추천 분기·admin/confirm 조건화·생성 2인 분기·partner_present 실소비) 전 항목 GREEN. 정본 = `REVIEW-FEEDBACK.md` 라운드13 절.
+- 기준환경 확정: **820 passed / 4 skipped / exit 0**(801+19, 감소 0) — 새 기준선. 골든 28, Ruff GREEN, 프로브·합성 실렌더 N=5(2인) 실측.
+- 실렌더 N=5: 35p로 분량 하한(30p) 통과 — 관계 조립 실작동. 발견 R13-1(비블로커·기존 경로): 무LLM 관계 문안 수신자 '씨' 호칭 → role 게이트 차단. LLM-on 해소 여부 미검증.
+- 커밋 완료(2026-07-11 운영자 지시): `c8cd1cc` feat(4단계 10파일) / docs(기록·manifest). manifest = done + archive. push 완료.
+- R13-1 처리: (a)안 채택 — LLM-on N=5 실측(과금 승인) 후 문안 수정 발주 여부 결정.
+
+---
+
 ## Q7 3-B 라운드12 — 2026-07-11 (검증 세션, 리뷰어 Claude)
 
 - 판정: **PASS**. admin 모듈 추천·확정 UI(추천 표시 전용·NORMALIZED 한정 확정·정규화 위임·audit 모듈 ID만) 전 항목 GREEN. 정본 = `REVIEW-FEEDBACK.md` 라운드12 절.

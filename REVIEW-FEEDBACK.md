@@ -1,3 +1,46 @@
+# 교차 리뷰 — 2026-07-11 (라운드 13, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `d71fb35` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage4-partner-20260711.md` (Q7 4단계 2인 접수·gunghap 주문화)
+
+## 최종 판정: **승인(PASS)** — 4단계 수용기준 전 항목 GREEN, 절차 이탈 0. 발견 R13-1(비블로커 — 4단계 diff 밖 기존 경로, 실렌더가 첫 노출).
+
+파일 상태 기준 인계 — diff 전량 실측 + 기준환경 직접 재실행 + 실경로 프로브 + 합성 실렌더 N=5(2인).
+
+### ⓪ 범위 무결성
+- HEAD `d71fb35` 불변. 수정 = 제품 5파일(app/order_flow/admin/템플릿/modules) + 테스트 5파일(+692/-57). integrated.py·cli.py·store·게이트·gunghap.py·calc/input diff 0(패킷 §0 정합).
+
+### ① 기준환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **820 passed / 4 skipped / exit 0** (191.6s). 기준선 801/4 → **+19 = 신규 테스트 완전 일치**(감소 0). golden 28. Ruff 수정 9파일 GREEN.
+
+### ② 항목별 실측 (패킷 §2·§3)
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 접수 additive | partner 미입력 = 키 부재(1인 형상 보존 회귀). 정상 입력 = KASI 정규화 재사용+경고 병합+양력 저장. fail-closed 2건(상대 시진 불명·비대상 상품) 주문 미생성 — **프로브 실측** | ✓ |
+| PII 방어 | KASI 예외·파싱 실패를 원문 비전재 메시지로 래핑(`from None` 체이닝 차단), generation_error audit에 **상대 생년월일 마스킹 추가**(E-2 이웃 자발 처리), admin 상세 = 상대 이름·성별만 | ✓ |
+| 추천 분기 | RELATION × partner 2분기 + 비대인 6종 불변 + 기본값 False 하위호환(3-B 테스트 GREEN 유지) | ✓ |
+| admin·confirm 조건화 | partner 주문 = 5모듈 옵션·gunghap 확정 허용(**프로브: `[gunghap,love]` → `(love,gunghap)` 정규 순서 저장**), 1인 주문 = 4모듈·gunghap 거부 유지(프로브 재확인) | ✓ |
+| 생성 분기 | 2인 people+receiver 명시 도달(캡처 테스트). `partner_present`를 주문 진실원으로 덮어씀 — **Report23 변환 전 순서 정확**, 팬텀 아닌 실소비 단언(1인 False 대조 포함). partner 있음+개인만 확정 → 관계 compose 미호출 | ✓ |
+| 합성 실렌더 N=5(2인, 무LLM) | **35쪽 실물**(하한 30 통과 — 관계 조립이 실렌더에서 실작동, 분량 GREEN). 커버리지·조판 clean. 단 role/honorific 게이트 차단 → R13-1 | ✓* |
+
+### ③ 발견 R13-1 (비블로커 — 4단계 diff 밖, 기존 경로): 무LLM 2인 관계 문안의 수신자 '씨' 호칭
+합성 실렌더 N=5에서 `receiver_third_person_honorific` 위반 13회+(관계 챕터 29~33쪽) — 룰 폴백 관계 문안이 수신자를 "님" 대신 "씨"로 3인칭 호명. `build_integrated_full` 직접 경로는 이번 diff가 비변경이므로 **기존 상태의 첫 노출**(무LLM 2인 integrated_full 실렌더가 최초). 게이트는 fail-closed로 정확히 차단(발급 불가 = 안전). 실운영 영향 제한적: N=5는 분량 정책상 LLM-on 전제 구간. **LLM-on에서 해소되는지 미검증** — 처리안: (a) LLM-on N=5 합성 1건 실측(과금 승인) 후 결정(N=4 선례 패턴), 또는 (b) 관계 룰 문안 호칭 수정 별도 발주. 운영자 결정 대기.
+
+### ④ 미검증 (정직 승계)
+- LLM-on 2인 문안(R13-1 해소 여부 포함)·실브라우저 수동 검수: 미실행.
+- 사람별 시진 불명 배선·상대 PII purge 확장: 범위 밖 유지(승인 항목 ③ 잔여 수용).
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 820 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed
+./.venv/Scripts/python.exe -m ruff check (수정 9파일)      → All checks passed
+실경로 프로브(2인 접수·gunghap 확정·1인 거부·비대상 차단)   → 전부 정상
+합성 실렌더 N=5 2인 무LLM + verify 상세 재추출             → 35p·R13-1 원인 확정
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-11 (라운드 12, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `3b2aa7b` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage3b-admin-20260711.md` (Q7 3-B admin 모듈 추천·확정 UI)

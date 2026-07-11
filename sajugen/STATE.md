@@ -66,8 +66,22 @@
 >   [분량 정책 확정 2026-07-11 운영자 결정] 공식(12+4N)·게이트 현상 유지. **알려진 제약: 무LLM 폴백 발급은
 >     N≤2 조합만 가능(N≥3는 LLM-on 전제 상품 — LLM 장애 시 N≥3 주문은 fail-closed 대기)**. 실측 근거 =
 >     위 무LLM 경계표 + LLM-on N=4 통과.
->   [다음] 4단계(gunghap·2인 접수)는 별도 설계·승인. LLM-on 문안의 품질(직답성·페르소나)은 운영자 육안
->     검수 영역으로 잔존 — 실주문 전 render/out의 q7_synth_n4_llm.pdf 육안 확인 권장.
+>   [4단계 설계 승인·발주 2026-07-11] 설계 `handoff/codex-q7-stage4-design.md` A안 승인(①~⑤ — gen_params
+>     additive·상대 시진불명 접수 차단·상대 PII는 본인 동일 수준+개별 파기는 주문 삭제로만·RELATION+상대
+>     →gunghap 추천 복원·단일 패킷). 패킷 = `handoff/tasks/q7-stage4-partner-20260711.md`(SHA `83634edb…`),
+>     manifest = planned/next_actor=codex. 검증 = 라운드13 + 합성 실렌더 N=5(2인, 검증 세션 몫). 기준선 801/4.
+>   [라운드13 PASS 2026-07-11] 4단계 구현(Codex, 제품 5 + 테스트 5파일, +692/-57) 교차리뷰 승인. 기준환경
+>     **820 passed / 4 skipped / exit 0**(801+19, 감소 0) = 새 기준선. 골든 28. 프로브: 2인 접수·gunghap 확정
+>     `(love,gunghap)` 정규 저장·1인 gunghap 거부 유지·비대상 상품 차단. 합성 실렌더 N=5(2인 무LLM) = **35p로
+>     분량 하한(30p) 통과**(관계 조립 실작동) — 단 R13-1 발견. 정본 = REVIEW-FEEDBACK 라운드13 절.
+>   [발견 R13-1(비블로커·기존 경로)] 무LLM 2인 관계 룰 문안이 수신자를 '씨'로 3인칭 호명 → role/honorific
+>     게이트 차단(fail-closed 정상, 발급 불가 = 안전). 4단계 diff 밖 — 무LLM 2인 integrated_full 실렌더 최초
+>     실행이 노출. LLM-on 해소 여부 미검증. 처리안: (a) LLM-on N=5 실측 후 결정 (b) 관계 문안 호칭 수정 발주.
+>   [4단계 커밋·push 완료 2026-07-11 운영자 지시] `c8cd1cc` feat(4단계 10파일) + docs(기록·manifest —
+>     이 커밋). manifest = done(archive 동결). origin push 완료.
+>   [R13-1 처리 결정 2026-07-11 운영자] (a)안 채택 — LLM-on N=5 합성 1건 실측(과금 승인)으로 LLM 재작성이
+>     '씨' 호칭을 해소하는지 확인 후 문안 수정 발주 여부 결정. 결과는 이 앵커 아래 기록.
+>   [다음] LLM-on N=5 실측 → R13-1 처리 확정. LLM-on 문안 육안 검수(q7_synth_n4_llm.pdf) 권장 잔존.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목
