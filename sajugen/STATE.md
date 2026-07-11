@@ -26,9 +26,23 @@
 >     docs/16 기록 여부 = 운영자 결정 대기.
 >   [2단계 커밋·push 완료 2026-07-11 운영자 지시] `ff002ee` feat(CLI --module 2파일) + docs(기록·manifest —
 >     이 커밋). manifest = done(archive 동결). origin push 완료. **Q7 전체(1·2단계) 종결.**
->   [다음] 3단계(admin 추천·주문 플로우 integrated_full 편입)는 별도 설계·승인 후 발주. 이후 Codex 패킷
->     0절에 "검색 시 ignored 제외 글롭 필수" 재발 방지 문구 포함(라운드10 ③). 절차 이탈의 docs/16 기록
->     여부는 운영자 결정 대기. 실렌더·LLM-on 문안은 계속 미검증(별도 승인 영역).
+>   [3단계 설계 승인·3-A 발주 2026-07-11] 설계 `handoff/codex-q7-stage3-design.md` A안 승인(①~④, ⑤ 가격·
+>     상품명은 운영자 별도). 착수 점검 실측 2건이 3-A에 편입: (a) build_integrated_full 계산 입력 미배선
+>     (integrated.py:593 — 경도·자시정책 하드코딩, 주문화 시 진태양시 결함) → 배선+시진불명 접수 차단,
+>     (b) followup 근거 장 조용한 skip → integrated_full 부모 후속 차단. 3-A 패킷 =
+>     `handoff/tasks/q7-stage3a-order-20260711.md`(승인, SHA `3e18fe89…`), manifest = planned/next_actor=codex.
+>     0절에 ignored 제외 글롭 필수 문구 포함(라운드10 재발 방지 이행). 3-B(admin UI)는 3-A 뒤 별도 발주.
+>   [라운드11 PASS 2026-07-11] 3-A 구현(Codex, 제품 3 + 테스트 5파일, +751/-33) 교차리뷰 승인. 기준환경
+>     **778 passed / 4 skipped / exit 0**(758+20, 감소 0) = 새 기준선. 골든 28. 임시 DB 실경로 프로브로
+>     시진불명 접수 차단·미확정 생성 차단(NORMALIZED 불변+감사 PII 0)·하위호환 실측. 정본 = REVIEW-FEEDBACK
+>     라운드11 절.
+>   [절차 이탈 2회차(비블로커)] ignored 검색 재노출 — 근본원인 = 발주 패킷 글롭 예시가 루트 기준(`!render/
+>     out/**`)이라 불충분. 이후 패킷은 `!**/render/out/**` 형식 고정. 2회 반복이라 docs/16 기록 권고(운영자
+>     결정 대기).
+>   [3-A 커밋·push·QI 기록 완료 2026-07-11 운영자 지시] `ac5d8f2` feat(3-A 8파일) + docs(기록·manifest·
+>     QI-2026-07-11-01 — 이 커밋). manifest = done(archive 동결). 절차 이탈 2회는 docs/16
+>     QI-2026-07-11-01로 기록(글롭 형식 `!**/` 고정, 근본 완화 = ignored 55파일 정리 운영자 액션).
+>   [다음] 3-B(admin 추천·확정 UI) 발주 → 라운드12. 실렌더·LLM-on 문안은 계속 미검증(별도 승인 영역).
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목

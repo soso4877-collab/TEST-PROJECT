@@ -1,3 +1,49 @@
+# 교차 리뷰 — 2026-07-11 (라운드 11, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `1401dbf` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage3a-order-20260711.md` (Q7 3-A 주문 플로우 integrated_full 편입)
+
+## 최종 판정: **승인(PASS)** — 3-A 수용기준 전 항목 GREEN, 코드 미해결 0. 단 ③ 절차 이탈 2회차(비블로커) — 패킷 글롭 예시 결함이 원인, 정정 조치 포함.
+
+Codex 완료보고를 믿지 않고 기준환경 직접 재실행 + diff 전량 실측 + 임시 DB 실경로 프로브.
+
+### ⓪ 범위 무결성
+- HEAD `1401dbf` 불변. 수정 = 제품 3파일(integrated.py +44 / app.py +43 / order_flow.py +368) + 테스트 5파일(신규 test_integrated_order_flow.py 포함). admin·템플릿·modules.py·게이트·cli.py·calc/input diff 0(패킷 §0 정합). STATE·manifest 변경은 발주 세션 선행분(Codex 비접촉 — 보고 일치).
+
+### ① 기준환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **778 passed / 4 skipped / exit 0** (205.0s). 기준선 758/4 → **+20 = 신규 테스트 완전 일치**(감소 0, 은닉 약화 0). Codex "환산 예상" 확정.
+- `pytest -q -k golden` → **28 passed**(calc/input diff 0). 상태머신 회귀(test_orders·test_final_render_gate) 전체 실행에 포함 GREEN.
+
+### ② 항목별 실측 (패킷 §2·§3)
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 계산 입력 배선 | `build_integrated_full`에 longitude/latitude/policy/horoscope_date 신설 — **기본값 = 현행 동일**(SEOUL·JST_2300·6월1일, 바이트 회귀 테스트 동반). engine.build 도달 캡처 단언. crosscheck 4필드(`bazi_consistent` 등) **engine.py 실존 확인**(fail-open 아님) | ✓ |
+| 접수 확장 | 웹폼 integrated_full 노출 + 즉시 PDF 강등 없이 주문 우회(422/redirect). **프로브 P1**: 시진 불명 → ValueError·주문 0 실측. modules 빈 목록은 integrated_full에만(기존 상품 gen_params 하위호환 — **프로브 P3** 키 부재 실측) | ✓ |
+| 미확정 차단 | `module_selection_state` 결정론 판정, 생성·재시도 공유 차단점. **프로브 P2**: NORMALIZED 상태 불변 + audit_log에 `generation_blocked / modules unconfirmed`(PII 0) 실측 | ✓ |
+| 생성·재시도 분기 | `_run_integrated_generation` — gen_params 전부 소비(모듈·좌표·yajasi→policy·horoscope·brand·concern→situation·ref_date=생성 당일). content.json 영속 fail-closed(부재 시 RuntimeError) + 게이트 메타 전수 검증(identity/singang/role/coverage `skipped is not False`) + CALC_MISMATCH 기존 차단 상태 재사용 | ✓ |
+| 최종 발급 분기 | 저장 Report23을 동일 `_render_integrated`+동일 스펙으로 재검증, 메타 불완전/모듈 불일치/skipped → **RuntimeError(개인 경로 강등 금지, B-1 정합)** — 차단측 테스트 동반 | ✓ |
+| 후속 차단 | run_followup 공용 지점에서 integrated_full 부모 텍스트·PDF 거부(compose 진입 전) + CLI 배선 테스트. 기존 부모 회귀 유지 | ✓ |
+| 신규 테스트 20건 | 3지점 분기 양방·차단·하위호환·verify 관통 전부 동작 단언, PII 0 | ✓ |
+| Ruff | 수정 8파일 `All checks passed!` / exit 0 | ✓ |
+
+### ③ 절차 이탈 2회차 (비블로커 — 원인은 패킷 글롭 예시 결함, 정정 포함)
+초기 검색에서 ignored 일부가 검색 결과에 재노출(내용 사용·전재·수정 없음, 자진 보고). **근본원인 2층**: (표면) 패킷 0절이 제시한 예시 `--glob '!render/out/**'`가 저장소 루트 기준이라 하위 경로 검색에서 미적용 — Codex가 `!**/render/out/**`로 자가 강화. (시스템) **발주 패킷 예시 자체가 불충분했음 = 리뷰어(패킷 작성자) 몫**. 조치: 이후 모든 패킷 0절 예시를 `--glob '!**/render/out/**' --glob '!**/tmp/**' --glob '!**/synthetic-tmp/**' --glob '!**/data/**'` 형식으로 고정. 2회 반복이므로 docs/16 기록을 권고(운영자 결정).
+
+### ④ 미검증 (정직 승계)
+- 실제 PDF 조판·페이지 하한 실달성·브라우저 수동 검수·LLM-on 문안·표준 hrun: 미실행(별도 승인 영역).
+- 3-B admin 추천·확정 UI: 다음 패킷. 그 전까지 integrated_full 주문은 의도대로 NORMALIZED에서 대기(프로브 P2로 안전 실측).
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 778 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed
+./.venv/Scripts/python.exe -m ruff check (수정 8파일)      → All checks passed / exit 0
+임시 DB 실경로 프로브 P1~P3                                → 시진불명 차단·미확정 차단·하위호환 실측
+git status / git diff                                     → 승인 범위 한정, calc/input/admin/cli 0
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-11 (라운드 10, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `6c0d673` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage2-cli-20260710.md` (Q7 2단계 CLI `--module`)
