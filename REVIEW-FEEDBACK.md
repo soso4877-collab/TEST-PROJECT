@@ -1,3 +1,31 @@
+# 교차 리뷰 — 2026-07-11 (라운드 14, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `6105ed9` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-given-guard-20260711.md` v2 (동명 given 커플 접수 차단)
+
+## 최종 판정: **승인(PASS)** — v2 수용기준 전 항목 GREEN, 미해결 0, 절차 이탈 0. **Q7 알려진 잔여 0으로 완결.**
+
+패킷 이력: v1 발주 → Codex 정지 보고(외자 given_name 반환 실태 — **타당, 4/4 선례 유지**) → 리뷰어 실측(게이트 스펙도 동일 함수 사용 = 외자 쌍은 충돌 자체가 없음)으로 v1의 외자 차단 요구를 과잉으로 폐기, v2 정정(술어 = given_name 출력 동등성) 후 재발주.
+
+### 실측
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 범위 | 수정 = `order_flow.py` +21(차단 1지점 + import) / `tests/test_orders.py` +121. client_tone_lint 비수정(재사용만), 그 외 diff 0 | ✓ |
+| pytest | **829 passed / 4 skipped / exit 0** (기준선 820/4 + 신규 9 완전 일치, 감소 0). golden 28. Ruff GREEN | ✓ |
+| 구현 | 술어 = strip 후 `given_name(name) == given_name(partner_name)`, 정규화·DB 개설 전 차단, 메시지 원인 안내형·이름 원문 0(프로브 확인) | ✓ |
+| 경계표 v2 | 차단 5(3자 동given·완전 동명·공백·2자 완전 동명·교차 민준/김민준) + 통과 4(**외자 상이 성 김민/이민 정상 접수** — v2 핵심 경계·일반 상이·1인·기존 상품) 전부 테스트 고정 | ✓ |
+| 실경로 프로브 | 충돌 쌍 차단(이름 비전재) + 외자 상이 성 쌍 정상 접수 실측 | ✓ |
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 829 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed
+./.venv/Scripts/python.exe -m ruff check (수정 2파일)      → All checks passed
+실경로 프로브(차단·외자 통과)                              → 정합
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-11 (라운드 13, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `d71fb35` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage4-partner-20260711.md` (Q7 4단계 2인 접수·gunghap 주문화)

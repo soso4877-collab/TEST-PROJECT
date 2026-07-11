@@ -90,9 +90,23 @@
 >     확정: 합성 쌍(김합성/이합성)의 given이 동일해 기존 호칭 변환(gunghap.py:583)이 구분 불가했던 것.
 >     **given 상이 쌍(김민준/이서연) 무LLM N=5 재실렌더 = gate_pass True, 35p, 전 게이트 clean.** LLM-on
 >     FAIL·identity_role·저밀도도 같은 입력 산물. **2인 통합 N=5 상품 = 정상 발급 가능 상태**(정정).
->   [잔여(좁아진) 이슈] 동명 given 커플 주문은 호칭 구분 불가로 게이트 차단(fail-closed, 유출 0) — 접수
->     시점 명확 차단 추가 여부만 운영자 결정 대기. LLM-on 정상 쌍 N=5는 미실측(무LLM clean+N=4 LLM 선례로
->     위험 낮음 — 필요 시 별도 과금 승인).
+>   [잔여 이슈 발주 2026-07-11 운영자 결정] 동명 given 커플 = 접수 시점 명확 차단 추가로 확정(호칭 로직
+>     개선은 B-8 기각). 패킷 = `handoff/tasks/q7-given-guard-20260711.md`, manifest = planned/next_actor=codex,
+>     검증 = 라운드14, 기준선 820/4. LLM-on 정상 쌍 N=5는 미실측(위험 낮음 — 필요 시 별도 과금 승인).
+>   [패킷 v2 정정 2026-07-11 — Codex 정지 보고 타당(4번째, 전부 타당 선례 유지)] v1의 "외자 given 1자 충돌
+>     차단"은 시스템 실태와 불일치한 과잉 요구로 폐기: given_name은 2자 이하 풀네임을 그대로 반환하고
+>     호칭 생성·게이트 스펙(role_perspective_specs:655)이 **같은 함수**를 쓰므로 외자 상이 성 쌍(김민/이민)은
+>     충돌 자체가 없음 = 정상 접수가 옳음. v2 술어 = given_name 출력 동등성(교차 케이스 민준/김민준 포함).
+>     v2 SHA `8ba9fd29…` manifest 재동결. client_tone_lint.py 수정 금지 유지.
+>   [라운드14 PASS 2026-07-11] given 가드 v2 구현(Codex, order_flow+테스트 2파일) 교차리뷰 승인. 기준환경
+>     **829 passed / 4 skipped / exit 0**(820+9, 감소 0) = 새 기준선. 골든 28. 경계표 차단 5·통과 4(외자
+>     상이 성 김민/이민 정상 접수 포함) 전부 고정, 프로브로 차단·이름 비전재·외자 통과 실측. **Q7 알려진
+>     잔여 0 — 전체 완결**(1~4단계 + 실렌더 + given 가드). 정본 = REVIEW-FEEDBACK 라운드14 절.
+>   [커밋·push·main 전진 완료 2026-07-11 운영자 지시] `5519899` feat(given 가드 2파일) + docs(기록·
+>     manifest — 이 커밋). manifest = done(archive). feat push + **main fast-forward 전진·push**(Q7 완결 +
+>     829/4 GREEN = 컨벤션 충족, 선형 유지). **Q7 프로젝트 종결.**
+>   [잔존 선택 항목] LLM-on 정상 쌍 N=5 실측(과금, 위험 낮음 — 필요 시 승인)·LLM-on 문안 육안 검수
+>     (render/out/q7_synth_n4_llm.pdf — 운영자만 가능). PII 잔여 3건(ignored 55파일 정리 등)은 별도 트랙.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목
