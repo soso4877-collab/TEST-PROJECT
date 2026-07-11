@@ -3,6 +3,7 @@
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -103,6 +104,7 @@ def test_integrated_full_create_stores_empty_modules_and_question_category(tmp_p
         assert full_store.get_state(order_id) == OrderState.NORMALIZED
         assert report.report_plan.product == "integrated_full"
         assert report.render_meta["gen_params"]["modules"] == []
+        assert "partner" not in report.render_meta["gen_params"]
         assert report.render_meta["question_category"]["value"] == "직업"
         assert order_flow.module_selection_state(report) == {
             "product": "integrated_full",
@@ -112,6 +114,137 @@ def test_integrated_full_create_stores_empty_modules_and_question_category(tmp_p
         }
     finally:
         full_store.close()
+
+
+def test_partner_intake_reuses_normalizer_and_merges_lunar_warnings(tmp_path, monkeypatch):
+    db = tmp_path / "partner-normalized.sqlite"
+    calls: list[dict] = []
+    normalized = iter(
+        [
+            SimpleNamespace(
+                year=2000,
+                month=1,
+                day=1,
+                input_kind="lunar",
+                warnings=["SELF_SYNTHETIC_WARNING"],
+            ),
+            SimpleNamespace(
+                year=2001,
+                month=2,
+                day=3,
+                input_kind="lunar",
+                warnings=["PARTNER_SYNTHETIC_WARNING"],
+            ),
+        ]
+    )
+
+    def fake_normalize_date(year, month, day, *, is_lunar, is_leap):
+        calls.append(
+            {
+                "date": (year, month, day),
+                "is_lunar": is_lunar,
+                "is_leap": is_leap,
+            }
+        )
+        return next(normalized)
+
+    monkeypatch.setattr(order_flow.norm, "normalize_date", fake_normalize_date)
+
+    order_id, warnings = order_flow.create_order(
+        birth="2000-01-01 12:00",
+        lunar=True,
+        gender="male",
+        name="DOC_A",
+        partner_name="DOC_B",
+        partner_birth="2001-02-02 13:30",
+        partner_lunar=True,
+        partner_leap=True,
+        partner_gender="female",
+        product="integrated_full",
+        brand="default",
+        db_path=str(db),
+    )
+
+    assert calls == [
+        {"date": (2000, 1, 1), "is_lunar": True, "is_leap": False},
+        {"date": (2001, 2, 2), "is_lunar": True, "is_leap": True},
+    ]
+    assert warnings == ["SELF_SYNTHETIC_WARNING", "PARTNER_SYNTHETIC_WARNING"]
+    store = OrderStore(db)
+    try:
+        report = store.get_report(order_id)
+        assert report.render_meta["gen_params"]["partner"] == {
+            "name": "DOC_B",
+            "year": 2001,
+            "month": 2,
+            "day": 3,
+            "hour": 13,
+            "minute": 30,
+            "is_male": False,
+            "is_leap": True,
+        }
+        assert report.render_meta["normalize_warnings"] == warnings
+    finally:
+        store.close()
+
+
+def test_partner_fields_without_birth_keep_exact_one_person_shape(tmp_path):
+    db = tmp_path / "partner-without-birth.sqlite"
+
+    order_id, _warnings = order_flow.create_order(
+        birth="2000-01-01 12:00",
+        gender="male",
+        name="DOC_A",
+        partner_name="DOC_B",
+        partner_gender="female",
+        product="integrated_full",
+        brand="default",
+        db_path=str(db),
+    )
+
+    store = OrderStore(db)
+    try:
+        report = store.get_report(order_id)
+        assert "partner" not in report.render_meta["gen_params"]
+        assert report.render_meta["gen_params"]["modules"] == []
+    finally:
+        store.close()
+
+
+@pytest.mark.parametrize(
+    ("product", "partner_birth", "cause"),
+    [
+        ("integrated_full", "2001-02-02", "known birth time"),
+        ("integrated", "2001-02-02 13:30", "only supported"),
+    ],
+)
+def test_invalid_partner_intake_creates_no_order(
+    tmp_path,
+    product,
+    partner_birth,
+    cause,
+):
+    db = tmp_path / f"blocked-partner-{product}.sqlite"
+
+    with pytest.raises(ValueError, match=cause) as exc_info:
+        order_flow.create_order(
+            birth="2000-01-01 12:00",
+            gender="male",
+            name="DOC_A",
+            partner_name="DOC_B",
+            partner_birth=partner_birth,
+            partner_gender="female",
+            product=product,
+            brand="default",
+            db_path=str(db),
+        )
+
+    assert partner_birth not in str(exc_info.value)
+    store = OrderStore(db)
+    try:
+        assert store.list_orders() == []
+    finally:
+        store.close()
 
 
 def test_integrated_full_unknown_time_creates_no_order_but_integrated_is_unchanged(tmp_path):

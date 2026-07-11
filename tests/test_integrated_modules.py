@@ -320,6 +320,31 @@ def test_recommended_modules_cover_every_question_category(category, expected):
     assert integrated_modules.recommended_modules_for_category(category) == expected
 
 
+@pytest.mark.parametrize(
+    ("category", "expected"),
+    [
+        (QuestionCategory.LOVE.value, ("love",)),
+        (QuestionCategory.JOB.value, ("job",)),
+        (QuestionCategory.WEALTH.value, ("wealth",)),
+        (QuestionCategory.HEALTH.value, ("health",)),
+        (QuestionCategory.TIMING.value, ()),
+        (QuestionCategory.GENERAL.value, ()),
+    ],
+)
+def test_nonrelation_recommendations_ignore_partner_presence(category, expected):
+    # 대인 외 6종은 상대 입력이 생겨도 3-B 추천표와 완전히 같아야 한다.
+    assert integrated_modules.recommended_modules_for_category(category, False) == expected
+    assert integrated_modules.recommended_modules_for_category(category, True) == expected
+
+
+def test_relation_recommendation_switches_only_when_partner_is_present():
+    category = QuestionCategory.RELATION.value
+
+    assert integrated_modules.recommended_modules_for_category(category) == ("love",)
+    assert integrated_modules.recommended_modules_for_category(category, False) == ("love",)
+    assert integrated_modules.recommended_modules_for_category(category, True) == ("gunghap",)
+
+
 @pytest.mark.parametrize("category", ["", "미등록"])
 def test_recommended_modules_return_empty_for_unspecified_or_unknown_category(category):
     assert integrated_modules.recommended_modules_for_category(category) == ()
@@ -441,6 +466,24 @@ def test_love_only_filters_before_sparse_merge_and_skips_gunghap(monkeypatch):
     assert "재물 제공자 문단" not in text
     assert "건강 제공자 문단" not in text
     assert "관계 제공자 문단" not in text
+    assert result["module_sections"]["love"] == ["personal_love"]
+    assert result["module_sections"]["gunghap"] == []
+
+
+def test_two_people_with_personal_module_still_skip_gunghap_compose(monkeypatch):
+    # 상대를 접수했더라도 운영자가 gunghap을 고르지 않으면 관계 compose 비용·문안은 0이다.
+    captured = _patch_sources(monkeypatch)
+
+    result = integrated.build_integrated_full(
+        _people(2),
+        receiver_name="DOC_A",
+        situation="합성 맥락",
+        modules=["love"],
+        render=False,
+    )
+
+    assert captured["gunghap_calls"] == 0
+    assert result["modules"] == ["love"]
     assert result["module_sections"]["love"] == ["personal_love"]
     assert result["module_sections"]["gunghap"] == []
 

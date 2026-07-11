@@ -34,6 +34,15 @@ _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</t
  <p>이름(필수, 호명 개인화): <input name="name" placeholder="홍길동" required></p>
  <p>성별: <select name="gender"><option value="male">남</option>
    <option value="female">여</option></select></p>
+ <fieldset style="margin:16px 0;padding:10px">
+  <legend>상대 정보(통합 전체·궁합 모듈 선택 시에만 입력)</legend>
+  <p>상대 이름: <input name="partner_name" placeholder="합성 상대"></p>
+  <p>상대 생년월일시: <input name="partner_birth" placeholder="2001-02-02 13:30"></p>
+  <p><label><input type="checkbox" name="partner_lunar"> 상대 음력 입력</label>
+    &nbsp;<label><input type="checkbox" name="partner_leap"> 상대 윤달(음력 체크 시)</label></p>
+  <p>상대 성별: <select name="partner_gender"><option value="male">남</option>
+    <option value="female">여</option></select></p>
+ </fieldset>
  <p>상품: <select name="product"><option value="integrated">통합(명리+자미)</option>
    <option value="integrated_full">통합 전체(모듈형)</option>
    <option value="myeongni">명리만</option><option value="ziwei">자미만</option></select></p>
@@ -65,10 +74,25 @@ def gen(
     horoscope: str = Form(""),
     llm: bool = Form(False),
     name: str = Form(...),  # 필수 — 호명 개인화(운영자 지시 2026-06-12)
+    partner_name: str = Form(""),
+    partner_birth: str = Form(""),
+    partner_lunar: bool = Form(False),
+    partner_leap: bool = Form(False),
+    partner_gender: str = Form("male"),
     product: str = Form("integrated"),
     concern: str = Form(""),
     brand: str = Form("sajudoryeong"),
 ):
+    # 상대 birth가 입력된 주문만 2인 주문이다. 기존 즉시 생성 상품에는 상대 소비처가
+    # 없으므로 조용히 무시하지 않고 주문·PDF 생성 전에 차단한다.
+    if partner_birth.strip() and product != integrated.PRODUCT:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "ok": False,
+                "reasons": ["partner input is only supported for integrated_full"],
+            },
+        )
     if product == integrated.PRODUCT:
         # 구형 즉시 PDF 폼에서도 integrated_full만큼은 모듈 확정이 필요한 주문 상품이다.
         # pipeline.generate로 강등하지 않고 주문을 만든 뒤, 공용 생성 진입점이 빈 모듈
@@ -86,6 +110,11 @@ def gen(
                 horoscope=horoscope,
                 use_llm=llm,
                 name=name,
+                partner_name=partner_name,
+                partner_birth=partner_birth,
+                partner_lunar=partner_lunar,
+                partner_leap=partner_leap,
+                partner_gender=partner_gender,
                 product=product,
                 concern=concern,
                 brand=brand,

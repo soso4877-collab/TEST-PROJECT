@@ -67,6 +67,7 @@
   LLM: {{ "사용" if gen_params.use_llm else "룰 전용" }}<br>
   {% if meta.normalize_warnings %}정규화 경고: {{ meta.normalize_warnings | join(" / ") }}<br>{% endif %}
   {% if report.birth.concern_text %}고민/질문: {{ report.birth.concern_text }}{% endif %}
+  {% if partner_summary %}<br>상대: {{ partner_summary.name }} / 성별: {{ "남" if partner_summary.is_male else "여" }}{% endif %}
 </div>
 
 <h3>질문 자동분류</h3>

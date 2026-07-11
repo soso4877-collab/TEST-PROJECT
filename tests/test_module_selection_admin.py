@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Q7 3-B 관리자 모듈 추천·확정 UI와 저장 차단의 양방 회귀."""
+"""Q7 3-B·4 관리자 모듈 추천·확정 UI와 1인·2인 저장 차단의 양방 회귀."""
 
 from pathlib import Path
 
@@ -38,7 +38,12 @@ def client(db_path) -> TestClient:
     return TestClient(app)
 
 
-def _report(*, product: str = "integrated_full", category: str = "직업") -> UnifiedReport:
+def _report(
+    *,
+    product: str = "integrated_full",
+    category: str = "직업",
+    partner_present: bool = False,
+) -> UnifiedReport:
     """계산·본문·PII 없이 관리자 메타 경계만 검증하는 최소 주문을 만든다."""
 
     gen_params = {
@@ -51,6 +56,17 @@ def _report(*, product: str = "integrated_full", category: str = "직업") -> Un
     }
     if product == "integrated_full":
         gen_params["modules"] = []
+    if partner_present:
+        gen_params["partner"] = {
+            "name": "DOC_B",
+            "year": 2099,
+            "month": 12,
+            "day": 31,
+            "hour": 23,
+            "minute": 59,
+            "is_male": False,
+            "is_leap": False,
+        }
     return UnifiedReport(
         order_id="",
         birth=BirthInput(
@@ -80,6 +96,7 @@ def _seed_order(
     *,
     product: str = "integrated_full",
     category: str = "직업",
+    partner_present: bool = False,
     state: OrderState = OrderState.NORMALIZED,
 ) -> str:
     """허용 상태와 인접 차단 상태를 같은 합성 주문 형상으로 준비한다."""
@@ -109,7 +126,13 @@ def _seed_order(
     }
     store = OrderStore(db_path)
     try:
-        order_id = store.create(_report(product=product, category=category))
+        order_id = store.create(
+            _report(
+                product=product,
+                category=category,
+                partner_present=partner_present,
+            )
+        )
         for next_state in paths[state]:
             store.transition(order_id, next_state, actor="system")
         return order_id
@@ -157,6 +180,28 @@ def test_integrated_full_detail_shows_recommendation_without_auto_selection(
         assert f'name="modules" value="{module_id}"' in response.text
     assert 'name="modules" value="gunghap"' not in response.text
     assert f'action="/admin/orders/{order_id}/retry"' not in response.text
+    for token in _PRIVATE_TOKENS:
+        assert token not in response.text
+    assert _stored_snapshot(db_path, order_id) == before
+
+
+def test_partner_detail_shows_five_modules_and_only_name_and_gender(client, db_path):
+    order_id = _seed_order(
+        db_path,
+        category="대인",
+        partner_present=True,
+    )
+    before = _stored_snapshot(db_path, order_id)
+
+    response = client.get(f"/admin/orders/{order_id}")
+
+    assert response.status_code == 200
+    assert "상대: DOC_B / 성별: 여" in response.text
+    assert "질문 카테고리 추천: gunghap" in response.text
+    assert 'gunghap <span class="tag">추천</span>' in response.text
+    for module_id in ("love", "job", "wealth", "health", "gunghap"):
+        assert f'name="modules" value="{module_id}"' in response.text
+    assert "2099" not in response.text
     for token in _PRIVATE_TOKENS:
         assert token not in response.text
     assert _stored_snapshot(db_path, order_id) == before
@@ -240,6 +285,36 @@ def test_module_selection_post_normalizes_and_saves_without_generation(client, d
     for token in _PRIVATE_TOKENS:
         assert token not in response.text
         assert token not in audits[0].note
+
+
+def test_partner_module_selection_accepts_gunghap_and_keeps_audit_id_only(client, db_path):
+    order_id = _seed_order(
+        db_path,
+        category="대인",
+        partner_present=True,
+    )
+
+    response = client.post(
+        f"/admin/orders/{order_id}/module-selection",
+        data={"modules": ["gunghap", "love"]},
+    )
+
+    assert response.status_code == 200
+    store = OrderStore(db_path)
+    try:
+        report = store.get_report(order_id)
+        assert store.get_state(order_id) == OrderState.NORMALIZED
+        assert report.render_meta["gen_params"]["modules"] == ["love", "gunghap"]
+        assert report.report_plan.sections == ["love", "gunghap"]
+        assert order_flow.module_selection_state(report)["confirmed"] is True
+    finally:
+        store.close()
+    audits = _module_audits(db_path, order_id)
+    assert len(audits) == 1
+    assert audits[0].note == "love,gunghap"
+    assert "DOC_B" not in audits[0].note
+    assert "2099" not in response.text
+    assert "2099" not in audits[0].note
 
 
 @pytest.mark.parametrize(

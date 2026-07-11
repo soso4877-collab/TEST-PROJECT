@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Q7 3-A integrated_full 주문 생성·재시도·최종발급 분기 회귀.
+"""Q7 3-A·4 integrated_full 주문 생성·재시도·2인·최종발급 분기 회귀.
 
 실제 계산·LLM·PDF는 호출하지 않는다. 합성 결과를 주입해 주문 상태머신과 native
 integrated 렌더 게이트의 파라미터 관통, content.json 영속, 기존 integrated 분리를
@@ -29,11 +29,21 @@ def _guard() -> GuardReport:
     )
 
 
-def _module_sections() -> dict[str, list[str]]:
+def _module_sections(
+    selected_modules: tuple[str, ...] = ("love",),
+) -> dict[str, list[str]]:
     sections = integrated_modules.empty_module_sections()
     sections["core"] = ["personal_intro"]
-    sections["love"] = ["personal_love"]
     sections["tail"] = ["personal_closing"]
+    representatives = {
+        "love": "personal_love",
+        "job": "personal_work",
+        "wealth": "personal_work",
+        "health": "personal_health",
+        "gunghap": "relationship_overview",
+    }
+    for module_id in selected_modules:
+        sections[module_id] = [representatives[module_id]]
     return sections
 
 
@@ -43,36 +53,67 @@ def _integrated_result(
     ref_year: int = 2028,
     ref_date: str = "2026-07-11",
     calc_consistent: bool = True,
+    selected_modules: tuple[str, ...] = ("love",),
+    partner_present: bool = False,
 ) -> dict:
     content_path = tmp_path / "draft_synthetic.content.json"
     content_path.write_text("{}", encoding="utf-8")
-    module_sections = _module_sections()
-    premerge = ["personal_intro", "personal_love", "personal_closing"]
+    module_sections = _module_sections(selected_modules)
+    premerge = list(
+        dict.fromkeys(
+            section_id
+            for section_ids in module_sections.values()
+            for section_id in section_ids
+        )
+    )
+    people = [{"name": "DOC_A"}]
+    identity = ({"甲"}, {"갑목"}, [(["DOC_A"], "갑목")])
+    singang = [{"name": "DOC_A", "expected": "신강"}]
+    roles = [{"name": "DOC_A", "role": "receiver"}]
+    if partner_present:
+        people.append({"name": "DOC_B"})
+        identity = (
+            {"甲", "乙"},
+            {"갑목", "을목"},
+            [(["DOC_A"], "갑목"), (["DOC_B"], "을목")],
+        )
+        singang.append({"name": "DOC_B", "expected": "신약"})
+        roles.append({"name": "DOC_B", "role": "partner"})
+    sections = [
+        SimpleNamespace(
+            id="personal_intro",
+            title="합성 도입",
+            source_keys=["myeongni"],
+            final_text="순한 흐름을 차분히 살핍니다.",
+        ),
+        SimpleNamespace(
+            id="personal_love",
+            title="합성 관계",
+            source_keys=["myeongni"],
+            final_text="관계의 기준을 하나씩 확인합니다.",
+        ),
+    ]
+    if "gunghap" in selected_modules:
+        sections.append(
+            SimpleNamespace(
+                id="relationship_overview",
+                title="합성 궁합",
+                source_keys=["gunghap"],
+                final_text="두 사람의 흐름을 함께 살핍니다.",
+            )
+        )
     return {
         "product": "integrated_full",
         "pdf_path": str(tmp_path / "draft_synthetic.pdf"),
         "content_path": str(content_path),
-        "sections": [
-            SimpleNamespace(
-                id="personal_intro",
-                title="합성 도입",
-                source_keys=["myeongni"],
-                final_text="순한 흐름을 차분히 살핍니다.",
-            ),
-            SimpleNamespace(
-                id="personal_love",
-                title="합성 관계",
-                source_keys=["myeongni"],
-                final_text="관계의 기준을 하나씩 확인합니다.",
-            ),
-        ],
-        "people": [{"name": "DOC_A"}],
+        "sections": sections,
+        "people": people,
         "receiver": "DOC_A",
-        "identity": ({"甲"}, {"갑목"}, [(["DOC_A"], "갑목")]),
-        "singang": [{"name": "DOC_A", "expected": "신강"}],
-        "role_perspective": [{"name": "DOC_A", "role": "receiver"}],
-        "honorific": [{"name": "DOC_A", "role": "receiver"}],
-        "modules": ["love"],
+        "identity": identity,
+        "singang": singang,
+        "role_perspective": roles,
+        "honorific": roles,
+        "modules": list(selected_modules),
         "module_schema_version": integrated.MODULE_SCHEMA_VERSION,
         "module_sections": module_sections,
         "premerge_section_ids": premerge,
@@ -84,7 +125,7 @@ def _integrated_result(
             "all_star_ko": [],
         },
         "concern_category": "직업",
-        "partner_present": False,
+        "partner_present": partner_present,
         "calc_consistent": calc_consistent,
         "crosscheck_warnings": [],
         "bazi": "甲子 乙丑 丙寅 丁卯",
@@ -99,7 +140,13 @@ def _integrated_result(
     }
 
 
-def _create_confirmed_order(db: Path, *, retry: bool = False) -> str:
+def _create_confirmed_order(
+    db: Path,
+    *,
+    retry: bool = False,
+    partner_present: bool = False,
+    modules: list[str] | None = None,
+) -> str:
     order_id, _warnings = order_flow.create_order(
         birth="2000-01-01 12:00",
         gender="male",
@@ -108,16 +155,22 @@ def _create_confirmed_order(db: Path, *, retry: bool = False) -> str:
         yajasi=True,
         horoscope="2028-03-01",
         name="DOC_A",
+        partner_name="DOC_B" if partner_present else "",
+        partner_birth="2001-02-02 13:30" if partner_present else "",
+        partner_gender="female",
         product="integrated_full",
         concern="이직 준비 순서가 궁금합니다.",
         brand="default",
         db_path=str(db),
     )
-    order_flow.confirm_module_selection(order_id, ["love"], db_path=str(db))
+    selected_modules = modules or ["love"]
+    order_flow.confirm_module_selection(order_id, selected_modules, db_path=str(db))
     store = OrderStore(db)
     try:
         report = store.get_report(order_id)
-        assert report.report_plan.sections == ["love"]
+        assert report.report_plan.sections == list(
+            integrated_modules.normalize_modules(selected_modules)
+        )
         if retry:
             store.transition(order_id, OrderState.CALC_MISMATCH, actor="system")
     finally:
@@ -170,12 +223,90 @@ def test_confirmed_integrated_generation_and_retry_use_native_builder(
             "personal_love",
         ]
         assert report23.concern_category == "직업"
+        assert report23.partner_present is False
         assert report.render_meta["integrated_full"]["content_path"].endswith(
             "draft_synthetic.content.json"
         )
         assert report.render_meta["integrated_full"]["selected_modules"] == ["love"]
         assert report.render_meta["verify"]["module_coverage"]["skipped"] is False
         assert order_flow.module_selection_state(report)["confirmed"] is True
+    finally:
+        store.close()
+
+
+def test_partner_gunghap_generation_passes_two_people_and_persists_partner_flag(
+    tmp_path,
+    monkeypatch,
+):
+    db = tmp_path / "integrated-partner.sqlite"
+    order_id = _create_confirmed_order(
+        db,
+        partner_present=True,
+        modules=["gunghap", "love"],
+    )
+    calls: list[dict] = []
+
+    def fake_integrated_build(people, **kwargs):
+        calls.append({"people": people, "kwargs": dict(kwargs)})
+        result = _integrated_result(
+            tmp_path,
+            selected_modules=("love", "gunghap"),
+            partner_present=True,
+        )
+        # 실제 개인 빌더가 False를 반환하더라도 주문의 partner 입력이 최종 진실원이어야 한다.
+        result["partner_present"] = False
+        return result
+
+    monkeypatch.setattr(order_flow.integrated, "build_integrated_full", fake_integrated_build)
+    monkeypatch.setattr(order_flow, "default_ref_date_iso", lambda: "2026-07-11")
+
+    order_flow.run_generation(order_id, db_path=str(db))
+
+    assert len(calls) == 1
+    assert calls[0]["people"] == [
+        ("DOC_A", (2000, 1, 1, 12, 0), True),
+        ("DOC_B", (2001, 2, 2, 13, 30), False),
+    ]
+    assert calls[0]["kwargs"]["receiver_name"] == "DOC_A"
+    assert calls[0]["kwargs"]["modules"] == ["love", "gunghap"]
+    store = OrderStore(db)
+    try:
+        assert store.get_state(order_id) == OrderState.DRAFTED
+        report = store.get_report(order_id)
+        report23 = Report23.model_validate(report.content)
+        assert report23.partner_present is True
+        assert report.render_meta["integrated_full"]["names"] == ["DOC_A", "DOC_B"]
+        assert report.render_meta["integrated_full"]["selected_modules"] == [
+            "love",
+            "gunghap",
+        ]
+    finally:
+        store.close()
+
+
+def test_partner_birth_is_masked_from_generation_error_audit(tmp_path, monkeypatch):
+    db = tmp_path / "integrated-partner-error.sqlite"
+    order_id = _create_confirmed_order(db, partner_present=True)
+    partner_civil = "2001-02-02 13:30"
+
+    def fail_generation(*args, **kwargs):
+        raise RuntimeError(f"synthetic failure {partner_civil}")
+
+    monkeypatch.setattr(order_flow, "_run_integrated_generation", fail_generation)
+
+    order_flow.run_generation(order_id, db_path=str(db))
+
+    store = OrderStore(db)
+    try:
+        errors = [
+            entry
+            for entry in store.audit(order_id)
+            if entry.action == "generation_error"
+        ]
+        assert len(errors) == 1
+        assert partner_civil not in errors[0].note
+        assert "2001-02-02" not in errors[0].note
+        assert "13:30" not in errors[0].note
     finally:
         store.close()
 

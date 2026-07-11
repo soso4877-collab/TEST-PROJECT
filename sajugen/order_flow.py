@@ -251,8 +251,15 @@ def _integrated_identity_json(identity: object) -> list:
     ]
 
 
+def _partner_generation_params(params: dict) -> dict | None:
+    """additive gen_params에서 유효한 상대 서브딕트만 반환한다."""
+
+    partner = params.get("partner")
+    return partner if isinstance(partner, dict) and partner else None
+
+
 def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
-    """확정된 1인 모듈 주문을 native integrated_full 빌더로 생성한다."""
+    """확정된 1인·2인 모듈 주문을 native integrated_full 빌더로 생성한다."""
 
     ref_date = default_ref_date_iso()
     horoscope = str(params.get("horoscope") or "").strip()
@@ -261,21 +268,38 @@ def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
     except (TypeError, ValueError):
         ref_year = int(ref_date[:4])
     policy = tc.ZasiPolicy.YAJASI_SPLIT if params.get("yajasi") else tc.ZasiPolicy.JST_2300
-    result = integrated.build_integrated_full(
-        [
+    receiver_name = str(params.get("name") or "")
+    people = [
+        (
+            receiver_name,
             (
-                str(params.get("name") or ""),
+                int(params["year"]),
+                int(params["month"]),
+                int(params["day"]),
+                int(params["hour"]),
+                int(params["minute"]),
+            ),
+            bool(params.get("is_male")),
+        )
+    ]
+    partner = _partner_generation_params(params)
+    if partner is not None:
+        people.append(
+            (
+                str(partner.get("name") or ""),
                 (
-                    int(params["year"]),
-                    int(params["month"]),
-                    int(params["day"]),
-                    int(params["hour"]),
-                    int(params["minute"]),
+                    int(partner["year"]),
+                    int(partner["month"]),
+                    int(partner["day"]),
+                    int(partner["hour"]),
+                    int(partner["minute"]),
                 ),
-                bool(params.get("is_male")),
+                bool(partner.get("is_male")),
             )
-        ],
-        receiver_name=str(params.get("name") or "") or None,
+        )
+    result = integrated.build_integrated_full(
+        people,
+        receiver_name=receiver_name or None,
         situation=str(params.get("concern") or ""),
         ref_year=ref_year,
         ref_date=ref_date,
@@ -289,6 +313,9 @@ def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
         policy=policy,
         horoscope_date=horoscope or f"{ref_year}-06-01",
     )
+    # 개인 빌더의 partner_present=False가 2인 관계 조립 결과를 덮지 않도록 주문의
+    # additive partner 존재 여부를 최종 진실원으로 사용한다. integrated.py는 건드리지 않는다.
+    result = {**result, "partner_present": partner is not None}
     content_path = str(result.get("content_path") or "").strip()
     if not content_path or not Path(content_path).is_file():
         raise RuntimeError("integrated_full content persistence missing")
@@ -381,6 +408,11 @@ def create_order(
     horoscope: str = "",
     use_llm: bool = False,
     name: str = "",
+    partner_name: str = "",
+    partner_birth: str = "",
+    partner_lunar: bool = False,
+    partner_leap: bool = False,
+    partner_gender: str = "male",
     product: str = "integrated",
     concern: str = "",
     brand: str = "default",
@@ -388,6 +420,11 @@ def create_order(
 ) -> tuple[str, list[str]]:
     """주문 접수 — 정규화 성공 시 create(RECEIVED)→NORMALIZED. 실패는 ValueError 그대로
     올림(주문 미생성). 반환 (order_id, 정규화 경고 목록)."""
+    partner_birth_value = partner_birth.strip()
+    if partner_birth_value and product != integrated.PRODUCT:
+        # 상대 소비처가 없는 상품에 입력을 저장하거나 무시하지 않는다.
+        raise ValueError("partner input is only supported for integrated_full")
+
     parts = birth.split()
     iy, imo, ida = (int(x) for x in parts[0].split("-"))
     unknown_time = len(parts) < 2
@@ -397,9 +434,50 @@ def create_order(
         # 예외는 OrderStore 생성 전에 올려 주문이 물리적으로 남지 않게 한다.
         raise ValueError("integrated_full requires a known birth time")
 
-    # 음력/윤달 입력은 KASI 1차 기준으로 양력 정규화(app.py /generate 와 동일 규칙)
+    partner_parts = partner_birth_value.split()
+    partner_input: tuple[int, int, int, int, int] | None = None
+    if partner_parts:
+        try:
+            piy, pimo, pida = (int(x) for x in partner_parts[0].split("-"))
+        except (TypeError, ValueError):
+            raise ValueError("partner birth input is invalid") from None
+        if len(partner_parts) < 2:
+            raise ValueError("integrated_full partner requires a known birth time")
+        try:
+            phh, pmi = (int(x) for x in partner_parts[1].split(":"))
+        except (TypeError, ValueError):
+            raise ValueError("partner birth input is invalid") from None
+        partner_input = (piy, pimo, pida, phh, pmi)
+
+    # 본인과 상대 모두 같은 KASI 1차 정규화 진입점을 재사용한다.
     nd = norm.normalize_date(iy, imo, ida, is_lunar=lunar, is_leap=leap)
     warnings = list(nd.warnings) if nd.input_kind == "lunar" else []
+    partner_params: dict | None = None
+    if partner_input is not None:
+        piy, pimo, pida, phh, pmi = partner_input
+        try:
+            partner_nd = norm.normalize_date(
+                piy,
+                pimo,
+                pida,
+                is_lunar=partner_lunar,
+                is_leap=partner_leap,
+            )
+        except ValueError:
+            # KASI 예외에 상대 생년월일 원문이 포함돼도 응답으로 전재하지 않는다.
+            raise ValueError("partner birth normalization failed") from None
+        if partner_nd.input_kind == "lunar":
+            warnings.extend(list(partner_nd.warnings))
+        partner_params = {
+            "name": partner_name.strip(),
+            "year": partner_nd.year,
+            "month": partner_nd.month,
+            "day": partner_nd.day,
+            "hour": phh,
+            "minute": pmi,
+            "is_male": partner_gender.strip().lower() in ("male", "m", "남", "남자"),
+            "is_leap": bool(partner_leap and partner_lunar),
+        }
 
     is_male = gender.strip().lower() in ("male", "m", "남", "남자")
     auto_category = question_router.classify(concern).value
@@ -449,6 +527,8 @@ def create_order(
                 # 3-B 관리자 확정 전의 명시적 빈 상태다. 기존 상품에는 키를 추가하지 않아
                 # 저장 JSON과 재생성 입력의 하위호환을 보존한다.
                 **({"modules": []} if product == integrated.PRODUCT else {}),
+                # 상대 birth가 없는 1인 주문에는 키 자체를 만들지 않는다.
+                **({"partner": partner_params} if partner_params is not None else {}),
             },
             "normalize_warnings": warnings,
         },
@@ -528,6 +608,17 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
             except Exception:
                 civil = None
             note = masking.mask_birth_in_text(f"{type(e).__name__}: {str(e)}", civil)
+            partner = _partner_generation_params(p)
+            if partner is not None:
+                try:
+                    partner_civil = (
+                        f"{int(partner['year'])}-{int(partner['month']):02d}-"
+                        f"{int(partner['day']):02d} {int(partner['hour']):02d}:"
+                        f"{int(partner['minute']):02d}"
+                    )
+                except Exception:
+                    partner_civil = None
+                note = masking.mask_birth_in_text(note, partner_civil)
             st.add_audit(order_id, action="generation_error", note=note[:200])
             return
 
@@ -901,8 +992,11 @@ def confirm_module_selection(
         if selection["product"] != integrated.PRODUCT:
             raise ValueError("모듈 확정은 integrated_full 주문에만 사용할 수 있습니다")
         selected = integrated_modules.normalize_modules(modules)
-        if "gunghap" in selected:
-            raise ValueError("1인 integrated_full 주문에서는 gunghap 모듈을 선택할 수 없습니다")
+        gen_params = dict((report.render_meta or {}).get("gen_params", {}))
+        if "gunghap" in selected and _partner_generation_params(gen_params) is None:
+            raise ValueError(
+                "상대 정보가 없는 integrated_full 주문에서는 gunghap 모듈을 선택할 수 없습니다"
+            )
 
         render_meta = dict(report.render_meta or {})
         gen_params = dict(render_meta.get("gen_params", {}))

@@ -44,6 +44,14 @@ def test_generate_form_exposes_integrated_full_product(client):
     r = client.get("/")
     assert r.status_code == 200
     assert '<option value="integrated_full">' in r.text
+    for field in (
+        "partner_name",
+        "partner_birth",
+        "partner_lunar",
+        "partner_leap",
+        "partner_gender",
+    ):
+        assert f'name="{field}"' in r.text
 
 
 def test_generate_integrated_full_creates_waiting_order(client, tmp_path, monkeypatch):
@@ -69,6 +77,7 @@ def test_generate_integrated_full_creates_waiting_order(client, tmp_path, monkey
         report = store.get_report(order_id)
         assert store.get_state(order_id) == OrderState.NORMALIZED
         assert report.render_meta["gen_params"]["modules"] == []
+        assert "partner" not in report.render_meta["gen_params"]
         assert report.render_meta["question_category"]["value"] == "직업"
         blocked = [entry for entry in store.audit(order_id) if entry.action == "generation_blocked"]
         assert len(blocked) == 1
@@ -99,6 +108,103 @@ def test_generate_integrated_full_unknown_time_returns_422_without_order(
         assert store.list_orders() == []
     finally:
         store.close()
+
+
+def test_generate_integrated_full_partner_creates_waiting_two_person_order(
+    client, tmp_path, monkeypatch
+):
+    db = tmp_path / "integrated-full-partner-app.sqlite"
+    monkeypatch.setenv("SAJUGEN_ORDERS_DB", str(db))
+
+    response = client.post(
+        "/generate",
+        data={
+            "birth": "2000-01-01 12:00",
+            "name": "DOC_A",
+            "gender": "male",
+            "partner_name": "DOC_B",
+            "partner_birth": "2001-02-02 13:30",
+            "partner_gender": "female",
+            "product": "integrated_full",
+            "brand": "default",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    order_id = response.headers["location"].rstrip("/").split("/")[-1]
+    store = OrderStore(db)
+    try:
+        report = store.get_report(order_id)
+        assert store.get_state(order_id) == OrderState.NORMALIZED
+        assert report.render_meta["gen_params"]["partner"] == {
+            "name": "DOC_B",
+            "year": 2001,
+            "month": 2,
+            "day": 2,
+            "hour": 13,
+            "minute": 30,
+            "is_male": False,
+            "is_leap": False,
+        }
+        blocked = [
+            entry
+            for entry in store.audit(order_id)
+            if entry.action == "generation_blocked"
+        ]
+        assert blocked and blocked[-1].note == "integrated_full modules unconfirmed"
+    finally:
+        store.close()
+
+
+def test_generate_rejects_unknown_partner_time_without_echoing_birth(
+    client, tmp_path, monkeypatch
+):
+    db = tmp_path / "integrated-full-partner-unknown-app.sqlite"
+    monkeypatch.setenv("SAJUGEN_ORDERS_DB", str(db))
+    partner_birth = "2001-02-02"
+
+    response = client.post(
+        "/generate",
+        data={
+            "birth": "2000-01-01 12:00",
+            "name": "DOC_A",
+            "partner_name": "DOC_B",
+            "partner_birth": partner_birth,
+            "partner_gender": "female",
+            "product": "integrated_full",
+            "brand": "default",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 422
+    assert partner_birth not in response.text
+    store = OrderStore(db)
+    try:
+        assert store.list_orders() == []
+    finally:
+        store.close()
+
+
+def test_generate_rejects_partner_for_legacy_product_before_pdf(client, monkeypatch):
+    def forbidden_generate(*args, **kwargs):
+        raise AssertionError("legacy product must reject partner before generation")
+
+    monkeypatch.setattr(app_mod, "generate", forbidden_generate)
+
+    response = client.post(
+        "/generate",
+        data={
+            **_FORM,
+            "partner_name": "DOC_B",
+            "partner_birth": "2001-02-02 13:30",
+            "partner_gender": "female",
+        },
+    )
+
+    assert response.status_code == 422
+    assert "only supported for integrated_full" in response.text
 
 
 def test_generate_filename_has_no_birthdate(client):

@@ -145,6 +145,17 @@ def _detail_response(
     guard = meta.get("guard", {})
     category_state = order_flow.question_category_state(report)
     module_state = order_flow.module_selection_state(report)
+    gen_params = dict(meta.get("gen_params", {}))
+    raw_partner = gen_params.get("partner")
+    partner_present = isinstance(raw_partner, dict) and bool(raw_partner)
+    partner_summary = (
+        {
+            "name": str(raw_partner.get("name") or ""),
+            "is_male": bool(raw_partner.get("is_male")),
+        }
+        if partner_present
+        else None
+    )
     return templates.TemplateResponse(
         request,
         "admin_detail.html.j2",
@@ -154,7 +165,7 @@ def _detail_response(
             "in_progress": state in _IN_PROGRESS,
             "report": report,
             "meta": meta,
-            "gen_params": meta.get("gen_params", {}),
+            "gen_params": gen_params,
             "sections": sections,
             "guard": guard,
             "flags": report.safety_flags,
@@ -170,11 +181,13 @@ def _detail_response(
             "module_options": tuple(
                 module_id
                 for module_id in integrated_modules.SELECTABLE_MODULES
-                if module_id != "gunghap"
+                if partner_present or module_id != "gunghap"
             ),
             "recommended_modules": integrated_modules.recommended_modules_for_category(
-                category_state["value"]
+                category_state["value"],
+                partner_present=partner_present,
             ),
+            "partner_summary": partner_summary,
         },
         status_code=status_code,
     )
