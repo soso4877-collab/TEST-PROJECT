@@ -42,7 +42,19 @@
 >   [3-A 커밋·push·QI 기록 완료 2026-07-11 운영자 지시] `ac5d8f2` feat(3-A 8파일) + docs(기록·manifest·
 >     QI-2026-07-11-01 — 이 커밋). manifest = done(archive 동결). 절차 이탈 2회는 docs/16
 >     QI-2026-07-11-01로 기록(글롭 형식 `!**/` 고정, 근본 완화 = ignored 55파일 정리 운영자 액션).
->   [다음] 3-B(admin 추천·확정 UI) 발주 → 라운드12. 실렌더·LLM-on 문안은 계속 미검증(별도 승인 영역).
+>   [3-B 발주 2026-07-11] 패킷 `handoff/tasks/q7-stage3b-admin-20260711.md`(승인, SHA `96c42a9c…`) =
+>     admin 모듈 추천·확정 UI. 추천 표시만(자동 선택 없음)·확정은 NORMALIZED에서만·저장은
+>     gen_params.modules+report_plan.sections·audit 모듈 ID만·생성은 기존 재시도 재사용. manifest =
+>     planned/next_actor=codex. 검증 = 라운드12, 기준선 778/4.
+>   [라운드12 PASS 2026-07-11] 3-B 구현(Codex, 제품 4 + 테스트 3파일, +184/-18) 교차리뷰 승인. 기준환경
+>     **801 passed / 4 skipped / exit 0**(778+23, 감소 0) = 새 기준선. 골든 28. 실경로 프로브로 gunghap/
+>     비NORMALIZED 확정 거부·정규 순서 저장·audit 모듈 ID만 실측. 절차 이탈 0(`!**/` 글롭 첫 적용 라운드 —
+>     QI-2026-07-11-01 재발 방지 유효 확인). **Q7 3단계(3-A+3-B) 완결** — 접수→모듈 확정→native 생성→검수→
+>     발급 전 구간 배선. 정본 = REVIEW-FEEDBACK 라운드12 절.
+>   [3-B 커밋·push 완료 2026-07-11 운영자 지시] `8098f84` feat(3-B 7파일) + docs(기록·manifest — 이 커밋).
+>     manifest = done(archive 동결). origin push 완료.
+>   [다음] 합성 실렌더 N=1·N=4(무LLM·합성 인물, 운영자 승인 2026-07-11 "권장대로") → 결과는 이 앵커 아래
+>     기록. 4단계(gunghap·2인 접수)는 별도 설계. LLM-on 문안 미검증 유지.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목

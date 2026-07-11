@@ -1,3 +1,46 @@
+# 교차 리뷰 — 2026-07-11 (라운드 12, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `3b2aa7b` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage3b-admin-20260711.md` (Q7 3-B admin 모듈 추천·확정 UI)
+
+## 최종 판정: **승인(PASS)** — 3-B 수용기준 전 항목 GREEN, 미해결 0, 절차 이탈 0(글롭 `!**/` 형식 첫 적용 라운드). Q7 3단계 완결.
+
+Codex 완료보고 없이 파일 상태 기준 인계("이어받아 교차리뷰") — diff 전량 실측 + 기준환경 직접 재실행 + 실경로 프로브.
+
+### ⓪ 범위 무결성
+- HEAD `3b2aa7b` 불변. 수정 = 제품 4파일(admin.py +31 / modules.py +23 / order_flow.py +55 / admin_detail.html.j2 +37) + 테스트 3파일(신규 test_module_selection_admin.py). app.py·integrated.py·cli.py·게이트·calc/input diff 0(패킷 §0 정합). STATE·manifest 변경은 발주 세션 선행분.
+
+### ① 기준환경 pytest (직접 재실행)
+- `pytest tests/ -q` → **801 passed / 4 skipped / exit 0** (208.5s). 기준선 778/4 → **+23 = 신규 테스트 완전 일치**(감소 0, 은닉 약화 0).
+- `pytest -q -k golden` → **28 passed**. 3-B 대상 3파일 단독 62 passed.
+
+### ② 항목별 실측 (패킷 §2·§3)
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 추천 매핑 | `modules.py.recommended_modules_for_category` — 순수 표시 함수(주문 메타 읽기/쓰기 0), 7종 전수 표 테스트(RELATION→love·TIMING/GENERAL→빈 튜플) + 미지정/미등록 빈 튜플. **R9-1 커버리지 로직 비변경**(추가만) | ✓ |
+| admin 패널 | integrated_full 주문만 표시(기존 상품 상세 무변경 회귀), 미확정 red 강조, 추천 배지 + "자동 선택되지 않습니다" 명시, NORMALIZED에서만 확정 폼, 확정 후 기존 `/retry` 재사용(새 생성 버튼 0) | ✓ |
+| 확정 함수 | `confirm_module_selection` — NORMALIZED 한정(`EditNotAllowed`→409, 기존 예외 재사용), integrated_full 한정(422), `normalize_modules` 위임 + gunghap 이중 거부, `gen_params.modules`+`report_plan.sections` 동기 저장, audit note = 모듈 ID만, 상태 전이 0 | ✓ |
+| 실경로 프로브(리뷰어 독립) | P1 gunghap 확정 → ValueError 거부 / P2 역순 입력 `[job,love]` → **정규 순서 `(love,job)` 저장**·confirmed True·plan.sections 동기·audit `"love,job"` / P3 상태 전이 후 확정 → EditNotAllowed 거부 | ✓ |
+| 3-A 테스트 변경 | 수동 gen_params 주입 → `confirm_module_selection` 실호출로 교체 = **약화 아닌 실경로 강화**(+plan.sections 단언 추가) | ✓ |
+| 신규 테스트 23건 | 추천 표시/자동 선택 없음 증명/기존 상품 패널 부재/확정 저장(생성 미발동)/차단 parametrize(잘못된 값·**비NORMALIZED 전수**·검증 순서·기존 상품)/매핑 전수 표 | ✓ |
+| Ruff | 수정 6파일 `All checks passed!` / exit 0 | ✓ |
+
+### ③ 미검증 (정직 승계)
+- 실브라우저 수동 UI 검수(TestClient 회귀만)·실렌더·LLM-on 문안: 미실행(별도 승인 영역).
+- 이로써 Q7 3단계(3-A+3-B) 완결 — "접수 → 모듈 확정 → native 생성 → 검수 → 발급" 전 구간 배선. 남은 검증 관문 = 합성 실렌더(N=1·N=4, 설계 프리모템 항목).
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 801 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed
+./.venv/Scripts/python.exe -m pytest (3-B 대상 3파일)      → 62 passed
+./.venv/Scripts/python.exe -m ruff check (수정 6파일)      → All checks passed / exit 0
+실경로 프로브 P1~P3(확정 함수 직접 호출)                    → gunghap/비NORMALIZED 거부·정규 순서 저장 실측
+git diff --name-only (금지 경계)                          → app/integrated/cli/게이트/calc/input 0
+```
+
+---
+---
+
 # 교차 리뷰 — 2026-07-11 (라운드 11, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `1401dbf` 위) · 구현자: Codex · 지시문: `handoff/tasks/q7-stage3a-order-20260711.md` (Q7 3-A 주문 플로우 integrated_full 편입)
