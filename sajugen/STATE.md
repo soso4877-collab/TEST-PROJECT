@@ -133,8 +133,13 @@
 >     20260711, 동기화 밖·MANIFEST 보존·가역적). fail-closed 화이트리스트 분류, 이동 후 repo 비익명 잔류 0 +
 >     전체 pytest **831/4 무영향**. QI-2026-07-11-01 근본 완화 종결. PII 잔여 = ②(git 이력 실명 rewrite)
 >     ③(docs/11 생년월일)만 — 운영자 결정 대기.
->   [다음] 운영자가 웹폼으로 재발급 주문 접수(PII는 채팅 비경유 — 폼 직접 입력, 서버 기동 명령은 CLAUDE.md)
->     → admin 모듈 확정 → 생성 → docs/23 §2 체크리스트(hsweep 파일럿 포함).
+>   [베타 1호 생성 완료 2026-07-12] 주문 `ord_19f51b98aa69de82ade`(integrated_full·4모듈 love/job/wealth/
+>     health·LLM-on) — 접수는 로컬 입력 파일 경유(채팅 PII 0, 접수 후 파일 삭제). **gate_pass=True, 36p**
+>     (하한 28p), 커버리지 clean, DRAFTED. LLM calls=17(~$1.2). love·flow 챕터 가드 폴백 2건(정상 방어).
+>   [hsweep 파일럿 1호 2026-07-12 — A-3 실측] N=29 → M=0 → K=0, $0.41, partial=False. Z(운영자 육안 신규
+>     발견)가 결정 지표로 잔존 — 육안 검수 후 docs/16에 추기. 상세 = docs/16 hsweep 절.
+>   [다음] **운영자 육안 검수**(sajugen/render/out/draft_ord_19f51b98aa69de82ade.pdf, docs/23 §2-3 —
+>     Z 값 보고) → admin에서 APPROVED → 수동 발송. 이후 베타 2·3호 접수.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9(Claude 신선 컨텍스트) = **changes_requested**. v3 수용기준·회귀·범위·게이트 비악화 전 항목
