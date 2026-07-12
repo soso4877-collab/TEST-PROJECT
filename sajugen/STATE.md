@@ -7,9 +7,11 @@
 >     — **새 기준선 = 941/4**. golden 28. Ruff 신규 위반 0(HEAD 부채 19건 동일 구성 대조). py_compile 43파일·
 >     diff-check GREEN. calc/input diff 0(tracked+untracked). SHA 3건 MATCH. 리뷰어 수정은 허용 4파일뿐
 >     (read-only 56파일 SHA 시작/종료 스냅샷 대조).
->   [다음] 운영자 checkpoint commit 결정(untracked 필수 5파일 경로 명시 추가, `git commit -am` 금지).
->     이후 별도 과금 승인 시에만 replacement 주문 1회 → 표준 게이트 → hsweep → 육안 Z 재측정.
->     실제 상품 PASS·비용 절감·Z=0은 여전히 확정 불가.
+>   [종결 2026-07-12] checkpoint commit = **`5b0a88f`**(60파일, 승인 신규 5파일 경로 명시 추가).
+>     **beta-1-register-harness CODE_PASS 태스크 종결**(manifest done + archive 동결). 실제 API·PDF·
+>     prompt cache 비용·hsweep K/Z·육안 Z=0은 여전히 **미검증**.
+>   [다음] 유료 재생성 전에 라운드16 advisory인 `일정/일정한` 오탐 소수정 여부 결정. 이후 운영자
+>     별도 과금 승인 시에만 Phase C replacement 1회 진행(→ 표준 게이트 → hsweep → 육안 Z 재측정).
 
 > ===== 이전 앵커 (2026-07-12 베타 1호 Z>0 개선 CODE_PASS·교차리뷰 요청) =====
 >   [현재] 브랜치 `codex/gunghap-relationship-quality`, base/HEAD `5ebd3b6`, 원격과 동률. 베타 1호 육안

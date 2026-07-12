@@ -11,6 +11,10 @@
 - 리뷰어 수정 = 허용 4파일만(REVIEW-FEEDBACK·STATE·이 파일·manifest는 handoff 도구). read-only 56파일
   SHA-256 시작/종료 스냅샷 전수 일치.
 - 다음: 운영자 checkpoint commit 결정 → (별도 과금 승인 시) replacement 주문 1회 → 게이트/hsweep/육안 Z.
+- **종결(2026-07-12)**: checkpoint commit = `5b0a88f`. beta-1-register-harness **CODE_PASS 태스크 종결**
+  (manifest done + `handoff/archive/beta-1-register-harness-20260712.json` 동결). 실제 API·PDF·prompt cache
+  비용·hsweep K/Z·육안 Z=0은 여전히 미검증. 다음 = 유료 재생성 전 라운드16 advisory `일정/일정한` 오탐
+  소수정 여부 결정 → 이후 운영자 별도 과금 승인 시에만 Phase C replacement 1회.
 
 ---
 
