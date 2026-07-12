@@ -117,6 +117,35 @@ def test_external_domain_advice_blocks_fact_and_procedure_pairs(text):
 @pytest.mark.parametrize(
     "text",
     [
+        "시험 일정은 공식 공고에서 확인하세요.",
+        "시험 접수 일정은 공식 공고에서 확인하세요.",
+        "채용 일정은 공식 공고에서 확인하세요.",
+        "시험 일정을 확인하세요.",
+        "채용 일정하고 장소를 확인하세요.",
+    ],
+)
+def test_external_domain_advice_keeps_blocking_schedule_noun_forms(text):
+    hits = dq.external_domain_advice_lint(text)
+
+    assert hits
+    assert all("일정" in hit["advice_terms"] for hit in hits)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "직장 생활에서는 일정한 속도를 유지하는 편이 좋습니다.",
+        "직업에서는 속도를 일정하게 유지하다 보면 부담이 줄어듭니다.",
+        "직장에서는 일정하지 않은 흐름을 천천히 살핍니다.",
+    ],
+)
+def test_external_domain_advice_allows_schedule_adjective_forms(text):
+    assert dq.external_domain_advice_lint(text) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
         "시험이 걱정된다는 질문으로 이해했습니다.",
         "직업에서는 속도를 늦추고 방향과 우선순위를 조율하세요.",
         "시험은 2027년 세운을 바탕으로 준비 속도를 조절하세요.",

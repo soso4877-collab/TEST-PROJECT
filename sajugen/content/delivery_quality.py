@@ -107,7 +107,9 @@ _EXTERNAL_DOMAIN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("서류", re.compile(r"서류")),
 )
 _EXTERNAL_FACT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("일정", re.compile(r"일정")),
+    # 명사 `일정`과 조사형(`일정을`, `일정은`, `일정하고`)은 외부 사실로 계속 잡는다.
+    # `고르다`라는 성질 묘사인 승인된 세 활용형만 정확히 제외해 명사형 차단을 넓게 풀지 않는다.
+    ("일정", re.compile(r"일정(?!한|하게|하지)")),
     ("마감", re.compile(r"마감|기한")),
     ("점수", re.compile(r"점수|성적")),
     (
