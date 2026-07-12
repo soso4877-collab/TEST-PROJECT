@@ -2,14 +2,14 @@
   "schema_version": 1,
   "task_id": "beta-1-register-harness-20260712",
   "status": "done",
-  "base_commit": "5b0a88f568e9efadf0ee309abee515dc4e5ed609",
+  "base_commit": "47350d251b3633239df0ed17cd5ce5e41dc9b0d5",
   "packet_path": "handoff/tasks/beta-1-register-harness-20260712.md",
   "packet_sha256": "65a2e8606b06b83775b672fe10f83b181940c4e545f1238cf48a6bca32502d95",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "938c680bb0f7e6af7d59cf018a917c0fdf6cb31894fd351e9887ce497848104a",
+  "notes_sha256": "8b11b881ef238b6733a77148e856f63b611890f1c6815f46f07465b82e0a4a16",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "fa36ad18caf39377bf140f49684eaf74952b6207995d5add5ece33c3df633def",
   "next_actor": "user",
   "next_action": "CODE_PASS 종결. 유료 재생성 전 라운드16 일정/일정한 오탐 소수정 여부 결정; 이후 별도 승인 시 Phase C replacement 1회·게이트·hsweep·육안 Z 재측정",
-  "updated_at": "2026-07-12T05:33:28.950Z"
+  "updated_at": "2026-07-12T05:42:30.346Z"
 }
