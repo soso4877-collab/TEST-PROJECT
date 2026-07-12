@@ -1,3 +1,43 @@
+# 교차 리뷰 — 2026-07-12 (라운드 17, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `1b46b47` 위, 제품 2파일 + 인계 3파일) · 구현자: Codex · 지시문: `handoff/tasks/beta-1-schedule-boundary-20260712.md` (라운드16 advisory `일정/일정한` 오탐 소수정)
+
+## 최종 판정: **승인(PASS)** — 수용 기준 전 항목 실측 GREEN, 미해결 0. 승인 범위(오탐 1건) 밖 변경 없음.
+
+### 실측
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 전제 | HEAD `1b46b47` 일치 · packet/notes/review SHA-256 3건 manifest MATCH · base_commit ancestor 확인 · 제품 diff = delivery_quality.py(+3/-1)·test_register_advice_gate.py(+29)뿐 | ✓ |
+| pytest | **949 passed / 4 skipped / exit 0**(195.9s) — 라운드16 기준선 941/4 + 신규 8, 감소 0. 산술 예상과 일치. **새 기준선 = 949/4** | ✓ |
+| golden / 집중 | 28 passed / 집중 3파일(register_advice·tone_spec·skeleton_matrix) 70 passed | ✓ |
+| 정적 | 변경 2파일 Ruff `All checks passed`(exit 0) · py_compile exit 0 · `git diff --check` exit 0 | ✓ |
+| 정규식 경계 | `일정(?!한|하게|하지)` 직접 프로브 — 차단측 5건(시험/채용 일정·접수 일정·일정을·명사+조사 `일정하고`) + 인접 `일정 한번` 전부 hit, `advice_terms`에 고정 토큰 `일정` 실제 포함(타 규칙 의존 없음). 허용측 3건(일정한 속도·일정하게 유지·일정하지 않은) 전부 0 hit | ✓ |
+| 회귀 무손상 | 기존 매트릭스 프로브 — 연령·요건 / 마감·접수·제출 결합 차단 유지, 간지·세운 연도 비오탐 유지. 게이트 키·finding 구조·호출부·타 패턴 diff 0 | ✓ |
+| 테스트 양방성 | 신규 8건 = 차단 5 + 허용 3 parametrize, 차단측은 `일정 in advice_terms` 단언으로 해당 패턴 발화를 직접 고정 | ✓ |
+
+### 관찰 (비블로커)
+- **인접 활용형 잔존**: `일정하다`·`일정해서`는 여전히 hit(프로브 실측). 패킷 §1이 승인 스코프를 세 활용형(`일정한/일정하게/일정하지`)으로 명시했으므로 스코프 준수이며, 방향은 fail-closed(LLM 후보 폴백)다. 실측(holdout/실런)에서 잔존 오탐이 관측되면 그때 동일 방식으로 확장.
+- **절차 이탈 1건(자진 보고)**: 구현 세션 초기 broad `rg`가 비대상 `sajugen/render/out/**`까지 1회 매치(인용·전재·수정·재열람 0, 이후 탐색 제한). 라운드 10·11과 같은 클래스 — 이번 패킷 §0에 ignored 제외 글롭 문구가 누락돼 재발한 것으로, 이후 Codex 패킷 0절에 `--glob '!**/render/out/**' --glob '!**/tmp/**' --glob '!**/synthetic-tmp/**' --glob '!**/data/**'` 문구를 필수 포함해야 한다. docs/16 기록 여부 = 운영자 결정.
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 949 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed / exit 0
+./.venv/Scripts/python.exe -m pytest (집중 3파일) -q       → 70 passed / exit 0
+./.venv/Scripts/python.exe -m ruff check / py_compile (변경 2파일) → exit 0 / exit 0 · git diff --check → exit 0
+경계 프로브 14건(차단 6/허용 3/인접 2/기존 매트릭스 3, 합성·PII 0) → 전부 기대 일치
+Get-FileHash: packet/notes/review vs manifest → 3건 MATCH · read-only 3파일 시작/종료 스냅샷 대조
+```
+
+### 미검증(정직 보고)
+- API·PDF·hsweep·유료 재생성·hrun 미실행 — replacement 문안·prompt cache·비용·조판·hsweep K/Z·육안 Z=0은 판정 범위 밖, 여전히 확정 불가.
+- 리뷰어는 제품 코드·테스트를 수정하지 않았다(read-only 3파일 SHA 스냅샷 대조).
+
+다음: 운영자 checkpoint commit 결정(untracked packet 1개 경로 명시 추가). 이후 별도 과금 승인 시에만 Phase C replacement 1회.
+
+---
+---
+
 # 교차 리뷰 — 2026-07-12 (라운드 16, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `5ebd3b6` 위, 54 수정 + 5 신규) · 구현자: Codex · 지시문: `handoff/tasks/beta-1-register-harness-20260712.md` (베타 1호 Z>0 문체·조언·가독성·hsweep/비용 개선)

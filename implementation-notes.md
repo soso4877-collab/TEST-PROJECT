@@ -1,5 +1,39 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## 라운드17 교차리뷰 — 2026-07-12 (검증 세션, 리뷰어 Claude)
+
+- 판정: **PASS**. `일정/일정한` 오탐 소수정(제품 2파일, +32/-1) — 승인 범위 밖 변경 0.
+  정본 = `REVIEW-FEEDBACK.md` 라운드17 절.
+- 기준환경 확정: **949 passed / 4 skipped / exit 0**(941+8, 감소 0) — 새 기준선. golden 28, 집중 70,
+  변경 2파일 Ruff/py_compile/diff-check GREEN. 경계 프로브 14건 전부 기대 일치.
+- 비블로커: 인접 `일정하다/일정해서` 잔존 오탐(승인 스코프 밖, fail-closed). 절차 이탈 1건(broad rg →
+  render/out 매치, 자진 보고) — 재발 방지 = 이후 패킷 0절에 ignored 제외 글롭 문구 필수.
+- 다음: 운영자 checkpoint commit 결정 → (별도 과금 승인 시) Phase C replacement 1회.
+- **종결(2026-07-12)**: 제품 checkpoint commit = `e6145fc`(fix, 2파일 +32/-1). **라운드17 PASS**,
+  새 기준선 **949 passed / 4 skipped**. `일정하다/일정해서`는 실제 관측 시에만 확장하는 비블로커.
+  beta-1-schedule-boundary done + archive 동결. API·PDF·비용·hsweep K/Z·육안 Z=0 미검증.
+  다음 = 운영자의 Phase C replacement 1회 과금 승인 결정.
+
+---
+
+## 라운드16 advisory `일정/일정한` 오탐 소수정 — 2026-07-12 (Codex)
+
+- 상태: **구현·자체 검증 완료 / Claude 신선 컨텍스트 교차리뷰 요청**.
+- 제품 변경: `sajugen/content/delivery_quality.py` 일정 fact 정규식 1곳을 `일정(?!한|하게|하지)`로 경계화하고,
+  `tests/test_register_advice_gate.py`에 수용 기준 명사형 차단 4건·인접 명사형 차단 1건·형용사 활용형 허용 3건을 추가했다.
+- 기존 “외부 도메인 + 사실/절차” 계약과 고정 토큰 `일정`, 다른 차단 패턴, 게이트 키는 바꾸지 않았다.
+  제품 diff = 2파일, 32+/1-. 정책 문서·다른 게이트 수정 0.
+- 실측: 수정 전 차단 5=True/허용 예정 3=True → 수정 후 차단 5=True/허용 3=False. 신규 8 passed,
+  관련 집중 70 passed, 전체 **921 passed / 32 skipped / exit 0**(동일 환경 913/32+8), golden 28.
+  변경 Python Ruff GREEN, py_compile exit 0, `git diff --check` exit 0.
+- 금지 준수: API·PDF·hsweep·유료 재생성·hrun·commit·push·main 전진 없음.
+- 절차 기록: 초기 broad `rg`가 비대상 `sajugen/render/out/**`까지 1회 매치했다. 출력 내용을 인용·전재·수정하거나
+  PII 확인을 위해 재열람하지 않았고, 이후 탐색 범위를 제품 코드·테스트로 제한했다.
+- 인계 정본: `handoff/tasks/beta-1-schedule-boundary-20260712.md`. 다음 = Claude가 diff+검증을 독립 재실행해
+  PASS면 운영자 checkpoint commit 결정. replacement는 여전히 별도 과금 승인 전 실행 금지.
+
+---
+
 ## 라운드16 교차리뷰 — 2026-07-12 (검증 세션, 리뷰어 Claude)
 
 - 판정: **PASS(CODE_PASS)**. 패킷 `beta-1-register-harness-20260712` A~D 전 항목 diff 근거 확인.

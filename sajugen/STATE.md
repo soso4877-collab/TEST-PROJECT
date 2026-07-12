@@ -1,6 +1,21 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-07-12 라운드16 교차리뷰 PASS — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-07-12 라운드17 일정/일정한 오탐 소수정 PASS — 이 블록 먼저 읽기) =====
+>   [판정] 라운드17 교차리뷰(Claude 신선 컨텍스트) = **PASS**. 라운드16 advisory `일정/일정한` 오탐 소수정
+>     (delivery_quality.py 정규식 1곳 `일정(?!한|하게|하지)` + 양방 테스트 8건). 승인 범위 밖 변경 0.
+>     정본 = REVIEW-FEEDBACK.md 라운드17 절, 패킷 = handoff/tasks/beta-1-schedule-boundary-20260712.md.
+>   [기준환경 확정] `pytest tests/ -q` → **949 passed / 4 skipped / exit 0**(941/4 + 신규 8, 감소 0)
+>     — **새 기준선 = 949/4**. golden 28·집중 70·변경 2파일 Ruff/py_compile/diff-check GREEN.
+>     경계 프로브 14건 전부 기대 일치(차단 유지·허용 3활용형·기존 매트릭스 무손상).
+>   [비블로커] 인접 활용형 `일정하다/일정해서`는 승인 스코프 밖 잔존 오탐(fail-closed) — 실측 관측 시 확장.
+>     절차 이탈 1건(broad rg가 render/out 매치, 자진 보고·인용 0) — 이후 패킷 0절 글롭 문구 필수, docs/16 여부 운영자 결정.
+>   [종결 2026-07-12] 제품 checkpoint commit = **`e6145fc`**(fix, 2파일 +32/-1). **라운드17 PASS** —
+>     새 기준선 **949 passed / 4 skipped**. `일정하다/일정해서`는 실제 관측 시에만 확장하는 비블로커.
+>     beta-1-schedule-boundary 태스크 done + archive 동결. API·PDF·비용·hsweep K/Z·육안 Z=0 여전히 **미검증**.
+>   [다음] 운영자의 Phase C replacement 1회 과금 승인 결정. 승인 시에만 replacement 생성 → 표준 게이트 →
+>     hsweep → 육안 Z 재측정.
+
+> ===== 이전 앵커 (2026-07-12 라운드16 교차리뷰 PASS) =====
 >   [판정] 라운드16 교차리뷰(Claude 신선 컨텍스트) = **PASS(CODE_PASS)**. 패킷 A~D 전 항목 diff 근거 확인,
 >     미해결 블로커 0. advisory 1건(`일정`→`일정한` 오탐, fail-closed 방향·비블로커) = REVIEW-FEEDBACK 라운드16 절.
 >   [기준환경 확정] `pytest tests/ -q` → **941 passed / 4 skipped / exit 0**(기존 831/4 + 신규 110, 감소 0)
