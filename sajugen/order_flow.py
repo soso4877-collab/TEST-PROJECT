@@ -29,6 +29,7 @@ from .content import (
     client_tone_lint,
     delivery_quality,
     factcheck,
+    llm_usage,
     masking,
     question_router,
     safe_lint,
@@ -569,6 +570,7 @@ def create_order(
 # ───────────────── 생성(백그라운드) ─────────────────
 
 
+@llm_usage.isolated_run
 def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB) -> None:
     """파이프라인 실행 + 상태 전이. LLM 포함 시 3~5분 — BackgroundTasks 로 호출.
 
@@ -657,6 +659,10 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
 
         report = st.get_report(order_id)  # 최신본 재로드(경합 회피)
         guard = r.guard or {}
+        usage_meta = {
+            **llm_usage.snapshot(),
+            **llm_usage.detail_snapshot(),
+        }
         report = report.model_copy(
             update={
                 "content": (r.report.model_dump() if r.report is not None else {}),
@@ -669,6 +675,9 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                     "guard": guard,
                     "reasons": list(r.reasons),
                     "crosscheck_warnings": list(r.crosscheck_warnings),
+                    # 주문별 ContextVar collector에서 나온 PII-free 숫자·고정 ID만 저장한다.
+                    # 장수 웹 프로세스의 다른 주문 사용량과 섞이지 않는다.
+                    "llm_usage": usage_meta,
                     **(
                         {"integrated_full": dict(r.integrated_full_meta)}
                         if hasattr(r, "integrated_full_meta")

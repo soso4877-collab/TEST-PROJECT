@@ -395,6 +395,47 @@ def test_regen_parses_llm_usage_line_from_stdout(monkeypatch):
     assert hrun._regen_pdf(profile, "python")["llm_usage"] is None
 
 
+def test_regen_parses_cache_and_event_usage_without_customer_text(monkeypatch):
+    detail = {
+        "cache_creation_input_tokens": 800,
+        "cache_read_input_tokens": 2400,
+        "events": [
+            {
+                "role": "compose",
+                "model": "claude-sonnet-4-6",
+                "section": "consult",
+                "attempt": 1,
+                "input_tokens": 100,
+                "cache_creation_input_tokens": 800,
+                "cache_read_input_tokens": 0,
+                "output_tokens": 30,
+                "stop_reason": "end_turn",
+            }
+        ],
+    }
+    stdout = (
+        "PDF: x.pdf\nLLM usage: calls=1 input_tokens=100 output_tokens=30\n"
+        "LLM usage detail: " + json.dumps(detail, separators=(",", ":")) + "\n"
+    )
+    monkeypatch.setattr(
+        hrun.subprocess,
+        "run",
+        lambda cmd, **kw: types.SimpleNamespace(returncode=0, stdout=stdout, stderr=""),
+    )
+    profile = {
+        "type": "personal",
+        "pdf": "sajugen/render/out/__nonexistent__.pdf",
+        "birth": "1990-01-01 10:00",
+        "name": "합성갑",
+        "ref_year": 2026,
+    }
+    usage = hrun._regen_pdf(profile, "python")["llm_usage"]
+    assert usage["calls"] == 1
+    assert usage["cache_creation_input_tokens"] == 800
+    assert usage["cache_read_input_tokens"] == 2400
+    assert usage["events"] == detail["events"]
+
+
 def test_hsummary_whitelists_regen_usage_and_returncode():
     # summary 화이트리스트 배선 — regen_returncode 는 그동안 드롭돼 성패가 안 보였다
     # (QI-2026-07-05-01 관측 갭의 이웃). PII 0 필드만 추가.
@@ -414,6 +455,77 @@ def test_hsummary_whitelists_regen_usage_and_returncode():
     # 필드 부재 시 키 미출현(None 오염 방지)
     out2 = hsummary._redact_pdf({"type": "personal", "pdf": "y.pdf", "status": "verified"})
     assert "regen_llm_usage" not in out2 and "regen_returncode" not in out2
+
+
+def test_hsummary_sanitizes_detailed_llm_usage_fields():
+    import hsummary
+
+    usage = {
+        "calls": 1,
+        "input_tokens": 100,
+        "output_tokens": 20,
+        "cache_creation_input_tokens": 80,
+        "cache_read_input_tokens": 0,
+        "customer_name": "노출금지",
+        "events": [
+            {
+                "role": "compose",
+                "model": "claude-sonnet-4-6",
+                "section": "consult",
+                "attempt": 1,
+                "input_tokens": 100,
+                "cache_creation_input_tokens": 80,
+                "cache_read_input_tokens": 0,
+                "output_tokens": 20,
+                "stop_reason": "end_turn",
+                "prompt": "고객 원문 노출금지",
+            },
+            {"role": "compose 고객", "model": "bad", "section": "consult", "attempt": 1},
+        ],
+    }
+    out = hsummary._redact_pdf(
+        {
+            "type": "personal",
+            "pdf": "x.pdf",
+            "status": "verified",
+            "regen_llm_usage": usage,
+        }
+    )["regen_llm_usage"]
+    dumped = json.dumps(out, ensure_ascii=False)
+    assert "customer_name" not in out and "prompt" not in dumped
+    assert "노출금지" not in dumped and "compose 고객" not in dumped
+    assert out["events"] == [
+        {
+            "role": "compose",
+            "model": "claude-sonnet-4-6",
+            "section": "consult",
+            "stop_reason": "end_turn",
+            "attempt": 1,
+            "input_tokens": 100,
+            "cache_creation_input_tokens": 80,
+            "cache_read_input_tokens": 0,
+            "output_tokens": 20,
+        }
+    ]
+
+
+def test_hsummary_drops_malformed_event_container_without_crashing():
+    import hsummary
+
+    out = hsummary._redact_pdf(
+        {
+            "type": "personal",
+            "pdf": "x.pdf",
+            "status": "verified",
+            "regen_llm_usage": {
+                "calls": 1,
+                "input_tokens": 2,
+                "output_tokens": 3,
+                "events": {"prompt": "must not escape"},
+            },
+        }
+    )["regen_llm_usage"]
+    assert out == {"calls": 1, "input_tokens": 2, "output_tokens": 3}
 
 
 def test_failed_regen_is_reported_as_failed_not_done(monkeypatch):

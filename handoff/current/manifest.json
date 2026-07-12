@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "beta-1-issuance-20260712",
-  "status": "review_requested",
-  "base_commit": "0b461198ea43aaf511b3a5ab574673e8a5741e47",
-  "packet_path": "handoff/tasks/beta-1-issuance-20260712.md",
-  "packet_sha256": "f81bdeb04e9c7823a300fe06d37ea7268ff91c9e6fcf55fdf4b1895c962e521b",
+  "task_id": "beta-1-register-harness-20260712",
+  "status": "verified",
+  "base_commit": "5ebd3b6eb78f238747e5b4ae18f4f49c138973fc",
+  "packet_path": "handoff/tasks/beta-1-register-harness-20260712.md",
+  "packet_sha256": "65a2e8606b06b83775b672fe10f83b181940c4e545f1238cf48a6bca32502d95",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "9453c6cf0be0f8c38f64d065dbf1cec0bdbe1b2b5bebf8012827f6dd044ff78a",
+  "notes_sha256": "938c680bb0f7e6af7d59cf018a917c0fdf6cb31894fd351e9887ce497848104a",
   "review_path": "REVIEW-FEEDBACK.md",
-  "review_sha256": "b8b6f072607fd1334bd979df05515a269bad7a0df7991bdafc4d31797e511ad9",
+  "review_sha256": "fa36ad18caf39377bf140f49684eaf74952b6207995d5add5ece33c3df633def",
   "next_actor": "user",
-  "next_action": "베타 1호 draft PDF(sajugen/render/out/draft_ord_19f51b98aa69de82ade.pdf)를 육안 검수하고 Z 값을 보고한다. Z=0이면 admin 승인 후 수동 발송, Z>0이면 Claude가 QI 등재·수정 발주. 이후 베타 2·3호는 로컬 입력 파일 절차로 접수한다.",
-  "updated_at": "2026-07-11T15:27:48.038Z"
+  "next_action": "checkpoint commit 결정",
+  "updated_at": "2026-07-12T05:21:12.708Z"
 }

@@ -65,6 +65,7 @@ def _safe_hits(hits: list[dict] | None) -> list[dict]:
             "page",
             "chars",
             "term",
+            "token",
             "count",
             "allowed",
             "severity",
@@ -191,6 +192,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "no_orphan",
         "loanword_clean",
         "raw_calc_head_clean",
+        "client_register_clean",
         "customer_meta_clean",
         "placeholder_residue_clean",
         "style_clean",
@@ -198,6 +200,9 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "identity_role_clean",
         "singang_role_clean",
         "delivery_quality_clean",
+        "register_hard_hits_count",
+        "register_warning_hits_count",
+        "delivery_external_domain_advice_hits_count",
         "role_perspective_clean",
         "honorific_consistency_clean",
         "daewoon_current",
@@ -205,6 +210,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         out[k] = v.get(k)
     for k in (
         "loanword_hits",
+        "register_hits",
         "raw_calc_phrase_hits",
         "punctuation_hits",
         "name_policy_hits",
@@ -221,7 +227,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "honorific_consistency_hits",
     ):
         val = v.get(k) or []
-        out[k + "_count"] = len(val)
+        out[k + "_count"] = v.get(k + "_count", len(val))
         out[k] = val[:20]
     for k in (
         "semantic_style_hits",

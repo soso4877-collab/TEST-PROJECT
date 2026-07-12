@@ -19,10 +19,12 @@ from . import (
     factcheck,
     llm_polish,
     llm_sections,
+    llm_usage,
     masking,
     postprocess,
     quality_lint,
     question_router,
+    report_context,
     repetition,
     rules,
     safe_lint,
@@ -32,9 +34,9 @@ from . import (
 )
 from .sections_schema import _STATIC_OK, SECTION_SPECS, GuardReport, Report23, Section
 
-# LLM 챕터 작성 구간(docs/06, 절대규칙15 개정). 키+use_llm+anthropic 일 때만 compose(사실 슬롯 기반
-# 흐르는 산문), 그 외엔 룰 골격. intro·wonguk 등 사실 위주 챕터는 윤문(polish). 어떤 경우든 가드
-# 재검증 후 실패 시 룰 폴백. 결정론 룰은 고객마다 동일 패턴 → 사람 목소리는 챕터 작성으로만 확보(docs/13).
+# LLM 챕터 작성 구간(docs/06, 절대규칙15 개정). 키+use_llm+anthropic 일 때 12개 해석
+# 챕터를 사실 슬롯 기반으로 compose하고, 그 외엔 룰 골격을 쓴다. 현재 자동 polish 전용 챕터는
+# 없으며 검수자 재윤문 인터페이스만 하위호환한다. 어떤 경우든 가드 실패 시 룰 폴백이다.
 _COMPOSE_SECTIONS = {
     "intro",
     "wonguk",
@@ -49,6 +51,38 @@ _COMPOSE_SECTIONS = {
     "consult",
     "closing",
 }
+
+
+def _customer_policy_lints(text: str) -> list[dict]:
+    """생성·재작성·룰 폴백이 공유하는 고객 문체/외부 조언 하드 벨트.
+
+    register warning은 운영자 관측용이므로 후보를 버리지 않는다. 외부 조언 finding은
+    승인된 정적 rule/term만 담아 재작성 피드백에도 고객 원문이 섞이지 않는다.
+    """
+
+    register_hard = [
+        hit for hit in client_tone_lint.register_lint(text) if hit.get("severity") == "hard"
+    ]
+    return register_hard + delivery_quality.external_domain_advice_lint(text)
+
+
+def _normalize_llm_candidate(text: str, *, name: str | None, compose: bool) -> str:
+    """최초 후보와 재작성 후보가 공유하는 결정론 전처리.
+
+    두 경로가 다른 전처리를 쓰면 깨끗한 재작성도 기호 lint에 걸려 골격으로 되돌아간다.
+    고객 정책을 완화하지 않고, 표시 전에 이미 허용된 기계적 순화만 같은 순서로 적용한다.
+    """
+
+    normalized = _strip_artifacts(text)
+    normalized = postprocess.strip_document_self_reference(normalized)
+    normalized = postprocess.strip_formulaic_conclusion(normalized)
+    normalized = postprocess.replace_generic_address(normalized, rules.call_name(name))
+    normalized = re.sub(r"\s*[—–]\s*", ", ", normalized)
+    normalized = re.sub(r"\s*·\s*", ", ", normalized)
+    normalized = postprocess.style_safe_text(normalized)
+    if compose:
+        normalized = client_tone_lint.normalize_loanwords(normalized)
+    return normalized
 
 
 # 런타임 단일 소스: 마크다운/메타 제거·한자 정제는 content.postprocess 공통 함수로
@@ -101,6 +135,7 @@ def build_report(
     ref_date: str | None = None,
     work_modules: tuple[str, ...] | list[str] | None = None,
     include_section_ids: set[str] | frozenset[str] | None = None,
+    selected_modules: tuple[str, ...] | list[str] | None = None,
 ) -> Report23:
     # 기준 연도 방어(2026-06-12 버그: ref_year 미전달 시 골격이 seun 첫 해(과거)를
     # '기준 해'로 폴백 → LLM이 "지금은 2025년" 오서술). 우선순위:
@@ -253,7 +288,11 @@ def build_report(
         if sid == "consult" and partner_text:
             rt = rt + "\n\n" + partner_text  # 상대방 명식 사실 슬롯(룰 폴백에도 포함)
         rule_texts[sid] = rt
-        rule_viol[sid] = safe_lint.lint(rt) + factcheck.check(rt, saju, partner_gz)
+        rule_viol[sid] = (
+            safe_lint.lint(rt)
+            + factcheck.check(rt, saju, partner_gz)
+            + _customer_policy_lints(rt)
+        )
         title_of[sid] = title
 
     # consult(신청 질문)는 카테고리 라우팅 골격만으론 사실이 없어 LLM이 답을 거부한다.
@@ -268,6 +307,7 @@ def build_report(
     # LLM 챕터 작성은 챕터당 ~60초라 병렬 실행(독립 호출) — 12챕터 12분 → 1~2분.
     # 무키/룰백엔드면 compose 가 원문 반환하므로 호출 자체를 생략(비용·시간 0).
     cand_map: dict[str, str] = {}
+    shared_report_context: report_context.ReportContext | None = None
     if use_llm and backend.name == "anthropic":
         targets = [
             sid
@@ -276,30 +316,78 @@ def build_report(
         ]
         if targets:
             import concurrent.futures
+            import inspect
 
             _call = rules.call_name(name)
 
-            def _compose_one(sid: str) -> str:
-                return backend.compose(
-                    section_id=sid,
-                    title=title_of[sid],
-                    category=category.value,
-                    base_text=_base_for(sid),
-                    quoted_concern=(masked_concern if sid == "consult" else None),
-                    ref_year=ref_year,
-                    call_name=_call,
-                    # 월 단위 시제 닻(QI-2026-07-04-02): 지난 달을 행동 시기로 권하지 않게.
-                    ref_date=ref_date,
-                )
+            # 고객 원문·이름·생년월일·이전 LLM 산문 없이, 허용된 ID만으로 PDF당 한 번
+            # 만든다. 같은 객체/같은 직렬화 prefix를 모든 챕터와 재작성 호출이 공유한다.
+            shared_report_context = report_context.build_report_context(
+                selected_modules=selected_modules,
+                question_category=category.value,
+                active_section_ids=targets,
+            )
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
-                futs = {ex.submit(_compose_one, sid): sid for sid in targets}
-                for f in concurrent.futures.as_completed(futs):
-                    sid = futs[f]
-                    try:
-                        cand_map[sid] = f.result()
-                    except Exception:
-                        cand_map[sid] = rule_texts[sid]  # API 실패 시 룰 폴백
+            # LLMBackend 프로토콜은 새 인자를 지원하지만, 외부 테스트 더블/구 확장 백엔드는
+            # 예전 compose 시그니처일 수 있다. 실제 AnthropicBackend에는 항상 전달하고,
+            # 명시적 구 시그니처에는 지원하는 키만 보내 하위호환을 보존한다.
+            compose_params = inspect.signature(backend.compose).parameters
+            accepts_kwargs = any(
+                parameter.kind is inspect.Parameter.VAR_KEYWORD
+                for parameter in compose_params.values()
+            )
+
+            def _compose_one(
+                sid: str, attempt: int = 1, feedback: str | None = None
+            ) -> str:
+                compose_kwargs = {
+                    "section_id": sid,
+                    "title": title_of[sid],
+                    "category": category.value,
+                    "base_text": _base_for(sid),
+                    "quoted_concern": masked_concern if sid == "consult" else None,
+                    "ref_year": ref_year,
+                    "call_name": _call,
+                    "ref_date": ref_date,
+                    "feedback": feedback,
+                }
+                if accepts_kwargs or "report_context" in compose_params:
+                    compose_kwargs["report_context"] = shared_report_context
+                if accepts_kwargs or "attempt" in compose_params:
+                    compose_kwargs["attempt"] = attempt
+                return backend.compose(**compose_kwargs)
+
+            # Anthropic 공식 문서상 동시 요청은 첫 응답이 시작되기 전 캐시를 읽을 수 없다.
+            # 첫 챕터 한 건의 usage에서 cache 생성/읽기를 실제 확인한 뒤에만 나머지를 3병렬로
+            # 보낸다. 미관측·API 오류면 추가 uncached 호출 없이 이번 PDF의 나머지는 룰 골격으로
+            # 닫는다. 캐시는 비용 최적화이므로 실패가 납품 안전성이나 추가 비용으로 번지면 안 된다.
+            warm_sid, *parallel_targets = targets
+            try:
+                warm_result = _compose_one(warm_sid)
+                cand_map[warm_sid] = str(warm_result)
+            except Exception:
+                warm_result = None
+                cand_map[warm_sid] = rule_texts[warm_sid]
+            cache_observed = getattr(warm_result, "cache_observed", None)
+            # name=anthropic인 모든 backend는 ComposeResult로 실제 캐시 생성/읽기를 명시해야
+            # 한다. marker 없는 구형·프록시 backend를 성공으로 추정하면 비용 상한이 fail-open 된다.
+            cache_ready = cache_observed is True
+            if parallel_targets and cache_ready:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=3) as ex:
+                    # ContextVar 기반 사용량 run을 worker에 명시 복사한다. 각 작업은 별도 Context
+                    # 사본을 받아 같은 run collector를 공유하되 Context 자체를 동시 진입하지 않는다.
+                    futs = {
+                        ex.submit(llm_usage.bind_current(_compose_one, sid)): sid
+                        for sid in parallel_targets
+                    }
+                    for future in concurrent.futures.as_completed(futs):
+                        sid = futs[future]
+                        try:
+                            cand_map[sid] = future.result()
+                        except Exception:
+                            cand_map[sid] = rule_texts[sid]  # API 실패 시 룰 폴백
+            elif parallel_targets:
+                cand_map.update({sid: rule_texts[sid] for sid in parallel_targets})
 
     for sid, title, src in SECTION_SPECS:
         if sid in drop:
@@ -311,7 +399,7 @@ def build_report(
         polished = False
         applied_violations = list(rule_violations)
 
-        # 정적 챕터(목차·부록·판권)는 LLM 미적용 — 참고/법적 문안 그대로 유지(룰 원문).
+        # 정적 챕터(목차·부록·판권)는 LLM 미적용 — 승인된 룰 원문을 그대로 유지한다.
         # cover 제외(P0-2/T1.2): 표지 룰 텍스트에 생년월일시(입력) 원문이 들어 있어 polish
         # 로 넘기면 API 전송된다(절대규칙 17 위반). 표지는 정형 메타라 윤문 이득도 0 → 룰 원문 사용.
         if use_llm and not rule_violations and sid not in _STATIC_OK and sid != "cover":
@@ -325,24 +413,20 @@ def build_report(
                 )
             llm_changed = bool(cand) and cand != rule_text  # 정규화 '이전'에 판정
             if cand and llm_changed:
-                cand = _strip_artifacts(cand)  # 섹션 제목 누출 등 메타 제거
-                cand = postprocess.strip_document_self_reference(cand)
-                cand = postprocess.strip_formulaic_conclusion(cand)
-                cand = postprocess.replace_generic_address(cand, rules.call_name(name))
+                cand = _normalize_llm_candidate(
+                    cand,
+                    name=name,
+                    compose=sid in _COMPOSE_SECTIONS,
+                )
                 # 기계적 기호는 가드 전에 결정론 정규화(— · → 쉼표) — 같은 변환을
                 # 표시 단계(_hanja_clean)에도 적용하므로 우회가 아니라 선반영.
                 # 비유·메타발화·반복 남발은 변환 불가 → style_lint 하드 차단 유지.
                 # 룰 패스스루(무키)는 변형하지 않는다(결정론·폴백 판정 보존).
-                cand = re.sub(r"\s*[—–]\s*", ", ", cand)
-                cand = re.sub(r"\s*·\s*", ", ", cand)
                 # 반복어 결정론 선치환(2026-07-04 — integrated 승인 설계의 개인 경로 이식).
                 # '또렷하게' 계열이 style_lint 폴백을 유발해 윤문이 유실되던 것(실측 frame
                 # 폴백)을 가드 전 선반영으로 흡수. 반복 상한 등 lint 자체는 불변(완화 0).
-                cand = postprocess.style_safe_text(cand)
                 # 외래어 1차 자동 순화(H1.5.1): 폴백 전 기본 대체어로 치환해 LLM 산문 보존률↑.
                 # 순화 후에도 남은 외래어는 아래 loanword_lint 가 잡아 폴백(hard-ban 유지).
-                if sid in _COMPOSE_SECTIONS:
-                    cand = client_tone_lint.normalize_loanwords(cand)
             if cand and llm_changed:
                 csv = safe_lint.lint(cand)
                 cfv = factcheck.check(cand, saju, partner_gz)
@@ -356,6 +440,7 @@ def build_report(
                         + temporal_lint.lint(cand, ref_year, ref_date=ref_date)
                         + client_tone_lint.loanword_lint(cand)  # 외래어 hard-ban
                         + client_tone_lint.raw_calc_lint(cand)  # 날것 계산표현
+                        + _customer_policy_lints(cand)  # register hard + 외부 사실/절차 조언
                         + client_tone_lint.identity_role_lint(  # 일간 role 오서술(H1.5.3)
                             cand, _id_spec[0], _id_spec[1], _id_spec[2]
                         )
@@ -398,28 +483,15 @@ def build_report(
                     # 사유 없이 재시도하면 같은 단어가 재발해 폴백률이 높았다(실측: '쯤' 2회 연속).
                     # 2차 재시도는 라운드별 위반을 누적 전달(같은 실패 반복 방지).
                     _fb_pool |= {
-                        str(v.get("match") or v.get("token") or "") for v in (csv + cfv)
+                        str(v.get("match") or v.get("token") or v.get("rule") or "")
+                        for v in (csv + cfv)
                     } - {""}
                     _fb = ", ".join(sorted(_fb_pool)[:8])
-                    retry = _strip_artifacts(
-                        backend.compose(
-                            section_id=sid,
-                            title=title,
-                            category=category.value,
-                            base_text=_base_for(sid),
-                            quoted_concern=(masked_concern if sid == "consult" else None),
-                            ref_year=ref_year,
-                            call_name=rules.call_name(name),
-                            ref_date=ref_date,
-                            feedback=_fb or None,
-                        )
-                        or ""
+                    retry = _normalize_llm_candidate(
+                        _compose_one(sid, attempt=_round + 1, feedback=_fb or None) or "",
+                        name=name,
+                        compose=True,
                     )
-                    retry = postprocess.strip_document_self_reference(retry)
-                    retry = postprocess.strip_formulaic_conclusion(retry)
-                    retry = postprocess.replace_generic_address(retry, rules.call_name(name))
-                    retry = client_tone_lint.normalize_loanwords(retry)  # 재작성도 1차 순화
-                    retry = postprocess.style_safe_text(retry)  # 반복어 선치환(재작성도)
                     # 가드는 한자 정리 이전에(환각 한자 간지 탐지 유지). 표시정리는 아래 _hanja_clean 에서.
                     if not retry or retry == rule_text:
                         continue
@@ -430,6 +502,7 @@ def build_report(
                         + temporal_lint.lint(retry, ref_year, ref_date=ref_date)
                         + client_tone_lint.loanword_lint(retry)
                         + client_tone_lint.raw_calc_lint(retry)
+                        + _customer_policy_lints(retry)
                         + client_tone_lint.identity_role_lint(
                             retry, _id_spec[0], _id_spec[1], _id_spec[2]
                         )
@@ -458,7 +531,8 @@ def build_report(
                         # 실패 라운드의 위반도 다음 라운드 피드백에 누적(원 csv/cfv 는 유지 —
                         # 최종 폴백 판단·섹션 위반 기록의 기준은 본경로 초안).
                         _fb_pool |= {
-                            str(v.get("match") or v.get("token") or "") for v in (rsv + rfv)
+                            str(v.get("match") or v.get("token") or v.get("rule") or "")
+                            for v in (rsv + rfv)
                         } - {""}
                 if not csv and not cfv:
                     final, polished = cand, True
@@ -528,7 +602,19 @@ def build_report(
         daewoon_consistent, _dbad = consistency.check(sections, expected_ko)
 
     grounding_ok, _bad = trace.check(sections)
-    clean = safe_total == 0 and fact_total == 0 and grounding_ok and daewoon_consistent
+    # 후보·재작성 단계뿐 아니라 실제 반환할 최종 섹션을 다시 전수한다. 룰 골격 자체에
+    # register/external-advice 위반이 생긴 경우 LLM을 건너뛰더라도 aggregate guard가
+    # GREEN으로 보이는 false-PASS를 막는다. 최종 PDF verify와 독립된 pre-render 차단층이다.
+    customer_policy_total = sum(
+        len(_customer_policy_lints(section.final_text)) for section in sections
+    )
+    clean = (
+        safe_total == 0
+        and fact_total == 0
+        and customer_policy_total == 0
+        and grounding_ok
+        and daewoon_consistent
+    )
     # 허용 토큰 영속(검수 UI 수정 재검증용) — 계산 시점 집합 그대로, set→list 직렬화
     allow_ser = {k: sorted(v) for k, v in factcheck.allowed_tokens(saju, partner_gz).items()}
     return Report23(
@@ -545,6 +631,7 @@ def build_report(
             polished_section_ids=polished_ids,
             fallback_section_ids=fallback_ids,
             daewoon_consistent=daewoon_consistent,
+            customer_policy_lint_total=customer_policy_total,
             clean=clean,
         ),
     )

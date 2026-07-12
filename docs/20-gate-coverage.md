@@ -10,7 +10,7 @@
 > 사각을 못 봄, (b) 대다수 게이트가 '추출 텍스트'라는 프록시를 재므로 물리(시각) 결함을
 > 놓침. 이 문서가 (a) 커버리지 지도와 (b) 물리/프록시 분류를 명문화한다.
 
-## GATE_KEYS 레지스트리 (verify.gate_pass AND-체인 SSOT — 20키)
+## GATE_KEYS 레지스트리 (verify.gate_pass AND-체인 SSOT — 21키)
 
 각 행: 게이트 키 · 검증 대상 · 유형 · 측정면(물리/프록시) · 알려진 괴리/스코프.
 유형 = structural(PDF 구조) / lint-text(추출 본문 텍스트) / lint-specs(런타임 스펙 필요) /
@@ -28,6 +28,7 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | `no_orphan` | 저글자 독립 꼬리 페이지 0 | geometry | 물리 | 페이지 텍스트 기준(<40 orphan·<90 꼬리) |
 | `loanword_clean` | 외래어 hard-ban(본문구역) | lint-text | 프록시 | 부록 용어집 제외(allowed_section) |
 | `raw_calc_head_clean` | 표제형 날것 계산어(본문구역) | lint-text | 프록시 | 부록 정의 제외; headword 한정 |
+| `client_register_clean` | 상담가 화자 register hard 규칙(고객 가시 전역) | lint-text | 프록시 | cover·toc·본문·appendix 포함; warning은 gate 비편입 |
 | `customer_meta_clean` | AI/meta/문서 자기지칭(본문 페이지) | lint-text | 프록시 | 표지·목차·부록 제외 |
 | `placeholder_residue_clean` | placeholder/마스킹 잔재 | lint-text | 프록시 | — |
 | `style_clean` | 시맨틱 style_lint(반복 패턴) | lint-text | 프록시 | 본문 페이지 한정 |
@@ -45,21 +46,22 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | `safe_lint` | §12 안전표현(예측 단정·결과 보장) | 룰·LLM·관리자 수정분 전수 |
 | `factcheck` | 사실 슬롯 외 간지·별·수치 생성 차단 | allowed_tokens 기준 하드 차단 |
 | `trace` | 그라운딩(근거 슬롯 대조) | 근거 밖 사실 금지 |
+| `customer_policy_lint` | register hard·외부 도메인 사실/절차 조언 | 후보·재작성·룰 골격과 최종 섹션 재집계; `GuardReport.clean` 편입 |
 
 ## 커버리지 매트릭스 (문서 부위 × 게이트)
 
 행 = 고객이 보는 문서 부위, 열 = 그 부위를 실제로 검사하는 게이트/벨트. "제외"는 의도적
 스코프 제외(사유 명시) — 사각이 아니라 설계다.
 
-| 문서 부위 | 구조(text/font/tag) | 본문 lint(loanword/raw_calc/customer_meta/style/quality/temporal) | specs lint(name/identity/singang/honorific/role) | 기하(no_orphan/layout_geometry) | delivery | 벨트(safe/fact/trace) |
+| 문서 부위 | 구조(text/font/tag) | 텍스트 lint(loanword/raw_calc/register/customer_meta/style/quality/temporal) | specs lint(name/identity/singang/honorific/role) | 기하(no_orphan/layout_geometry) | delivery | 벨트(safe/fact/trace) |
 |---|---|---|---|---|---|---|
-| 표지(cover) | ✓ | 제외(본문 아님) | 제외 | layout ✓ | 제외 | 생성 시 |
-| 목차(toc) | ✓ | 제외(헤딩) | 제외 | layout ✓ | 제외 | 생성 시 |
+| 표지(cover) | ✓ | register ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
+| 목차(toc) | ✓ | register ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
 | intro(1장) | ✓ | ✓ | ✓(전달 시) | ✓ | ✓ | ✓ |
 | 각 해석 장 | ✓ | ✓ | ✓(전달 시) | ✓ | ✓ | ✓ |
 | consult(질문 답변) | ✓ | ✓ | ✓ | ✓ | ✓(직답 게이트) | ✓ |
 | 장 제목 | — | customer_meta ✓ | — | layout ✓ | — | 생성 시 |
-| 부록 용어집 | ✓ | **제외**(loanword/raw_calc 정의 허용구역) | 제외 | layout ✓ | 제외 | — |
+| 부록 용어집 | ✓ | register ✓, loanword/raw_calc 등은 **제외**(정의 허용구역) | 제외 | layout ✓ | 제외 | — |
 | 기하(전 페이지) | — | — | — | ✓(no_orphan·layout_geometry) | — | — |
 
 ## 프록시 레지스트리 (C5 — 신규 검증은 물리 측정 우선)
@@ -72,8 +74,21 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | 분류 | 게이트 | 알려진 괴리 |
 |---|---|---|
 | 물리(신뢰 높음) | text_layer_ok·fonts_embedded·tagged·daewoon_consistent·no_orphan·layout_geometry_clean | — |
-| 프록시(텍스트) | markdown/quality/temporal/loanword/raw_calc_head/customer_meta/placeholder/style/specs·delivery | 추출 텍스트↔물리 레이아웃 괴리: 순서·위치·시각 결함 미포착 |
+| 프록시(텍스트) | markdown/quality/temporal/loanword/raw_calc_head/client_register/customer_meta/placeholder/style/specs·delivery | 추출 텍스트↔물리 레이아웃 괴리: 순서·위치·시각 결함 미포착 |
 | 최종 방어 | 운영자 육안(300dpi, 다이어트 체크리스트 ≤7항목) | 자동 게이트가 못 재는 미감·몰입·물리 배치 |
+
+## 열린 품질 차원 책임표
+
+GATE_KEYS 양방 일치는 **등록된 게이트의 배선 완전성**만 증명한다. 아직 이름 붙지 않은
+품질 차원을 모두 덮었다는 뜻이 아니다. 신규 Z는 아래 표에 새 행을 만들고 생성 제약·하드
+게이트·advisory·사람 검수를 함께 연결한다.
+
+| 품질 차원 | 생성 제약 | 하드 게이트 | advisory | 최종 오라클 |
+|---|---|---|---|---|
+| 상담가 화자 register | docs/14 프롬프트·룰 골격 | `client_register_clean` hard만 | hsweep narrator lens | 운영자 육안 Z |
+| 외부 도메인 사실·절차 | docs/14 consult 경계 | `delivery_quality_clean/external_domain_advice` | hsweep direct-answer lens | 운영자 육안 Z |
+| 어려운 사주 용어 이해 | 첫 등장 즉석 풀이·기능적 비유 | 하드 게이트 없음(오탐 방지) | warning·합성 holdout | 운영자 육안 Z |
+| 시각·몰입·물리 배치 | 템플릿·골격 계약 | geometry·structure 게이트 | 300dpi 검수 보조 | 운영자 육안 |
 
 > 폐기된 프록시(참고): `frontloaded_answer`/`physical_frontloaded_answer`(초반 1800자/물리 3쪽
 > 직답 프록시)는 2026-07-05 운영자 지시로 폐기 — 1장 직답 문단 제거 + 직답은 consult 장 전담

@@ -116,6 +116,7 @@ def gen_followup(
 
 
 @app.command()
+@llm_usage.isolated_run
 def gen(
     birth: str = typer.Option(
         ..., help="생년월일시 'YYYY-MM-DD HH:MM'. 생시 미상이면 'YYYY-MM-DD' 만"
@@ -188,6 +189,8 @@ def gen(
     # 사용량 관측(2026-07-05): 빌드 1회의 LLM 지출을 stdout 에 남긴다(PII 0, ASCII 키).
     # hrun._regen_pdf 가 이 줄을 파싱해 summary(regen_llm_usage)로 올린다.
     typer.echo(llm_usage.format_line())
+    if usage_detail := llm_usage.format_detail_line():
+        typer.echo(usage_detail)  # 역할·모델·캐시 토큰만 포함(프롬프트/응답/PII 없음)
     # 챕터별 윤문/폴백 관측(P0 2026-07-05): 어느 챕터가 골격으로 남았는지 즉시 확인
     # (QI-2026-07-05-03: v7 consult 폴백이 카운트만으로는 안 보였던 관측 갭). PII 0.
     g = r.report.guard

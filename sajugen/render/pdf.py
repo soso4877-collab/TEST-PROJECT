@@ -43,7 +43,7 @@ _PAGE_MARGIN_CSS = (
 # 챕터 마스트헤드(페이지 시작) — 5챕터. id → (번호, 제목, 설명).
 # .chapter 가 page-break-before 를 가지므로 강제 디바이더는 이 5곳만.
 _CHAPTERS = {
-    "summary": (1, "큰 그림", "내 사주의 전체 윤곽과 핵심 단서"),
+    "summary": (1, "전체 흐름", "내 사주의 전체 윤곽과 핵심 단서"),
     "love": (2, "영역별 흐름", "관계·일·재물에서 힘이 실리는 결"),
     "daewoon": (3, "시간의 결", "대운과 가까운 시기의 흐름"),
     "ziwei_summary": (4, "구조와 적용", "자미두수 명반과 현실 적용"),
@@ -105,7 +105,7 @@ def render_html(
     toc_row_count = sum(1 for s in secs if s["id"] not in ("cover", "toc"))
     tmpl = _env.get_template("report.html.j2")
     return tmpl.render(
-        title="사주풀이 결과지",
+        title="사주풀이",
         font_dir=_FONT_DIR,
         page_margin_css=_PAGE_MARGIN_CSS,
         body_maxw_mm=f"{_BODY_MAXW_MM:g}",
@@ -214,7 +214,7 @@ def render_pdf(
                     browser.close()
 
         _apply_background(staging_path, seal_text=seal_text)
-        harden_pdf_ua(staging_path, title="사주풀이 결과지", lang="ko-KR")
+        harden_pdf_ua(staging_path, title="사주풀이", lang="ko-KR")
         os.replace(staging_path, pdf_path)
     except Exception:
         if os.path.exists(staging_path):

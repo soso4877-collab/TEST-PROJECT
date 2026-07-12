@@ -65,7 +65,8 @@ def test_cross_omits_palace_names_when_unknown_time():
     T = _T(unknown_time=True)
     cross = T["together"]
     assert "부처궁" not in cross and "재백궁" not in cross
-    assert "안정적이라는 참고" in cross
+    assert "안정적이라는 근거" in cross
+    assert "참고" not in cross
 
 
 def test_key_palace_paragraphs_reference_myeongni_anchor():

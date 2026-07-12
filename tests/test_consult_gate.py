@@ -31,6 +31,10 @@ _VAGUE = (
 )
 
 
+def _cached(text: str):
+    return llm_sections.ComposeResult(text, cache_observed=True, api_succeeded=True)
+
+
 def test_consult_direct_result_two_way():
     ok = delivery_quality.consult_direct_result(_DIRECT, _CONCERN)
     assert ok["ok"] is True and ok.get("skipped") is False
@@ -67,11 +71,11 @@ class _VagueThenDirectBackend:
 
     def compose(self, *, base_text, section_id, **kw):
         if section_id != "consult":
-            return base_text + " 흐름을 차분히 살피면 좋습니다."
+            return _cached(base_text + " 흐름을 차분히 살피면 좋습니다.")
         self.consult_calls += 1
         if self.consult_calls <= 2:
-            return _VAGUE
-        return _DIRECT
+            return _cached(_VAGUE)
+        return _cached(_DIRECT)
 
 
 def test_consult_second_retry_recovers_direct_answer(monkeypatch):
@@ -90,9 +94,9 @@ def test_consult_second_retry_recovers_direct_answer(monkeypatch):
 class _AlwaysVagueBackend(_VagueThenDirectBackend):
     def compose(self, *, base_text, section_id, **kw):
         if section_id != "consult":
-            return base_text + " 흐름을 차분히 살피면 좋습니다."
+            return _cached(base_text + " 흐름을 차분히 살피면 좋습니다.")
         self.consult_calls += 1
-        return _VAGUE
+        return _cached(_VAGUE)
 
 
 def test_consult_falls_back_to_skeleton_when_llm_stays_vague(monkeypatch):
@@ -119,8 +123,8 @@ def test_other_sections_keep_single_retry(monkeypatch):
         def compose(self, *, base_text, section_id, **kw):
             if section_id == "nature":
                 calls["nature"] += 1
-                return base_text + " 반드시 성공합니다."  # 가드 위반 지속
-            return base_text + " 흐름을 차분히 살피면 좋습니다."
+                return _cached(base_text + " 반드시 성공합니다.")  # 가드 위반 지속
+            return _cached(base_text + " 흐름을 차분히 살피면 좋습니다.")
 
     be = _NatureVague()
     monkeypatch.setattr(llm_sections, "get_backend", lambda: be)

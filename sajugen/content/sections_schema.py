@@ -61,6 +61,9 @@ class GuardReport(BaseModel):
     polished_section_ids: list[str] = Field(default_factory=list)
     fallback_section_ids: list[str] = Field(default_factory=list)
     daewoon_consistent: bool = True  # 교차챕터 '현재 대운' 단일 일치(2026-06-14)
+    # register hard·외부 도메인 사실/절차 조언의 최종 섹션 전수 합계. 기본값은
+    # 과거 저장본과 테스트 더블을 깨지 않는 additive 하위호환이다.
+    customer_policy_lint_total: int = 0
     clean: bool  # 전체 통과 여부
 
 

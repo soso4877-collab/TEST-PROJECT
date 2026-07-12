@@ -1,3 +1,48 @@
+# 교차 리뷰 — 2026-07-12 (라운드 16, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `5ebd3b6` 위, 54 수정 + 5 신규) · 구현자: Codex · 지시문: `handoff/tasks/beta-1-register-harness-20260712.md` (베타 1호 Z>0 문체·조언·가독성·hsweep/비용 개선)
+
+## 최종 판정: **승인(PASS — CODE_PASS 교차리뷰)** — 수용 기준 A~D 전 항목 diff 근거 확인, 기준환경 941/4 GREEN, 미해결 블로커 0. advisory 1건(비블로커, 아래).
+
+판정 범위는 패킷 §0대로 CODE_PASS만이다. 새 replacement PDF 품질·실비용 절감·운영자 Z=0은 이번 판정에 포함하지 않으며 여전히 **확정 불가**다.
+
+### 실측
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 전제 | HEAD `5ebd3b6` 일치 · packet/notes/review SHA-256 3건 manifest와 MATCH · `git status` 59건 = notes 목록과 정합 · calc/input diff 0(tracked+`--untracked-files=all` 양쪽) | ✓ |
+| pytest | **941 passed / 4 skipped / exit 0**(210.6s) — 기존 기준선 831/4 + 신규 110, 감소 0. 산술 예상 941/4와 일치. **새 기준선 = 941/4** | ✓ |
+| golden | 28 passed / exit 0 | ✓ |
+| Ruff | 변경+신규 .py 43개(untracked 4개 포함) 검사 → 19건 전부 rules.py(17)/render/pdf.py(1)/render/verify.py(1). HEAD 추출본 동일 3파일 재검 = 동일 19건(F541 16·F841 2·F401 1) → **신규 위반 0 확정**. 나머지 20개 소스 GREEN | ✓ |
+| py_compile / diff-check | 43파일 exit 0 / `git diff --check` exit 0 | ✓ |
+| A 문체 register | `REGISTER_RULES`/`register_lint()` 외래어와 분리 신설(client_tone_lint.py) — 하드 8룰(결과지·참고·구간·준비 구간·정보 수집·커트라인·큰 그림·그림을 잡다 활용형 `잡으세요/잡으십시오` 포함)+warning 6종. finding = rule/token/count/page/severity 5키 고정, 원문 0. verify.py GATE_KEYS 21키에 `client_register_clean` 등재·전 페이지(표지·목차·본문·부록) 검사. builder `_customer_policy_lints` 4지점(룰 골격 rule_viol·최초 후보·재시도·최종 섹션 재집계) 배선, `GuardReport.customer_policy_lint_total>0 → clean=False`(pre-render false-PASS 폐쇄, sections_schema additive 하위호환). gunghap(폴백 위반 시 RuntimeError 빌드 중단)·relationship delivery_gate·followup answer_gate·hverify_pdf/hsummary 동일 판정. 룰 골격의 참고/결과지/구간/큰 그림 계열 전량 대체어 치환 실측 | ✓ |
+| B 외부 조언·직답 | `external_domain_advice_lint` = 같은 문장 내 도메인(시험·직업·영어·자격증·원서·서류)+사실/절차 결합만 차단, 문장 경계 보존(줄바꿈=경계)·PDF block 단위 segments API(페이지/블록 경계 비월경). 프로브 실측: 결합 지시 2건 차단 / 간지·세운 연도 및 사주 근거 완급·방향 4건 통과 / 순수 미러링 2건 허용(fullmatch만, 후행 조언 비은닉). consult action에서 먼저/확인/말 제거+사주 근거 행동어로 교체, `work_career` 축 신설(독립 근거 요구), timing `월` substring → `N월` 정규식(월급/세월 오탐 제거) | ✓ |
+| C ReportContext·비용 | report_context.py = 화이트리스트 ID 전용 frozen dataclass, `__post_init__`이 비정규 모듈·카테고리·소유권·용어 정책 전부 fail-closed 거부 — 이름·생년월일·질문 원문·이전 산문 필드 자체가 없음. 12개 compose가 동일 객체/직렬화 prefix 공유(`_compose_system_blocks` explicit 5m cache), 호출별 user에 `[현재 장 ID]`. glossary owner는 `resolve_glossary_owner_by_concept`로 활성 장 결정론 재배정(ziwei 상품 테스트 고정). cache 판정 = `ComposeResult.cache_observed is True`만 병렬 허용(문자열/False/None/예외 → warm 1회 후 룰 폴백 = fail-closed). usage는 ContextVar run 격리(`usage_run`/`isolated_run`/`bind_current`)+role/model/section/stop allowlist(모델은 설정 등재값+unknown만)+ASCII JSON detail, order_flow가 주문 메타에 run 단위 저장. config `compose=claude-sonnet-4-6` 불변 | ✓ |
+| D hsweep v2 | raw 후보 opaque `c%04d` ID로 원형 보존, ranker = 비파괴 advisory(출력 길이=입력 길이, disposition만), 후보 전수 batch judge(normal/reverse 2콜). 단계별 stage_status(malformed_output/invalid_page_evidence/complete_empty 구분)+stage_trace+usage. 운영자 `review_status=complete`+파이프라인 완전+후보 전수 라벨 전에는 K/Z/Z_new/Z_known 전부 null, v1 confirmed는 `judge_confirmed`로만 이관(K 자동 이관 없음, migration 명시). CLI는 `--name/--birth` 등 원시 PII 인자 거부, manifest는 repo 내부·비symlink·`git check-ignore` 실측 통과+엄격 스키마만. 한국어 생년·시각은 manifest civils 기반 `masking.mask_birth_in_text` 정밀 마스킹. review subcommand는 canonical 재구성만 출력(rationale·임의 필드 비보존), temp `.hsweep-review-*.json`은 ignored 확인+전 실패 경로 finally 제거 | ✓ |
+| 문서↔코드 계약 | docs/14 §7 tone-contract-v1 JSON ↔ REGISTER_RULES/외부조언 고정어/용어 12개군·설명·소유 맵 양방 테스트(test_tone_spec_contract.py). docs/20 레지스트리 21키 갱신+열린 품질 차원 책임표. 렌즈 프롬프트 2종에 register/외부조언 층+novelty 제안 필드(운영자 확정값 아님 명시) | ✓ |
+| 테스트 양방성 | 신규 3파일 33 테스트 표본 검토 — cover·toc·본문·appendix 합성 주입 차단측+warning 비차단·정상 통과측, builder 재시도 수용/지속 위반 폴백/골격 위반 aggregate unclean, cache 실패 모드별 폴백, hsweep canonical/temp 실패 경로까지 양방 고정 | ✓ |
+
+### advisory (비블로커, 다음 라운드 후보)
+- **`일정` 사실 패턴이 형용사 `일정한`에 오탐**: 프로브 실측 `"직장 생활에서 일정한 속도를 유지하는 편이 좋습니다"` → external_domain_advice 1건. 룰 골격·정적 문안은 전수 무저촉(941 GREEN + grep 실측)이라 납품 차단·빌드 실패는 없고, 영향은 LLM 후보의 조용한 룰 폴백(품질·비용) 방향 = fail-closed. 다만 compose 프롬프트가 "속도" 계열 표현을 권장하므로 "일정한 속도/리듬" 산문에서 폴백률이 오를 수 있다. 개선 후보: `일정(?!한|하)` 등 활용형 예외 또는 holdout 실측 후 조정. 수정은 게이트 완화가 아닌 오탐 축소 방향으로만, 양방 테스트 동반(작업 규율 3).
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 941 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed / exit 0
+./.venv/Scripts/python.exe -m ruff check (변경+신규 43파일) → 19건 = HEAD 부채 3파일과 동일 구성(신규 0)
+./.venv/Scripts/python.exe -m py_compile (43파일)          → exit 0 · git diff --check → exit 0
+외부조언 경계 프로브 8건(합성, PII 0)                       → 차단 2/통과 4/미러 2 전부 기대 일치 + 오탐 1건 발견(advisory)
+Get-FileHash SHA-256: packet/notes/review vs manifest      → 3건 MATCH · read-only 56파일 시작/종료 스냅샷 대조
+```
+
+### 미검증(정직 보고)
+- 실제 Anthropic API·PDF 재생성·hrun 미실행 → prompt cache 실효·실비용 절감·새 Sonnet 문안 품질·조판·hsweep K/Z·운영자 육안 Z=0 전부 확정 불가.
+- 리뷰어는 제품 코드·테스트를 수정하지 않았다(허용 4파일 외 diff 0, SHA 스냅샷 대조).
+
+다음: 운영자 checkpoint commit 결정(신규 필수 5파일 경로 명시 추가 — `git commit -am` 금지, 패킷 §3). 이후 별도 과금 승인 시에만 replacement 주문 1회 → 표준 게이트 → hsweep → 육안 Z 재측정.
+
+---
+---
+
 # 교차 리뷰 — 2026-07-11 (라운드 15, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `81ebf3d` 위) · 구현자: Codex · 지시문: `handoff/tasks/audit-a1-mutation-hardening-20260711.md` (감사 A-1, 테스트 전용)

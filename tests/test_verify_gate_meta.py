@@ -107,7 +107,7 @@ def test_toc_customer_framing_is_not_body_quality_failure(monkeypatch):
     body = _CLEAN_SENTENCE * 24
     pages = [
         "표지",
-        "목차\n이 풀이는 큰 그림에서 현실 적용 순서로 이어집니다.",
+        "목차\n전체 모습에서 현실 적용 순서로 이어집니다.",
         body,
         body,
     ]

@@ -182,6 +182,18 @@ def check(
     _add_hits(failures, "temporal_lint", temporal_lint.lint(text, ref_year, ref_date=ref_date), "temporal")
     _add_hits(failures, "loanword_lint", client_tone_lint.loanword_lint(text), "loanword")
     _add_hits(failures, "raw_calc_lint", client_tone_lint.raw_calc_lint(text), "raw_calc")
+    _add_hits(
+        failures,
+        "register_lint",
+        [hit for hit in client_tone_lint.register_lint(text) if hit.get("severity") == "hard"],
+        "client_register",
+    )
+    _add_hits(
+        failures,
+        "external_domain_advice_lint",
+        delivery_quality.external_domain_advice_lint(text),
+        "external_domain_advice",
+    )
     _add_hits(failures, "customer_meta_lint", customer_meta_lint.lint(text), "customer_meta")
     _add_hits(failures, "placeholder_residue_lint", client_tone_lint.placeholder_residue_lint(text), "placeholder_residue")
     _add_hits(failures, "style_lint", style_lint.lint(text), "style")

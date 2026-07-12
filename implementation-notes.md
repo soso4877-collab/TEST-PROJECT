@@ -1,9 +1,115 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## 라운드16 교차리뷰 — 2026-07-12 (검증 세션, 리뷰어 Claude)
+
+- 판정: **PASS(CODE_PASS)**. 패킷 `beta-1-register-harness-20260712` A~D 전 항목 diff 근거 확인.
+  정본 = `REVIEW-FEEDBACK.md` 라운드16 절.
+- 기준환경 확정: **941 passed / 4 skipped / exit 0**(831+110, 감소 0) — 새 기준선. golden 28.
+  Ruff 신규 0(HEAD 부채 19건 동일 구성 대조 실측), py_compile 43파일·diff-check GREEN, calc/input diff 0.
+- advisory 1건(비블로커): `일정` 외부사실 패턴이 형용사 `일정한`에 오탐(프로브 실측). 골격 무저촉,
+  영향은 LLM 후보 룰 폴백(fail-closed). 다음 라운드에서 오탐 축소 방향 개선 후보.
+- 리뷰어 수정 = 허용 4파일만(REVIEW-FEEDBACK·STATE·이 파일·manifest는 handoff 도구). read-only 56파일
+  SHA-256 시작/종료 스냅샷 전수 일치.
+- 다음: 운영자 checkpoint commit 결정 → (별도 과금 승인 시) replacement 주문 1회 → 게이트/hsweep/육안 Z.
+
+---
+
+## 베타 1호 Z>0 개선 구현 후보 — 2026-07-12 (Codex)
+
+### 현재 상태
+
+- 브랜치 `codex/gunghap-relationship-quality`, 시작·현재 HEAD `5ebd3b6`, upstream 대비 ahead 0 / behind 0.
+- 베타 1호 육안 Z>0를 계기로 문체 register·외부 실무조언·어려운 용어·hsweep 판정 구조·LLM 비용 관측을 함께
+  보완했다. 워킹트리는 미커밋이며 현재 판정은 **CODE_PASS / Claude 교차리뷰 요청**이다.
+- 세션 시작 때 이미 수정돼 있던 `docs/16-quality-incident-ledger.md`와 `docs/23-beta-operation.md`의 Claude Phase A
+  기록은 보존했다. 그 기록을 구현 계약과 hsweep v2 사실에 맞춰 확장했으며 되돌리지 않았다.
+
+### 완료한 구현
+
+1. `docs/14-tone-spec.md`를 문체 register·외부 도메인 조언·첫 등장 쉬운 풀이의 기계 판독 SSOT로 확장했다.
+2. register 하드 게이트를 cover·toc·본문·appendix 전역에 연결하고, 외부 사실/절차 조언을 독립 실패 원인으로
+   연결했다. builder 최초 후보·재시도·룰 폴백, 개인·궁합·관계·followup·최종 PDF가 같은 판정을 사용한다.
+   최종 섹션을 다시 집계해 룰 골격 위반도 `GuardReport.clean=False`가 되도록 pre-render false-PASS를 닫았다.
+3. consult의 의미 없는 action 표지를 제거하고 `work_career` 축을 추가했다. 7개 질문 카테고리와 followup 골격,
+   질문 미러링 허용/후속 조언 차단을 양방 테스트로 고정했다.
+4. PII 없는 `ReportContext`를 추가했다. 12개 Sonnet 장은 같은 결정론 context/cache prefix를 공유하되 현재 장
+   ID는 호출별 user 블록으로 받는다. 상품별 비활성 용어 소유 장은 활성 장으로 결정론 재배정한다.
+5. Anthropic explicit cache를 fail-closed로 배선했다. 첫 호출에서 cache usage가 관측된 경우에만 나머지 호출을
+   3병렬로 실행한다. 모델은 Sonnet 4.6을 유지하고 role/model/section/attempt/cache/thinking/stop usage를 PII 없이
+   run 단위로 격리·주문 메타에 저장한다.
+6. hsweep를 비파괴 schema v2로 개편했다. raw→rank(advisory)→judge 전수→운영자 review를 분리하고 K/Z를
+   운영자 판정으로만 계산한다. PII manifest·정밀 마스킹·partial/stage/usage·v1 migration·canonical review와
+   gitignored atomic temp를 추가했다.
+7. 게이트 레지스트리·하네스 요약/검증·운영 문서를 새 키와 지표에 맞춰 동기화했다.
+
+### 수정 파일 전체 목록
+
+- 기존 Claude 기록에서 시작: `docs/16-quality-incident-ledger.md`, `docs/23-beta-operation.md`.
+- 문서: `docs/01-product-context.md`, `docs/02-architecture.md`, `docs/05-nlg-pdf-generation.md`,
+  `docs/06-llm-usage-policy.md`, `docs/07-safety-and-compliance.md`, `docs/09-roadmap.md`,
+  `docs/14-tone-spec.md`, `docs/16-quality-incident-ledger.md`, `docs/20-gate-coverage.md`,
+  `docs/23-beta-operation.md`.
+- 하네스 프롬프트: `harness/prompts/sweep/lens_direct_answer.md`,
+  `harness/prompts/sweep/lens_narrator_tone.md`.
+- 제품 코드: `sajugen/cli.py`, `sajugen/content/builder.py`, `sajugen/content/client_tone_lint.py`,
+  `sajugen/content/delivery_quality.py`, `sajugen/content/llm_polish.py`, `sajugen/content/llm_sections.py`,
+  `sajugen/content/llm_usage.py`, `sajugen/content/rules.py`, `sajugen/content/sections_schema.py`,
+  `sajugen/followup/answer_gate.py`, `sajugen/gunghap.py`, `sajugen/integrated.py`, `sajugen/order_flow.py`,
+  `sajugen/pipeline.py`,
+  `sajugen/relationship/context.py`, `sajugen/relationship/delivery_gate.py`, `sajugen/render/pdf.py`,
+  `sajugen/render/verify.py`.
+- 하네스 코드: `scripts/hrun.py`, `scripts/hsummary.py`, `scripts/hsweep.py`, `scripts/hverify_pdf.py`.
+- 기존 테스트 수정: `tests/test_chapter_fallback_observability.py`, `tests/test_consistency.py`,
+  `tests/test_consult_gate.py`, `tests/test_delivery_quality.py`, `tests/test_followup_gate.py`,
+  `tests/test_gate_contract.py`, `tests/test_harness.py`, `tests/test_hsweep_contract.py`,
+  `tests/test_integrated_order_flow.py`, `tests/test_integrated_product.py`, `tests/test_llm_sections.py`,
+  `tests/test_llm_usage.py`, `tests/test_myeongni_ziwei_weave.py`, `tests/test_pii_masking.py`,
+  `tests/test_postprocess.py`, `tests/test_skeleton_lint_matrix.py`, `tests/test_verify_gate_meta.py`.
+- 신규 파일: `sajugen/content/report_context.py`, `tests/test_register_advice_gate.py`,
+  `tests/test_report_context.py`, `tests/test_tone_spec_contract.py`.
+- 인계 기록: `sajugen/STATE.md`, `implementation-notes.md`,
+  `handoff/tasks/beta-1-register-harness-20260712.md`, `handoff/current/manifest.json`.
+- 계산·입력 SSOT인 `sajugen/calc/**`, `sajugen/input/**`은 변경하지 않았다.
+
+### 검증 증거
+
+- `./.venv/Scripts/python.exe -m pytest tests/ -q` → **913 passed / 32 skipped / exit 0**(116.48s).
+  Codex 환경 기존 803/32 대비 passed 감소 0, 신규 검증 +110.
+- `./.venv/Scripts/python.exe -m pytest tests/ -q -k golden` → **28 passed / exit 0**.
+- register/context/tone/hsweep/PII 핵심 합성 → **123 passed**.
+- 독립 리뷰: register/context/골격 68 passed·최종 PASS, hsweep canonical/temp 보안 57 passed·최종 PASS,
+  usage run 격리/cache fail-closed 47 passed·최종 PASS.
+- 변경 Python 중 기존 Ruff 부채 파일 3개를 제외한 검사 → `All checks passed!`.
+- 전체 변경 Python `py_compile` exit 0, `git diff --check` exit 0, calc/input diff 0.
+- 변경 파일 전체 Ruff는 기존 HEAD 부채 19건 때문에 exit 1: `rules.py` F841 1+F541 16,
+  `render/pdf.py` F401 1, `render/verify.py` F841 1. 이번 변경의 신규 위반으로 판정된 항목은 0.
+
+### 확인하지 못한 것과 남은 위험
+
+- 실제 Anthropic API를 호출하지 않았으므로 prompt cache hit, 실제 호출 수·비용 절감, Sonnet 문안 품질은
+  **확정 불가**다. 모델을 낮추거나 바꾸지 않았다.
+- 고객·ignored 산출물과 local profile을 열지 않았고 PDF를 재생성하지 않았다. 새 replacement PDF의 조판,
+  표준 게이트, hsweep K/Z, 운영자 육안 Z=0은 미검증이다.
+- 정규식은 등재한 register·외부 조언 조합만 막는다. 폐쇄 목록 밖 의미 결함은 hsweep와 육안 Z가 계속 맡는다.
+- Claude 기준환경 예상은 총 수집 수 산술상 941 passed / 4 skipped지만 직접 실행 전에는 확정값이 아니다.
+- commit·push·APPROVED·발송은 하지 않았다.
+
+### 다음 행동
+
+1. Claude 신선 컨텍스트가 `handoff/tasks/beta-1-register-harness-20260712.md`를 기준으로 diff 전량과 기준환경
+   전체 pytest를 교차리뷰한다.
+2. PASS 뒤 운영자가 checkpoint commit 여부를 결정한다.
+   이때 미추적 필수 파일 5개(packet·`report_context.py`·신규 테스트 3개)를 경로로 명시해 함께 추가한다.
+   `git commit -am`만 사용하면 import/계약 파일이 빠지므로 금지한다.
+3. 별도 과금 승인 후에만 기존 로컬 접수 절차로 replacement 주문을 1회 생성한다.
+4. 새 PDF에서 표준 게이트→hsweep→운영자 전문 육안 검수를 실행하고 Z=0일 때만 승인·수동 발송한다.
+
+---
+
 ## 베타 트랙 세션 인계 — 2026-07-12 (Claude)
 
 - 완료: docs/23 확정(N=3 무료·재발급 1인 선행) / A-2 정리(389파일 repo 밖, QI-2026-07-11-01 종결) / 베타 1호 접수·4모듈 확정·LLM 생성(gate_pass=True·36p·DRAFTED) / hsweep 파일럿 1호(N=29·M=0·K=0·$0.41).
-- 대기 지점: **운영자 육안 검수 + Z 값 보고**(주문 ord_19f51b98aa69de82ade). 인계 정본 = `handoff/tasks/beta-1-issuance-20260712.md`.
+- 대기 지점: **운영자 육안 검수 + Z 값 보고**(익명 문서 `DOC_BETA_1`). 인계 정본 = `handoff/tasks/beta-1-issuance-20260712.md`.
 - 새 세션은 "이어받아"로 시작 — manifest가 이 패킷을 가리킨다.
 
 ---

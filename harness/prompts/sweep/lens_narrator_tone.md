@@ -4,11 +4,20 @@
 ("이제 ~을 살펴보겠습니다"), 상품 구조를 라벨링하거나("통합 풀이/4페이지"), AI·자동화·
 프로그램 산출 인상을 주는 표현. 사람 상담가가 직접 쓴 글에는 이런 메타 발화가 없다.
 
+추가 register 층: 고객에게 직접 말하는 상담 문장에 문서 작성·분석 작업의 어휘가 튀어나오는
+경우도 찾는다. 합성 예: "이 결과지의 다음 구간을 참고하세요", "정보 수집 뒤 큰 그림을
+잡겠습니다". 내부 표제·코드·운영 장부는 검사 대상이 아니며, 일상적인 뜻으로 자연스럽게 쓰인
+말까지 넓혀 잡지 않는다.
+
 규칙:
 - 본문을 그대로 인용하지 마라(verbatim 금지). 어느 페이지에 어떤 유형인지 규칙명으로만 지목.
 - 근거(rationale)에는 고객 개인정보(이름·생년월일·질문 원문)를 절대 쓰지 마라.
 - 정상을 결함으로 부풀리지 마라. 확실한 것만.
 
 출력: JSON 배열만. 각 항목 = {"page": <정수>, "severity": "low|medium|high",
-"rule": "<짧은 규칙명, 예: document_self_reference>", "rationale": "<비-PII 한 줄 설명>"}.
+"rule": "<짧은 규칙명, 예: document_self_reference>", "rationale": "<비-PII 한 줄 설명>",
+"defect_class": "narrator_tone|client_register|other", "model_novelty_suggestion":
+"known_class_recurrence|new_class|unknown"}. 이미 정의된 두 층의 재발이면
+known_class_recurrence, 기존 분류에 담기지 않는 새 결함형이면 new_class로 제안한다. 최종
+신규/재발 판정은 운영자 몫이며 이 필드는 확정값이 아니다.
 결함이 없으면 [] 를 반환하라.

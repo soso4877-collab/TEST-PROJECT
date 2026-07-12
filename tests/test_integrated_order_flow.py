@@ -14,6 +14,7 @@ import pytest
 from sajugen import integrated, order_flow
 from sajugen import modules as integrated_modules
 from sajugen.content.sections_schema import GuardReport, Report23, Section
+from sajugen.content import llm_usage
 from sajugen.input import time_correction as tc
 from sajugen.store.orders import OrderState, OrderStore
 
@@ -187,9 +188,17 @@ def test_confirmed_integrated_generation_and_retry_use_native_builder(
     db = tmp_path / f"integrated-{retry}.sqlite"
     order_id = _create_confirmed_order(db, retry=retry)
     calls: list[dict] = []
+    llm_usage.reset()
 
     def fake_integrated_build(people, **kwargs):
         calls.append({"people": people, "kwargs": dict(kwargs)})
+        llm_usage.add(
+            10,
+            2,
+            role="compose",
+            model="claude-sonnet-4-6",
+            section="intro",
+        )
         return _integrated_result(tmp_path)
 
     monkeypatch.setattr(order_flow.integrated, "build_integrated_full", fake_integrated_build)
@@ -229,9 +238,13 @@ def test_confirmed_integrated_generation_and_retry_use_native_builder(
         )
         assert report.render_meta["integrated_full"]["selected_modules"] == ["love"]
         assert report.render_meta["verify"]["module_coverage"]["skipped"] is False
+        assert report.render_meta["llm_usage"]["calls"] == 1
+        assert report.render_meta["llm_usage"]["input_tokens"] == 10
+        assert len(report.render_meta["llm_usage"]["events"]) == 1
         assert order_flow.module_selection_state(report)["confirmed"] is True
     finally:
         store.close()
+    assert llm_usage.snapshot() == {"input_tokens": 0, "output_tokens": 0, "calls": 0}
 
 
 def test_partner_gunghap_generation_passes_two_people_and_persists_partner_flag(

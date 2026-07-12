@@ -45,6 +45,7 @@ _LOW_DENSITY_ONLY_CLEAN_FLAGS = (
     "no_orphan",
     "loanword_clean",
     "raw_calc_head_clean",
+    "client_register_clean",
     "customer_meta_clean",
     "placeholder_residue_clean",
     "style_clean",
@@ -623,6 +624,8 @@ def build_integrated_full(
         work_modules=integrated_modules.work_provider_modules(selected_modules),
         # 선택 밖 개인 챕터는 LLM 작성 후보에서도 제외해 비용과 비선택 문안 생성을 막는다.
         include_section_ids=integrated_modules.included_personal_sections(selected_modules),
+        # 12개 개인 compose가 같은 PII-free 공유 문맥에 실제 주문 모듈을 기록하도록 전달한다.
+        selected_modules=selected_modules,
     )
 
     # gunghap 미선택 경로는 관계 compose를 호출하지 않는다. 이 분기가 있어야 1인 입력의
@@ -766,6 +769,7 @@ app = typer.Typer(add_completion=False, help="native integrated_full PDF product
 
 
 @app.command()
+@llm_usage.isolated_run
 def gen(
     person: list[str] = typer.Option(..., "--person", help="이름,YYYY-MM-DD,HH:MM,성별 (반복)"),
     receiver: str | None = typer.Option(None, "--receiver", help="수신자 이름"),
@@ -815,6 +819,8 @@ def gen(
         schema_version = result.get("module_schema_version", MODULE_SCHEMA_VERSION)
         typer.echo(f"modules: {','.join(result['modules'])} (schema v{schema_version})")
     typer.echo(llm_usage.format_line())  # 사용량 관측(2026-07-05) — hrun 이 파싱해 summary 로
+    if usage_detail := llm_usage.format_detail_line():
+        typer.echo(usage_detail)  # 호출 이벤트는 허용된 ID·숫자만 기록한다.
 
 
 @app.command()

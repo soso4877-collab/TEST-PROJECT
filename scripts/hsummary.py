@@ -25,6 +25,23 @@ _STDERR_PII_RX = re.compile(
     r"|(?<!\d)\d{2}:\d{2}(?!\d)"
     r"|(?<![\d\-])(?:19|20)\d{6}(?![\d\-])"
 )
+_LLM_TOTAL_KEYS = (
+    "calls",
+    "input_tokens",
+    "output_tokens",
+    "cache_creation_input_tokens",
+    "cache_read_input_tokens",
+    "thinking_tokens",
+)
+_LLM_EVENT_INT_KEYS = (
+    "attempt",
+    "input_tokens",
+    "cache_creation_input_tokens",
+    "cache_read_input_tokens",
+    "output_tokens",
+    "thinking_tokens",
+)
+_LLM_EVENT_ID_KEYS = ("role", "model", "section", "stop_reason")
 
 
 def _redact_stderr_tail(tail: str | None, limit: int = 800) -> str | None:
@@ -32,6 +49,39 @@ def _redact_stderr_tail(tail: str | None, limit: int = 800) -> str | None:
     if not tail:
         return None
     return _STDERR_PII_RX.sub("[redacted]", str(tail)[-limit:])
+
+
+def _sanitize_llm_usage(usage: dict) -> dict:
+    """regen 사용량을 숫자와 제한된 ASCII ID만 남겨 summary PII 경계를 지킨다."""
+    from sajugen.content import llm_usage
+
+    out: dict[str, object] = {}
+    for key in _LLM_TOTAL_KEYS:
+        value = usage.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            out[key] = value
+    raw_events = usage.get("events")
+    if not isinstance(raw_events, list):
+        raw_events = []
+    events: list[dict[str, object]] = []
+    for raw in raw_events[:100]:
+        if not isinstance(raw, dict):
+            continue
+        event: dict[str, object] = {}
+        for key in _LLM_EVENT_ID_KEYS:
+            value = raw.get(key)
+            if isinstance(value, str) and llm_usage.event_identifier_is_safe(key, value):
+                event[key] = value
+        for key in _LLM_EVENT_INT_KEYS:
+            value = raw.get(key)
+            if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+                event[key] = value
+        # 필수 역할·모델·섹션이 없는 임의 dict는 호출 이벤트로 표면화하지 않는다.
+        if all(key in event for key in ("role", "model", "section", "attempt")):
+            events.append(event)
+    if events:
+        out["events"] = events
+    return out
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,6 +94,9 @@ _PDF_COUNT = [
     "quality_hits_count",
     "temporal_hits_count",
     "loanword_hits_count",
+    "register_hits_count",
+    "register_hard_hits_count",
+    "register_warning_hits_count",
     "raw_calc_phrase_hits_count",
     "punctuation_hits_count",
     "semantic_style_hits_count",
@@ -58,6 +111,7 @@ _PDF_COUNT = [
     "delivery_missing_axes_count",
     "delivery_repetition_hits_count",
     "delivery_guarantee_hits_count",
+    "delivery_external_domain_advice_hits_count",
     "loanword_substring_count",
 ]
 _SEMANTIC_GATE_DEFAULTS = {
@@ -138,6 +192,7 @@ def _redact_pdf(p: dict) -> dict:
         "identity_role_hits",
         "singang_role_hits",
         "loanword_hits",
+        "register_hits",
         "orphan_pages",
         "low_density_pages",
     ):
@@ -160,7 +215,7 @@ def _redact_pdf(p: dict) -> dict:
     if "regen_returncode" in p:
         out["regen_returncode"] = p["regen_returncode"]
     if p.get("regen_llm_usage"):
-        out["regen_llm_usage"] = p["regen_llm_usage"]
+        out["regen_llm_usage"] = _sanitize_llm_usage(p["regen_llm_usage"])
     if "regen_fallback_chapters" in p:
         out["regen_fallback_chapters"] = p["regen_fallback_chapters"]  # 챕터 id 만(PII 0)
     return out
@@ -184,6 +239,7 @@ def _summarize_hits(hits: list[dict]) -> list[dict]:
             "page",
             "chars",
             "term",
+            "token",
             "count",
             "allowed",
             "severity",

@@ -32,6 +32,7 @@ GATE_KEYS = (
     "no_orphan",
     "loanword_clean",  # 외래어 hard-ban(고객 본문)
     "raw_calc_head_clean",  # 표제형 계산표현(오행 분포·십성축·신강약)
+    "client_register_clean",  # 고객 가시 문서체 register(표지·본문·부록 전체)
     "customer_meta_clean",  # AI/meta/document self-reference residue
     "placeholder_residue_clean",  # placeholder/masking residue
     "style_clean",  # compose 외 경로까지 style_lint 보편 적용
@@ -170,7 +171,17 @@ def _paged_lint_hits(
                 k: v
                 for k, v in hit.items()
                 if k
-                in {"type", "rule", "count", "severity", "allowed", "role", "expected", "actual"}
+                in {
+                    "type",
+                    "rule",
+                    "token",
+                    "count",
+                    "severity",
+                    "allowed",
+                    "role",
+                    "expected",
+                    "actual",
+                }
             }
             safe["page"] = page
             out.append(safe)
@@ -289,26 +300,28 @@ _BODY_INSET_TOL_MM = 10.0
 _GEOM_MIN_BLOCKS = 6  # 본문형 페이지 최소 텍스트 블록(표지/짧은/장식 페이지 오탐 제외)
 
 
-def _capture_page_geometry(doc) -> tuple[list, list]:
+def _capture_page_geometry(doc) -> tuple[list, list, list]:
     """페이지별 텍스트 블록 bbox·페이지 폭을 doc.close() 전에 캡처.
 
     블록/rect 미지원 문서(테스트 fake doc)면 빈 리스트를 돌려 기하 게이트를 skip 한다
     (실 렌더 PDF 는 항상 지원 → 기하 검사 적용)."""
     try:
         blocks: list[list[tuple]] = []
+        text_blocks: list[list[str]] = []
         rects: list[tuple] = []
         for i in range(doc.page_count):
             pg = doc.load_page(i)
-            bl = [
-                b[:4]
+            raw_blocks = [
+                b
                 for b in pg.get_text("blocks")
                 if len(b) > 6 and b[6] == 0 and (b[4] or "").strip()
             ]
-            blocks.append(bl)
+            blocks.append([b[:4] for b in raw_blocks])
+            text_blocks.append([str(b[4]) for b in raw_blocks])
             rects.append((pg.rect.width, pg.rect.height))
-        return blocks, rects
+        return blocks, rects, text_blocks
     except (TypeError, AttributeError):
-        return [], []
+        return [], [], []
 
 
 def _layout_geometry_hits(
@@ -480,7 +493,7 @@ def verify(
     doc = fitz.open(pdf_path)
     pages_text = [doc.load_page(i).get_text() for i in range(doc.page_count)]
     # 레이아웃 기하 게이트용 — 텍스트 블록 bbox·페이지 폭을 close 전에 캡처(2026-07-02).
-    pages_blocks, page_rects = _capture_page_geometry(doc)
+    pages_blocks, page_rects, pages_text_blocks = _capture_page_geometry(doc)
     text = "".join(pages_text).strip()
     fonts = []
     for i in range(min(doc.page_count, 3)):
@@ -549,6 +562,21 @@ def verify(
     r["loanword_clean"] = not loan  # 게이트
     r["raw_calc_phrase_hits"] = _ct.raw_calc_lint(body)[:30]  # 표제형+카운트(보고)
     r["raw_calc_head_clean"] = not head  # 표제형은 게이트
+    # register는 본문 전용 외래어와 달리 고객이 보는 모든 페이지(표지·목차·본문·부록)를
+    # 검사한다. finding은 승인된 고정 토큰과 page/count만 담아 고객 원문을 노출하지 않는다.
+    register_hits = [
+        hit
+        for page, page_text in enumerate(pages_text, start=1)
+        for hit in _ct.register_lint(page_text, page=page)
+    ]
+    register_hard_hits = [hit for hit in register_hits if hit["severity"] == "hard"]
+    r["register_hits"] = register_hits[:50]
+    r["register_hits_count"] = sum(int(hit["count"]) for hit in register_hits)
+    r["register_hard_hits_count"] = sum(int(hit["count"]) for hit in register_hard_hits)
+    r["register_warning_hits_count"] = sum(
+        int(hit["count"]) for hit in register_hits if hit["severity"] == "warning"
+    )
+    r["client_register_clean"] = not register_hard_hits
     r["client_tone_hits"] = _ct.term_hits(body)[:50]  # 전문용어 밀도(보고만)
     # P5-4(2026-07-05): 전문용어 밀도(공백 제외 1,000자당) 보고 필드 — 하드 게이트 아님
     # (첫 1회 괄호 풀이 정책과 오탐 충돌). v8 실측으로 상한 수치 확정 예정. 게이트 비악화:
@@ -624,6 +652,19 @@ def verify(
 
     from ..content import delivery_quality
 
+    # 실 PDF는 block 내부 시각 줄바꿈만 합치고 block/page 경계는 보존한다. get_text("blocks")
+    # 미지원 테스트 더블은 페이지 하나를 블록 하나로 보수적으로 대체한다.
+    if pages_text_blocks:
+        external_advice_segments = [
+            (page, block, block_text)
+            for page, page_blocks in enumerate(pages_text_blocks, start=1)
+            for block, block_text in enumerate(page_blocks, start=1)
+        ]
+    else:
+        external_advice_segments = [
+            (page, 1, page_text)
+            for page, page_text in enumerate(pages_text, start=1)
+        ]
     dq = delivery_quality.analyze(
         text,
         pages=r["pages"],
@@ -637,12 +678,16 @@ def verify(
         selected_modules=selected_modules,
         module_sections=module_sections,
         premerge_section_ids=premerge_section_ids,
+        external_advice_segments=external_advice_segments,
     )
     r["delivery_quality"] = dq
     r["delivery_quality_clean"] = dq["clean"]
     r["delivery_missing_axes"] = dq["missing_axes"]
     r["delivery_repetition_hits"] = dq["repetition_hits"][:20]
     r["delivery_guarantee_hits"] = dq["guarantee_hits"][:20]
+    r["delivery_external_domain_advice_hits_count"] = len(
+        dq["external_domain_advice_hits"]
+    )
     # summary 소비처가 raw 본문 없이도 선택·커버리지 판정 시점과 결과를 관측할 수 있게 한다.
     r["selected_modules"] = dq["selected_modules"]
     r["module_schema_version"] = dq["module_schema_version"]

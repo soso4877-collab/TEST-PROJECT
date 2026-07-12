@@ -7,8 +7,10 @@
 검증하지 않는 것: 실제 API 과금액(Console 전용) — 토큰·호출 수 집계까지만.
 """
 
+import json
 import sys
 import types
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -63,6 +65,144 @@ def test_format_and_parse_line_roundtrip():
     # 줄 부재 = None(구 빌드/무LLM — 양방)
     assert llm_usage.parse_line("PDF: x.pdf") is None
     assert llm_usage.parse_line("") is None
+
+
+def test_detail_event_extracts_cache_and_keeps_legacy_totals():
+    llm_usage.reset()
+    msg = types.SimpleNamespace(
+        model="claude-sonnet-4-6",
+        stop_reason="end_turn",
+        usage=types.SimpleNamespace(
+            input_tokens=120,
+            output_tokens=30,
+            cache_creation_input_tokens=80,
+            cache_read_input_tokens=10,
+            thinking_tokens=7,
+        ),
+    )
+    event = llm_usage.add_response(
+        msg,
+        role="compose",
+        model="claude-sonnet-4-6",
+        section="consult",
+        attempt=2,
+    )
+    assert llm_usage.snapshot() == {"input_tokens": 120, "output_tokens": 30, "calls": 1}
+    assert event == {
+        "role": "compose",
+        "model": "claude-sonnet-4-6",
+        "section": "consult",
+        "attempt": 2,
+        "input_tokens": 120,
+        "cache_creation_input_tokens": 80,
+        "cache_read_input_tokens": 10,
+        "output_tokens": 30,
+        "thinking_tokens": 7,
+        "stop_reason": "end_turn",
+    }
+    detail_line = llm_usage.format_detail_line()
+    assert detail_line and detail_line.startswith("LLM usage detail: ")
+    combined = llm_usage.format_line() + "\n" + detail_line
+    parsed = llm_usage.parse_output(combined)
+    assert parsed["calls"] == 1
+    assert parsed["cache_creation_input_tokens"] == 80
+    assert parsed["cache_read_input_tokens"] == 10
+    assert parsed["thinking_tokens"] == 7
+    assert parsed["events"] == [event]
+
+
+def test_event_identifiers_cannot_emit_customer_text():
+    llm_usage.reset()
+    event = llm_usage.add(
+        1,
+        2,
+        role="compose CUSTOMER_1",
+        model="claude-sonnet-4-6",
+        section="consult/DOC_A",
+        stop_reason="end turn CUSTOMER_1",
+    )
+    dumped = llm_usage.format_detail_line()
+    assert dumped is not None
+    assert "CUSTOMER_1" not in dumped and "DOC_A" not in dumped
+    assert event["role"] == "unspecified"
+    assert event["section"] == "global"
+    assert not llm_usage.event_identifier_is_safe("model", "claude-john-doe-19900101")
+
+
+def test_usage_runs_isolate_concurrent_pdfs_and_propagate_to_worker_threads():
+    llm_usage.reset()
+
+    def collect_run(call_count: int, tokens: int):
+        with llm_usage.usage_run() as run:
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                futures = [
+                    executor.submit(
+                        llm_usage.bind_current(
+                            llm_usage.add,
+                            tokens,
+                            1,
+                            role="compose",
+                            model="claude-sonnet-4-6",
+                            section="intro",
+                        )
+                    )
+                    for _ in range(call_count)
+                ]
+                for future in futures:
+                    future.result()
+        return run.snapshot(), run.events_snapshot()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first_future = executor.submit(collect_run, 3, 10)
+        second_future = executor.submit(collect_run, 5, 20)
+        first = first_future.result()
+        second = second_future.result()
+
+    assert first[0] == {"input_tokens": 30, "output_tokens": 3, "calls": 3}
+    assert second[0] == {"input_tokens": 100, "output_tokens": 5, "calls": 5}
+    assert len(first[1]) == 3 and len(second[1]) == 5
+    assert llm_usage.snapshot() == {"input_tokens": 0, "output_tokens": 0, "calls": 0}
+
+
+def test_parse_output_rejects_detail_that_overwrites_totals_or_has_pii_fields():
+    legacy = "LLM usage: calls=2 input_tokens=30 output_tokens=4\n"
+    forged = {
+        "calls": 999,
+        "cache_creation_input_tokens": 1,
+        "cache_read_input_tokens": 2,
+        "events": [],
+    }
+    text = legacy + llm_usage.DETAIL_PREFIX + json.dumps(forged) + "\n"
+    assert llm_usage.parse_output(text) == {
+        "calls": 2,
+        "input_tokens": 30,
+        "output_tokens": 4,
+    }
+
+    pii_event = {
+        "cache_creation_input_tokens": 1,
+        "cache_read_input_tokens": 2,
+        "events": [
+            {
+                "role": "compose",
+                "model": "claude-sonnet-4-6",
+                "section": "consult",
+                "attempt": 1,
+                "input_tokens": 3,
+                "cache_creation_input_tokens": 1,
+                "cache_read_input_tokens": 0,
+                "output_tokens": 1,
+                "stop_reason": "end_turn",
+                "prompt": "customer text",
+            }
+        ],
+    }
+    text = legacy + llm_usage.DETAIL_PREFIX + json.dumps(pii_event) + "\n"
+    assert llm_usage.parse_output(text) == {
+        "calls": 2,
+        "input_tokens": 30,
+        "output_tokens": 4,
+    }
 
 
 def test_llm_sections_delegates_to_single_source():

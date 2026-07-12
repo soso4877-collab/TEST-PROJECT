@@ -195,7 +195,8 @@ def test_love_followup_reflects_military_and_school_context(monkeypatch):
     )
     consult = rep.section("consult").final_text
     assert "군대" in consult
-    assert "휴가나 외출" in consult
+    assert "연락 폭" in consult
+    assert "휴가나 외출" not in consult
     assert "학교와 전공이 같은 선후배" in consult
     assert "겹지인은 마음을 묻는 역할이 아니라" in consult
     assert "소문" in consult
@@ -224,8 +225,8 @@ def test_new_love_concern_answers_meeting_window_and_action(monkeypatch):
         "2026년 하반기부터 2027년 상반기까지",
         "소개팅",
         "가벼운 첫 만남",
-        "좋은 구간",
-        "조심할 구간",
+        "좋은 때",
+        "조심할 때",
         "서두르지 말고",
         # P1(2026-07-05): 역할분담 정형 삭제 → 궁 실명 근거로 대체.
         "자미두수에서 같은 영역을 비추는 자리는",
@@ -257,13 +258,14 @@ def test_marriage_concern_answers_conditions_money_and_caution(monkeypatch):
         "생활 기준",
         "돈 관리",
         "가족",
-        "좋은 구간",
-        "조심할 구간",
+        "좋은 때",
+        "조심할 때",
         # P1(2026-07-05): '명리는 X/자미는 Y' 역할분담 정형 삭제 → 궁 실명 근거로 대체.
         "자미두수에서 같은 영역을 비추는 자리는",
     ):
         assert term in consult, (term, consult)
     assert "명리에서는 이 문제를 시기의 흐름으로" not in consult  # 구 정형 부재 앵커
+    assert "구간" not in consult
     assert "재회합니다" not in consult and "결혼합니다" not in consult
     assert "또렷" not in consult
     assert rep.guard.clean is True
@@ -297,6 +299,7 @@ def test_specific_consult_context_is_reflected_without_raw_name(monkeypatch):
         assert term in consult, term
     assert "명리에서는 이 문제를 시기의 흐름으로" not in consult  # 구 정형 부재 앵커
     assert "합성 모임" not in consult
+    assert "구간" not in consult
     assert rep.guard.clean is True
 
 
@@ -321,13 +324,13 @@ def test_property_children_and_risk_concern_is_frontloaded(monkeypatch):
         "땅과 자산",
         "자식복",
         "위험 시점",
-        "개발 계획",
-        "세금",
-        "현금화 시점",
-        "보증",
-        "명의 이전",
+        "지킬 것",
+        "움직일 것",
+        "속도를 조절",
     ):
         assert term in consult, (term, consult)
+    for external_fact in ("개발 계획", "세금", "현금화 시점", "보증", "명의 이전"):
+        assert external_fact not in consult
     assert rep.guard.clean is True
 
 

@@ -5,8 +5,8 @@
 lint/규범이 게이트에 등재될 때 룰 골격이 함께 동기화됐는지를 골격 전 축 × text lint 전수로
 고정한다. test_customer_meta_lint.py:134(단일 lint) 패턴의 일반화.
 
-골격 축(전부 API 0 합성·무렌더·무LLM): personal 3카테고리 + gunghap business/relationship
-+ integrated. lint 축: text/adapter 호환 lint 자동 등재 + 명시 어댑터.
+골격 축(전부 API 0 합성·무렌더·무LLM): personal 7카테고리 + gunghap business/relationship
++ integrated + followup 결정론 답변. lint 축: text/adapter 호환 lint 자동 등재 + 명시 어댑터.
 
 완전성(advisor — silent 제외 금지): 모든 게이트 content-lint 키가 enrolled/matrix-excluded/
 specs-excluded/non-lint 중 정확히 하나로 분류됨을 단언한다. 신규 게이트 lint → 미분류 RED.
@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sajugen.calc import engine  # noqa: E402
 from sajugen.content import (  # noqa: E402
+    builder,
     client_tone_lint as ct,
     customer_meta_lint,
     delivery_quality as dq,
@@ -38,10 +39,25 @@ _APPENDIX_SECTIONS = {"appendix_terms", "colophon"}
 _COUPLE_AXES = {"gunghap_business", "gunghap_relationship", "integrated"}
 
 
+_PERSONAL_CONCERNS = {
+    "연애": "상대가 군대에 있어 연락이 뜸한데 관계의 속도를 어떻게 맞출까요?",
+    "직업": "직업과 시험의 시기, 일의 방향이 궁금합니다.",
+    "재물": "땅과 자산, 계약과 잔금의 시기를 어떻게 나눌까요?",
+    "건강": "건강과 생활 습관의 완급이 궁금합니다.",
+    "대인": "모임을 시작할 때 사람과 역할을 어떻게 나눌까요?",
+    "시기": "올해와 내년에는 무엇부터 움직이는 편이 좋을까요?",
+    "전반": "전반적인 강점과 조심할 때가 궁금합니다.",
+}
+
+
 def _personal(cat: str) -> list[tuple[str, str]]:
     saju = engine.build(1989, 1, 2, 7, 40, is_male=False, horoscope_date="2026-06-01")
     T = rules.build_all(
-        saju, ref_year=2026, name="테스트", concern_category=cat, concern_text="합성 고민입니다."
+        saju,
+        ref_year=2026,
+        name="테스트",
+        concern_category=cat,
+        concern_text=_PERSONAL_CONCERNS[cat],
     )
     return list(T.items())
 
@@ -56,14 +72,23 @@ def _integrated() -> list[tuple[str, str]]:
     return [(s.id, s.final_text) for s in r["report"].sections]
 
 
+def _followup() -> list[tuple[str, str]]:
+    # 후속 답변의 무LLM 골격은 저장된 personal consult를 재사용한다. 별도 계산·API 없이
+    # 실제 answer_gate가 받는 고객 가시 답변 표면을 매트릭스에 포함한다.
+    consult = dict(_personal("직업"))["consult"]
+    return [("followup_answer", consult)]
+
+
 def _build_axes() -> dict[str, list[tuple[str, str]]]:
     return {
-        "personal_재물": _personal("재물"),
-        "personal_연애": _personal("연애"),
-        "personal_전반": _personal("전반"),
+        **{
+            f"personal_{category}": _personal(category)
+            for category in ("연애", "직업", "재물", "건강", "대인", "시기", "전반")
+        },
         "gunghap_business": _gunghap("business"),
         "gunghap_relationship": _gunghap("relationship"),
         "integrated": _integrated(),
+        "followup": _followup(),
     }
 
 
@@ -86,10 +111,17 @@ _LINTS = [
     _Lint("quality", lambda t: quality_lint.lint(t)),
     _Lint("temporal", lambda t: temporal_lint.lint(t, 2026)),
     _Lint("guarantee", lambda t: dq.guarantee_lint(t)),
+    _Lint("external_domain_advice", lambda t: dq.external_domain_advice_lint(t)),
     _Lint("loanword", lambda t: ct.loanword_lint(t), body_scoped=True),
     # 게이트 raw_calc_head_clean 과 동일 함수(표제형만) — raw_calc_lint(산문 용어까지)가
     # 아니라 raw_calc_headwords 를 써야 게이트 스코프를 정확히 미러링(오행국 산문 언급은 비표제).
     _Lint("raw_calc", lambda t: ct.raw_calc_headwords(t), body_scoped=True),
+    # register는 고객 가시 PDF 전체(표지·본문·부록) 계약이므로 body_scoped=False.
+    # warning은 관측만 하며 하드 게이트 매트릭스에서는 제외한다.
+    _Lint(
+        "register",
+        lambda t: [h for h in ct.register_lint(t) if h["severity"] == "hard"],
+    ),
     _Lint("placeholder", lambda t: ct.placeholder_residue_lint(t), couple_check=True),
 ]
 
@@ -99,6 +131,7 @@ _ENROLLED_GATE_KEYS = {
     "temporal_clean",
     "loanword_clean",
     "raw_calc_head_clean",
+    "client_register_clean",
     "customer_meta_clean",
     "placeholder_residue_clean",
 }
@@ -184,3 +217,40 @@ def test_matrix_detects_injected_desync():
     assert hits, "테스트 전제: 주입 문구가 customer_meta 위반이어야 함"
     key = ("synthetic", "customer_meta", _rule_of(hits[0]))
     assert key not in _ALLOW  # allowlist 에 없으므로 매트릭스라면 unresolved 로 잡힘
+
+
+def test_personal_fallback_glosses_first_hard_terms_near_first_appearance():
+    """LLM 없이도 주요 전문용어 첫 등장 곁에 쉬운 뜻이 붙는지 고정한다."""
+
+    saju = engine.build(1989, 1, 2, 7, 40, is_male=False, horoscope_date="2026-06-01")
+    report = builder.build_report(
+        saju,
+        use_llm=False,
+        ref_year=2026,
+        name="합성인",
+        concern="직업과 재물의 시기와 방향이 궁금합니다.",
+    )
+    body = "\n".join(
+        section.final_text
+        for section in report.sections
+        if section.id not in {"cover", "toc"}
+    )
+    expected_nearby = {
+        "십성": ("관계의 작용",),
+        "식신": ("표현", "생산"),
+        "재성": ("현실", "재물"),
+        "관성": ("책임", "규칙"),
+        "인성": ("배움", "보호"),
+        "용신": ("균형", "기운"),
+        "신약": ("나약하다는 뜻이 아니라",),
+        "대운": ("약 10년 단위",),
+        "세운": ("해마다",),
+        "천간": ("겉으로 드러",),
+        "지지": ("바탕 글자",),
+        "자미두수": ("별과 12궁",),
+    }
+    for concept, anchors in expected_nearby.items():
+        first = body.find(concept)
+        assert first >= 0, concept
+        nearby = body[max(0, first - 100) : first + 220]
+        assert all(anchor in nearby for anchor in anchors), (concept, nearby)

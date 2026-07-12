@@ -95,6 +95,121 @@ _GUARANTEE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:재회|결혼)합니다"), "hard outcome statement"),
 ]
 
+# 외부 도메인 실무조언 차단. 단어 하나만으로는 실패시키지 않고, 같은 문장 안에서
+# ``도메인 대상 + 외부 사실/절차``가 함께 있을 때만 잡는다. 이 폐쇄 목록은 모든
+# 실세계 지식을 안다고 주장하지 않는다. 목록 밖 의미 사각은 운영자 육안 검수로 승계한다.
+_EXTERNAL_DOMAIN_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("시험", re.compile(r"시험|응시|수능|입시")),
+    ("직업", re.compile(r"직업|직장|취업|채용|이직|승진|회사|업무|공무원|공기업|일자리|진로")),
+    ("영어", re.compile(r"영어|토익|토플|텝스|아이엘츠")),
+    ("자격증", re.compile(r"자격증")),
+    ("원서", re.compile(r"원서")),
+    ("서류", re.compile(r"서류")),
+)
+_EXTERNAL_FACT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("일정", re.compile(r"일정")),
+    ("마감", re.compile(r"마감|기한")),
+    ("점수", re.compile(r"점수|성적")),
+    (
+        "연령",
+        re.compile(
+            r"(?:연령|나이)[^.!?。！？]{0,8}(?:제한|기준|커트라인|조건|요건)|"
+            r"(?:제한|기준|커트라인|조건|요건)[^.!?。！？]{0,8}(?:연령|나이)"
+        ),
+    ),
+    ("요건", re.compile(r"요건|(?:응시|지원|채용|합격|자격)[^.!?。！？]{0,8}조건")),
+    ("자격", re.compile(r"(?<!증)자격(?!증)")),
+    ("비용", re.compile(r"비용|수수료")),
+    ("법·제도", re.compile(r"법률|법적|법령|제도|규정")),
+)
+_EXTERNAL_PROCEDURE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("제출", re.compile(r"제출")),
+    ("접수", re.compile(r"접수")),
+    ("행정", re.compile(r"행정")),
+    ("절차", re.compile(r"절차")),
+    # "신청해 주신 고민"은 고객 질문을 되짚는 정상 문장이다. bare `신청`을
+    # 절차 표지로 쓰면 이 문장까지 막으므로, 실제 행정 산출물/절차가 붙은 경우만 잡는다.
+    ("신청 절차", re.compile(r"신청(?:서|서류|기간|기한|절차|방법|요건|자격)")),
+    ("발급", re.compile(r"발급")),
+)
+_EXTERNAL_ARTIFACT_PREPARE = re.compile(r"(?:원서|서류)[^.!?。！？]{0,12}준비|준비[^.!?。！？]{0,12}(?:원서|서류)")
+_EXTERNAL_ARTIFACT_PREPARE_TOKEN = "준비"
+_SENTENCE_RX = re.compile(r"[^.!?。！？\n]+")
+_PURE_QUESTION_MIRROR_RX = re.compile(
+    r"^\s*(?=[^.!?。！？]{0,200}(?:질문|고민|걱정|궁금))"
+    r"[^.!?。！？]{1,200}(?:"
+    r"이해(?:했습니다|합니다|했어요)|"
+    r"마음에\s*남으셨을\s*거예요|"
+    r"적어\s*주셨습니다|"
+    r"말씀해\s*주셨습니다"
+    r")\s*$"
+)
+
+
+def _fixed_pattern_hits(
+    text: str, specs: tuple[tuple[str, re.Pattern[str]], ...]
+) -> list[str]:
+    """원문 조각 대신 승인된 정적 토큰만 반환한다(PII-safe 관측)."""
+
+    return [token for token, pattern in specs if pattern.search(text)]
+
+
+def external_domain_advice_lint(text: str) -> list[dict]:
+    """직업·시험 등 외부 사실/행정 절차 조언을 문장 단위로 검출한다.
+
+    단순 질문 주제 언급이나 사주 근거의 완급·방향·우선순위·관계 조율은 허용한다.
+    반환값에는 고객 문장을 넣지 않고 고정 토큰과 문장 순번만 둔다.
+    """
+
+    # 줄바꿈·페이지 경계를 문장 경계로 보존한다. 이를 공백으로 합치면 앞 제목의 '직업'과
+    # 다음 문장의 '나이'가 한 문장으로 오인돼 same-sentence 정밀도가 깨진다.
+    normalized = re.sub(r"[\t\r\f\v ]+", " ", text or " ")
+    findings: list[dict] = []
+    for sentence_index, match in enumerate(_SENTENCE_RX.finditer(normalized), start=1):
+        sentence = match.group(0)
+        domains = _fixed_pattern_hits(sentence, _EXTERNAL_DOMAIN_PATTERNS)
+        if not domains:
+            continue
+        facts = _fixed_pattern_hits(sentence, _EXTERNAL_FACT_PATTERNS)
+        procedures = _fixed_pattern_hits(sentence, _EXTERNAL_PROCEDURE_PATTERNS)
+        if _EXTERNAL_ARTIFACT_PREPARE.search(sentence):
+            procedures.append(_EXTERNAL_ARTIFACT_PREPARE_TOKEN)
+        advice_terms = list(dict.fromkeys([*facts, *procedures]))
+        if not advice_terms:
+            continue
+        # 순수 되짚기 문장 전체만 허용한다. 앞부분만 mirror 패턴에 맞고 뒤에 조언이 붙는
+        # 문장은 예외가 아니다(예: "...이해했으니 공식 일정은 확인해 두는 편이 좋습니다").
+        if _PURE_QUESTION_MIRROR_RX.fullmatch(sentence):
+            continue
+        findings.append(
+            {
+                "rule": "external_domain_advice",
+                "sentence_index": sentence_index,
+                "domain_terms": domains,
+                "advice_terms": advice_terms,
+                "count": 1,
+            }
+        )
+    return findings
+
+
+def external_domain_advice_lint_segments(
+    segments: list[tuple[int, int, str]],
+) -> list[dict]:
+    """PDF 텍스트 블록을 독립 검사한다.
+
+    PyMuPDF 블록 내부의 줄바꿈은 시각적 word-wrap일 수 있으므로 공백으로 합친다. 반대로
+    블록·페이지 사이는 절대 합치지 않아 제목의 `직업`과 다음 블록의 `나이`가 거짓으로
+    결합되지 않게 한다. finding에는 원문 대신 page/block 메타만 덧붙인다.
+    """
+
+    findings: list[dict] = []
+    for page, block, text in segments:
+        logical_text = re.sub(r"\s+", " ", text or " ").strip()
+        for hit in external_domain_advice_lint(logical_text):
+            findings.append({**hit, "page": page, "block": block})
+    return findings
+
 _AXES: dict[str, dict[str, tuple[str, ...]]] = {
     "move_house": {
         "triggers": (
@@ -238,6 +353,41 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
         "triggers": ("궁합", "잘 맞", "맞는지"),
         "evidence": ("궁합", "맞는", "맞추", "보완", "끌림", "관계"),
     },
+    "work_career": {
+        "triggers": (
+            "직업",
+            "직장",
+            "취업",
+            "채용",
+            "이직",
+            "승진",
+            "시험",
+            "공무원",
+            "공기업",
+            "일자리",
+            "진로",
+            "사업",
+        ),
+        "evidence": (
+            "직업",
+            "직장",
+            "일의",
+            "일에서",
+            "일의 방향",
+            "일의 방식",
+            "취업",
+            "채용",
+            "이직",
+            "승진",
+            "시험",
+            "공무원",
+            "공기업",
+            "일자리",
+            "진로",
+            "사업",
+            "업무",
+        ),
+    },
     "timing": {
         "triggers": ("언제", "시기", "올해", "내년", "1년", "일년", "상반기", "하반기"),
         "evidence": (
@@ -251,7 +401,6 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
             "여름",
             "가을",
             "겨울",
-            "월",
             "시기",
             "판단 지점",
         ),
@@ -259,16 +408,22 @@ _AXES: dict[str, dict[str, tuple[str, ...]]] = {
     "action": {
         "triggers": ("어떻게", "방법", "해야", "다가", "주의", "조심", "확인"),
         "evidence": (
-            "먼저",
-            "확인",
             "주의",
             "조심",
             "기다",
             "다가",
-            "말",
             "정하",
             "피하",
             "서두르",
+            "속도",
+            "완급",
+            "방향",
+            "우선순위",
+            "거리",
+            "조율",
+            "나누",
+            "멈추",
+            "역할",
         ),
     },
 }
@@ -293,8 +448,8 @@ _NEAR_TERM_TIMING_TERMS = (
     "여름",
     "가을",
     "겨울",
-    "월",
 )
+_CALENDAR_MONTH_RX = re.compile(r"(?<!\d)(?:1[0-2]|[1-9])월(?!급)")
 
 _LOVE_ACTION_TERMS = (
     "연락",
@@ -327,7 +482,25 @@ _MYEONGNI_MARKERS = ("명리", "사주")
 _FRONTLOAD_TERMS = {
     "decision": ("결론", "핵심", "먼저", "한마디", "정리하면", "말씀드리면"),
     "timing": _NEAR_TERM_TIMING_TERMS + ("시기", "판단 지점"),
-    "action": ("먼저", "확인", "주의", "조심", "기다", "다가", "말", "정하", "피하", "서두르"),
+    "action": (
+        "주의",
+        "조심",
+        "기다",
+        "다가",
+        "정하",
+        "피하",
+        "서두르",
+        "속도",
+        "완급",
+        "방향",
+        "우선순위",
+        "거리",
+        "조율",
+        "나누",
+        "멈추",
+        "물러서",
+        "선택",
+    ),
 }
 
 # 고객별 고유명은 전역 상수로 축적하지 않는다. 필요한 이름은 호출자가
@@ -368,6 +541,23 @@ def _min_text_chars(
 
 def _hit_terms(text: str, terms: Iterable[str]) -> list[str]:
     return [t for t in terms if t and t in text]
+
+
+def _timing_hits(text: str, terms: Iterable[str]) -> list[str]:
+    """일반 timing 표지와 실제 1~12월 표현만 인정한다.
+
+    bare `월` substring은 `월급`·`세월`도 시기 답변으로 오인하므로 사용하지 않는다.
+    """
+
+    hits = _hit_terms(text, terms)
+    if _CALENDAR_MONTH_RX.search(text or ""):
+        hits.append("N월")
+    return hits
+
+
+def _axis_evidence_hits(text: str, axis: str) -> list[str]:
+    terms = _AXES[axis]["evidence"]
+    return _timing_hits(text, terms) if axis == "timing" else _hit_terms(text, terms)
 
 
 def _required_axes(concern: str | None) -> set[str]:
@@ -422,13 +612,13 @@ def consult_direct_result(text: str, concern: str | None) -> dict:
         missing.append(f"min_chars({dense}<{MIN_CONSULT_CHARS})")
     if not _hit_terms(body, _FRONTLOAD_TERMS["decision"]):
         missing.append("decision")
-    if not _hit_terms(body, _FRONTLOAD_TERMS["timing"]):
+    if not _timing_hits(body, _FRONTLOAD_TERMS["timing"]):
         missing.append("timing")
     if not _hit_terms(body, _FRONTLOAD_TERMS["action"]):
         missing.append("action")
     topic_axes = sorted(a for a in _required_axes(concern) if a not in {"timing", "action"})
     missing_topic_axes = [
-        axis for axis in topic_axes if not _hit_terms(body, _AXES[axis]["evidence"])
+        axis for axis in topic_axes if not _axis_evidence_hits(body, axis)
     ]
     if missing_topic_axes:
         missing.append("question_topic")
@@ -447,7 +637,7 @@ def _near_term_timing_result(text: str, required_axes: set[str]) -> dict:
 
     if "love_reunion" not in required_axes:
         return {"required": False, "ok": True, "hits": []}
-    hits = _hit_terms(text, _NEAR_TERM_TIMING_TERMS)
+    hits = _timing_hits(text, _NEAR_TERM_TIMING_TERMS)
     return {"required": True, "ok": bool(hits), "hits": hits}
 
 
@@ -560,6 +750,7 @@ def _finding_message(finding: dict) -> dict:
         "missing_usable_ziwei": "자미두수 관점이 고객 질문과 충분히 연결되지 않았습니다.",
         "missing_love_myeongni": "연애/재회 질문에 필요한 명리 관점이 부족합니다.",
         "unbacked_context_terms": "입력 근거 없는 맥락 단어가 본문에 들어갔습니다.",
+        "external_domain_advice": "검증되지 않은 외부 도메인 사실이나 행정 절차 조언이 있습니다.",
         "missing_expected_context": "요청된 맥락 단어가 본문에 반영되지 않았습니다.",
         "overused_expected_context": "요청된 맥락 단어가 과도하게 반복됩니다.",
     }
@@ -585,6 +776,7 @@ def analyze(
     selected_modules: Iterable[str] | None = None,
     module_sections: Mapping[str, Iterable[str]] | None = None,
     premerge_section_ids: Iterable[str] | None = None,
+    external_advice_segments: list[tuple[int, int, str]] | None = None,
 ) -> dict:
     """Return customer-delivery quality findings.
 
@@ -643,6 +835,19 @@ def analyze(
         # 질문축 검사가 no-op 된 상태. false-pass 방지(조용한 통과 금지).
         failures.append({"rule": "missing_customer_context", "product": product})
 
+    external_domain_advice_hits = (
+        external_domain_advice_lint_segments(external_advice_segments)
+        if external_advice_segments is not None
+        else external_domain_advice_lint(text)
+    )
+    if external_domain_advice_hits:
+        failures.append(
+            {
+                "rule": "external_domain_advice",
+                "hits": external_domain_advice_hits,
+            }
+        )
+
     if is_premium:
         min_pages = _min_pages(product, effective_selected_modules)
         min_text_chars = _min_text_chars(product, effective_selected_modules)
@@ -674,7 +879,7 @@ def analyze(
 
     required_axes = _required_axes(concern)
     coverage_hits = {
-        axis: _hit_terms(text, _AXES[axis]["evidence"]) for axis in sorted(required_axes)
+        axis: _axis_evidence_hits(text, axis) for axis in sorted(required_axes)
     }
     missing_axes = [axis for axis, hits in coverage_hits.items() if not hits]
     if missing_axes:
@@ -762,6 +967,7 @@ def analyze(
         "love_myeongni": love_myeongni,
         "repetition_hits": repetition_hits,
         "guarantee_hits": guarantee_hits,
+        "external_domain_advice_hits": external_domain_advice_hits,
         "ziwei": ziwei,
         "context_provenance": context_provenance,
         "expected_context_hits": context_hits,

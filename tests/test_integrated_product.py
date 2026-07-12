@@ -157,6 +157,7 @@ def _verify_result(*, gate_pass: bool, failures: list[dict]) -> dict:
         "no_orphan": True,
         "loanword_clean": True,
         "raw_calc_head_clean": True,
+        "client_register_clean": True,
         "customer_meta_clean": True,
         "placeholder_residue_clean": True,
         "style_clean": True,
@@ -497,6 +498,10 @@ def test_integrated_full_low_density_only_requires_clean_integrated_flags():
     placeholder_failure = _verify_result(gate_pass=False, failures=low_density)
     placeholder_failure["placeholder_residue_clean"] = False
     assert integrated._integrated_only_low_density_failure(placeholder_failure) is False
+
+    register_failure = _verify_result(gate_pass=False, failures=low_density)
+    register_failure["client_register_clean"] = False
+    assert integrated._integrated_only_low_density_failure(register_failure) is False
 
     other_delivery_failure = _verify_result(
         gate_pass=False,

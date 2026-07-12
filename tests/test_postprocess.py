@@ -147,7 +147,11 @@ def test_builder_presubstitutes_repeat_words_before_guard(monkeypatch):
             return QuestionCategory.WEALTH
 
         def compose(self, *, base_text, **kw):
-            return base_text + " 이 흐름은 또렷하게 이어집니다."
+            return llm_sections.ComposeResult(
+                base_text + " 이 흐름은 또렷하게 이어집니다.",
+                cache_observed=True,
+                api_succeeded=True,
+            )
 
     monkeypatch.setattr(llm_sections, "get_backend", lambda: _Stub())
     monkeypatch.setattr(llm_polish, "polish", lambda text, title, **kw: text)  # 윤문 무변형

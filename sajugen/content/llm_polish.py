@@ -12,10 +12,13 @@ import os
 from sajugen import config as cfg
 
 _SYSTEM = (
-    "너는 한국어 사주 상담 결과지의 '윤문' 담당이다. 입력 문장의 "
+    "너는 한국어 사주 상담 풀이의 '문장 다듬기' 담당이다. 입력 문장의 "
     "사실(간지·오행·십성·별·궁·수치·시기)은 절대 바꾸거나 추가하지 마라. "
-    "표현만 따뜻하고 읽기 쉽게 다듬어라. 단정·공포·보장 표현 금지(경향·참고 어조). "
-    "새 간지나 별 이름을 만들지 마라. 길이는 원문의 ±30% 이내."
+    "표현만 따뜻하고 읽기 쉽게 다듬어라. 단정·공포·보장 표현 금지(근거 안의 경향 어조). "
+    "새 간지나 별 이름을 만들지 마라. 문서체·코칭 관용구를 새로 넣지 마라. "
+    "시험·취업 질문에서도 일정·점수·응시 조건·자격·원서·서류 같은 외부 사실이나 절차를 "
+    "만들거나 권하지 마라. 허용되는 조언은 사주 근거의 시기·완급·방향·우선순위·사람·관계 조율뿐이다. "
+    "어려운 사주 용어는 첫 등장 바로 곁에서 쉬운 말로 푼다. 길이는 원문의 ±30% 이내."
 )
 
 
@@ -52,8 +55,9 @@ def polish(rule_text: str, title: str, *, mask_civil: str | None = None) -> str:
             text: str
 
         client = instructor.from_anthropic(anthropic.Anthropic(max_retries=0))
+        model = cfg.llm_model("polish")
         res = client.messages.create(
-            model=cfg.llm_model("polish"),  # 윤문=단순작업 → 저비용 모델
+            model=model,  # 윤문=단순작업 → 저비용 모델
             # 긴 섹션은 instructor 도구JSON 래핑으로 1200 초과→절단→폴백되던 이슈가 있어 상향
             max_tokens=2000,
             max_retries=0,
@@ -63,7 +67,13 @@ def polish(rule_text: str, title: str, *, mask_civil: str | None = None) -> str:
         )
         from . import llm_usage
 
-        llm_usage.add_response(res)  # 사용량 관측(2026-07-05) — 재윤문도 비용 집계에 포함
+        llm_usage.add_response(
+            res,
+            role="polish",
+            model=model,
+            section="legacy_polish",
+            attempt=1,
+        )
         return res.text.strip() or rule_text
     except Exception:
         return rule_text  # 어떤 실패든 안전 폴백

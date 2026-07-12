@@ -33,8 +33,10 @@ def test_guard_reports_fallback_ids_when_guard_fails(monkeypatch):
 
         def compose(self, *, base_text, section_id, **kw):
             if section_id == "consult":
-                return base_text + " 반드시 성공합니다."  # §12 위반 → 폴백 유도
-            return base_text + " 흐름을 차분히 살피면 좋습니다."
+                text = base_text + " 반드시 성공합니다."  # §12 위반 → 폴백 유도
+            else:
+                text = base_text + " 흐름을 차분히 살피면 좋습니다."
+            return llm_sections.ComposeResult(text, cache_observed=True, api_succeeded=True)
 
     monkeypatch.setattr(llm_sections, "get_backend", lambda: _Stub())
     monkeypatch.setattr(llm_polish, "polish", lambda text, title, **kw: text)

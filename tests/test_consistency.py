@@ -142,8 +142,10 @@ def test_builder_reverts_section_that_frames_wrong_daewoon(monkeypatch):
 
         def compose(self, *, section_id, base_text, **kw):
             if section_id == "closing":
-                return "마무리하며 한마디 드립니다. 지금 병오 대운 초입에 들어서는 자리예요. 강점을 살려 보세요."
-            return base_text  # 그 외 챕터는 변화 없음(골격 유지)
+                text = "마무리하며 한마디 드립니다. 지금 병오 대운 초입에 들어서는 자리예요. 강점을 살려 보세요."
+            else:
+                text = base_text  # 그 외 챕터는 변화 없음(골격 유지)
+            return llm_sections.ComposeResult(text, cache_observed=True, api_succeeded=True)
 
     monkeypatch.setattr(llm_sections, "get_backend", lambda: _FakeBackend())
     saju = engine.build(1997, 10, 27, 9, 46, is_male=True, horoscope_date="2026-06-01")

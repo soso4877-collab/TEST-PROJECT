@@ -218,7 +218,8 @@ def test_generated_reunion_context_report_frontloads_question_answer(monkeypatch
     assert r["clean"] is True, r
     assert "missing_frontloaded_answer" not in rules
     assert r["near_term_timing"]["ok"] is True
-    assert "군대" in body and "휴가나 외출" in body
+    assert "군대" in body and "연락 폭" in body
+    assert "휴가나 외출" not in body
     assert "학교와 전공이 같은 선후배" in body
     assert "짧은 안부" in body
     assert "재회합니다" not in body and "결혼합니다" not in body
@@ -258,7 +259,7 @@ def test_generated_question_type_matrix_keeps_customer_axes_visible(monkeypatch)
         },
         {
             "concern": "가지고 있는 땅이 언제 더 큰 자산이 될까요. 자식복과 재산이 크게 부풀어질 시점, 위험한 시점도 궁금합니다",
-            "contains": ["땅과 자산", "자식복", "위험 시점", "개발 계획", "현금화 시점"],
+            "contains": ["땅과 자산", "자식복", "위험 시점", "지킬 것", "움직일 것"],
             "absent": ["대인관계와 성향"],
         },
     ]

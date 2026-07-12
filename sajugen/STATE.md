@@ -1,5 +1,42 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-12 라운드16 교차리뷰 PASS — 이 블록 먼저 읽기) =====
+>   [판정] 라운드16 교차리뷰(Claude 신선 컨텍스트) = **PASS(CODE_PASS)**. 패킷 A~D 전 항목 diff 근거 확인,
+>     미해결 블로커 0. advisory 1건(`일정`→`일정한` 오탐, fail-closed 방향·비블로커) = REVIEW-FEEDBACK 라운드16 절.
+>   [기준환경 확정] `pytest tests/ -q` → **941 passed / 4 skipped / exit 0**(기존 831/4 + 신규 110, 감소 0)
+>     — **새 기준선 = 941/4**. golden 28. Ruff 신규 위반 0(HEAD 부채 19건 동일 구성 대조). py_compile 43파일·
+>     diff-check GREEN. calc/input diff 0(tracked+untracked). SHA 3건 MATCH. 리뷰어 수정은 허용 4파일뿐
+>     (read-only 56파일 SHA 시작/종료 스냅샷 대조).
+>   [다음] 운영자 checkpoint commit 결정(untracked 필수 5파일 경로 명시 추가, `git commit -am` 금지).
+>     이후 별도 과금 승인 시에만 replacement 주문 1회 → 표준 게이트 → hsweep → 육안 Z 재측정.
+>     실제 상품 PASS·비용 절감·Z=0은 여전히 확정 불가.
+
+> ===== 이전 앵커 (2026-07-12 베타 1호 Z>0 개선 CODE_PASS·교차리뷰 요청) =====
+>   [현재] 브랜치 `codex/gunghap-relationship-quality`, base/HEAD `5ebd3b6`, 원격과 동률. 베타 1호 육안
+>     Z>0 원인에 대한 문체 register·외부 도메인 조언·쉬운 용어·hsweep·LLM 비용 관측 개선 후보가 **미커밋
+>     워킹트리**에 있다. 코드 검증 단계 판정은 `CODE_PASS`; 새 고객 PDF 품질 PASS나 Z=0은 아직 아니다.
+>   [문체·조언] docs/14 기존 SSOT를 확장하고 `client_register_clean` 전역 게이트와
+>     `external_domain_advice` 실패 원인을 추가했다. 결과지/참고/구간/정보 수집/커트라인/큰 그림 계열은
+>     활용형까지 차단하며, 시험·직업 주제 자체는 허용하되 외부 일정·점수·자격·서류 절차와 결합한 사실·지시는
+>     차단한다. consult의 빈 action 표지 제거, `work_career` 질문축, 7개 개인 카테고리+followup 골격 양방을 고정했다.
+>   [가독성·비용] 12개 Sonnet compose가 PII 없는 결정론 `ReportContext`를 공유한다. 각 호출에는 현재 장 ID를
+>     넣고, 상품 토글로 용어 설명 선호 장이 빠지면 활성 장으로 결정론 재배정한다. 정적 system+context prefix는
+>     5분 explicit cache를 쓰되 첫 호출 usage에서 cache 생성/읽기가 **실제 관측된 경우만** 후속 3병렬을 허용한다.
+>     모델은 `claude-sonnet-4-6` 그대로이며, 비용 개선 실효는 실제 API 미호출이라 확정 불가다.
+>   [하네스] hsweep schema v2는 raw 후보를 보존하고 ranker를 비파괴 advisory로 제한하며, 모든 후보를 judge한다.
+>     운영자 review 완료 전 K/Z는 null이고, K(후보 확인)와 Z(후보 밖 신규 발견)를 분리한다. 로컬 PII manifest,
+>     정확한 한국어 생년·시각 마스킹, 단계별 partial/usage, canonical review 출력, gitignored atomic temp를 배선했다.
+>   [검증] Codex 환경 전체 `pytest tests/ -q` = **913 passed / 32 skipped / exit 0**(기존 803/32 대비
+>     passed 감소 0, +110). golden **28 passed**. 핵심 합성 123 passed, 독립 최종 리뷰 register/context 68 passed,
+>     hsweep 보안 57 passed. 변경 Python 중 기존 부채 3파일 제외 Ruff GREEN, 전 파일 py_compile·diff-check GREEN,
+>     `sajugen/calc`·`sajugen/input` diff 0. 기존 Ruff 부채 19건(rules 17/pdf 1/verify 1)은 별도이며 신규 악화 0.
+>   [금지 준수] 고객/ignored 산출물·local profile·`.env` 미열람, 실제 Anthropic API·PDF 재생성·hrun·commit·push
+>     미실행. 기존 DRAFTED 베타 1호는 승인·발송하지 않았다.
+>   [다음] `handoff/tasks/beta-1-register-harness-20260712.md` 기준 Claude 신선 컨텍스트 교차리뷰. Claude
+>     기준환경은 기존 831/4에 신규 수집 110을 더한 **예상 941/4**를 직접 재실행해 확정해야 한다. PASS 뒤
+>     운영자 checkpoint commit 여부 결정. 이후에만 별도 과금 승인으로 replacement PDF 1회 생성→게이트→hsweep→
+>     전문 육안 Z 재측정. 그 전 실제 상품 PASS·비용 절감·Z=0 단언 금지.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 재검 PASS — 이 블록 먼저 읽기) =====
 >   [판정] 라운드9 재검(Claude 신선 컨텍스트) = **PASS**. R9-1(module_coverage 소유권 교차검증) Codex 수정
 >     완료·종결, Q7 1단계 미해결 0. 정본 = `REVIEW-FEEDBACK.md` 최상단 "라운드9 재검" 절.
@@ -133,12 +170,12 @@
 >     20260711, 동기화 밖·MANIFEST 보존·가역적). fail-closed 화이트리스트 분류, 이동 후 repo 비익명 잔류 0 +
 >     전체 pytest **831/4 무영향**. QI-2026-07-11-01 근본 완화 종결. PII 잔여 = ②(git 이력 실명 rewrite)
 >     ③(docs/11 생년월일)만 — 운영자 결정 대기.
->   [베타 1호 생성 완료 2026-07-12] 주문 `ord_19f51b98aa69de82ade`(integrated_full·4모듈 love/job/wealth/
+>   [베타 1호 생성 완료 2026-07-12] 익명 문서 `DOC_BETA_1`(integrated_full·4모듈 love/job/wealth/
 >     health·LLM-on) — 접수는 로컬 입력 파일 경유(채팅 PII 0, 접수 후 파일 삭제). **gate_pass=True, 36p**
 >     (하한 28p), 커버리지 clean, DRAFTED. LLM calls=17(~$1.2). love·flow 챕터 가드 폴백 2건(정상 방어).
 >   [hsweep 파일럿 1호 2026-07-12 — A-3 실측] N=29 → M=0 → K=0, $0.41, partial=False. Z(운영자 육안 신규
 >     발견)가 결정 지표로 잔존 — 육안 검수 후 docs/16에 추기. 상세 = docs/16 hsweep 절.
->   [다음] **운영자 육안 검수**(sajugen/render/out/draft_ord_19f51b98aa69de82ade.pdf, docs/23 §2-3 —
+>   [다음] **운영자 육안 검수**(로컬 ignored draft PDF, docs/23 §2-3 —
 >     Z 값 보고) → admin에서 APPROVED → 수동 발송. 이후 베타 2·3호 접수.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-10 Q7 1단계 라운드9 changes_requested — 이 블록 먼저 읽기) =====

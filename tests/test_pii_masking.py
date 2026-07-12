@@ -71,7 +71,11 @@ def test_cover_and_birthdate_never_sent_to_llm(monkeypatch):
             sent.append(("compose", title, base_text or ""))
             if quoted_concern:
                 sent.append(("compose_quoted", title, quoted_concern))
-            return base_text  # 폴백 흉내(전송만 관찰)
+            return llm_sections.ComposeResult(
+                base_text,
+                cache_observed=True,
+                api_succeeded=True,
+            )  # 폴백 흉내(전송만 관찰)
 
     monkeypatch.setattr(llm_sections, "get_backend", lambda: MockBackend())
 

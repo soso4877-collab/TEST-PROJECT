@@ -145,7 +145,8 @@ def _regen_pdf(profile: dict, python: str) -> dict:
     from sajugen.content import llm_usage
 
     stdout = getattr(r, "stdout", "") or ""
-    usage = llm_usage.parse_line(stdout)
+    # 구 3합계 줄은 그대로 지원하고, 새 detail 줄이 있으면 cache/event 필드만 병합한다.
+    usage = llm_usage.parse_output(stdout)
     # 챕터별 폴백 관측(P0 2026-07-05): cli 의 "chapters: polished=... fallback=..." 줄 파싱
     # (QI-2026-07-05-03 — consult 골격 폴백이 summary 에서 안 보이던 갭). 챕터 id 만이라 PII 0.
     fallback_chapters = None

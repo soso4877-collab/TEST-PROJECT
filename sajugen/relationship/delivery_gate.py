@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
-from sajugen.content import client_tone_lint, quality_lint, safe_lint
+from sajugen.content import client_tone_lint, delivery_quality, quality_lint, safe_lint
 
 
 @dataclass(frozen=True)
@@ -109,6 +109,25 @@ def _field_failures(field: str, text: str, names: list[str]) -> list[dict]:
         out.append({"field": field, "rule": "loanword", "term": hit.get("match")})
     for hit in client_tone_lint.raw_calc_lint(text):
         out.append({"field": field, "rule": hit.get("type", "raw_calc")})
+    if field != "prompt":
+        for hit in client_tone_lint.register_lint(text):
+            if hit.get("severity") == "hard":
+                out.append(
+                    {
+                        "field": field,
+                        "rule": str(hit.get("rule") or "client_register"),
+                        "term": hit.get("token"),
+                        "count": hit.get("count", 1),
+                    }
+                )
+        for hit in delivery_quality.external_domain_advice_lint(text):
+            out.append(
+                {
+                    "field": field,
+                    "rule": str(hit.get("rule") or "external_domain_advice"),
+                    "count": hit.get("count", 1),
+                }
+            )
     for rx in _RAW_LABEL_RX:
         count = len(rx.findall(text))
         if count:

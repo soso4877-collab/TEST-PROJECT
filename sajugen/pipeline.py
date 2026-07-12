@@ -154,6 +154,7 @@ def generate(
         reasons.append(
             f"콘텐츠 가드 미통과(§12={report.guard.safe_lint_total}, "
             f"사실={report.guard.factcheck_total}, "
+            f"고객정책={report.guard.customer_policy_lint_total}, "
             f"grounding={report.guard.grounding_ok})"
         )
     if not saju.crosscheck.bazi_consistent:

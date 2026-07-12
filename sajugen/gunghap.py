@@ -291,7 +291,7 @@ def _person_slot(p: dict) -> str:
     fy = p["favorable_years"]
     if fy:
         parts.append(
-            f"용신({p['yongshin']}) 기준 세운 호기 해: {', '.join(map(str, fy))} (참고, 단정 아님)."
+            f"용신({p['yongshin']}) 기준 세운 호기 해: {', '.join(map(str, fy))} (보조 단서, 단정 아님)."
         )
     return " ".join(parts)
 
@@ -758,6 +758,16 @@ def _compose(
             names=names or [],
         )
     fallback = _finalize(raw_fallback)
+    fallback_policy = [
+        hit
+        for hit in client_tone_lint.register_lint(fallback)
+        if hit.get("severity") == "hard"
+    ] + delivery_quality.external_domain_advice_lint(fallback)
+    if fallback_policy:
+        codes = sorted(
+            {str(hit.get("rule") or "customer_policy") for hit in fallback_policy}
+        )
+        raise RuntimeError("궁합 폴백 고객 정책 위반(빌드 중단): " + ",".join(codes))
     if is_relationship_section:
         relationship_delivery_gate.assert_clean(
             prompt_text=base_text,
@@ -793,11 +803,11 @@ def _compose(
                 "<<<인용 시작>>>\n" + situation.strip() + "\n<<<인용 끝>>>\n"
             )
     else:
-        user += f"\n[현재 맥락 - 참고용이며 그대로 인용하지 말 것]\n{situation}\n"
+        user += f"\n[현재 맥락 - 그대로 인용하지 말 것]\n{situation}\n"
     # [기준 시점] 연도·월 닻 — llm_sections.temporal_anchor_block 단일 소스(개인 경로 공용).
     user += llm_sections.temporal_anchor_block(ref_year, ref_date)
     user += (
-        "\n[참고 근거 - 원문 라벨과 전문용어를 그대로 쓰지 말고 고객 문장으로 풀 것]\n"
+        "\n[작성 근거 - 원문 라벨과 전문용어를 그대로 쓰지 말고 고객 문장으로 풀 것]\n"
         + base_text
         + "\n"
     )
@@ -816,16 +826,23 @@ def _compose(
                 + ". 같은 결함 없이 질문에 다시 직접 답하라.\n"
             )
         try:
+            model = cfg.llm_model(
+                "relationship_compose" if is_relationship_section else "compose"
+            )
             msg = client.messages.create(
-                model=cfg.llm_model(
-                    "relationship_compose" if is_relationship_section else "compose"
-                ),
+                model=model,
                 max_tokens=4000,
                 system=system_prompt,
                 messages=[{"role": "user", "content": attempt_user}],
             )
             # 사용량 관측(2026-07-05) — 재작성 호출도 각각 누적한다.
-            llm_usage.add_response(msg)
+            llm_usage.add_response(
+                msg,
+                role="relationship_compose" if is_relationship_section else "gunghap_compose",
+                model=model,
+                section=section_id,
+                attempt=attempt + 1,
+            )
             cand = (msg.content[0].text if msg.content else "").strip()
         except Exception:
             return fallback
@@ -847,6 +864,12 @@ def _compose(
             + temporal_lint.lint(cand, ref_year, ref_date=ref_date)
             + client_tone_lint.loanword_lint(cand)
             + client_tone_lint.raw_calc_lint(cand)
+            + [
+                hit
+                for hit in client_tone_lint.register_lint(cand)
+                if hit.get("severity") == "hard"
+            ]
+            + delivery_quality.external_domain_advice_lint(cand)
             + (client_tone_lint.name_policy_lint(cand, names) if names else [])
             + (
                 client_tone_lint.identity_role_lint(cand, id_spec[0], id_spec[1], id_spec[2])
@@ -1137,6 +1160,7 @@ app = typer.Typer(add_completion=False, help="다인(2인 이상) 궁합 리포�
 
 
 @app.command()
+@llm_usage.isolated_run
 def gen(
     person: list[str] = typer.Option(
         ...,
@@ -1187,6 +1211,8 @@ def gen(
     )
     typer.echo(f"PDF: {r['pdf_path']} ({len(r['people'])}인)")
     typer.echo(llm_usage.format_line())  # 사용량 관측(2026-07-05) — hrun 이 파싱해 summary 로
+    if usage_detail := llm_usage.format_detail_line():
+        typer.echo(usage_detail)  # 호출 이벤트는 허용된 ID·숫자만 기록한다.
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@
 (5) Unified Fortune JSON           sajugen/models/report.py (신규)
 (6) Question Router                content/question_router.py (신규)   실패: domain=기타 폴백
 (7) Rule-based NLG                 content/rules.py + builder.py (기존)
-(8) Partial LLM (4구간)            content/llm_sections.py (신규)      실패: 룰 폴백 + NEEDS_REVIEW
+(8) Chapter LLM (12챕터)           content/llm_sections.py             실패: 해당 챕터 룰 폴백 + NEEDS_REVIEW
 (9) Safety Filter                  safe_lint + factcheck + trace (기존, LLM 구간에도 적용)
 (10) PDF Renderer                  render/pdf.py + verify.py (기존)
 (11) Admin Review UI               sajugen/admin/ (신규)               승인 전 발송 물리 불가
@@ -33,7 +33,7 @@
 | calc/ziwei.py | iztro-py 래퍼 | 윤달 정책 옵션 추가 |
 | calc/engine.py | SajuResult 통합 | Unified JSON으로 확장 |
 | content/* (27섹션+3단 가드) | 룰 NLG | question_router/llm_sections/repetition 추가 |
-| render/* | tagged PDF + veraPDF 게이트 | 무변경(고지 문구 슬롯만) |
+| render/* | tagged PDF + veraPDF·고객 가시 텍스트 게이트 | 문체 register 게이트 포함 |
 | cli.py / app.py | 운영자 도구 | 음력 입력 + admin 라우트 확장 |
 
 ## 상태 머신

@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""고객 본문 톤 린터 — 외래어 hard-ban + 날것 계산표현 + 전문용어 밀도(H1.5 2026-06-16).
+"""고객 가시 문체 린터 — 외래어·문서 register·날것 계산표현(H1.5).
 
-고객 PDF 본문(해석 산문)만 대상. 용어풀이 부록·명식표/근거표(차트)·내부 evidence/test/
-handoff/code/log 는 비대상(호출부에서 본문 텍스트만 넘긴다).
+register는 고객이 보는 PDF 전체(표지·목차·본문·부록), 기존 외래어·계산표현·전문용어
+검사는 본문 산문만 대상이다. 내부 evidence/test/handoff/code/log는 비대상이다.
 - loanword_lint: 외래어 hard-ban(고객 본문 0건). compose 폴백 + verify gate.
 - raw_calc_lint: 표제형 계산표현·원시 카운트(오행 분포·십성축·신강약·'목 2, 화 2…'). 자연어 풀이는 미매칭.
 - term_hits: 명리 전문용어 밀도(보고만 — 첫 1회 자연어 풀이+괄호 허용 정책).
@@ -13,6 +13,122 @@ handoff/code/log 는 비대상(호출부에서 본문 텍스트만 넘긴다).
 from __future__ import annotations
 
 import re
+
+
+# 고객 가시 문체 register 계약(docs/14 machine block 파생).
+#
+# - ``hard``는 최종 PDF 게이트를 막는다.
+# - ``warning``은 운영자 관측만 남기며 게이트를 막지 않는다.
+# - pattern은 검출 구현 세부이며, 외부에 반환하는 finding에는 원문 문장을 넣지 않는다.
+# - 긴 구문을 먼저 검사하고 이미 센 위치를 건너뛰어 ``준비 구간``과 ``구간``이 같은
+#   ``time_interval`` finding으로 이중 집계되지 않게 한다.
+REGISTER_RULES: tuple[dict[str, object], ...] = (
+    {
+        "rule": "time_interval",
+        "token": "준비 구간",
+        "severity": "hard",
+        "pattern": re.compile(r"준비\s*구간"),
+    },
+    {
+        "rule": "information_collection",
+        "token": "정보 수집",
+        "severity": "hard",
+        "pattern": re.compile(r"정보(?:를|가|는|도|만)?\s*수집"),
+    },
+    {
+        "rule": "big_picture",
+        "token": "그림을 잡아 두다",
+        "severity": "hard",
+        "pattern": re.compile(
+            r"그림을\s*잡아\s*(?:두(?:다|세요|고|면|는|었습니다|었다)|둡니다|뒀(?:다|습니다))"
+        ),
+    },
+    {
+        "rule": "big_picture",
+        "token": "그림을 잡다",
+        "severity": "hard",
+        "pattern": re.compile(
+            r"(?:전체\s*)?그림을\s*잡(?:다|습니다|고|아|아서|으면|는|으려|으세요|으십시오|았습니다|았다)"
+        ),
+    },
+    {
+        "rule": "big_picture",
+        "token": "큰 그림",
+        "severity": "hard",
+        "pattern": re.compile(r"큰\s*그림"),
+    },
+    {
+        "rule": "result_sheet",
+        "token": "결과지",
+        "severity": "hard",
+        "pattern": re.compile(r"결과지"),
+    },
+    {
+        "rule": "reference_register",
+        "token": "참고",
+        "severity": "hard",
+        "pattern": re.compile(r"참고"),
+    },
+    {
+        "rule": "time_interval",
+        "token": "구간",
+        "severity": "hard",
+        "pattern": re.compile(r"구간"),
+    },
+    {
+        "rule": "cutline",
+        "token": "커트라인",
+        "severity": "hard",
+        "pattern": re.compile(r"커트\s*라인"),
+    },
+    *(
+        {
+            "rule": "document_noun",
+            "token": token,
+            "severity": "warning",
+            "pattern": re.compile(re.escape(token)),
+        }
+        for token in ("항목", "자료", "검토", "점검", "활용", "전략")
+    ),
+)
+
+
+def register_lint(text: str, *, page: int | None = None) -> list[dict]:
+    """고객 가시 문서 register finding을 PII-safe 집계 형식으로 반환한다.
+
+    반환 키는 ``rule/token/count/page/severity`` 다섯 개로 고정한다. ``token``은
+    docs/14에 승인된 정적 토큰이며 실제 고객 문장 조각이 아니다.
+    """
+
+    source = text or ""
+    occupied: list[tuple[int, int]] = []
+    counts: dict[tuple[str, str, str], int] = {}
+    for spec in REGISTER_RULES:
+        rx = spec["pattern"]
+        assert isinstance(rx, re.Pattern)
+        for match in rx.finditer(source):
+            span = match.span()
+            if any(span[0] < end and start < span[1] for start, end in occupied):
+                continue
+            occupied.append(span)
+            key = (str(spec["rule"]), str(spec["token"]), str(spec["severity"]))
+            counts[key] = counts.get(key, 0) + 1
+    return [
+        {
+            "rule": rule,
+            "token": token,
+            "count": count,
+            "page": page,
+            "severity": severity,
+        }
+        for (rule, token, severity), count in counts.items()
+    ]
+
+
+def is_register_clean(text: str) -> bool:
+    """hard register finding이 없으면 True. warning은 납품을 차단하지 않는다."""
+
+    return not any(hit["severity"] == "hard" for hit in register_lint(text))
 
 # 외래어 → 대체어(첫 번째가 기본 대체어). 드라이브 ≠ 드라이버 별도.
 LOANWORDS: dict[str, list[str]] = {
