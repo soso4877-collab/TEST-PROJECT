@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "cover-sub-keepall-20260713",
-  "status": "done",
-  "base_commit": "7ff7f56704e880bd742a1b0cae177bf11008af98",
-  "packet_path": "handoff/tasks/cover-sub-keepall-20260713.md",
-  "packet_sha256": "dddea61ce39eb531f943c08c79c794fbe95e984bad0cf3332a648982607c5290",
+  "task_id": "three-pillar-llm-grounding-fix-20260713",
+  "status": "planned",
+  "base_commit": "e94e3bdfb1f361c831e16e602d7b02dd18abc8cc",
+  "packet_path": "handoff/tasks/three-pillar-llm-grounding-fix-20260713.md",
+  "packet_sha256": "3e119a5a8b958bbf656d3761448a4a6d3babfdd8f5da048e0e3e00616db600c4",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "1a7c5274181eee81bb1baee648307d6831e2a70e1063ba5032a4ad8742929a47",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "4f5da36629071cf65804b242052d3365d70e9b1f44481875319d339358c972a5",
-  "next_actor": "none",
-  "next_action": "태스크 종결 - 추가 작업 없음",
-  "updated_at": "2026-07-13T11:26:11.643Z"
+  "next_actor": "codex",
+  "next_action": "handoff/tasks/three-pillar-llm-grounding-fix-20260713.md 구현: §3 루트커즈 실측 선행, Codex는 LLM 금지로 no-LLM/mock 회귀만, 실모델 재run은 운영자 몫",
+  "updated_at": "2026-07-13T14:27:36.895Z"
 }
