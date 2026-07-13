@@ -22,6 +22,8 @@ from sajugen.content import unknown_time_policy  # noqa: E402
 from sajugen.input import normalize as norm  # noqa: E402
 from playwright_guard import require_playwright_subprocess  # noqa: E402
 
+_PT_PER_MM = 72.0 / 25.4
+
 
 def _assert_gate(r):
     # 통이미지 결함 차단: 텍스트레이어·폰트 임베드·태그 + 명리↔자미 교차 일치(절대규칙 7)
@@ -78,6 +80,10 @@ def test_e2e_lunar_leap():
 
 
 def test_e2e_unknown_time():
+    """표지 고지의 어절 경계와 후처리 낙관 수평 안전 여백을 검증한다.
+
+    표지 외 페이지의 조판과 픽셀 단위 시각 품질은 운영자 육안 검수 범위다.
+    """
     # 레거시 호출자는 12:00+unknown_time=True를 계속 보낼 수 있지만, 결과는 정오
     # 추정이 아니라 신고 날짜 기준 삼주로 정규화돼야 한다. 비절입 날짜를 사용해
     # 렌더 계약만 검증하고, 절입 차단은 calc 전용 테스트에서 별도로 고정한다.
@@ -96,6 +102,32 @@ def test_e2e_unknown_time():
     )
     _assert_gate(r)
     doc = fitz.open(r.pdf_path)
+    cover = doc.load_page(0)
+    cover_width = cover.rect.width
+    cover_height = cover.rect.height
+    cover_lines = []
+    for block in cover.get_text("dict", sort=True).get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        for line in block.get("lines", []):
+            line_text = "".join(span.get("text", "") for span in line.get("spans", []))
+            compact = re.sub(r"\s+", "", line_text)
+            if compact:
+                cover_lines.append((compact, fitz.Rect(line["bbox"])))
+    # 한지 배경은 페이지 전체 크기이고, 후처리 낙관은 오른쪽 아래의 작은 이미지다.
+    # 실제 PDF 이미지 bbox에서 낙관을 찾으므로 낙관 누락·위치 변경도 조용히 통과하지 않는다.
+    cover_images = cover.get_image_info(xrefs=True)
+    cover_image_boxes = [fitz.Rect(image["bbox"]) for image in cover_images]
+    seal_boxes = []
+    for image, bbox in zip(cover_images, cover_image_boxes, strict=True):
+        if (
+            image.get("xref", 0) > 0
+            and bbox.width < 20.0 * _PT_PER_MM
+            and bbox.height < 60.0 * _PT_PER_MM
+            and bbox.x0 > cover_width / 2.0
+            and bbox.y0 > cover_height / 2.0
+        ):
+            seal_boxes.append(bbox)
     text = "".join(doc.load_page(i).get_text() for i in range(doc.page_count))
     doc.close()
     # 한국어는 음절 사이에서도 줄이 바뀔 수 있어 "해석\n은"을 "해석 은"으로 만드는
@@ -104,6 +136,38 @@ def test_e2e_unknown_time():
     normalized_text = re.sub(r"\s+", "", text)
     normalized_notice = re.sub(r"\s+", "", unknown_time_policy.THREE_PILLAR_NOTICE)
     assert normalized_text.count(normalized_notice) == 1
+    assert " ".join(text.split()).count(unknown_time_policy.THREE_PILLAR_NOTICE) == 1
+
+    # 표지 고지문은 Chromium이 그린 뒤, 오른쪽 아래 낙관은 PyMuPDF 후처리로
+    # 삽입된다. 두 층이 서로의 레이아웃을 모르므로 실제 PDF 좌표로 최소 2mm
+    # 안전 여백을 고정해 시각 충돌의 재발을 막는다.
+    cover_stream = "".join(line_text for line_text, _ in cover_lines)
+    assert cover_stream.count(normalized_notice) == 1
+    notice_start = cover_stream.index(normalized_notice)
+    notice_end = notice_start + len(normalized_notice)
+    notice_boxes = []
+    offset = 0
+    for line_text, bbox in cover_lines:
+        line_end = offset + len(line_text)
+        if line_end > notice_start and offset < notice_end:
+            notice_boxes.append(bbox)
+        offset = line_end
+    assert notice_boxes
+
+    assert len(seal_boxes) == 1, {
+        "seal_candidate_count": len(seal_boxes),
+        "cover_image_boxes": [
+            tuple(round(v, 2) for v in box) for box in cover_image_boxes
+        ],
+    }
+    seal_left = seal_boxes[0].x0
+    notice_right = max(box.x1 for box in notice_boxes)
+    gap_mm = (seal_left - notice_right) / _PT_PER_MM
+    assert gap_mm >= 2.0, {
+        "notice_right_pt": round(notice_right, 2),
+        "seal_box": tuple(round(v, 2) for v in seal_boxes[0]),
+        "gap_mm": round(gap_mm, 3),
+    }
     assert "年柱" in normalized_text and "月柱" in normalized_text and "日柱" in normalized_text
 
     # 금지 토큰도 무공백화하면 개행으로 쪼개진 누출을 숨길 수 없다. 어절 경계가 합쳐져

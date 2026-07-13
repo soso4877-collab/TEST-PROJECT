@@ -56,8 +56,11 @@
     font-family:'SajuHead','SajuBody',serif;font-size:38pt;font-weight:700;line-height:1;
     letter-spacing:.5em;color:var(--ink)}
   .cover .cover-seal{margin:11mm 0 0}
+  /* PDF 후처리에서 오른쪽 아래에 삽입되는 낙관과 고지문이 겹치지 않도록
+     본문과 같은 최대 폭으로 중앙 제한한다. */
   .cover .sub{color:var(--mut);font-size:11.5pt;white-space:pre-line;line-height:1.95;
-    letter-spacing:var(--ls);margin-top:auto;padding-bottom:6mm}
+    word-break:keep-all;overflow-wrap:normal;line-break:strict;
+    max-width:var(--maxw);letter-spacing:var(--ls);margin-top:auto;padding-bottom:6mm}
 
   /* 목차 — 금강산 구도: 붓글씨 헤더 + 장 칩 + 대시 리더 + 챕터명.
      통합본은 장(章)이 17개까지 늘어 2페이지로 넘치면 마지막에 몇 줄만 남는 희소
