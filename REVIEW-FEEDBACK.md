@@ -1,3 +1,74 @@
+# 운영자 checkpoint 종결 — 2026-07-13 (표지 keep-all + 낙관 안전 여백)
+
+대상: `cover-sub-keepall-20260713` · 제품 commit `2fc7309` · 역할 계약 commit `7ff7f56`
+
+## 최종 판정: **승인(EVIDENCE_SPLIT_PASS) / checkpoint 완료**
+
+Claude 라운드23의 기준환경 실렌더와 Codex의 코드·스코프·전체 회귀를 동일 tree의 분리 증거로 수용했다. 운영자 승인 후 표지 1쪽을 실제 PNG로 확인했고, 기존 keep-all만으로 생긴 오른쪽 낙관 충돌을 `max-width:var(--maxw)`와 실제 PDF 좌표 회귀로 닫았다. 미해결 코드·조판 블로커는 0이다.
+
+| 항목 | 최종 실측 | 판정 |
+|---|---|---|
+| 제품 변경 | `report.html.j2`의 `.cover .sub`에 keep-all 3종 + 본문과 같은 최대 폭 적용. 게이트·고지 문안·낙관 배치 코드는 무변경 | ✓ |
+| 실제 좌표 회귀 | `test_p8.py`가 표지 고지 line bbox와 PDF에 실제 삽입된 오른쪽 아래 낙관 image XObject bbox를 비교. 수평 여백 약 **4.16mm**, 계약 하한 **2mm** | ✓ |
+| 육안 검수 | 최신 합성 `e2e_p8_unknown.pdf` 표지 1쪽을 PDFium으로 PNG 렌더. 음절 분리·글자 잘림·낙관 겹침·깨진 글자 0, 좌우 균형 정상 | ✓ |
+| 기준환경 증거 | Claude 라운드23: 전체 **1036 passed / 4 skipped**, `test_p8` **3 passed**, golden 28 | ✓ |
+| Codex 재검증 | 전체 **1008 passed / 32 skipped**, golden 28, Playwright 실렌더 `test_p8` **3 passed**, 최종 unknown-time 좌표 E2E **1 passed**, Ruff·py_compile·diff-check GREEN | ✓ |
+| commit 경계 | `2fc7309` = 제품+회귀 2파일, `7ff7f56` = `AGENTS.md` 역할 계약 1파일. push 없음 | ✓ |
+
+### 계약 정리
+
+- Codex 환경의 기본 28건 추가 skip은 코드 실패가 아니라 환경 capability 차이다. 기준환경 실렌더와 Codex 전체/정적 증거를 합성하고 같은 검증을 세 번째 actor에게 반복시키지 않는다.
+- 미고정 `handoff/tasks/cover-sub-keepall-codex-confirm-20260713.md`는 활성 packet이 아니며 commit·후속 실행에서 제외한다. 권위 지시문은 manifest가 SHA로 고정한 `handoff/tasks/cover-sub-keepall-20260713.md` 하나다.
+- 라운드18의 범위 밖 2변경과 삼주 delivery 하한은 이미 beta-2 제품·검증·handoff checkpoint(`2cad29c`·`02b3c48`·`763ed73`)에 포함돼 main에 반영된 역사 항목이다. 운영자의 권장 경로 진행 승인에 따라 이번 표지 태스크의 미해결 조건으로 다시 이월하지 않는다.
+
+### 미검증(정직 보고)
+
+- 실고객 PDF 재생성·300dpi 전문 검수·Anthropic API·hrun·hsweep·APPROVED·발송은 이번 checkpoint 범위 밖이다.
+- 이번 시각검수는 PII 0 합성 표지만 사용했다. 고객 데이터·고객 PDF는 열람하지 않았다.
+
+다음: handoff를 `done / next_actor=none`으로 종결한다. push와 실고객 작업은 별도 운영자 승인 대상이다.
+
+---
+
+# 교차 리뷰 — 2026-07-13 (라운드 23, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, HEAD `79cdec1` 위, base=`763ed73`) 표지 고지 keep-all 수정분 · 구현자: Codex · 지시문: `handoff/tasks/cover-sub-keepall-20260713.md`
+
+## 최종 판정: **승인(CODE_PASS)** — 기준환경 전체 pytest **1036 passed / 4 skipped / exit 0**. test_p8 삼주 E2E 실렌더 통과 + 표지 추출 실측으로 고지 개행이 어절 경계에서만 일어남을 확정. **양방(RED/GREEN) 실렌더 증거 확보** — 라운드22가 상속받았던 무공백 테스트와 달리 이번 keep-all 가드의 RED를 직접 실측. 미해결 블로커 0.
+
+### 실측
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 수정 내용 | `report.html.j2:60` `.cover .sub`에 `word-break:keep-all;overflow-wrap:normal;line-break:strict` +1줄(`.toc-name`·`h2.ctitle`과 동일 3종, 기존 속성 유지) + `test_p8.py:111` 공백 보존 정규화(`" ".join(text.split())`) 고지 1회 단언 추가(기존 무공백 단언 유지 — 층 추가) + 검증/비검증 도크스트링. 패킷 §1·§2 사양 그대로, 게이트·lint·고지 문안·다른 셀렉터 무변경 | ✓ |
+| 변경 집합 | 제품/테스트 2파일(`report.html.j2` +1 / `test_p8.py` +5) + 인계 3종(manifest·notes·STATE). 그 외 변경 0 | ✓ |
+| 전체 pytest | **1036 passed / 4 skipped / exit 0** (215.66s) — 라운드22 기준선 1036/4 유지, passed 감소 0 | ✓ |
+| test_p8 실렌더 | 3/3 PASSED (solar·leap·unknown_time 전부 Playwright 실행, 35.77s — skip 아님). `_assert_gate`로 세 상품 렌더 전부 `gate_pass=True` — 전 상품 표지 변경 비악화 근거 | ✓ |
+| 표지 추출 실측 | 방금 렌더된 `e2e_p8_unknown.pdf` 표지(0쪽) 원문: 고지의 **유일 개행 = `세부\n해석은`**(어절 경계). 무공백 count 1 / 공백보존 count 1 / 원문 부분문자열 존재 True | ✓ |
+| **양방(RED) 증거** | keep-all 1줄 임시 제거 → `test_e2e_unknown_time` **line 111(공백보존) RED(`assert 0==1`) / line 110(무공백) GREEN**. 새 단언이 no-op 아님을 실증하고 라운드21 음절 중간 개행("해석\n은") 결함을 재현. 복원 후 template diff = keep-all +1줄뿐(정확 복원) | ✓ |
+| golden | 28 passed | ✓ |
+| 정적 | Ruff(test_p8.py) `All checks passed!` · py_compile exit 0 · `git diff --check` exit 0 | ✓ |
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q             → 1036 passed / 4 skipped / exit 0 (215.66s)
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden   → 28 passed
+./.venv/Scripts/python.exe -m pytest tests/test_p8.py -v   → 3 passed (전부 실렌더, unknown_time 포함 skip 아님)
+표지 추출 프로브(기존 PDF 재사용, 읽기 전용)                → 고지 개행 = 세부\n해석은 (어절 경계), count 1/1
+keep-all 제거 후 test_e2e_unknown_time                     → line 111 RED / line 110 GREEN (양방), 복원 후 diff = +1줄
+Ruff test_p8.py / py_compile / git diff --check            → All checks passed / exit 0 / exit 0
+```
+
+### 미검증(정직 보고)
+- **표지 좌우 균형·시각 조판 품질은 미검증** — `layout_geometry`는 이 환경 skip(비게이트 키)이라 자동 게이트가 표지 기하를 검증하지 않는다. keep-all은 **어절 경계 개행만** 보장하며 좌우 균형은 별개(운영자 육안 몫, 패킷 §4.3 — checkpoint 전 표지 1쪽 육안 권장).
+- 실 Anthropic API·고객 주문 PDF·실상품 재생성·hrun·hsweep·300dpi·육안 Z=0 — CODE_PASS 교차리뷰 범위 밖. pytest·프로브 합성 산출물 외 PDF 생성 0. commit·push·API 없음.
+- 누적 checkpoint 확인 3건(운영자 몫): ① 스코프 밖 변경 2건(라운드18 rules 문구 순화·order_flow enum 정본화)의 "운영자 추가 승인" 주장 ② 삼주 delivery 하한 12쪽/3,500자 수치 ③ 표지 고지 좌우 균형 육안.
+
+다음: Codex 신선 read-only 확인 → PASS 시 운영자 checkpoint commit 결정(위 확인 3건 포함). API·유료 재생성·commit·push 금지 유지.
+
+---
+---
+
 # 교차 리뷰 — 2026-07-13 (라운드 22, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, base=HEAD `084e04c` 위) 라운드21 잔존 1건 수정분(test_p8 무공백 정규화) · 구현자: Codex · 지시문: `handoff/tasks/beta-2-round21-blocker-fix-20260713.md` (SHA `db54f027…dd46`)

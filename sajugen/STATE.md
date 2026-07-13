@@ -1,5 +1,47 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-13 표지 keep-all·낙관 안전 여백 checkpoint 종결 — 이 블록 먼저 읽기) =====
+>   [최종] `cover-sub-keepall-20260713` = **EVIDENCE_SPLIT_PASS / checkpoint 완료**.
+>     제품 `2fc7309`(template+E2E 2파일), 역할 계약 `7ff7f56`(AGENTS 1파일). push 없음.
+>   [검증] Claude 기준환경 **1036 passed / 4 skipped**, test_p8 3 passed, golden 28.
+>     Codex 환경 **1008 passed / 32 skipped**, golden 28, Playwright test_p8 3 passed,
+>     최종 unknown-time 실제 좌표 E2E 1 passed, Ruff·py_compile·diff-check GREEN.
+>   [시각] 합성 표지 PDFium PNG 육안 PASS. 음절 분리·잘림·낙관 겹침·깨진 글자 0.
+>     고지문 우단↔실제 낙관 image bbox 수평 여백 약 **4.16mm**(계약 하한 2mm).
+>   [계약] 권위 packet은 manifest SHA로 고정된 `handoff/tasks/cover-sub-keepall-20260713.md` 하나.
+>     미고정 confirm packet은 실행·commit 제외. 과거 beta-2 누적 확인 항목은 이번 태스크로 재이월하지 않는다.
+>     아래 라운드23 이하의 `next_actor`·`next_action`은 당시 역사이며 모두 이 최상단 앵커로 대체됐다.
+>   [미검증] 실고객 PDF·300dpi·API·hrun·hsweep·APPROVED·발송. 고객 데이터 비접촉.
+>   [다음] handoff `done / next_actor=none` 종결. push·실고객 작업은 운영자 별도 승인 시에만.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-13 라운드23 표지 keep-all 재검증 CODE_PASS — 이 블록 먼저 읽기) =====
+>   [판정] 라운드23 재검증(Claude 신선) = **승인(CODE_PASS), 미해결 블로커 0**. 정본 = REVIEW-FEEDBACK 라운드23 절.
+>     기준환경 전체 pytest **1036 passed / 4 skipped / exit 0**(215.66s), golden 28, test_p8 3/3 Playwright
+>     실렌더 PASSED(unknown_time 포함 skip 아님, `_assert_gate`로 세 상품 gate_pass=True).
+>     변경 = 제품/테스트 2파일뿐(`.cover .sub` keep-all +1줄 · test_p8 공백 보존 단언 +1줄·도크스트링).
+>   [양방 증거] keep-all 임시 제거 → test_e2e_unknown_time line 111(공백보존) RED / line 110(무공백) GREEN
+>     — 새 단언 no-op 아님·라운드21 음절 중간 개행 재현. 복원 후 template diff = keep-all +1줄(정확 복원).
+>     표지 추출: 고지 유일 개행 = `세부\n해석은`(어절 경계), 무공백·공백보존 count 각 1.
+>   [미검증] 표지 좌우 균형·시각 품질 = layout_geometry 이 환경 skip(자동 게이트 밖·운영자 육안 몫).
+>     실API·고객 PDF·hsweep·300dpi·육안 Z=0 — CODE_PASS 범위 밖. 합성 산출물 외 PDF 0. commit·push·API 없음.
+>   [다음] manifest review_requested / next_actor=codex → **Codex 신선 read-only 확인**
+>     (지시문 `handoff/tasks/cover-sub-keepall-codex-confirm-20260713.md`) → PASS 시 운영자 checkpoint commit 결정.
+>     확인 3건: ① 스코프 밖 변경 2건 ② 삼주 delivery 하한 12쪽/3,500자 ③ 표지 고지 좌우 균형 육안.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-13 표지 keep-all 수정 완료 — 이 블록 먼저 읽기) =====
+>   [현재] 패킷 §1~§2 구현 및 Codex 환경 검증 완료. 정본 =
+>     `handoff/tasks/cover-sub-keepall-20260713.md`. Claude 실렌더 신선 재검증을 요청한다.
+>   [수정] `.cover .sub`에 keep-all 3종만 추가하고, test_p8 unknown_time에 공백 보존 고지 원문
+>     1회 단언을 기존 무공백 층과 함께 고정했다. 도크스트링에 검증·비검증 경계를 명시했다.
+>   [Codex 실측] 시작·종료 전체 **1008 passed / 32 skipped / exit 0**(감소 0), golden **28 passed**,
+>     test_p8 **3 skipped**(통과 아님). E2E RED/GREEN·gate_pass·layout_geometry는 미실측이다.
+>     변경 Python Ruff·py_compile·diff-check GREEN.
+>   [불변] verify/게이트/lint/고지 문안/@page/다른 조판·테스트/REVIEW-FEEDBACK 불변.
+>     API·LLM·고객/실상품 PDF·hrun·hsweep·commit·push·APPROVED·발송 없음.
+>   [미검증] Claude 기준환경 실렌더 공백 보존 일치와 게이트 비악화, 표지 1쪽 육안 품질,
+>     고객 PDF/300dpi·실LLM·비용.
+>   [다음] manifest `review_requested / next_actor=claude` → 전체 pytest·test_p8 실렌더 신선 재검증.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-13 라운드22 재검증 CODE_PASS — 이 블록 먼저 읽기) =====
 >   [판정] 라운드22 재검증(Claude 신선) = **승인(CODE_PASS), 미해결 블로커 0**. 정본 = REVIEW-FEEDBACK 라운드22 절.
 >     기준환경 전체 pytest **1036 passed / 4 skipped / exit 0** — beta-2 삼주 태스크 최초 전체 GREEN.
