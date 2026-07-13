@@ -1,5 +1,20 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-13 삼주 replacement 유료 run 게이트 실패 — 이 블록 먼저 읽기) =====
+>   [현재] 운영자 승인 유료 파이프라인 1회 실행. 저장 order#2(생시미상 실고객, brand=seodam, 레거시 정오 결함)를
+>     원본으로 three_pillar `integrated_full`+[job,wealth,health] replacement 1건 생성(익명 `DOC_1F3817DC9C`).
+>     결정(운영자): brand=seodam, 상품/모듈 확정. concern은 저장값(len 889). order#2 불변 실측(DB 3→4, 신규 1건만).
+>   [결과] `DRAFTED` 실패·`NORMALIZED` 정지·PDF 미생성. `gate_pass=False`,
+>     `failed_clean_flags=[delivery_quality_clean, style_clean]`, `delivery_failures=[missing_question_axes]`(+low_density 절단).
+>     classify `InstructorRetryException`→룰폴백; flow·consult·closing LLM출력 가드거부(factcheck 삼주금칙 `시주`·근거밖 월주)→룰폴백.
+>   [원인] 삼주 LLM 콘텐츠 경로가 허용출처 밖 토큰 생성→가드 정확 차단→룰폴백 본문이 고민 topic축·style 미충족.
+>     게이트 fail-closed 정상(유출 0) = 구현 결함(Codex 영역). `missing_question_axes`는 concern 기반(모듈 독립).
+>   [비용] 오류경로 `llm_usage` 미영속(order_flow run_generation 성공 경로만 저장)→호출·토큰·비용 미포착.
+>     권위=Anthropic 대시보드. 과금은 발생(classify 재시도+3챕터+모듈 compose).
+>   [기록] docs/16 QI-2026-07-13-02 등재. 신규 order = NORMALIZED+모듈확정 상태 = create 없이 `run_generation` 재호출로 재시도 가능(여전히 1건).
+>   [다음] 운영자 결정=구현결함 처리. Codex TASK_PACKET(삼주 LLM 근거화·오류경로 usage 영속·실복합 고민 gate_pass 회귀) 발주.
+>     hrun/hsweep=PDF부재로 미실행. commit·콘텐츠코드수정=미착수(운영자 승인 시). 유료 재시도=미승인.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-13 표지 keep-all·낙관 안전 여백 checkpoint 종결 — 이 블록 먼저 읽기) =====
 >   [최종] `cover-sub-keepall-20260713` = **EVIDENCE_SPLIT_PASS / checkpoint 완료**.
 >     제품 `2fc7309`(template+E2E 2파일), 역할 계약 `7ff7f56`(AGENTS 1파일). push 없음.

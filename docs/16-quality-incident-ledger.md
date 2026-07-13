@@ -1,5 +1,20 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-13 추가: QI-2026-07-13-02 첫 실LLM-on 생시미상 삼주 유료 run 게이트 실패 — LLM 콘텐츠 경로 근거화·축 커버리지 갭
+
+- 증상: 첫 실LLM-on 생시 미상 삼주 `integrated_full` 주문(익명 `DOC_1F3817DC9C`, 실고객 재생성 후보, 모듈 `[job,wealth,health]`)이 운영자 승인 유료 파이프라인 1회에서 `DRAFTED` 승격에 실패하고 `NORMALIZED`에 정지했다(PDF 미생성). 하드 게이트 = `gate_pass=False`, `failed_clean_flags=[delivery_quality_clean, style_clean]`, `delivery_failures=[missing_question_axes]`(+ `low_density` 절단). 로그: `classify` LLM이 `InstructorRetryException`으로 실패해 룰 폴백; `flow`·`consult`·`closing` 챕터의 LLM 출력이 가드에 거부(factcheck가 삼주 금칙 `시주`·근거 밖 월주 간지 `정미월/경술` 등 차단, consult `질문 직답 미달`)돼 룰 폴백.
+- 영향: 실고객 삼주 리포트가 발송 전 하드 게이트에서 fail-closed 차단(고객 유출 0). 그러나 **실LLM-on 삼주 경로가 실제 복합 고민에서 gate_pass 리포트를 산출하지 못함이 최초로 드러남**. 부수로 오류 경로에서 `llm_usage`가 미영속돼 실패 run의 호출·토큰·비용을 사후 관측할 수 없었다.
+- 원인(2층):
+  - 표면: 삼주 콘텐츠 경로의 LLM 챕터가 허용 출처(`three_pillar`/`time_invariant`/`calendar_flow`) 밖 토큰(시주·미승격 월주 간지)을 생성 → factcheck/safe 가드가 정확히 거부 → 룰 폴백. 룰 폴백 본문이 고민 원문의 topic 축(직업/경제/건강 + 월별·이사·취미)을 채우지 못했고(`delivery_quality._required_axes`는 concern 기반, 모듈 독립) `style_clean`도 미달했다.
+  - 시스템: (a) 실LLM-on 삼주 `integrated_full` 경로가 실복합 고민에서 gate_pass 하는지 측정하는 실모델 실측이 없었다(E2E·회귀는 합성·no-LLM 빌더 층 위주 — QI-2026-07-13-01도 같은 층). "가드가 차단한다"와 "상품이 준수 출력을 산출한다"는 별개인데 후자를 검증한 적이 없다. (b) `order_flow.run_generation`이 `llm_usage`를 성공 경로(save at report save)에서만 영속하고 오류 경로에서 유실 → 실패 run 비용 불가시(관측 갭).
+- 왜 기존 게이트가 못 잡았나: 삼주 계약 검증은 계산·가드 차단·no-LLM 빌더에 집중됐고, 실LLM 출력이 삼주 허용 출처를 폴백 없이 얼마나 준수하는지를 실복합 고민으로 측정한 적이 없다. 게이트는 정상 fail-closed 했으나 산출 가능성은 미검증 사각으로 남아 있었다.
+- 재발 방지(방향 — 구현은 Codex 별도 TASK_PACKET):
+  - 삼주 LLM 챕터 프롬프트·fact allowlist·compose slot을 정합시켜 허용 출처 밖 토큰(시주·미승격 월주 간지) 생성을 구조적으로 억제하고, 폴백이 나더라도 고민 topic 축·style을 충족하는 최소 골격을 보장한다.
+  - `run_generation` 오류 경로에서도 `llm_usage`(호출·토큰, PII 0)를 audit/summary에 영속해 실패 run 비용을 가시화한다.
+  - `classify`의 `InstructorRetryException`을 별도 조사한다(구조화 출력 실패 vs 일시 API — 축 검사와는 독립이나 첫 호출 실패로 분류가 룰 폴백됐다).
+  - 실LLM-on 삼주 `integrated_full` × 실복합 고민류의 gate_pass 회귀를 추가한다(합성 고민 픽스처, PII 0; 실모델 증거는 운영자/Claude 환경 몫 — Codex는 LLM 금지이므로 no-LLM/mock 층 회귀 + 실모델 재run 분리 증거).
+- 교훈: 가드가 비준수 출력을 차단하는 것과 상품이 준수 출력을 산출하는 것은 다른 명제다. 실LLM-on 경로의 산출 가능성은 계산·차단 테스트가 아니라 실모델 실측으로만 증명된다. 실패 run의 비용조차 관측 못 하면 유료 실험의 회계가 닫히지 않는다.
+
 ## 2026-07-13 추가: QI-2026-07-13-01 삼주 E2E 게이트 3키 RED가 두 수정 라운드 동안 잠복
 
 - 증상: 생시 미상 삼주 E2E가 `style_clean`, `quality_clean`, `delivery_quality_clean` 세 하드 게이트에서 동시에 실패했지만, 앞선 수정 라운드들은 먼저 보인 단일 실패만 고쳐 전체 `gate_pass=False`가 두 라운드 동안 이어졌다.
