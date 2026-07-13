@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "beta-2-unknown-time-three-pillar-20260712",
-  "status": "done",
-  "base_commit": "02b3c488f65d2901c462a09707e1954c88820e0c",
-  "packet_path": "handoff/tasks/beta-2-unknown-time-three-pillar-20260712.md",
-  "packet_sha256": "20ee5efb728456c8dd6c379da00a466d8885360802b73c5c8345400f307a04ba",
+  "task_id": "cover-sub-keepall-20260713",
+  "status": "planned",
+  "base_commit": "763ed735b59ff5dc97ff8632158ba3dca03a3edb",
+  "packet_path": "handoff/tasks/cover-sub-keepall-20260713.md",
+  "packet_sha256": "dddea61ce39eb531f943c08c79c794fbe95e984bad0cf3332a648982607c5290",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "74d90595d8d4272f786ed97fb72055797108337f14a43c36145f7ef6577bbb65",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "a4fb5e3d7f83a3226e5ce7fecf011da9f4202da5fc2f40fc58e5d05bf23d3b9a",
-  "next_actor": "user",
-  "next_action": "beta-2 종결(라운드22 CODE_PASS, checkpoint 2cad29c+02b3c48). 후속 후보: 실PDF hrun·300dpi·육안 검수, 표지 word-break keep-all advisory — 운영자 발주 결정. push·main 전진은 별도 지시",
-  "updated_at": "2026-07-13T06:26:09.201Z"
+  "next_actor": "codex",
+  "next_action": "패킷 §1(.cover .sub keep-all)+§2(test_p8 공백보존 단언) 구현 후 review_requested로. API·PDF·commit·push 금지",
+  "updated_at": "2026-07-13T06:45:12.371Z"
 }
