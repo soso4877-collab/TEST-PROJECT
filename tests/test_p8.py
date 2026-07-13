@@ -6,6 +6,7 @@
 윤달 케이스는 실 KASI 캐시(data/kasi_cache.sqlite)가 있을 때만 실행(없으면 skip).
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -17,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sajugen import pipeline  # noqa: E402
 from sajugen.calc import kasi  # noqa: E402
+from sajugen.content import unknown_time_policy  # noqa: E402
 from sajugen.input import normalize as norm  # noqa: E402
 from playwright_guard import require_playwright_subprocess  # noqa: E402
 
@@ -76,17 +78,19 @@ def test_e2e_lunar_leap():
 
 
 def test_e2e_unknown_time():
-    # 시진불명: unknown_time=True → 게이트 통과 + 시주 추정 고지(절대규칙 8) 본문 반영
+    # 레거시 호출자는 12:00+unknown_time=True를 계속 보낼 수 있지만, 결과는 정오
+    # 추정이 아니라 신고 날짜 기준 삼주로 정규화돼야 한다. 비절입 날짜를 사용해
+    # 렌더 계약만 검증하고, 절입 차단은 calc 전용 테스트에서 별도로 고정한다.
     require_playwright_subprocess()
     r = pipeline.generate(
-        1995,
-        7,
-        7,
+        2000,
+        1,
+        15,
         12,
         0,
         is_male=True,
         horoscope_date="2026-06-01",
-        name="박미상",
+        name="합성미상",
         unknown_time=True,
         out_name="e2e_p8_unknown.pdf",
     )
@@ -94,10 +98,28 @@ def test_e2e_unknown_time():
     doc = fitz.open(r.pdf_path)
     text = "".join(doc.load_page(i).get_text() for i in range(doc.page_count))
     doc.close()
-    assert "추정" in text, "시진 불명 고지(추정) 누락"
-    # 절대규칙8(T2.5/G-3): 시진 불명이면 자미 생성 금지 — 자미 전용 섹션이 렌더되지 않아야 한다
-    # (추정 정오 기반 명반이 고객 문안에 들어가면 안 됨). 명리 단독 강등.
-    assert "자미두수로 본 삶의 구조" not in text, (
-        "시진불명인데 자미두수 섹션 렌더됨(절대규칙8 위반)"
-    )
-    assert "두 체계를 함께 읽으며" not in text, "시진불명인데 명리x자미 교차 섹션 렌더됨"
+    # 한국어는 음절 사이에서도 줄이 바뀔 수 있어 "해석\n은"을 "해석 은"으로 만드는
+    # 공백 보존 정규화로는 원문을 복원할 수 없다. 추출문과 대조 상수를 모두 무공백화해
+    # 조판 위치와 무관하게 동일 고객 문구를 판정한다(라운드21 E2E 잠복 결함 회귀).
+    normalized_text = re.sub(r"\s+", "", text)
+    normalized_notice = re.sub(r"\s+", "", unknown_time_policy.THREE_PILLAR_NOTICE)
+    assert normalized_text.count(normalized_notice) == 1
+    assert "年柱" in normalized_text and "月柱" in normalized_text and "日柱" in normalized_text
+
+    # 금지 토큰도 무공백화하면 개행으로 쪼개진 누출을 숨길 수 없다. 어절 경계가 합쳐져
+    # 과탐할 가능성은 fail-closed로 수용하며, RED이면 조판 오탐인지 실제 누출인지 조사한다.
+    for forbidden in (
+        "時柱",
+        "12:00",
+        "정오",
+        "추정",
+        "진태양시",
+        "시주",
+        "사주팔자",
+        "자미두수",
+        "두 체계를 함께 읽으며",
+    ):
+        normalized_forbidden = re.sub(r"\s+", "", forbidden)
+        assert normalized_forbidden not in normalized_text, (
+            f"삼주 PDF에 금지 토큰 잔존: {forbidden}"
+        )

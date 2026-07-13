@@ -158,6 +158,7 @@ def _verify_result(*, gate_pass: bool, failures: list[dict]) -> dict:
         "loanword_clean": True,
         "raw_calc_head_clean": True,
         "client_register_clean": True,
+        "unknown_time_provenance_clean": True,
         "customer_meta_clean": True,
         "placeholder_residue_clean": True,
         "style_clean": True,

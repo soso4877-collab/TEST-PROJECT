@@ -173,6 +173,10 @@ def _favorable_years(m, span: int = 12) -> list[int]:
 
 def person_facts(name: str, birth: tuple, *, ref_year: int, is_male: bool = True) -> dict:
     y, mo, d, h, mi = birth
+    if h is None or mi is None:
+        raise ValueError(
+            "GUNGHAP_UNKNOWN_TIME_UNSUPPORTED: 궁합은 참여자 전원의 출생시각이 필요합니다"
+        )
     # 성별은 대운 방향(양남음녀)을 좌우 → 하드코딩 금지(여성 참여 시 방향 오류 차단).
     saju = engine.build(y, mo, d, h, mi, is_male=is_male, horoscope_date=f"{ref_year}-06-13")
     m = saju.myeongni
@@ -961,6 +965,12 @@ def build_gunghap(
         nm, b = item[0], item[1]
         is_male = item[2] if len(item) >= 3 else True
         unknown_time = bool(item[3]) if len(item) >= 4 else False
+        if unknown_time or b[3] is None or b[4] is None:
+            # 궁합 문안은 신강·용신·4주 상호작용에 의존한다. v1 삼주 결과를
+            # 기존 4주 구조로 위장하지 않고 명시적으로 차단한다.
+            raise ValueError(
+                "GUNGHAP_UNKNOWN_TIME_UNSUPPORTED: 궁합은 참여자 전원의 출생시각이 필요합니다"
+            )
         facts = person_facts(nm, b, ref_year=ref_year, is_male=is_male)
         facts["unknown_time"] = unknown_time
         people.append(facts)
@@ -1165,7 +1175,7 @@ def gen(
     person: list[str] = typer.Option(
         ...,
         "--person",
-        help="'이름,YYYY-MM-DD,HH:MM,성별' (2회 이상 반복). 시각 생략 시 정오 추정, 성별 생략 시 남.",
+        help="'이름,YYYY-MM-DD,HH:MM,성별' (2회 이상 반복). 출생시각 필수, 성별 생략 시 남.",
     ),
     situation: str = typer.Option("", "--situation", help="현재 상황 맥락(참고, 지시 아님)"),
     ref_year: int = typer.Option(2026, "--ref-year", help="풀이 기준 연도"),
@@ -1188,7 +1198,11 @@ def gen(
         if not unknown_time:
             h, mi = (int(x) for x in parts[2].split(":"))
         else:
-            h, mi = 12, 0
+            typer.echo(
+                "생성 차단: GUNGHAP_UNKNOWN_TIME_UNSUPPORTED - "
+                "궁합은 참여자 전원의 출생시각이 필요합니다"
+            )
+            raise typer.Exit(code=1)
         # 성별(4번째 필드) — 대운 방향 결정. 생략 시 남(하위호환). '여/female/f/0' = 여성.
         is_male = not (len(parts) >= 4 and parts[3].lower() in female_tokens)
         people_in.append((parts[0], (y, mo, d, h, mi), is_male, unknown_time))

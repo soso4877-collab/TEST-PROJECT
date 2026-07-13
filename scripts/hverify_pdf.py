@@ -21,10 +21,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 
-def _parse_birth(s: str) -> tuple[int, int, int, int, int]:
-    d, t = (s.strip().split() + ["12:00"])[:2]
+def _parse_birth(s: str) -> tuple[int, int, int, int | None, int | None]:
+    parts = s.strip().split()
+    d = parts[0]
     y, mo, da = (int(x) for x in d.split("-"))
-    hh, mi = (int(x) for x in t.split(":"))
+    if len(parts) < 2:
+        # 날짜-only 프로파일을 정오 출생으로 위장하지 않는다. personal 경로는 삼주로
+        # 계산하고, 관계 프로파일은 person_facts의 known-time 계약에서 fail-closed한다.
+        hh, mi = None, None
+    else:
+        hh, mi = (int(x) for x in parts[1].split(":"))
     return y, mo, da, hh, mi
 
 
@@ -87,8 +93,14 @@ def _build_specs(profile: dict) -> dict:
     if t == "personal":
         from sajugen.calc import engine
         from sajugen.content import builder
+        from sajugen.input.birth_time import normalize_birth_time_mode
 
         y, mo, da, hh, mi = _parse_birth(profile["birth"])
+        birth_time_mode = normalize_birth_time_mode(
+            profile.get("birth_time_mode"),
+            unknown_time=True if hh is None else None,
+            hour=hh,
+        )
         saju = engine.build(
             y,
             mo,
@@ -97,6 +109,7 @@ def _build_specs(profile: dict) -> dict:
             mi,
             is_male=_is_male(profile.get("gender", "남")),
             horoscope_date=str(profile.get("horoscope") or f"{ref}-06-01"),
+            birth_time_mode=birth_time_mode,
         )
         name = profile["name"]
         return {
@@ -179,6 +192,10 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         # QI-2026-07-04: 프로파일이 파트너 유무를 선언하면 커플 지칭 승격 판정에 사용
         # (미선언 None = 기존 동작 — 잘못된 hard fail 방지 위해 운영자가 명시할 때만).
         partner_present=profile.get("partner_present"),
+        # 생시 미상 삼주 PDF는 프로파일의 PII-free 출처 계약을 최종 verify까지 전달한다.
+        # 두 필드가 빠진 레거시 unknown 프로파일은 새 게이트의 승인 근거로 쓸 수 없다.
+        birth_time_mode=profile.get("birth_time_mode"),
+        three_pillar_provenance=profile.get("three_pillar_provenance"),
     )
     out["status"] = "verified"
     out["meta"] = _file_meta(pdf_abs)
@@ -193,6 +210,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "loanword_clean",
         "raw_calc_head_clean",
         "client_register_clean",
+        "unknown_time_provenance_clean",
         "customer_meta_clean",
         "placeholder_residue_clean",
         "style_clean",
@@ -202,6 +220,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "delivery_quality_clean",
         "register_hard_hits_count",
         "register_warning_hits_count",
+        "unknown_time_provenance_hits_count",
         "delivery_external_domain_advice_hits_count",
         "role_perspective_clean",
         "honorific_consistency_clean",
@@ -234,6 +253,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "ai_meta_hits",
         "placeholder_residue_hits",
         "role_perspective_hits",
+        "unknown_time_provenance_hits",
     ):
         val = _safe_hits(v.get(k) or [])
         out[k + "_count"] = len(v.get(k) or [])

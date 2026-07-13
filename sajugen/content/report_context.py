@@ -52,6 +52,22 @@ _SECTION_OWNERSHIP: dict[str, tuple[str, ...]] = {
     "closing": ("strength_recap", "small_next_step"),
 }
 
+# 삼주 모드에서는 소유권 ID 자체도 허용 출처만 가리킨다. 프롬프트에 ``four_pillars``·
+# ``spouse_palace``·``daewoon`` 같은 ID만 남아도 모델이 금지 사실을 복원할 수 있으므로
+# 고객 산문과 별개로 공통 문맥 계약부터 좁힌다.
+_THREE_PILLAR_SECTION_OWNERSHIP: dict[str, tuple[str, ...]] = {
+    "intro": ("reading_scope", "identity_overview"),
+    "wonguk": ("three_pillars", "day_pillar_intro"),
+    "nature": ("day_master", "known_pillar_roles"),
+    "frame": ("month_order_geukguk", "time_invariant"),
+    "love": ("relationship_pacing", "day_pillar_relation"),
+    "work": ("work_style", "wealth_pacing"),
+    "health": ("daily_rhythm", "health_caution"),
+    "flow": ("calendar_flow", "seun_timing"),
+    "consult": ("question_direct_answer", "allowed_action"),
+    "closing": ("scope_recap", "small_next_step"),
+}
+
 # docs/14 tone-contract-v1의 12개 개념군과 같은 순서로 유지한다. 영어 내부 ID만
 # 전달하면 모델이 승인된 개념 범위를 알 수 없으므로, 고객에게 바로 쓸 수 있는 한국어
 # 설명까지 공통 prefix에 넣는다. 이 상수는 문서↔런타임 양방 계약 테스트의 공개 표면이다.
@@ -70,6 +86,15 @@ GLOSSARY_EXPLANATIONS: dict[str, str] = {
     "자미 계열 별 이름": "자미두수에서 성향과 삶의 영역을 설명하는 상징 이름",
 }
 _GLOSSARY_EXPLANATION_IDS = tuple(GLOSSARY_EXPLANATIONS)
+_THREE_PILLAR_GLOSSARY_EXPLANATION_IDS = (
+    "십성",
+    "식신",
+    "재성",
+    "관성",
+    "인성",
+    "세운·월운",
+    "천간·지지",
+)
 GLOSSARY_OWNER_BY_CONCEPT: dict[str, str] = {
     "십성": "nature",
     "식신": "nature",
@@ -107,6 +132,8 @@ _GLOSSARY_FALLBACK_OWNER_CANDIDATES: dict[str, tuple[str, ...]] = {
 
 def resolve_glossary_owner_by_concept(
     active_section_ids: Iterable[str],
+    *,
+    concepts: Iterable[str] | None = None,
 ) -> tuple[tuple[str, str], ...]:
     """이번 상품에 실제 존재하는 장만 가리키도록 용어 설명 소유권을 확정한다.
 
@@ -125,7 +152,12 @@ def resolve_glossary_owner_by_concept(
     active_set = set(active)
 
     resolved: list[tuple[str, str]] = []
-    for concept, preferred in GLOSSARY_OWNER_BY_CONCEPT.items():
+    requested_concepts = tuple(GLOSSARY_OWNER_BY_CONCEPT if concepts is None else concepts)
+    unknown_concepts = set(requested_concepts) - set(GLOSSARY_OWNER_BY_CONCEPT)
+    if unknown_concepts:
+        raise ValueError(f"unknown report context glossary concepts: {sorted(unknown_concepts)}")
+    for concept in requested_concepts:
+        preferred = GLOSSARY_OWNER_BY_CONCEPT[concept]
         if preferred in active_set:
             owner = preferred
         else:
@@ -150,6 +182,17 @@ _REPETITION_GUARD_IDS = (
     "current_daewoon_single_owner",
     "question_answer_owner_consult",
     "avoid_cross_chapter_rephrase",
+)
+_THREE_PILLAR_REPETITION_GUARD_IDS = (
+    "day_pillar_intro_owner_wonguk",
+    "question_answer_owner_consult",
+    "avoid_cross_chapter_rephrase",
+)
+
+_THREE_PILLAR_FACT_SOURCE_IDS = (
+    "three_pillar",
+    "time_invariant",
+    "calendar_flow",
 )
 
 _NARRATIVE_TEXT = {
@@ -197,11 +240,32 @@ class ReportContext:
     repetition_guard_ids: tuple[str, ...]
     glossary_owner_by_concept: tuple[tuple[str, str], ...] = _GLOSSARY_OWNER_ITEMS
     schema_version: str = "report-context-v1"
+    birth_time_mode: str = "known"
+    fact_source_ids: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """임의 문자열 주입을 fail-closed로 거부해 PII-free 계약을 타입 경계에서 지킨다."""
-        if self.schema_version != "report-context-v1":
+        if self.birth_time_mode not in {"known", "three_pillar"}:
+            raise ValueError("unsupported report context birth-time mode")
+        expected_schema = (
+            "report-context-v2-three-pillar"
+            if self.birth_time_mode == "three_pillar"
+            else "report-context-v1"
+        )
+        if self.schema_version != expected_schema:
             raise ValueError("unsupported report context schema")
+        if self.birth_time_mode == "three_pillar":
+            if self.fact_source_ids != _THREE_PILLAR_FACT_SOURCE_IDS:
+                raise ValueError("three-pillar report context fact sources are noncanonical")
+            ownership_contract = _THREE_PILLAR_SECTION_OWNERSHIP
+            expected_glossary_ids = _THREE_PILLAR_GLOSSARY_EXPLANATION_IDS
+            expected_repetition_ids = _THREE_PILLAR_REPETITION_GUARD_IDS
+        else:
+            if self.fact_source_ids:
+                raise ValueError("known report context must not override fact sources")
+            ownership_contract = _SECTION_OWNERSHIP
+            expected_glossary_ids = _GLOSSARY_EXPLANATION_IDS
+            expected_repetition_ids = _REPETITION_GUARD_IDS
         try:
             normalized_modules = integrated_modules.normalize_modules(self.selected_modules)
         except (TypeError, ValueError) as exc:
@@ -220,33 +284,36 @@ class ReportContext:
             raise ValueError("report context must own at least one active section")
         seen_sections: set[str] = set()
         for section_id, ownership_ids in self.section_ownership:
-            if section_id not in _SECTION_OWNERSHIP:
+            if section_id not in ownership_contract:
                 raise ValueError("report context contains unknown section id")
             if section_id in seen_sections:
                 raise ValueError("report context contains duplicate section ownership")
             seen_sections.add(section_id)
-            if tuple(ownership_ids) != _SECTION_OWNERSHIP[section_id]:
+            if tuple(ownership_ids) != ownership_contract[section_id]:
                 raise ValueError("report context contains unknown ownership id")
         canonical_sections = tuple(
-            (section_id, _SECTION_OWNERSHIP[section_id])
-            for section_id in _SECTION_OWNERSHIP
+            (section_id, ownership_contract[section_id])
+            for section_id in ownership_contract
             if section_id in seen_sections
         )
         if self.section_ownership != canonical_sections:
             raise ValueError("report context section ownership is not canonical")
-        if self.glossary_explanation_ids != _GLOSSARY_EXPLANATION_IDS:
+        if self.glossary_explanation_ids != expected_glossary_ids:
             raise ValueError("report context glossary policy is incomplete or noncanonical")
-        expected_glossary_owners = resolve_glossary_owner_by_concept(seen_sections)
+        expected_glossary_owners = resolve_glossary_owner_by_concept(
+            seen_sections,
+            concepts=self.glossary_explanation_ids,
+        )
         if self.glossary_owner_by_concept != expected_glossary_owners:
             raise ValueError("report context glossary ownership is incomplete or noncanonical")
         if self.advice_boundary_ids != _ADVICE_BOUNDARY_IDS:
             raise ValueError("report context advice policy is incomplete or noncanonical")
-        if self.repetition_guard_ids != _REPETITION_GUARD_IDS:
+        if self.repetition_guard_ids != expected_repetition_ids:
             raise ValueError("report context repetition policy is incomplete or noncanonical")
 
     def as_dict(self) -> dict[str, object]:
         """테스트·감사에 쓰는 결정론적 JSON-safe 표현. 고객 입력 필드는 존재하지 않는다."""
-        return {
+        result = {
             "schema_version": self.schema_version,
             "selected_modules": list(self.selected_modules),
             "question_category": self.question_category,
@@ -260,6 +327,10 @@ class ReportContext:
             "advice_boundary_ids": list(self.advice_boundary_ids),
             "repetition_guard_ids": list(self.repetition_guard_ids),
         }
+        if self.birth_time_mode == "three_pillar":
+            result["birth_time_mode"] = self.birth_time_mode
+            result["fact_source_ids"] = list(self.fact_source_ids)
+        return result
 
     def to_prompt(self) -> str:
         """모든 compose 호출에 같은 바이트로 전달할 공통 프롬프트 블록을 만든다."""
@@ -267,7 +338,13 @@ class ReportContext:
             self.as_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
         )
         narratives = "\n".join(
-            f"- {anchor_id}: {_NARRATIVE_TEXT[anchor_id]}"
+            f"- {anchor_id}: "
+            + (
+                "연·월·일과 출생 시간에 따라 달라지지 않는 사실을 먼저 제시한 뒤 조언한다."
+                if self.birth_time_mode == "three_pillar"
+                and anchor_id == "evidence_before_advice"
+                else _NARRATIVE_TEXT[anchor_id]
+            )
             for anchor_id in self.narrative_anchor_ids
         )
         ownership = "\n".join(
@@ -306,6 +383,7 @@ def build_report_context(
     selected_modules: Iterable[str] | None,
     question_category: str,
     active_section_ids: Iterable[str],
+    birth_time_mode: str = "known",
 ) -> ReportContext:
     """허용된 런타임 메타만으로 공유 문맥을 한 번 조립한다.
 
@@ -318,22 +396,50 @@ def build_report_context(
     category = str(question_category or "").strip()
     if category not in _CATEGORY_NARRATIVE_ID:
         raise ValueError("unknown report context question category")
+    if birth_time_mode not in {"known", "three_pillar"}:
+        raise ValueError("unsupported report context birth-time mode")
+    ownership_contract = (
+        _THREE_PILLAR_SECTION_OWNERSHIP
+        if birth_time_mode == "three_pillar"
+        else _SECTION_OWNERSHIP
+    )
     requested_sections = set(str(section_id) for section_id in active_section_ids)
-    unknown_sections = requested_sections - set(_SECTION_OWNERSHIP)
+    unknown_sections = requested_sections - set(ownership_contract)
     if unknown_sections:
         raise ValueError(f"unknown report context sections: {sorted(unknown_sections)}")
     ownership = tuple(
         (section_id, ownership_ids)
-        for section_id, ownership_ids in _SECTION_OWNERSHIP.items()
+        for section_id, ownership_ids in ownership_contract.items()
         if section_id in requested_sections
+    )
+    glossary_ids = (
+        _THREE_PILLAR_GLOSSARY_EXPLANATION_IDS
+        if birth_time_mode == "three_pillar"
+        else _GLOSSARY_EXPLANATION_IDS
     )
     return ReportContext(
         selected_modules=modules,
         question_category=category,
         narrative_anchor_ids=(*_BASE_NARRATIVE_IDS, _CATEGORY_NARRATIVE_ID[category]),
         section_ownership=ownership,
-        glossary_explanation_ids=_GLOSSARY_EXPLANATION_IDS,
+        glossary_explanation_ids=glossary_ids,
         advice_boundary_ids=_ADVICE_BOUNDARY_IDS,
-        repetition_guard_ids=_REPETITION_GUARD_IDS,
-        glossary_owner_by_concept=resolve_glossary_owner_by_concept(requested_sections),
+        repetition_guard_ids=(
+            _THREE_PILLAR_REPETITION_GUARD_IDS
+            if birth_time_mode == "three_pillar"
+            else _REPETITION_GUARD_IDS
+        ),
+        glossary_owner_by_concept=resolve_glossary_owner_by_concept(
+            requested_sections,
+            concepts=glossary_ids,
+        ),
+        schema_version=(
+            "report-context-v2-three-pillar"
+            if birth_time_mode == "three_pillar"
+            else "report-context-v1"
+        ),
+        birth_time_mode=birth_time_mode,
+        fact_source_ids=(
+            _THREE_PILLAR_FACT_SOURCE_IDS if birth_time_mode == "three_pillar" else ()
+        ),
     )

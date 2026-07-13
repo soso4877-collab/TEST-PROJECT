@@ -421,6 +421,55 @@ def test_unbacked_context_terms_injection_blocks_unknown_synthetic_term(monkeypa
     assert "unbacked_context_terms" in {f["rule"] for f in r["failures"]}
 
 
+def test_three_pillar_delivery_profile_is_bidirectional_and_known_is_unchanged():
+    """삼주 전용 분량·자미 계약과 known 비악화를 한 경계표에서 검증한다."""
+
+    seed = (
+        "연주와 월주와 일주에서 확인한 사실을 생활의 기준과 선택의 순서로 풀어 설명합니다. "
+        "확인되지 않은 세부 내용은 더하지 않고 실제로 살필 수 있는 범위만 차분히 정리합니다. "
+    )
+    text = (seed * (4_600 // len(seed) + 1))[:4_600]
+
+    accepted = dq.analyze(
+        text,
+        pages=14,
+        premium=True,
+        birth_time_mode="three_pillar",
+    )
+    assert accepted["clean"] is True, accepted
+    assert accepted["minimum_pages"] == 12
+    assert accepted["minimum_text_chars"] == 3_500
+    assert "missing_usable_ziwei" not in {f["rule"] for f in accepted["failures"]}
+
+    below_floor = dq.analyze(
+        text[:2_000],
+        pages=8,
+        premium=True,
+        birth_time_mode="three_pillar",
+    )
+    assert {"rule": "premium_pages", "value": 8, "minimum": 12} in below_floor[
+        "failures"
+    ]
+    assert {
+        "rule": "premium_text_chars",
+        "value": 2_000,
+        "minimum": 3_500,
+    } in below_floor["failures"]
+
+    guaranteed = dq.analyze(
+        text + " 100% 성공합니다.",
+        pages=14,
+        premium=True,
+        birth_time_mode="three_pillar",
+    )
+    assert "absolute_guarantee" in {f["rule"] for f in guaranteed["failures"]}
+
+    implicit_known = dq.analyze(text, pages=14, premium=True)
+    explicit_known = dq.analyze(text, pages=14, premium=True, birth_time_mode="known")
+    assert explicit_known == implicit_known
+    assert "missing_usable_ziwei" in {f["rule"] for f in explicit_known["failures"]}
+
+
 def test_repetitive_ai_like_word_and_absolute_guarantee_fail():
     text = _premium_text() + " 또렷 또렷 100% 재회합니다"
     r = dq.analyze(text, pages=27, premium=True, concern="재회 시기가 궁금합니다")

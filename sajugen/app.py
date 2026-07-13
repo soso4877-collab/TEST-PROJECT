@@ -16,10 +16,19 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from . import admin, integrated, order_flow
 from .input import normalize as norm
 from .input import time_correction as tc
+from .input.birth_time import BirthTimeMode
 from .pipeline import generate
 
 app = FastAPI(title="사주풀이 PDF 생성기 (내부 도구)")
 app.include_router(admin.router)  # 검수 화면(/admin) — 주문 접수·검수·승인·발급
+
+
+def _generation_error_reason(exc: ValueError) -> str:
+    """생시 경계 오류가 고객 입력을 되비추지 않게 일반화한다."""
+
+    if getattr(exc, "code", "") == "NEEDS_INFO_TIME_BOUNDARY":
+        return "NEEDS_INFO_TIME_BOUNDARY: 절입 경계 날짜라 출생시각 확인이 필요합니다"
+    return "GENERATION_INPUT_INVALID: 입력·상품 계산 조건을 확인해 주세요"
 
 _FORM = """<!doctype html><meta charset="utf-8"><title>사주풀이 생성기</title>
 <body style="font-family:Malgun Gothic,sans-serif;max-width:520px;margin:40px auto">
@@ -131,7 +140,8 @@ def gen(
     parts = birth.split()
     iy, imo, ida = (int(x) for x in parts[0].split("-"))
     unknown_time = len(parts) < 2
-    hh, mi = (12, 0) if unknown_time else (int(x) for x in parts[1].split(":"))
+    # 날짜-only 입력은 정오 출생으로 변환하지 않는다. 삼주 모드가 None/None을 소비한다.
+    hh, mi = (None, None) if unknown_time else (int(x) for x in parts[1].split(":"))
 
     # 음력/윤달 입력은 KASI 1차 기준으로 양력 정규화
     try:
@@ -149,26 +159,35 @@ def gen(
             status_code=422, content={"ok": False, "reasons": ["brand is required"]}
         )
 
-    r = generate(
-        y,
-        mo,
-        da,
-        hh,
-        mi,
-        is_male=is_male,
-        longitude=longitude,
-        latitude=latitude,
-        policy=policy,
-        horoscope_date=horoscope or None,
-        use_llm=llm,
-        # 파일명에 생년월일 비노출(T4.5/E-1) — 다운로드 파일명·디스크명 PII 제거.
-        out_name=f"saju_{uuid.uuid4().hex[:12]}.pdf",
-        name=name or None,
-        unknown_time=unknown_time,
-        product=product,
-        concern=concern or None,
-        brand=brand_name,
-    )
+    try:
+        r = generate(
+            y,
+            mo,
+            da,
+            hh,
+            mi,
+            is_male=is_male,
+            longitude=longitude,
+            latitude=latitude,
+            policy=policy,
+            horoscope_date=horoscope or None,
+            use_llm=llm,
+            # 파일명에 생년월일 비노출(T4.5/E-1) — 다운로드 파일명·디스크명 PII 제거.
+            out_name=f"saju_{uuid.uuid4().hex[:12]}.pdf",
+            name=name or None,
+            unknown_time=unknown_time,
+            birth_time_mode=(
+                BirthTimeMode.THREE_PILLAR if unknown_time else BirthTimeMode.KNOWN
+            ),
+            product=product,
+            concern=concern or None,
+            brand=brand_name,
+        )
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=422,
+            content={"ok": False, "reasons": [_generation_error_reason(exc)]},
+        )
 
     if not r.ok:
         return JSONResponse(

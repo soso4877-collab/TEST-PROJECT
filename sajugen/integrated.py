@@ -17,7 +17,13 @@ from . import config as cfg
 from . import gunghap
 from . import modules as integrated_modules
 from .calc import engine
-from .content import builder, client_tone_lint, llm_usage, postprocess
+from .content import (
+    builder,
+    client_tone_lint,
+    llm_usage,
+    postprocess,
+    unknown_time_policy,
+)
 from .input import time_correction as tc
 from .refdate import default_ref_date_iso
 from .render import pdf as render_pdf
@@ -46,6 +52,7 @@ _LOW_DENSITY_ONLY_CLEAN_FLAGS = (
     "loanword_clean",
     "raw_calc_head_clean",
     "client_register_clean",
+    "unknown_time_provenance_clean",
     "customer_meta_clean",
     "placeholder_residue_clean",
     "style_clean",
@@ -342,6 +349,51 @@ def _content_path(out_name: str, out_dir: str | Path | None) -> Path:
     return base / f"{Path(out_name).stem}.content.json"
 
 
+def _pillar_chart_data(pillar) -> dict[str, object]:
+    """삼주 재렌더에 필요한 알려진 기둥 표시값만 JSON-safe로 보존한다."""
+
+    return {
+        "gan": pillar.gan,
+        "zhi": pillar.zhi,
+        "ganzhi": pillar.ganzhi,
+        "hide_gan": list(pillar.hide_gan or ()),
+        "shishen_gan": pillar.shishen_gan,
+        "shishen_zhi": list(pillar.shishen_zhi or ()),
+        "dishi": pillar.dishi,
+        "nayin": pillar.nayin,
+    }
+
+
+def _three_pillar_chart_data(saju) -> dict[str, object]:
+    m = saju.three_pillar
+    return {
+        "year": _pillar_chart_data(m.year),
+        "month": _pillar_chart_data(m.month),
+        "day": _pillar_chart_data(m.day),
+        "day_master": m.day_master,
+    }
+
+
+def _three_pillar_from_chart_data(data: dict[str, object] | None):
+    """ignored content bundle의 안정 사실을 렌더 전용 읽기 객체로 복원한다."""
+
+    if not isinstance(data, dict):
+        return None
+
+    def _pillar(key: str):
+        value = data.get(key)
+        if not isinstance(value, dict):
+            raise ValueError("three-pillar content chart data is incomplete")
+        return SimpleNamespace(**value)
+
+    return SimpleNamespace(
+        year=_pillar("year"),
+        month=_pillar("month"),
+        day=_pillar("day"),
+        day_master=str(data.get("day_master") or ""),
+    )
+
+
 def _save_integrated_content(
     result: dict,
     *,
@@ -381,6 +433,10 @@ def _save_integrated_content(
         "module_schema_version": MODULE_SCHEMA_VERSION,
         "premerge_section_ids": list(premerge_section_ids),
         "module_sections": module_sections,
+        "birth_time_mode": result.get("birth_time_mode", "known"),
+        "three_pillar_provenance": result.get("three_pillar_provenance", {}),
+        "three_pillar_chart": result.get("three_pillar_chart"),
+        "input_civil_date": result.get("input_civil_date"),
         "receiver": result["receiver"],
         "names": [p["name"] for p in result["people"]],
         "ref_year": ref_year,
@@ -427,6 +483,8 @@ def _render_integrated(
     module_sections: dict[str, list[str]] | None = None,
     premerge_section_ids: list[str] | tuple[str, ...] | None = None,
     ref_date: str | None = None,
+    birth_time_mode: str | None = None,
+    three_pillar_provenance: object | None = None,
 ) -> tuple[str, dict, list]:
     """assemble 된 report 를 _LAYOUT_VARIANTS 로 렌더+게이트(compose 없음). build·재렌더 공용.
 
@@ -434,7 +492,16 @@ def _render_integrated(
     ref_date = ref_date or f"{ref_year}-06-13"
     bp = dict(cfg.brand(brand))
     bp["cover_title"] = f"{bp['seal']} 통합 사주와 관계 풀이"
-    fake_saju = SimpleNamespace(input_civil=" · ".join(names))
+    birth_time_mode = unknown_time_policy.normalize_mode(
+        birth_time_mode or getattr(report, "birth_time_mode", None)
+    )
+    if birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE:
+        fake_saju = SimpleNamespace(
+            input_civil_date=getattr(report, "input_civil_date", ""),
+            three_pillar=getattr(report, "three_pillar", None),
+        )
+    else:
+        fake_saju = SimpleNamespace(input_civil=" · ".join(names))
     pdf_path = ""
     verify_result: dict = {}
     attempts: list = []
@@ -451,6 +518,8 @@ def _render_integrated(
             # 짧은 조판 꼬리는 verify._starts_new_chapter 로 저밀도에서 제외(2026-07-02).
             chapter_breaks=True,
             out_dir=out_dir,
+            birth_time_mode=birth_time_mode,
+            three_pillar_provenance=three_pillar_provenance,
         )
         verify_result = render_verify.verify(
             pdf_path,
@@ -469,6 +538,8 @@ def _render_integrated(
             selected_modules=selected_modules,
             module_sections=module_sections,
             premerge_section_ids=premerge_section_ids,
+            birth_time_mode=birth_time_mode,
+            three_pillar_provenance=three_pillar_provenance,
         )
         low_density_only = _integrated_only_low_density_failure(verify_result)
         layout_only = _layout_only_failure(verify_result)  # P6: orphan 스필 포함(무과금 재렌더)
@@ -519,6 +590,9 @@ def render_integrated_from_content(
             section_id for values in module_sections.values() for section_id in values
         )
     )
+    stored_birth_time_mode = data.get("birth_time_mode")
+    stored_provenance = data.get("three_pillar_provenance")
+    stored_three_pillar = _three_pillar_from_chart_data(data.get("three_pillar_chart"))
     report = SimpleNamespace(
         sections=[
             SimpleNamespace(
@@ -528,7 +602,11 @@ def render_integrated_from_content(
                 final_text=s["final_text"],
             )
             for s in data["sections"]
-        ]
+        ],
+        birth_time_mode=stored_birth_time_mode or "known",
+        three_pillar_provenance=stored_provenance or {},
+        input_civil_date=data.get("input_civil_date"),
+        three_pillar=stored_three_pillar,
     )
     identity = (data["identity"][0], data["identity"][1], data["identity"][2])
     out = out_name or f"{Path(content_path).stem.replace('.content', '')}.pdf"
@@ -548,6 +626,8 @@ def render_integrated_from_content(
         premerge_section_ids=premerge_section_ids,
         # T5.3 영속 ref_date 로 재렌더도 같은 월 시제 앵커 — 구 파일(필드 없음)은 연중 기본.
         ref_date=data.get("ref_date"),
+        birth_time_mode=stored_birth_time_mode,
+        three_pillar_provenance=stored_provenance,
     )
     return {
         "product": PRODUCT,
@@ -564,6 +644,8 @@ def render_integrated_from_content(
         "module_schema_version": stored_schema_version,
         "module_sections": module_sections,
         "premerge_section_ids": premerge_section_ids,
+        "birth_time_mode": stored_birth_time_mode or "known",
+        "three_pillar_provenance": stored_provenance or {},
     }
 
 
@@ -584,9 +666,20 @@ def build_integrated_full(
     latitude: float = tc.SEOUL_LAT,
     policy: tc.ZasiPolicy = tc.ZasiPolicy.JST_2300,
     horoscope_date: str | None = None,
+    birth_time_mode: str | None = None,
 ) -> dict:
-    selected_modules = integrated_modules.normalize_modules(modules)
     receiver = _receiver_person(people_in, receiver_name)
+    y, mo, da, hh, mi = receiver[1]
+    birth_time_mode = unknown_time_policy.normalize_mode(
+        birth_time_mode,
+        unknown_time=hh is None,
+    )
+    selected_modules = integrated_modules.normalize_modules(modules)
+    if (
+        birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
+        and "gunghap" in selected_modules
+    ):
+        raise ValueError("three_pillar mode does not support gunghap module")
     if "gunghap" in selected_modules and len(people_in) < 2:
         raise ValueError("gunghap module requires at least two people")
 
@@ -595,22 +688,21 @@ def build_integrated_full(
     # 연중 기본(6월 13일) — 실주문은 생성 당일을 전달할 것.
     ref_date = ref_date or f"{ref_year}-06-13"
     receiver_name = receiver[0]
-    y, mo, da, hh, mi = receiver[1]
     # 주문 경로의 진태양시 좌표·자시 정책·대한 기준일을 결정론 엔진까지 빠짐없이
     # 전달한다. 기본값은 Q7 이전 동작(서울/JST_2300/해당 연도 6월 1일)과 같아
     # 기존 CLI와 라이브러리 호출의 산출을 바꾸지 않는다.
-    saju = engine.build(
-        y,
-        mo,
-        da,
-        hh,
-        mi,
-        is_male=bool(receiver[2]),
-        longitude=longitude,
-        latitude=latitude,
-        policy=policy,
-        horoscope_date=horoscope_date or f"{ref_year}-06-01",
-    )
+    engine_kwargs = {
+        "is_male": bool(receiver[2]),
+        "longitude": longitude,
+        "latitude": latitude,
+        "policy": policy,
+        "horoscope_date": horoscope_date or f"{ref_year}-06-01",
+    }
+    # known-time 호출의 kwargs 바이트 계약은 그대로 유지한다. 신규 모드는 삼주일 때만
+    # 명시해 기존 mock/확장 소비처에도 불필요한 인자 변화를 만들지 않는다.
+    if birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE:
+        engine_kwargs["birth_time_mode"] = birth_time_mode
+    saju = engine.build(y, mo, da, hh, mi, **engine_kwargs)
     personal_report = builder.build_report(
         saju,
         use_llm=use_llm,
@@ -626,6 +718,7 @@ def build_integrated_full(
         include_section_ids=integrated_modules.included_personal_sections(selected_modules),
         # 12개 개인 compose가 같은 PII-free 공유 문맥에 실제 주문 모듈을 기록하도록 전달한다.
         selected_modules=selected_modules,
+        birth_time_mode=birth_time_mode,
     )
 
     # gunghap 미선택 경로는 관계 compose를 호출하지 않는다. 이 분기가 있어야 1인 입력의
@@ -649,11 +742,20 @@ def build_integrated_full(
         people = relationship_result["people"]
         relationship_sections = relationship_result["sections"]
     else:
+        personal_m = (
+            saju.three_pillar
+            if birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
+            else saju.myeongni
+        )
         people = [
             {
                 "name": receiver_name,
-                "day_master": saju.myeongni.day_master,
-                "singang": saju.myeongni.singang,
+                "day_master": personal_m.day_master,
+                "singang": (
+                    ""
+                    if birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
+                    else personal_m.singang
+                ),
             }
         ]
 
@@ -663,7 +765,19 @@ def build_integrated_full(
     # 영역 문단이 섞이지 않도록 넣지 않으며, None과 명시적 5모듈은 모두 같은 조건을 탄다.
     if not use_llm and selected_modules == integrated_modules.SELECTABLE_MODULES:
         sections = _with_no_llm_depth_section(sections)
-    report = SimpleNamespace(sections=sections)
+    three_pillar_mode = birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
+    serialized_provenance = (
+        unknown_time_policy.serialize_provenance(getattr(saju, "provenance", None))
+        if three_pillar_mode
+        else {}
+    )
+    report = SimpleNamespace(
+        sections=sections,
+        birth_time_mode=birth_time_mode,
+        three_pillar_provenance=serialized_provenance,
+        input_civil_date=(getattr(saju, "input_civil_date", None) if three_pillar_mode else None),
+        three_pillar=(getattr(saju, "three_pillar", None) if three_pillar_mode else None),
+    )
     names = [p["name"] for p in people]
     role_specs = client_tone_lint.role_perspective_specs(names, receiver=receiver_name)
     crosscheck = getattr(saju, "crosscheck", None)
@@ -691,7 +805,7 @@ def build_integrated_full(
         "role_perspective": role_specs,
         "honorific": role_specs,
         "identity": gunghap._identity_spec(people),
-        "singang": gunghap._singang_specs(people),
+        "singang": [] if three_pillar_mode else gunghap._singang_specs(people),
         "pdf_path": "",
         "verify": {},
         "layout_attempts": [],
@@ -708,9 +822,32 @@ def build_integrated_full(
         "partner_present": getattr(personal_report, "partner_present", len(people) > 1),
         "calc_consistent": calc_consistent,
         "crosscheck_warnings": list(getattr(crosscheck, "warnings", []) or []),
-        "bazi": str(getattr(crosscheck, "bazi_myeongni", "") or ""),
-        "input_civil": str(getattr(saju, "input_civil", "") or ""),
+        "bazi": (
+            " ".join(
+                pillar.ganzhi
+                for pillar in (
+                    saju.three_pillar.year,
+                    saju.three_pillar.month,
+                    saju.three_pillar.day,
+                )
+            )
+            if three_pillar_mode
+            else str(getattr(crosscheck, "bazi_myeongni", "") or "")
+        ),
+        # 삼주는 날짜만 반환한다. 과거 정오 문자열을 호환 메타에 다시 넣으면 admin/표지가
+        # 그것을 실제 출생시각처럼 복원할 수 있으므로 input_civil도 날짜 정본으로 좁힌다.
+        "input_civil": (
+            str(getattr(saju, "input_civil_date", "") or "")
+            if three_pillar_mode
+            else str(getattr(saju, "input_civil", "") or "")
+        ),
         "near_term_boundary": bool(getattr(crosscheck, "near_term_boundary", False)),
+        "birth_time_mode": birth_time_mode,
+        "three_pillar_provenance": serialized_provenance,
+        "three_pillar_chart": _three_pillar_chart_data(saju) if three_pillar_mode else None,
+        "input_civil_date": (
+            str(getattr(saju, "input_civil_date", "") or "") if three_pillar_mode else None
+        ),
         "ref_year": ref_year,
         "ref_date": ref_date,
         "horoscope_date": horoscope_date or f"{ref_year}-06-01",
@@ -747,6 +884,8 @@ def build_integrated_full(
         module_sections=assembly.module_sections,
         premerge_section_ids=assembly.premerge_section_ids,
         ref_date=ref_date,
+        birth_time_mode=birth_time_mode,
+        three_pillar_provenance=serialized_provenance,
     )
     result["layout_attempts"] = attempts
     result["pdf_path"] = pdf_path

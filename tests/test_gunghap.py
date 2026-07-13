@@ -536,7 +536,7 @@ def test_build_gunghap_wires_ref_date_to_compose_and_verify(monkeypatch):
     monkeypatch.setattr(g, "_compose", spy_compose)
     people = [
         ("서하은", (2002, 10, 23, 11, 40), False, False),
-        ("민준서", (1994, 6, 27, 12, 0), True, True),
+        ("민준서", (1994, 6, 27, 12, 0), True, False),
     ]
     g.build_gunghap(people, mode="relationship", ref_date="2026-07-04")
     assert captured["verify_ref_date"] == "2026-07-04"
@@ -545,7 +545,7 @@ def test_build_gunghap_wires_ref_date_to_compose_and_verify(monkeypatch):
     assert captured["verify_ref_date"] == "2026-06-13"  # 레거시 기본 보존
 
 
-def test_relationship_mode_uses_sajudoryeong_gate_and_unknown_time(monkeypatch):
+def test_relationship_mode_rejects_unknown_time_before_render(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     captured = {}
 
@@ -564,27 +564,19 @@ def test_relationship_mode_uses_sajudoryeong_gate_and_unknown_time(monkeypatch):
     monkeypatch.setattr(g.render_pdf, "render_pdf", fake_render)
     monkeypatch.setattr(g.render_verify, "verify", fake_verify)
 
-    r = g.build_gunghap(
-        [
-            ("서하은", (2002, 10, 23, 11, 40), False, False),
-            ("민준서", (1994, 6, 27, 12, 0), True, True),
-        ],
-        situation="썸 관계에서 상대방의 진심, 대화 갈등, 성격 가치관 연애관, 안정적인 궁합이 궁금합니다.",
-        ref_year=2026,
-        out_name="relationship.pdf",
-        brand="sajudoryeong",
-        mode="relationship",
-    )
-
-    assert r["mode"] == "relationship"
-    assert captured["brand"]["seal"] == "사주도령"
-    assert captured["brand"]["cover_title"] == "사주도령 궁합 풀이"
-    assert captured["chapter_breaks"] is True
-    assert captured["verify"]["product"] == "gunghap_relationship"
-    assert captured["verify"]["premium"] is True
-    assert "상대의 진심과 표현 방식" in captured["titles"]
-    assert all("사업" not in title for title in captured["titles"])
-    assert "출생시각은 미상" in "\n".join(captured["texts"])
+    with pytest.raises(ValueError, match="GUNGHAP_UNKNOWN_TIME_UNSUPPORTED"):
+        g.build_gunghap(
+            [
+                ("서하은", (2002, 10, 23, 11, 40), False, False),
+                ("민준서", (1994, 6, 27, 12, 0), True, True),
+            ],
+            situation="합성 관계 질문",
+            ref_year=2026,
+            out_name="relationship.pdf",
+            brand="sajudoryeong",
+            mode="relationship",
+        )
+    assert captured == {}
 
 
 def test_build_gunghap_default_brand_is_sajudoryeong(monkeypatch):
@@ -603,7 +595,7 @@ def test_build_gunghap_default_brand_is_sajudoryeong(monkeypatch):
     g.build_gunghap(
         [
             ("서하은", (2002, 10, 23, 11, 40), False, False),
-            ("민준서", (1994, 6, 27, 12, 0), True, True),
+            ("민준서", (1994, 6, 27, 12, 0), True, False),
         ],
         mode="relationship",
     )
@@ -627,7 +619,7 @@ def test_relationship_fallback_is_customer_facing_not_raw_fact_slot(monkeypatch)
     g.build_gunghap(
         [
             ("서하은", (2002, 10, 23, 11, 40), False, False),
-            ("민준서", (1994, 6, 27, 12, 0), True, True),
+            ("민준서", (1994, 6, 27, 12, 0), True, False),
         ],
         situation="현재 8살 연상의 남성과 썸을 타고 있고 대화와 갈등 방식이 고민입니다.",
         ref_year=2026,
@@ -651,7 +643,6 @@ def test_relationship_fallback_is_customer_facing_not_raw_fact_slot(monkeypatch)
         "시기 흐름은 다음처럼",
     ):
         assert bad not in joined
-    assert "출생시각이 미상" in joined or "출생시각은 미상" in joined
     assert "하은 씨" in joined and "준서 씨" in joined
 
 
@@ -724,7 +715,7 @@ def test_relationship_llm_keeps_chapter_breaks_for_premium_layout(monkeypatch):
     g.build_gunghap(
         [
             ("서하은", (2002, 10, 23, 11, 40), False, False),
-            ("민준서", (1994, 6, 27, 12, 0), True, True),
+            ("민준서", (1994, 6, 27, 12, 0), True, False),
         ],
         mode="relationship",
         brand="sajudoryeong",
@@ -768,7 +759,7 @@ def test_relationship_layout_retries_only_low_density_without_recomposing(monkey
     result = g.build_gunghap(
         [
             ("서하은", (2002, 10, 23, 11, 40), False, False),
-            ("민준서", (1994, 6, 27, 12, 0), True, True),
+            ("민준서", (1994, 6, 27, 12, 0), True, False),
         ],
         mode="relationship",
         brand="sajudoryeong",

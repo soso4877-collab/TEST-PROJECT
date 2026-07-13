@@ -10,9 +10,11 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from ..input import time_correction as tc
+from ..input.birth_time import BirthTimeMode, normalize_birth_time_mode
 from . import kasi
 from . import myeongni as mod_my
 from . import solarterms
+from . import three_pillar as mod_three
 from . import ziwei as mod_zw
 
 
@@ -40,22 +42,51 @@ class SajuResult(BaseModel):
     ziwei: mod_zw.Ziwei
     crosscheck: CrossCheck
 
+    @property
+    def birth_time_mode(self) -> BirthTimeMode:
+        """알려진 시각 결과도 동일한 공개 모드 인터페이스를 제공한다.
+
+        Pydantic 저장 필드로 추가하지 않아 기존 known-time 직렬화 계약은 바꾸지 않는다.
+        """
+
+        return BirthTimeMode.KNOWN
+
+
+class ThreePillarSajuResult(BaseModel):
+    """생시 미상용 명시적 대체 결과.
+
+    알려진 시각용 `.myeongni`를 제공하지 않는다. 소비자는 `birth_time_mode`를 확인한 뒤
+    `.three_pillar`를 사용해야 하며, 자미두수는 계산하지 않았음을 `None`으로 명시한다.
+    """
+
+    birth_time_mode: BirthTimeMode = BirthTimeMode.THREE_PILLAR
+    input_civil_date: str
+    ref_year: int | None = None
+    three_pillar: mod_three.ThreePillarMyeongni
+    ziwei: None = None
+    crosscheck: mod_three.ThreePillarCrossCheck
+    provenance: mod_three.ThreePillarProvenance
+
 
 def build(
     year: int,
     month: int,
     day: int,
-    hour: int,
-    minute: int,
+    hour: int | None,
+    minute: int | None,
     *,
     is_male: bool,
     longitude: float = tc.SEOUL_LON,
     latitude: float = tc.SEOUL_LAT,
     policy: tc.ZasiPolicy = tc.ZasiPolicy.JST_2300,
     horoscope_date: str | None = None,
-) -> SajuResult:
-    ct = tc.correct(
-        year, month, day, hour, minute, longitude=longitude, latitude=latitude, policy=policy
+    birth_time_mode: BirthTimeMode | str | None = None,
+    unknown_time: bool | None = None,
+) -> SajuResult | ThreePillarSajuResult:
+    mode = normalize_birth_time_mode(
+        birth_time_mode,
+        unknown_time=unknown_time,
+        hour=hour,
     )
     ref_year = None
     if horoscope_date:
@@ -63,6 +94,28 @@ def build(
             ref_year = int(str(horoscope_date)[:4])
         except Exception:
             ref_year = None
+
+    if mode is BirthTimeMode.THREE_PILLAR:
+        result = mod_three.build(
+            year,
+            month,
+            day,
+            ref_year=ref_year,
+        )
+        return ThreePillarSajuResult(
+            input_civil_date=result.input_civil_date,
+            ref_year=result.ref_year,
+            three_pillar=result.three_pillar,
+            ziwei=None,
+            crosscheck=result.crosscheck,
+            provenance=result.provenance,
+        )
+
+    if hour is None or minute is None:
+        raise ValueError("birth_time_mode=known 에는 hour/minute 가 필요합니다")
+    ct = tc.correct(
+        year, month, day, hour, minute, longitude=longitude, latitude=latitude, policy=policy
+    )
     my = mod_my.build(ct, is_male=is_male, ref_year=ref_year)
     zw = mod_zw.build(ct, is_male=is_male, horoscope_date=horoscope_date)
 

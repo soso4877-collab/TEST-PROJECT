@@ -31,6 +31,7 @@ from . import (
     style_lint,
     temporal_lint,
     trace,
+    unknown_time_policy,
 )
 from .sections_schema import _STATIC_OK, SECTION_SPECS, GuardReport, Report23, Section
 
@@ -53,7 +54,13 @@ _COMPOSE_SECTIONS = {
 }
 
 
-def _customer_policy_lints(text: str) -> list[dict]:
+def _customer_policy_lints(
+    text: str,
+    *,
+    birth_time_mode: str = "known",
+    provenance: object | None = None,
+    source: str = "content",
+) -> list[dict]:
     """생성·재작성·룰 폴백이 공유하는 고객 문체/외부 조언 하드 벨트.
 
     register warning은 운영자 관측용이므로 후보를 버리지 않는다. 외부 조언 finding은
@@ -63,7 +70,16 @@ def _customer_policy_lints(text: str) -> list[dict]:
     register_hard = [
         hit for hit in client_tone_lint.register_lint(text) if hit.get("severity") == "hard"
     ]
-    return register_hard + delivery_quality.external_domain_advice_lint(text)
+    return (
+        register_hard
+        + delivery_quality.external_domain_advice_lint(text)
+        + unknown_time_policy.unknown_time_provenance_lint(
+            text,
+            birth_time_mode=birth_time_mode,
+            provenance=provenance,
+            source=source,
+        )
+    )
 
 
 def _normalize_llm_candidate(text: str, *, name: str | None, compose: bool) -> str:
@@ -97,7 +113,12 @@ def personal_identity_spec(saju, name: str | None) -> tuple:
     expected = 결정론 일간(saju.myeongni.day_master) 하나뿐. 본문이 다른 천간을 '일간/중심 글자/
     자기 자신'으로 서술하면 위반(예 '일간 계수' — 실제 임수).
     """
-    gan = rules._GAN_KO.get(saju.myeongni.day_master, "")
+    m = (
+        saju.three_pillar
+        if getattr(saju, "birth_time_mode", None) == "three_pillar"
+        else saju.myeongni
+    )
+    gan = rules._GAN_KO.get(m.day_master, "")
     term = client_tone_lint.gan_to_term(gan)
     aliases = [
         a
@@ -120,6 +141,20 @@ _PRODUCT_DROP = {
     "ziwei": {"wonguk", "nature", "frame", "flow", "together"},
 }
 
+_THREE_PILLAR_SOURCE_KEYS = {
+    "cover": ["three_pillar"],
+    "intro": ["three_pillar", "time_invariant"],
+    "wonguk": ["three_pillar"],
+    "nature": ["three_pillar", "time_invariant"],
+    "frame": ["three_pillar", "time_invariant"],
+    "love": ["three_pillar"],
+    "work": ["three_pillar"],
+    "health": ["three_pillar"],
+    "flow": ["calendar_flow"],
+    "consult": ["three_pillar", "time_invariant", "calendar_flow"],
+    "closing": ["three_pillar"],
+}
+
 
 def build_report(
     saju,
@@ -136,7 +171,24 @@ def build_report(
     work_modules: tuple[str, ...] | list[str] | None = None,
     include_section_ids: set[str] | frozenset[str] | None = None,
     selected_modules: tuple[str, ...] | list[str] | None = None,
+    birth_time_mode: str | None = None,
 ) -> Report23:
+    birth_time_mode = unknown_time_policy.normalize_mode(
+        birth_time_mode or getattr(saju, "birth_time_mode", None),
+        unknown_time=unknown_time,
+    )
+    unknown_time = birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
+    three_pillar_provenance = (
+        unknown_time_policy.provenance_from_result(saju) if unknown_time else None
+    )
+    provenance_hits = unknown_time_policy.provenance_contract_lint(
+        three_pillar_provenance,
+        birth_time_mode=birth_time_mode,
+        source="builder",
+    )
+    if provenance_hits:
+        rules_hit = ",".join(sorted({str(hit["rule"]) for hit in provenance_hits}))
+        raise ValueError(f"invalid three-pillar provenance: {rules_hit}")
     # 기준 연도 방어(2026-06-12 버그: ref_year 미전달 시 골격이 seun 첫 해(과거)를
     # '기준 해'로 폴백 → LLM이 "지금은 2025년" 오서술). 우선순위:
     # 인자 > saju.ref_year(horoscope_date 연도) > 오늘.
@@ -160,7 +212,7 @@ def build_report(
     partner_text = ""
     partner_gz: frozenset[str] = frozenset()
     partner_spans: list[tuple[int, int]] = []
-    if concern:
+    if concern and not unknown_time:
         try:
             # 본인 생일 제외 가드 배선(2026-07-04 QI 팬텀 파트너 — 가드는 partner.py 에
             # 있었으나 인자 미전달로 사장돼, 원문 속 본인 생일이 상대방으로 둔갑했다).
@@ -229,7 +281,11 @@ def build_report(
     masked_concern = (
         masking.mask_concern(
             concern,
-            self_civil=getattr(saju, "input_civil", None),
+            self_civil=(
+                getattr(saju, "input_civil_date", None)
+                if unknown_time
+                else getattr(saju, "input_civil", None)
+            ),
             partner_spans=partner_spans,
         )
         if concern
@@ -248,6 +304,7 @@ def build_report(
         # Q7: job/wealth 부분 조립도 기존 work 챕터의 동일한 LLM·3단 가드 경로를 탄다.
         # None은 기존 개인 상품의 job+wealth 결합값이라 모든 옛 호출이 그대로 유지된다.
         work_modules=work_modules,
+        birth_time_mode=birth_time_mode,
     )
     drop = set(_PRODUCT_DROP.get(product, set()))
     if include_section_ids is not None:
@@ -259,9 +316,7 @@ def build_report(
             raise ValueError(f"unknown personal section includes: {sorted(unknown_includes)}")
         drop |= known_ids - set(include_section_ids) - {"cover", "toc"}
     if unknown_time:
-        # 절대규칙8: 시진 불명 시 자미 생성 금지 — 자미 전용 섹션(자미두수 명반·두 체계 교차)을
-        # 생략하고 명리 단독으로 강등한다(myeongni 상품과 동일 드롭). 추정 시각(정오) 기반 명반이
-        # 고객 문안에 들어가지 않게 한다. rules 는 이미 '시주 추정' 고지를 삽입(T2.5/G-3).
+        # 삼주는 자미 계산 결과 자체가 없으며, 두 섹션을 생성·LLM 호출 대상으로도 만들지 않는다.
         drop |= {"ziwei", "together"}
     sections: list[Section] = []
     safe_total = fact_total = polished_n = fallback_n = 0
@@ -281,6 +336,7 @@ def build_report(
     rule_texts: dict[str, str] = {}
     rule_viol: dict[str, list] = {}
     title_of: dict[str, str] = {}
+    source_of: dict[str, list[str]] = {}
     for sid, title, src in SECTION_SPECS:
         if sid in drop:
             continue
@@ -288,10 +344,19 @@ def build_report(
         if sid == "consult" and partner_text:
             rt = rt + "\n\n" + partner_text  # 상대방 명식 사실 슬롯(룰 폴백에도 포함)
         rule_texts[sid] = rt
+        section_source = (
+            _THREE_PILLAR_SOURCE_KEYS.get(sid, src) if unknown_time else src
+        )
+        source_of[sid] = list(section_source)
         rule_viol[sid] = (
             safe_lint.lint(rt)
             + factcheck.check(rt, saju, partner_gz)
-            + _customer_policy_lints(rt)
+            + _customer_policy_lints(
+                rt,
+                birth_time_mode=birth_time_mode,
+                provenance=three_pillar_provenance,
+                source=f"rule:{sid}",
+            )
         )
         title_of[sid] = title
 
@@ -326,6 +391,7 @@ def build_report(
                 selected_modules=selected_modules,
                 question_category=category.value,
                 active_section_ids=targets,
+                birth_time_mode=birth_time_mode,
             )
 
             # LLMBackend 프로토콜은 새 인자를 지원하지만, 외부 테스트 더블/구 확장 백엔드는
@@ -440,7 +506,12 @@ def build_report(
                         + temporal_lint.lint(cand, ref_year, ref_date=ref_date)
                         + client_tone_lint.loanword_lint(cand)  # 외래어 hard-ban
                         + client_tone_lint.raw_calc_lint(cand)  # 날것 계산표현
-                        + _customer_policy_lints(cand)  # register hard + 외부 사실/절차 조언
+                        + _customer_policy_lints(
+                            cand,
+                            birth_time_mode=birth_time_mode,
+                            provenance=three_pillar_provenance,
+                            source=f"candidate:{sid}",
+                        )  # register hard + 외부 사실/절차 조언 + 삼주 출처
                         + client_tone_lint.identity_role_lint(  # 일간 role 오서술(H1.5.3)
                             cand, _id_spec[0], _id_spec[1], _id_spec[2]
                         )
@@ -502,7 +573,12 @@ def build_report(
                         + temporal_lint.lint(retry, ref_year, ref_date=ref_date)
                         + client_tone_lint.loanword_lint(retry)
                         + client_tone_lint.raw_calc_lint(retry)
-                        + _customer_policy_lints(retry)
+                        + _customer_policy_lints(
+                            retry,
+                            birth_time_mode=birth_time_mode,
+                            provenance=three_pillar_provenance,
+                            source=f"retry:{sid}",
+                        )
                         + client_tone_lint.identity_role_lint(
                             retry, _id_spec[0], _id_spec[1], _id_spec[2]
                         )
@@ -560,7 +636,7 @@ def build_report(
             Section(
                 id=sid,
                 title=title,
-                source_keys=src,
+                source_keys=source_of[sid],
                 rule_text=rule_text,
                 final_text=final,
                 polished=polished,
@@ -577,7 +653,7 @@ def build_report(
     # 다른 대운(미래/과거)을 '지금·현재·초입'으로 서술한 챕터는 결정론 골격으로 되돌린다
     # (우회 아님 — 골격은 현재 대운을 정확히 명시. rules 가 주입). 폴백 후 재검사로 보고.
     daewoon_consistent = True
-    cur_dw = mod_my.current_daewoon(saju.myeongni, ref_year)
+    cur_dw = None if unknown_time else mod_my.current_daewoon(saju.myeongni, ref_year)
     if cur_dw is not None:
         expected_ko = factcheck._gz_ko(cur_dw.ganzhi)
         bad_ids = consistency.offending_ids(sections, expected_ko)
@@ -606,7 +682,15 @@ def build_report(
     # register/external-advice 위반이 생긴 경우 LLM을 건너뛰더라도 aggregate guard가
     # GREEN으로 보이는 false-PASS를 막는다. 최종 PDF verify와 독립된 pre-render 차단층이다.
     customer_policy_total = sum(
-        len(_customer_policy_lints(section.final_text)) for section in sections
+        len(
+            _customer_policy_lints(
+                section.final_text,
+                birth_time_mode=birth_time_mode,
+                provenance=three_pillar_provenance,
+                source=f"final:{section.id}",
+            )
+        )
+        for section in sections
     )
     clean = (
         safe_total == 0
@@ -622,6 +706,15 @@ def build_report(
         concern_category=category.value,
         allow_tokens=allow_ser,
         partner_present=bool(partner_text),  # QI-2026-07-04: verify 커플 지칭 승격 판정용
+        birth_time_mode=birth_time_mode,
+        three_pillar_provenance=(
+            unknown_time_policy.serialize_provenance(three_pillar_provenance)
+            if unknown_time
+            else {}
+        ),
+        fact_source_ids=(
+            list(unknown_time_policy.ALLOWED_FACT_SOURCES) if unknown_time else []
+        ),
         guard=GuardReport(
             safe_lint_total=safe_total,
             factcheck_total=fact_total,

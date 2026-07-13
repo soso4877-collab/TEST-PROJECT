@@ -19,6 +19,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sajugen import config as cfg  # noqa: E402
@@ -98,12 +100,10 @@ def test_cover_sub_three_person_join_is_semantic_clean():
 
 
 def test_cover_unknown_time_suffix_is_semantic_clean():
-    # 생시 미상 suffix("생시 미상·추정") 안의 '·'도 제거돼야 함.
-    sub = _sub_text(_render("DOC_A", unknown_time=True))
-    for ch in _AI_PUNCT:
-        assert ch not in sub, (ch, sub)
-    assert "생시 미상, 추정" in sub
-    assert style_lint.is_clean(sub), style_lint.lint(sub)
+    # 레거시 boolean만 있고 삼주 provenance가 없는 문서는 옛 정오 결과를 새 정책처럼
+    # 조용히 렌더하지 않는다. 정상 exact notice·3열 경로는 전용 계약 테스트가 고정한다.
+    with pytest.raises(ValueError, match="unknown-time provenance gate failed"):
+        _render("DOC_A", unknown_time=True)
 
 
 def test_cover_name_with_separator_is_semantic_clean():

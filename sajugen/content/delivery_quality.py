@@ -21,9 +21,11 @@ MIN_PREMIUM_PAGES = 20
 MIN_GUNGHAP_PAGES = 16
 MIN_INTEGRATED_FULL_PAGES = 30
 MIN_FOLLOWUP_PAGES = 10
+MIN_THREE_PILLAR_PAGES = 12
 MIN_PREMIUM_TEXT_CHARS = 10_000
 MIN_GUNGHAP_TEXT_CHARS = 3_000
 MIN_FOLLOWUP_TEXT_CHARS = 2_000
+MIN_THREE_PILLAR_TEXT_CHARS = 3_500
 
 _GUNGHAP_PRODUCTS = {"gunghap", "gunghap_relationship", "relationship_gunghap"}
 _INTEGRATED_FULL_PRODUCTS = {"integrated_full"}
@@ -779,6 +781,7 @@ def analyze(
     module_sections: Mapping[str, Iterable[str]] | None = None,
     premerge_section_ids: Iterable[str] | None = None,
     external_advice_segments: list[tuple[int, int, str]] | None = None,
+    birth_time_mode: str | None = None,
 ) -> dict:
     """Return customer-delivery quality findings.
 
@@ -794,9 +797,12 @@ def analyze(
 
     text = text or ""
     is_premium = _is_premium(product, premium)
+    is_three_pillar = birth_time_mode == "three_pillar"
     has_customer_context = bool((concern or "").strip() or expected_context_terms)
     failures: list[dict] = []
     warnings: list[dict] = []
+    minimum_pages: int | None = None
+    minimum_text_chars: int | None = None
 
     product_key = (product or "").strip().lower()
     module_coverage: dict[str, object]
@@ -851,22 +857,33 @@ def analyze(
         )
 
     if is_premium:
-        min_pages = _min_pages(product, effective_selected_modules)
-        min_text_chars = _min_text_chars(product, effective_selected_modules)
-        if pages is not None and pages < min_pages:
+        # 삼주는 시간 의존 장과 자미 서술을 의도적으로 제외하므로 known 상품의 분량·자미
+        # 기준을 그대로 적용할 수 없다. 명시 모드에서만 승인된 별도 하한을 사용하고,
+        # 기본 None과 known은 기존 상품별 기준을 그대로 보존한다.
+        minimum_pages = (
+            MIN_THREE_PILLAR_PAGES
+            if is_three_pillar
+            else _min_pages(product, effective_selected_modules)
+        )
+        minimum_text_chars = (
+            MIN_THREE_PILLAR_TEXT_CHARS
+            if is_three_pillar
+            else _min_text_chars(product, effective_selected_modules)
+        )
+        if pages is not None and pages < minimum_pages:
             failures.append(
                 {
                     "rule": "premium_pages",
                     "value": pages,
-                    "minimum": min_pages,
+                    "minimum": minimum_pages,
                 }
             )
-        if len(text) < min_text_chars:
+        if len(text) < minimum_text_chars:
             failures.append(
                 {
                     "rule": "premium_text_chars",
                     "value": len(text),
-                    "minimum": min_text_chars,
+                    "minimum": minimum_text_chars,
                 }
             )
         if low_density_pages:
@@ -913,7 +930,7 @@ def analyze(
         failures.append({"rule": "absolute_guarantee", "hits": guarantee_hits})
 
     ziwei = _ziwei_result(text)
-    if is_premium and not ziwei["ok"]:
+    if is_premium and not is_three_pillar and not ziwei["ok"]:
         failures.append({"rule": "missing_usable_ziwei", "ziwei": ziwei})
 
     love_myeongni = _love_myeongni_result(text, required_axes)
@@ -947,12 +964,8 @@ def analyze(
         "min_gunghap_text_chars": MIN_GUNGHAP_TEXT_CHARS,
         "min_integrated_full_text_chars": MIN_PREMIUM_TEXT_CHARS,
         "min_followup_text_chars": MIN_FOLLOWUP_TEXT_CHARS,
-        "minimum_pages": (
-            _min_pages(product, effective_selected_modules) if is_premium else None
-        ),
-        "minimum_text_chars": (
-            _min_text_chars(product, effective_selected_modules) if is_premium else None
-        ),
+        "minimum_pages": minimum_pages,
+        "minimum_text_chars": minimum_text_chars,
         "selected_modules": module_coverage["selected_modules"],
         "module_schema_version": integrated_modules.MODULE_SCHEMA_VERSION,
         "module_sections": module_coverage["module_sections"],

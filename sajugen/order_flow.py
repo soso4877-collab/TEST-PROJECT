@@ -24,6 +24,7 @@ from . import integrated
 from . import modules as integrated_modules
 from . import pipeline
 from .calc import engine
+from .calc.three_pillar import NeedsInfoTimeBoundary, ensure_unambiguous_civil_date
 from .content import (
     builder,
     client_tone_lint,
@@ -33,10 +34,12 @@ from .content import (
     masking,
     question_router,
     safe_lint,
+    unknown_time_policy,
 )
 from .content.sections_schema import GuardReport, Report23, Section
 from .input import normalize as norm
 from .input import time_correction as tc
+from .input.birth_time import BirthTimeMode, normalize_birth_time_mode
 from .models.report import (
     BirthInput,
     CalendarVerification,
@@ -49,7 +52,13 @@ from .followup import compose as followup_compose
 from .refdate import default_ref_date_iso
 from .render import pdf as render_pdf
 from .render import verify as render_verify
-from .store.orders import OrderState, OrderStore
+from .store.orders import (
+    OrderState,
+    OrderStore,
+    final_birth_time_contract_error,
+    report_birth_time_mode,
+    three_pillar_provenance_error,
+)
 
 DEFAULT_DB = "data/orders.sqlite"
 MAX_FOLLOWUP_PAGES = 15
@@ -72,6 +81,69 @@ def _required_brand_name(value: object) -> str:
     if not name:
         raise ValueError("brand is required")
     return name
+
+
+def _params_birth_time_mode(params: dict) -> BirthTimeMode:
+    """저장 파라미터의 신규 enum을 우선하고 legacy boolean을 호환 읽기한다."""
+
+    legacy = params.get("unknown_time") if "unknown_time" in params else None
+    return normalize_birth_time_mode(
+        params.get("birth_time_mode"),
+        unknown_time=legacy,
+        hour=params.get("hour"),
+    )
+
+
+def _serialize_three_pillar_provenance(value: object) -> dict:
+    """계산 결과 provenance를 후보 원문 없이 JSON-safe 고정 스키마로 바꾼다."""
+
+    if value is None:
+        raise RuntimeError("three_pillar provenance invalid(provenance_missing)")
+    data = unknown_time_policy.serialize_provenance(value)
+    error = three_pillar_provenance_error(data)
+    if error:
+        raise RuntimeError(f"three_pillar provenance invalid({error})")
+    return data
+
+
+def _validated_generation_provenance(result: object) -> dict:
+    """계산→콘텐츠→verify 표면의 provenance가 하나의 값인지 확인한다."""
+
+    outer = _serialize_three_pillar_provenance(
+        getattr(result, "three_pillar_provenance", None)
+    )
+    report = getattr(result, "report", None)
+    report_value = getattr(report, "three_pillar_provenance", None)
+    if not report_value:
+        raise RuntimeError("three_pillar provenance invalid(content_provenance_missing)")
+    content_value = _serialize_three_pillar_provenance(report_value)
+    if content_value != outer:
+        raise RuntimeError("three_pillar provenance invalid(content_provenance_mismatch)")
+
+    verify = getattr(result, "verify", None)
+    if isinstance(verify, dict) and "three_pillar_provenance" in verify:
+        verify_value = _serialize_three_pillar_provenance(
+            verify.get("three_pillar_provenance")
+        )
+        if verify_value != outer:
+            raise RuntimeError("three_pillar provenance invalid(verify_provenance_mismatch)")
+    return outer
+
+
+def _generation_params_for_mode(params: dict, mode: BirthTimeMode) -> dict:
+    """성공한 생성 메타를 신규 단일 정본으로 정규화한다.
+
+    레거시 unknown 주문을 새 삼주 경로로 재생성한 경우에도 정오 hour/minute와
+    ``unknown_time`` 키가 다시 저장되지 않도록 성공 시점에 제거한다.
+    """
+
+    normalized = dict(params)
+    normalized["birth_time_mode"] = mode.value
+    normalized.pop("unknown_time", None)
+    if mode is BirthTimeMode.THREE_PILLAR:
+        normalized.pop("hour", None)
+        normalized.pop("minute", None)
+    return normalized
 
 
 def _stored_input_civil(report: UnifiedReport) -> str:
@@ -121,7 +193,8 @@ def _render_followup_pdf(
         _CoverMeta(input_civil=str(render_context.get("input_civil") or "")),
         out_name=out_name,
         name=None,
-        unknown_time=bool(render_context.get("unknown_time")),
+        birth_time_mode=render_context.get("birth_time_mode"),
+        three_pillar_provenance=render_context.get("three_pillar_provenance"),
         brand=brand,
     )
     verify = dict(
@@ -134,6 +207,8 @@ def _render_followup_pdf(
             concern=concern,
             ref_date=render_context.get("ref_date") or None,
             partner_present=report.partner_present,
+            birth_time_mode=render_context.get("birth_time_mode"),
+            three_pillar_provenance=render_context.get("three_pillar_provenance"),
         )
     )
     pages = verify.get("pages")
@@ -245,6 +320,9 @@ def _integrated_report23(result: dict) -> Report23:
         concern_category=result.get("concern_category"),
         allow_tokens=dict(result.get("allow_tokens") or {}),
         partner_present=bool(result.get("partner_present", False)),
+        birth_time_mode=str(result.get("birth_time_mode") or "known"),
+        three_pillar_provenance=dict(result.get("three_pillar_provenance") or {}),
+        fact_source_ids=list(result.get("fact_source_ids") or []),
     )
 
 
@@ -270,6 +348,7 @@ def _partner_generation_params(params: dict) -> dict | None:
 def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
     """확정된 1인·2인 모듈 주문을 native integrated_full 빌더로 생성한다."""
 
+    birth_time_mode = _params_birth_time_mode(params)
     ref_date = default_ref_date_iso()
     horoscope = str(params.get("horoscope") or "").strip()
     try:
@@ -285,8 +364,16 @@ def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
                 int(params["year"]),
                 int(params["month"]),
                 int(params["day"]),
-                int(params["hour"]),
-                int(params["minute"]),
+                (
+                    int(params["hour"])
+                    if birth_time_mode is BirthTimeMode.KNOWN
+                    else None
+                ),
+                (
+                    int(params["minute"])
+                    if birth_time_mode is BirthTimeMode.KNOWN
+                    else None
+                ),
             ),
             bool(params.get("is_male")),
         )
@@ -321,6 +408,7 @@ def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
         latitude=float(params.get("latitude", tc.SEOUL_LAT)),
         policy=policy,
         horoscope_date=horoscope or f"{ref_year}-06-01",
+        birth_time_mode=birth_time_mode.value,
     )
     # 개인 빌더의 partner_present=False가 2인 관계 조립 결과를 덮지 않도록 주문의
     # additive partner 존재 여부를 최종 진실원으로 사용한다. integrated.py는 건드리지 않는다.
@@ -352,7 +440,7 @@ def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
         not identity_json[0]
         or not identity_json[1]
         or not identity_json[2]
-        or not singang
+        or (birth_time_mode is BirthTimeMode.KNOWN and not singang)
         or not role_perspective
         or not honorific
     ):
@@ -385,7 +473,13 @@ def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
         "module_schema_version": result.get("module_schema_version"),
         "module_sections": module_sections,
         "premerge_section_ids": premerge_section_ids,
+        "birth_time_mode": birth_time_mode.value,
     }
+    provenance = None
+    if birth_time_mode is BirthTimeMode.THREE_PILLAR:
+        provenance = _serialize_three_pillar_provenance(
+            result.get("three_pillar_provenance")
+        )
     return SimpleNamespace(
         pdf_path=str(result.get("pdf_path") or ""),
         ok=not reasons,
@@ -399,6 +493,7 @@ def _run_integrated_generation(params: dict, order_id: str) -> SimpleNamespace:
         input_civil=str(result.get("input_civil") or ""),
         near_term_boundary=bool(result.get("near_term_boundary")),
         integrated_full_meta=full_meta,
+        three_pillar_provenance=provenance,
     )
 
 
@@ -425,6 +520,8 @@ def create_order(
     product: str = "integrated",
     concern: str = "",
     brand: str = "default",
+    birth_time_mode: BirthTimeMode | str | None = None,
+    unknown_time: bool | None = None,
     db_path: str = DEFAULT_DB,
 ) -> tuple[str, list[str]]:
     """주문 접수 — 정규화 성공 시 create(RECEIVED)→NORMALIZED. 실패는 ValueError 그대로
@@ -436,12 +533,36 @@ def create_order(
 
     parts = birth.split()
     iy, imo, ida = (int(x) for x in parts[0].split("-"))
-    unknown_time = len(parts) < 2
-    hh, mi = (12, 0) if unknown_time else (int(x) for x in parts[1].split(":"))
-    if product == integrated.PRODUCT and unknown_time:
-        # 자미 강등이 아직 없는 integrated_full은 정오 추정으로 조용히 진행하지 않는다.
-        # 예외는 OrderStore 생성 전에 올려 주문이 물리적으로 남지 않게 한다.
-        raise ValueError("integrated_full requires a known birth time")
+    has_clock = len(parts) >= 2
+    hh: int | None = None
+    mi: int | None = None
+    if has_clock:
+        hh, mi = (int(x) for x in parts[1].split(":"))
+    if unknown_time is False and not has_clock:
+        raise ValueError("unknown_time=False requires a birth time")
+    # 명시 enum이 있으면 그것이 정본이다. 이때 시각 유무로 legacy boolean을 새로
+    # 만들어 넘기면 ``three_pillar + 실제 시각``이 본래 입력 오류에 도달하기 전에
+    # 가짜 ``unknown_time=False`` 충돌로 꺾인다. enum이 없는 구 호출에서만 시각
+    # 유무를 legacy 입력으로 복원한다.
+    legacy_unknown_time = unknown_time
+    if birth_time_mode is None and legacy_unknown_time is None:
+        legacy_unknown_time = not has_clock
+    mode = normalize_birth_time_mode(
+        birth_time_mode,
+        unknown_time=legacy_unknown_time,
+        hour=hh,
+    )
+    if mode is BirthTimeMode.KNOWN and not has_clock:
+        raise ValueError("birth_time_mode=known requires a birth time")
+    if mode is BirthTimeMode.THREE_PILLAR and has_clock:
+        # 명시한 시각을 조용히 버리는 것도 입력 오류다. 생시 미상은 날짜만 받는다.
+        raise ValueError("birth_time_mode=three_pillar must not include a birth time")
+    if mode is BirthTimeMode.THREE_PILLAR and product in {"ziwei", "gunghap"}:
+        raise ValueError(f"three_pillar mode does not support {product} product")
+    if mode is BirthTimeMode.THREE_PILLAR and partner_birth_value:
+        # 상대 관계 사실은 이번 v1의 12후보 불변 축약 대상이 아니다. 일부 모듈에서
+        # 상대 입력을 조용히 소비하는 팬텀 경로를 만들지 않고 접수 전에 차단한다.
+        raise ValueError("three_pillar orders do not support partner input")
 
     partner_parts = partner_birth_value.split()
     partner_input: tuple[int, int, int, int, int] | None = None
@@ -471,6 +592,12 @@ def create_order(
 
     # 본인과 상대 모두 같은 KASI 1차 정규화 진입점을 재사용한다.
     nd = norm.normalize_date(iy, imo, ida, is_lunar=lunar, is_leap=leap)
+    if mode is BirthTimeMode.THREE_PILLAR:
+        try:
+            ensure_unambiguous_civil_date(nd.year, nd.month, nd.day)
+        except NeedsInfoTimeBoundary:
+            # 주문/감사 생성 전에 PII-free 고정 코드만 surface한다.
+            raise ValueError(NeedsInfoTimeBoundary.code) from None
     warnings = list(nd.warnings) if nd.input_kind == "lunar" else []
     partner_params: dict | None = None
     if partner_input is not None:
@@ -509,7 +636,7 @@ def create_order(
             input_calendar="lunar" if lunar else "solar",
             input_date=parts[0],
             is_leap_month=leap,
-            birth_time=None if unknown_time else f"{hh:02d}:{mi:02d}",
+            birth_time=(f"{hh:02d}:{mi:02d}" if mode is BirthTimeMode.KNOWN else None),
             concern_text=concern or "",
         ),
         calendar_verification=CalendarVerification(
@@ -529,8 +656,12 @@ def create_order(
                 "year": nd.year,
                 "month": nd.month,
                 "day": nd.day,
-                "hour": hh,
-                "minute": mi,
+                "birth_time_mode": mode.value,
+                **(
+                    {"hour": int(hh), "minute": int(mi)}
+                    if mode is BirthTimeMode.KNOWN and hh is not None and mi is not None
+                    else {}
+                ),
                 "is_male": is_male,
                 "longitude": longitude,
                 "latitude": latitude,
@@ -538,7 +669,6 @@ def create_order(
                 "horoscope": horoscope or "",
                 "use_llm": use_llm,
                 "name": name or "",
-                "unknown_time": unknown_time,
                 "product": product,
                 "concern": concern or "",
                 "brand": _required_brand_name(brand),
@@ -581,6 +711,7 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
     try:
         report = st.get_report(order_id)
         p = dict(report.render_meta.get("gen_params", {}))
+        birth_time_mode = _params_birth_time_mode(p)
         selection = module_selection_state(report)
         if selection["needs_confirmation"]:
             # 생성과 재시도가 공유하는 물리 차단점이다. 상태는 그대로 두고, 감사에는
@@ -599,8 +730,16 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                     p["year"],
                     p["month"],
                     p["day"],
-                    p["hour"],
-                    p["minute"],
+                    (
+                        p.get("hour")
+                        if birth_time_mode is BirthTimeMode.KNOWN
+                        else None
+                    ),
+                    (
+                        p.get("minute")
+                        if birth_time_mode is BirthTimeMode.KNOWN
+                        else None
+                    ),
                     is_male=p["is_male"],
                     longitude=p.get("longitude", tc.SEOUL_LON),
                     latitude=p.get("latitude", tc.SEOUL_LAT),
@@ -613,7 +752,7 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                     use_llm=bool(p.get("use_llm")),
                     out_name=f"draft_{order_id}.pdf",
                     name=p.get("name") or None,
-                    unknown_time=bool(p.get("unknown_time")),
+                    birth_time_mode=birth_time_mode.value,
                     product=p.get("product", "integrated"),
                     concern=p.get("concern") or None,
                     brand=_required_brand_name(p.get("brand")),
@@ -622,13 +761,16 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
         except Exception as e:  # 생성 실패 — 상태는 그대로(재시도 가능), 감사만 기록
             # 예외 문자열에 생년월일이 섞여 audit_log(영속)에 남지 않도록 마스킹(T1.3/E-2).
             try:
-                civil = (
-                    f"{int(p['year'])}-{int(p['month']):02d}-{int(p['day']):02d} "
-                    f"{int(p['hour']):02d}:{int(p['minute']):02d}"
-                )
+                civil = f"{int(p['year'])}-{int(p['month']):02d}-{int(p['day']):02d}"
+                if birth_time_mode is BirthTimeMode.KNOWN:
+                    civil += f" {int(p['hour']):02d}:{int(p['minute']):02d}"
             except Exception:
                 civil = None
-            note = masking.mask_birth_in_text(f"{type(e).__name__}: {str(e)}", civil)
+            note = (
+                NeedsInfoTimeBoundary.code
+                if isinstance(e, NeedsInfoTimeBoundary)
+                else masking.mask_birth_in_text(f"{type(e).__name__}: {str(e)}", civil)
+            )
             partner = _partner_generation_params(p)
             if partner is not None:
                 try:
@@ -642,6 +784,20 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                 note = masking.mask_birth_in_text(note, partner_civil)
             st.add_audit(order_id, action="generation_error", note=note[:200])
             return
+
+        provenance: dict | None = None
+        if birth_time_mode is BirthTimeMode.THREE_PILLAR:
+            try:
+                provenance = _validated_generation_provenance(r)
+            except RuntimeError as exc:
+                # 계산/콘텐츠 결과가 provenance를 잃으면 DRAFTED로 승격하지 않는다.
+                # 고정 오류 코드만 audit에 남겨 PII와 후보값을 영속하지 않는다.
+                st.add_audit(
+                    order_id,
+                    action="generation_error",
+                    note=str(exc)[:200],
+                )
+                return
 
         if not r.calc_consistent:
             # 3원/명리↔자미 교차 불일치 = 주문 차단(절대규칙 7). 관리자 해소 후 재시도.
@@ -668,6 +824,7 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                 "content": (r.report.model_dump() if r.report is not None else {}),
                 "render_meta": {
                     **report.render_meta,
+                    "gen_params": _generation_params_for_mode(p, birth_time_mode),
                     "draft_pdf": r.pdf_path,
                     "input_civil": r.input_civil,
                     "bazi": r.bazi,
@@ -681,6 +838,11 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                     **(
                         {"integrated_full": dict(r.integrated_full_meta)}
                         if hasattr(r, "integrated_full_meta")
+                        else {}
+                    ),
+                    **(
+                        {"three_pillar_provenance": provenance}
+                        if provenance is not None
                         else {}
                     ),
                 },
@@ -797,9 +959,14 @@ def run_followup(
                     "failures": [{"source": "followup", "rule": "missing_pdf_report"}],
                 }
             try:
+                parent_mode = report_birth_time_mode(parent)
+                parent_provenance = (parent.render_meta or {}).get(
+                    "three_pillar_provenance"
+                )
                 render_context = {
                     "brand": parent_params.get("brand"),
-                    "unknown_time": bool(parent_params.get("unknown_time")),
+                    "birth_time_mode": parent_mode.value,
+                    "three_pillar_provenance": parent_provenance,
                     "input_civil": _stored_input_civil(parent),
                     "day_master": _stored_day_master(parent),
                     "name": parent.birth.name,
@@ -851,7 +1018,7 @@ def run_followup(
                 {
                     "pdf": True,
                     "brand": render_context["brand"],
-                    "unknown_time": render_context["unknown_time"],
+                    "birth_time_mode": render_context["birth_time_mode"],
                     "day_master": render_context["day_master"],
                     "ref_year": render_context["ref_year"],
                     "ref_date": render_context["ref_date"],
@@ -872,7 +1039,15 @@ def run_followup(
                 **dict(parent.derived_interpretation or {}),
                 "followup_answer": answer,
             },
-            "render_meta": {"followup": followup_meta},
+            "render_meta": {
+                "followup": followup_meta,
+                **(
+                    {"three_pillar_provenance": render_context["three_pillar_provenance"]}
+                    if pdf
+                    and render_context.get("three_pillar_provenance") is not None
+                    else {}
+                ),
+            },
             "safety_flags": SafetyFlags(
                 safe_lint_total=0,
                 factcheck_total=0,
@@ -895,6 +1070,15 @@ def run_followup(
                         "input_civil": render_context["input_civil"],
                         "verify": pdf_verify,
                         "guard": pdf_report.guard.model_dump(),
+                        **(
+                            {
+                                "three_pillar_provenance": render_context[
+                                    "three_pillar_provenance"
+                                ]
+                            }
+                            if render_context.get("three_pillar_provenance") is not None
+                            else {}
+                        ),
                     },
                 }
             )
@@ -1021,6 +1205,13 @@ def confirm_module_selection(
             raise ValueError("모듈 확정은 integrated_full 주문에만 사용할 수 있습니다")
         selected = integrated_modules.normalize_modules(modules)
         gen_params = dict((report.render_meta or {}).get("gen_params", {}))
+        if (
+            _params_birth_time_mode(gen_params) is BirthTimeMode.THREE_PILLAR
+            and "gunghap" in selected
+        ):
+            raise ValueError(
+                "three_pillar 주문에서는 gunghap 모듈을 선택할 수 없습니다"
+            )
         if "gunghap" in selected and _partner_generation_params(gen_params) is None:
             raise ValueError(
                 "상대 정보가 없는 integrated_full 주문에서는 gunghap 모듈을 선택할 수 없습니다"
@@ -1079,6 +1270,25 @@ def edit_section(
         else:
             violations += safe_lint.lint(text)
             violations += factcheck.check_with_allow(text, r23.allow_tokens)
+            mode = report_birth_time_mode(report)
+            provenance = (report.render_meta or {}).get("three_pillar_provenance")
+            policy_hits = unknown_time_policy.unknown_time_provenance_lint(
+                text,
+                birth_time_mode=mode.value,
+                provenance=provenance,
+                source="admin_edit",
+            )
+            # 관리자 UI는 기존 safe/fact finding 모양을 기대한다. 원문 대신 고정 token만
+            # 노출하는 표시용 어댑터를 만들고 공개 lint finding은 변경하지 않는다.
+            violations += [
+                {
+                    **hit,
+                    "match": hit.get("token"),
+                    "why": "생시 미상 사실 출처 정책 위반",
+                    "suggest": "세 기둥 또는 시간 불변 사실만 사용하세요",
+                }
+                for hit in policy_hits
+            ]
         if violations:
             return violations
 
@@ -1117,11 +1327,42 @@ def final_render_fn(report: UnifiedReport) -> str:
       검수 수정분이 재검증 없이 발급될 여지가 있었다. Report23 영속 본문·allow_tokens 로
       섹션별 재검증(edit_section 과 동일 함수). 위반은 카운트만 노출(본문 미노출, T1.3/PII).
     """
+    contract_error = final_birth_time_contract_error(report)
+    if contract_error:
+        raise RuntimeError(
+            f"생시 미상 주문 최종 발급 차단({contract_error}) — 새 삼주 정책으로 재생성 필요"
+        )
     if not report.content:
         raise RuntimeError(f"본문 없음(생성 미완료): {report.order_id}")
     r23 = Report23.model_validate(report.content)
     meta = report.render_meta
     p = meta.get("gen_params", {})
+    birth_time_mode = report_birth_time_mode(report)
+    three_pillar_provenance = meta.get("three_pillar_provenance")
+    if birth_time_mode is BirthTimeMode.THREE_PILLAR:
+        content_provenance = _serialize_three_pillar_provenance(
+            r23.three_pillar_provenance
+        )
+        stored_provenance = _serialize_three_pillar_provenance(
+            three_pillar_provenance
+        )
+        if r23.birth_time_mode != BirthTimeMode.THREE_PILLAR.value:
+            raise RuntimeError(
+                "생시 미상 주문 최종 발급 차단(content_birth_time_mode_mismatch)"
+            )
+        if content_provenance != stored_provenance:
+            raise RuntimeError(
+                "생시 미상 주문 최종 발급 차단(content_provenance_mismatch)"
+            )
+        stored_verify = meta.get("verify")
+        if isinstance(stored_verify, dict) and "three_pillar_provenance" in stored_verify:
+            verify_provenance = _serialize_three_pillar_provenance(
+                stored_verify.get("three_pillar_provenance")
+            )
+            if verify_provenance != stored_provenance:
+                raise RuntimeError(
+                    "생시 미상 주문 최종 발급 차단(verify_provenance_mismatch)"
+                )
 
     # 안전·사실 재검증 벨트(렌더 전 빠른 차단) — 검수 수정 본문 포함 전 섹션 재검증.
     # match(본문 조각)는 노출하지 않고 카운트만 집계(절대규칙 17 / T1.3).
@@ -1147,7 +1388,8 @@ def final_render_fn(report: UnifiedReport) -> str:
             r23,
             render_context={
                 "brand": followup_meta.get("brand"),
-                "unknown_time": bool(followup_meta.get("unknown_time")),
+                "birth_time_mode": birth_time_mode.value,
+                "three_pillar_provenance": three_pillar_provenance,
                 "input_civil": str(meta.get("input_civil") or ""),
                 "day_master": followup_meta.get("day_master"),
                 "name": report.birth.name,
@@ -1216,7 +1458,7 @@ def final_render_fn(report: UnifiedReport) -> str:
             or not identity_raw[0]
             or not identity_raw[1]
             or not identity_raw[2]
-            or not singang
+            or (birth_time_mode is BirthTimeMode.KNOWN and not singang)
             or not role_specs
             or not honorific_specs
             or honorific_specs != role_specs
@@ -1241,6 +1483,8 @@ def final_render_fn(report: UnifiedReport) -> str:
             module_sections=module_sections,
             premerge_section_ids=premerge_section_ids,
             ref_date=ref_date,
+            birth_time_mode=birth_time_mode.value,
+            three_pillar_provenance=three_pillar_provenance,
         )
         coverage = verify.get("module_coverage")
         if (
@@ -1268,13 +1512,22 @@ def final_render_fn(report: UnifiedReport) -> str:
             int(p["year"]),
             int(p["month"]),
             int(p["day"]),
-            int(p["hour"]),
-            int(p["minute"]),
+            (
+                int(p["hour"])
+                if birth_time_mode is BirthTimeMode.KNOWN
+                else None
+            ),
+            (
+                int(p["minute"])
+                if birth_time_mode is BirthTimeMode.KNOWN
+                else None
+            ),
             is_male=bool(p.get("is_male")),
             longitude=p.get("longitude", tc.SEOUL_LON),
             latitude=p.get("latitude", tc.SEOUL_LAT),
             policy=(tc.ZasiPolicy.YAJASI_SPLIT if p.get("yajasi") else tc.ZasiPolicy.JST_2300),
             horoscope_date=horoscope or None,
+            birth_time_mode=birth_time_mode.value,
         )
         identity = builder.personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
         names = [name] if name else None
@@ -1287,7 +1540,8 @@ def final_render_fn(report: UnifiedReport) -> str:
         _CoverMeta(input_civil=str(meta.get("input_civil", ""))),
         out_name=f"final_{report.order_id}.pdf",
         name=name,
-        unknown_time=bool(p.get("unknown_time")),
+        birth_time_mode=birth_time_mode.value,
+        three_pillar_provenance=three_pillar_provenance,
         brand=bp,
     )
     v = render_verify.verify(
@@ -1300,6 +1554,8 @@ def final_render_fn(report: UnifiedReport) -> str:
         ref_date=horoscope or None,
         # QI-2026-07-04: 저장된 Report23 의 파트너 유무로 커플 지칭 승격(레거시 None=비적용).
         partner_present=getattr(r23, "partner_present", None),
+        birth_time_mode=birth_time_mode.value,
+        three_pillar_provenance=three_pillar_provenance,
     )
     if not v.get("gate_pass"):
         # 불리언 clean 플래그만 노출(hit 본문 미포함 — B-3/PII).

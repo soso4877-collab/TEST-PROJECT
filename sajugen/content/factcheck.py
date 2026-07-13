@@ -65,17 +65,24 @@ def allowed_tokens(saju, extra_ganzhi: frozenset[str] = frozenset()) -> dict:
     extra_ganzhi: 이 주문에서 추가 계산된 실재 간지(예: 상대방 명식, 한자) —
     content.md 규칙대로 계산 데이터 추가와 동시에만 확장한다.
     """
-    m = saju.myeongni
-    gz = {m.year.ganzhi, m.month.ganzhi, m.day.ganzhi, m.hour.ganzhi}
-    gz |= {d.ganzhi for d in m.daewoon}
+    three_pillar_mode = getattr(saju, "birth_time_mode", None) == "three_pillar"
+    m = saju.three_pillar if three_pillar_mode else saju.myeongni
+    # 삼주에서는 시주·불안정 대운을 허용 토큰에 넣지 않는다. 이 집합은 LLM 후보와
+    # 관리자 편집 재검증이 함께 쓰므로, 한 번이라도 넣으면 뒤 단계에서 출처를 복원할
+    # 방법이 없다. known-time 분기는 기존 네 기둥/대운 집합을 그대로 유지한다.
+    gz = {m.year.ganzhi, m.month.ganzhi, m.day.ganzhi}
+    if not three_pillar_mode:
+        gz.add(m.hour.ganzhi)
+        gz |= {d.ganzhi for d in m.daewoon}
     # 세운·월운 간지(lunar-python 산출 실재값) — 본문 언급 시 허용
     gz |= {g for _, g in getattr(m, "seun", [])}
     gz |= {g for _, g in getattr(m, "worun", [])}
     gz |= set(extra_ganzhi)
     star_ko = set()
-    for p in saju.ziwei.palaces:
-        for s in (*p.major_stars, *p.minor_stars, *p.adjective_stars):
-            star_ko.add(s.name)
+    if not three_pillar_mode:
+        for p in saju.ziwei.palaces:
+            for s in (*p.major_stars, *p.minor_stars, *p.adjective_stars):
+                star_ko.add(s.name)
     # 허용 연도(T4.1/G-4): 기준연도·세운·월운·대운 시작연도·출생연도. 본문이 언급할 수 있는
     # 근거 있는 연도 전부. 이 집합 밖 연도 언급은 factcheck 하드 차단(근거 없는 미래연도 생성 방지).
     years: set[int] = set()
@@ -87,20 +94,33 @@ def allowed_tokens(saju, extra_ganzhi: frozenset[str] = frozenset()) -> dict:
             pass
 
     _add_year(getattr(saju, "ref_year", None))
-    _add_year(getattr(saju, "input_civil", None))  # 출생연도(본문이 태어난 해를 짚을 수 있음)
+    _add_year(
+        getattr(saju, "input_civil_date", None)
+        if three_pillar_mode
+        else getattr(saju, "input_civil", None)
+    )  # 출생연도(본문이 태어난 해를 짚을 수 있음)
     for yr, _ in getattr(m, "seun", []):
         _add_year(yr)
     for yr, _ in getattr(m, "worun", []):
         _add_year(yr)
-    for dd in m.daewoon:
-        _add_year(getattr(dd, "start_year", None))
-    return {
+    if not three_pillar_mode:
+        for dd in m.daewoon:
+            _add_year(getattr(dd, "start_year", None))
+    result = {
         "ganzhi": gz,
         "ganzhi_ko": {k for k in (_gz_ko(g) for g in gz) if k},
         "ziwei_majors_in_chart": {s for s in star_ko if s in _ZIWEI_MAJORS},
         "all_star_ko": star_ko,
         "allowed_years": years,
     }
+    if three_pillar_mode:
+        # 출처 분류는 고정 ID만 영속한다. 후보별 값이나 산문은 허용 토큰 표면에 없다.
+        result["fact_source_ids"] = {
+            "three_pillar",
+            "time_invariant",
+            "calendar_flow",
+        }
+    return result
 
 
 def check_with_allow(text: str, allow: dict) -> list[dict]:

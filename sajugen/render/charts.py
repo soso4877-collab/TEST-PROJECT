@@ -262,6 +262,80 @@ def manse_table(myeongni, w: int = 720) -> str:
     return "".join(out) + "</svg>"
 
 
+def three_pillar_table(three_pillar, w: int = 720) -> str:
+    """생시 미상용 연·월·일 3열 명식표.
+
+    시각 의존 필드에 접근하지 않도록 입력 타입의 ``year/month/day``만 열거한다. known-time
+    ``manse_table``은 그대로 두어 기존 4열 출력과 계산 골든을 건드리지 않는다.
+    """
+
+    m = three_pillar
+    pillars = [("年", m.year), ("月", m.month), ("日", m.day)]
+    rows = ["천간", "지지", "지장간", "천간십성", "지지십성", "십이운성", "납음"]
+    lw, hh, rh = 90, 30, 34
+    cw = (w - lw) / len(pillars)
+    h = hh + rh * len(rows) + 30
+    out = [
+        f'<svg viewBox="0 0 {w} {h}" width="100%" role="img" '
+        f'aria-label="연주 월주 일주 세 기둥 명식표"><title>세 기둥 명식표</title>'
+        f'<rect x="0" y="0" width="{w}" height="{h}" fill="#fffdf8"/>'
+    ]
+    out.append(
+        f'<rect x="0" y="0" width="{lw}" height="{hh}" fill="#f6efdd" '
+        f'stroke="#d8cdb0"/><text x="{lw / 2:.0f}" y="20" font-size="12" '
+        f'text-anchor="middle" fill="#54606e">구분</text>'
+    )
+    for index, (label, _) in enumerate(pillars):
+        x = lw + index * cw
+        out.append(
+            f'<rect x="{x:.0f}" y="0" width="{cw:.0f}" height="{hh}" '
+            f'fill="#f6efdd" stroke="#d8cdb0"/><text x="{x + cw / 2:.0f}" y="20" '
+            f'font-size="13" text-anchor="middle" fill="#22262e">{label}柱</text>'
+        )
+    for row_index, row_label in enumerate(rows):
+        y = hh + row_index * rh
+        out.append(
+            f'<rect x="0" y="{y}" width="{lw}" height="{rh}" fill="#faf5e8" '
+            f'stroke="#d8cdb0"/><text x="{lw / 2:.0f}" y="{y + rh / 2 + 4:.0f}" '
+            f'font-size="11" text-anchor="middle" fill="#54606e">{row_label}</text>'
+        )
+        for column_index, (_, pillar) in enumerate(pillars):
+            x = lw + column_index * cw
+            if row_label == "천간":
+                value, fill, font_size = (
+                    pillar.gan,
+                    _ELEM_TINT.get(_GAN_ELEM.get(pillar.gan, ""), "#fff"),
+                    16,
+                )
+            elif row_label == "지지":
+                value, fill, font_size = (
+                    pillar.zhi,
+                    _ELEM_TINT.get(_ZHI_ELEM.get(pillar.zhi, ""), "#fff"),
+                    16,
+                )
+            elif row_label == "지장간":
+                value, fill, font_size = " ".join(pillar.hide_gan) or "-", "#fff", 12
+            elif row_label == "천간십성":
+                value, fill, font_size = (pillar.shishen_gan or "日主"), "#fff", 12
+            elif row_label == "지지십성":
+                value, fill, font_size = " ".join(pillar.shishen_zhi) or "-", "#fff", 12
+            elif row_label == "십이운성":
+                value, fill, font_size = pillar.dishi, "#fff", 12
+            else:
+                value, fill, font_size = pillar.nayin, "#fff", 12
+            out.append(
+                f'<rect x="{x:.0f}" y="{y}" width="{cw:.0f}" height="{rh}" '
+                f'fill="{fill}" stroke="#d8cdb0"/><text x="{x + cw / 2:.0f}" '
+                f'y="{y + rh / 2 + 5:.0f}" font-size="{font_size}" text-anchor="middle" '
+                f'fill="#22262e">{_esc(value)}</text>'
+            )
+    out.append(
+        f'<text x="{w / 2:.0f}" y="{h - 9:.0f}" font-size="11" '
+        f'text-anchor="middle" fill="#54606e">일간 {_esc(m.day_master)}</text>'
+    )
+    return "".join(out) + "</svg>"
+
+
 def ziwei_chart(ziwei, w: int = 720) -> str:
     """자미두수 12궁 명반 — 전통 4x4 격자(외곽 12궁 + 중앙 정보블록).
 

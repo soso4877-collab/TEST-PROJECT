@@ -50,6 +50,14 @@ def _report(
         "product": product,
         "brand": "default",
         "use_llm": False,
+        # 모듈 선택 UI만 검증하는 known-time 합성 주문이다. 신규 출생시각 계약에서도
+        # 모드가 모호하지 않도록 실제 create_order와 같은 최소 메타를 둔다.
+        "birth_time_mode": "known",
+        "year": 2001,
+        "month": 3,
+        "day": 5,
+        "hour": 10,
+        "minute": 0,
         "name": _PRIVATE_TOKENS[0],
         "birth": _PRIVATE_TOKENS[1],
         "concern": _PRIVATE_TOKENS[2],

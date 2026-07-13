@@ -9,10 +9,19 @@ from . import order_flow
 from .content import llm_usage
 from .input import normalize as norm
 from .input import time_correction as tc
+from .input.birth_time import BirthTimeMode
 from .pipeline import generate
 from .store.orders import OrderStore
 
 app = typer.Typer(add_completion=False, help="사주풀이 PDF 생성기 (운영자 내부 도구)")
+
+
+def _generation_error_message(exc: ValueError) -> str:
+    """계산 경계 오류를 PII 없는 운영자 메시지로 바꾼다."""
+
+    if getattr(exc, "code", "") == "NEEDS_INFO_TIME_BOUNDARY":
+        return "NEEDS_INFO_TIME_BOUNDARY: 절입 경계 날짜라 출생시각 확인이 필요합니다"
+    return "GENERATION_INPUT_INVALID: 입력·상품 계산 조건을 확인해 주세요"
 
 
 @app.command("customer-find")
@@ -143,7 +152,8 @@ def gen(
     iy, imo, ida = (int(x) for x in d.split("-"))
     unknown_time = len(parts) < 2
     if unknown_time:
-        hh, mi = 12, 0  # 생시 미상: 표준시 정오로 계산하되 시주는 '추정'으로 고지
+        # 날짜-only 입력은 실제 시각이 아니다. 정오를 대입하지 않고 삼주 계약으로 보낸다.
+        hh, mi = None, None
     else:
         hh, mi = (int(x) for x in parts[1].split(":"))
 
@@ -158,28 +168,35 @@ def gen(
     is_male = gender.strip().lower() in ("male", "m", "남", "남자")
     policy = tc.ZasiPolicy.YAJASI_SPLIT if yajasi else tc.ZasiPolicy.JST_2300
 
-    r = generate(
-        y,
-        mo,
-        da,
-        hh,
-        mi,
-        is_male=is_male,
-        longitude=longitude,
-        latitude=latitude,
-        policy=policy,
-        horoscope_date=horoscope,
-        use_llm=llm,
-        out_name=out,
-        name=name,
-        unknown_time=unknown_time,
-        product=product,
-        concern=concern,
-        brand=brand,
-        is_leap=bool(leap and lunar),  # 윤달 고지(자미 15일 분할법)는 음력 윤달생만
-    )
+    try:
+        r = generate(
+            y,
+            mo,
+            da,
+            hh,
+            mi,
+            is_male=is_male,
+            longitude=longitude,
+            latitude=latitude,
+            policy=policy,
+            horoscope_date=horoscope,
+            use_llm=llm,
+            out_name=out,
+            name=name,
+            unknown_time=unknown_time,
+            birth_time_mode=(
+                BirthTimeMode.THREE_PILLAR if unknown_time else BirthTimeMode.KNOWN
+            ),
+            product=product,
+            concern=concern,
+            brand=brand,
+            is_leap=bool(leap and lunar),  # 윤달 고지(자미 15일 분할법)는 음력 윤달생만
+        )
+    except ValueError as exc:
+        typer.echo("생성 차단: " + _generation_error_message(exc))
+        raise typer.Exit(code=1) from None
 
-    typer.echo(f"사주팔자: {r.bazi}")
+    typer.echo(f"{'삼주' if unknown_time else '사주팔자'}: {r.bazi}")
     typer.echo(
         f"PDF: {r.pdf_path}  ({r.verify['pages']}p, "
         f"텍스트 {r.verify['text_chars']}자, tagged={r.verify['tagged']})"

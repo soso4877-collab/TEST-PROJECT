@@ -144,6 +144,7 @@
     <path d="M33 1 L43 1 L38 9 Z" fill="#a23b2c" opacity="0.88"/>
     <line x1="47" y1="5" x2="76" y2="5" stroke="#a23b2c" stroke-width="0.9"/>
   </svg>
+  {% if s.chart_svg %}<div class="body" aria-label="세 기둥 원국표">{{ s.chart_svg | safe }}</div>{% endif %}
   <div class="body">{% for p in s.paragraphs %}<p>{{ p }}</p>{% endfor %}</div>
 </section>
 {% endif %}

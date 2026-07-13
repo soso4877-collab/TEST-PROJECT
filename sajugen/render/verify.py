@@ -33,6 +33,7 @@ GATE_KEYS = (
     "loanword_clean",  # 외래어 hard-ban(고객 본문)
     "raw_calc_head_clean",  # 표제형 계산표현(오행 분포·십성축·신강약)
     "client_register_clean",  # 고객 가시 문서체 register(표지·본문·부록 전체)
+    "unknown_time_provenance_clean",  # 삼주 출처·시각/시주/자미 누출(전체 페이지)
     "customer_meta_clean",  # AI/meta/document self-reference residue
     "placeholder_residue_clean",  # placeholder/masking residue
     "style_clean",  # compose 외 경로까지 style_lint 보편 적용
@@ -482,6 +483,8 @@ def verify(
     selected_modules: list[str] | tuple[str, ...] | None = None,
     module_sections: dict[str, list[str]] | None = None,
     premerge_section_ids: list[str] | tuple[str, ...] | None = None,
+    birth_time_mode: str | None = None,
+    three_pillar_provenance: object | None = None,
 ) -> dict:
     """렌더 PDF 게이트. name_full(전체 이름 리스트)·identity((expected_gans, expected_terms,
     subject_specs))·singang([{full,given,honor,singang}]) 가 주어지면 H1.5.3/3.2 이름 호칭·일간
@@ -577,6 +580,43 @@ def verify(
         int(hit["count"]) for hit in register_hits if hit["severity"] == "warning"
     )
     r["client_register_clean"] = not register_hard_hits
+    # 생시 미상 삼주 출처 게이트는 표지·목차·본문·부록을 모두 검사한다. known-time은
+    # 같은 함수에서 항상 clean이라 기존 문안을 건드리지 않는다. finding은 고정 rule/token과
+    # page/count/source만 담고 PDF 원문이나 실제 시각값을 반환하지 않는다.
+    from ..content import unknown_time_policy as _utp
+
+    # mode 전달 누락을 known으로 조용히 해석하면 provenance가 있어도 새 게이트가 사장된다.
+    # 저장 메타나 정확 고지 중 하나라도 삼주 신호를 보이면 three_pillar로 복원하고,
+    # provenance가 없거나 잘못됐으면 아래 계약 검사에서 fail-closed한다.
+    if birth_time_mode is None and (
+        three_pillar_provenance is not None
+        or _utp.THREE_PILLAR_NOTICE in text
+    ):
+        birth_time_mode = _utp.THREE_PILLAR_MODE
+    birth_time_mode = _utp.normalize_mode(birth_time_mode)
+    provenance_hits = _utp.provenance_contract_lint(
+        three_pillar_provenance,
+        birth_time_mode=birth_time_mode,
+        source="pdf_provenance",
+    )
+    text_provenance_hits = []
+    for page, page_text in enumerate(pages_text, start=1):
+        page_hits = _utp.unknown_time_provenance_lint(
+            page_text,
+            birth_time_mode=birth_time_mode,
+            provenance=three_pillar_provenance,
+            page=page,
+            source="pdf",
+        )
+        text_provenance_hits.extend(
+            hit for hit in page_hits if hit["rule"] not in _utp.PROVENANCE_RULE_IDS
+        )
+    unknown_time_hits = provenance_hits + text_provenance_hits
+    r["unknown_time_provenance_hits"] = unknown_time_hits[:50]
+    r["unknown_time_provenance_hits_count"] = sum(
+        int(hit.get("count", 1)) for hit in unknown_time_hits
+    )
+    r["unknown_time_provenance_clean"] = not unknown_time_hits
     r["client_tone_hits"] = _ct.term_hits(body)[:50]  # 전문용어 밀도(보고만)
     # P5-4(2026-07-05): 전문용어 밀도(공백 제외 1,000자당) 보고 필드 — 하드 게이트 아님
     # (첫 1회 괄호 풀이 정책과 오탐 충돌). v8 실측으로 상한 수치 확정 예정. 게이트 비악화:
@@ -679,6 +719,7 @@ def verify(
         module_sections=module_sections,
         premerge_section_ids=premerge_section_ids,
         external_advice_segments=external_advice_segments,
+        birth_time_mode=birth_time_mode,
     )
     r["delivery_quality"] = dq
     r["delivery_quality_clean"] = dq["clean"]

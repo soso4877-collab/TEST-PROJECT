@@ -22,6 +22,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Callable
 
+from ..content import unknown_time_policy
+from ..input.birth_time import BirthTimeMode, normalize_birth_time_mode
 from ..models.report import AuditEntry, UnifiedReport
 
 
@@ -57,6 +59,89 @@ class IllegalTransition(Exception):
 
 class ApprovalRequired(Exception):
     """APPROVED 이전 최종 PDF 발급 시도(절대규칙 16)."""
+
+
+class BirthTimeProvenanceRequired(RuntimeError):
+    """생시 미상 주문의 삼주 provenance가 없거나 계약과 다를 때 최종 발급 차단."""
+
+
+def report_birth_time_mode(report: UnifiedReport) -> BirthTimeMode:
+    """신규 enum을 우선하고 레거시 ``unknown_time``을 호환 읽기한다.
+
+    새 주문의 정본은 ``render_meta.gen_params.birth_time_mode``다. 후속 PDF는
+    ``render_meta.followup.birth_time_mode``를 사용한다. 두 키가 없는 과거 주문은
+    저장된 birth_time과 legacy boolean으로만 분류하며, unknown이면 provenance
+    검증에서 최종 발급이 차단된다.
+    """
+
+    meta = dict(report.render_meta or {})
+    params = dict(meta.get("gen_params") or {})
+    followup = dict(meta.get("followup") or {})
+    explicit = params.get("birth_time_mode", followup.get("birth_time_mode"))
+    has_stored_clock = "hour" in params and "minute" in params
+    legacy_unknown_flag = bool(params.get("unknown_time") or followup.get("unknown_time"))
+    # 레거시 주문은 gen_params의 시각 필드와 unknown_time이 실제 정본이었다. 초기
+    # 저장본에서 BirthInput.birth_time이 비어 있어도 clock+unknown_time=False면 known으로
+    # 복원하고, unknown_time=True면 정오 값이 남아 있어도 three_pillar로 분류한다.
+    legacy_unknown = legacy_unknown_flag or (
+        explicit is None and not has_stored_clock and report.birth.birth_time is None
+    )
+    # 알려진 시각 문자열의 실제 값은 최종 발급 모드 판정에 필요하지 않다. 존재 여부만
+    # normalize 계약의 hour 힌트로 전달해 PII를 새 변수·로그에 복제하지 않는다.
+    hour_hint = 0 if has_stored_clock or report.birth.birth_time is not None else None
+    return normalize_birth_time_mode(
+        explicit,
+        unknown_time=True if legacy_unknown else None,
+        hour=hour_hint,
+    )
+
+
+def three_pillar_provenance_error(provenance: object) -> str | None:
+    """공용 pure validator를 재사용하고 PII-free 고정 오류 코드만 반환한다."""
+
+    if provenance is None:
+        return "provenance_missing"
+    hits = unknown_time_policy.provenance_contract_lint(
+        provenance,
+        birth_time_mode=BirthTimeMode.THREE_PILLAR.value,
+        source="order_store",
+    )
+    if not hits:
+        return None
+    rule = str(hits[0].get("rule") or "provenance")
+    return {
+        "schema_version": "schema_version_invalid",
+        "candidate_count": "candidate_count_invalid",
+        "candidate_digest": "candidate_digest_invalid",
+        "stable_fact_ids": "stable_fact_ids_invalid",
+        "stable_fact_ids_duplicate": "stable_fact_ids_invalid",
+        "suppressed_fact_ids": "suppressed_fact_ids_invalid",
+        "suppressed_fact_ids_duplicate": "suppressed_fact_ids_invalid",
+        "fact_id_overlap": "fact_id_overlap",
+    }.get(rule, "provenance_invalid")
+
+
+def final_birth_time_contract_error(report: UnifiedReport) -> str | None:
+    """최종 발급 직전 출생시각·provenance 계약의 위반 코드를 반환한다.
+
+    알려진 시각 경로는 기존 동작을 유지한다. 삼주 경로는 정오 추정 잔재나 provenance
+    결손을 하나라도 발견하면 fail-closed한다.
+    """
+
+    try:
+        mode = report_birth_time_mode(report)
+    except (TypeError, ValueError):
+        return "birth_time_mode_invalid"
+    if mode is BirthTimeMode.KNOWN:
+        return None
+
+    meta = dict(report.render_meta or {})
+    params = dict(meta.get("gen_params") or {})
+    if report.birth.birth_time is not None:
+        return "three_pillar_birth_time_present"
+    if "hour" in params or "minute" in params:
+        return "three_pillar_clock_fields_present"
+    return three_pillar_provenance_error(meta.get("three_pillar_provenance"))
 
 
 def _now() -> str:
@@ -365,6 +450,13 @@ class OrderStore:
                 f"APPROVED 이전 최종 PDF 발급 금지(현재 {state.value}) — 절대규칙 16"
             )
         report = self.get_report(order_id)
+        contract_error = final_birth_time_contract_error(report)
+        if contract_error:
+            # 고객 입력·본문은 오류에 넣지 않는다. 레거시 정오 추정 주문도 새 삼주
+            # provenance 없이 조용히 재발급되지 않도록 render_fn 호출 전에 차단한다.
+            raise BirthTimeProvenanceRequired(
+                f"생시 미상 주문 최종 발급 차단({contract_error}) — 새 삼주 정책으로 재생성 필요"
+            )
         pdf_path = render_fn(report)
         self._audit(order_id, actor, "issue_final_pdf", None, None, note=pdf_path)
         self.transition(order_id, OrderState.DELIVERED, actor=actor, note="final pdf issued")
@@ -378,6 +470,11 @@ class OrderStore:
                 f"APPROVED 이전 최종 텍스트 발급 금지(현재 {state.value}) — 절대규칙 16"
             )
         report = self.get_report(order_id)
+        contract_error = final_birth_time_contract_error(report)
+        if contract_error:
+            raise BirthTimeProvenanceRequired(
+                f"생시 미상 주문 최종 발급 차단({contract_error}) — 새 삼주 정책으로 재생성 필요"
+            )
         text = str(report.derived_interpretation.get("followup_answer") or "").strip()
         if not text:
             for q in report.customer_questions:

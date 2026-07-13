@@ -88,7 +88,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # PDF 검증 결과에서 리포트에 노출할 게이트 키(이름/생년월일 등 PII는 결과 dict 에 없음).
 # GATE_KEYS(verify SSOT)에서 파생 — 수동 목록 복제가 layout_geometry_clean·text_layer_ok 등
-# 관측 드롭을 낳았다(C4). gate_pass(집계) + 20 구성키 = summary ⊇ GATE_KEYS 계약.
+# 관측 드롭을 낳았다(C4). gate_pass(집계) + 전체 구성키 = summary ⊇ GATE_KEYS 계약.
 _PDF_GATE = ["gate_pass", *GATE_KEYS]
 _PDF_COUNT = [
     "quality_hits_count",
@@ -97,6 +97,7 @@ _PDF_COUNT = [
     "register_hits_count",
     "register_hard_hits_count",
     "register_warning_hits_count",
+    "unknown_time_provenance_hits_count",
     "raw_calc_phrase_hits_count",
     "punctuation_hits_count",
     "semantic_style_hits_count",
@@ -134,6 +135,7 @@ _SEMANTIC_HIT_FIELDS = (
     "placeholder_residue_hits",
     "role_perspective_hits",
     "honorific_consistency_hits",
+    "unknown_time_provenance_hits",
 )
 
 

@@ -45,6 +45,11 @@ def test_profile_concern_normalizes_situation():
     assert hrun._profile_concern({}) is None
 
 
+def test_hverify_date_only_birth_never_defaults_to_noon():
+    assert hverify_pdf._parse_birth("2001-03-05") == (2001, 3, 5, None, None)
+    assert hverify_pdf._parse_birth("2001-03-05 12:00") == (2001, 3, 5, 12, 0)
+
+
 def test_regen_triple_lock(monkeypatch):
     monkeypatch.delenv("SAJUGEN_HARNESS_ALLOW_REGEN", raising=False)
     assert hrun._regen_allowed(_args(regen=False, allow_llm=False)) is False
@@ -334,6 +339,82 @@ def test_hverify_semantic_hits_forwarded_without_render(monkeypatch):
     assert "match" not in r["placeholder_residue_hits"][0]
     forbidden_legacy_key = "placeholder_" + "honorific_hits"
     assert forbidden_legacy_key not in r
+
+
+def test_hverify_forwards_three_pillar_mode_and_provenance(monkeypatch):
+    """날짜-only 하네스가 정오로 되돌아가지 않고 새 출처 게이트를 호출한다."""
+    import fitz
+    from sajugen.render import verify as verify_mod
+
+    captured = {}
+    provenance = {
+        "three_pillar_schema_version": 1,
+        "candidate_count": 12,
+        "candidate_digest": "a" * 64,
+        "stable_fact_ids": ["pillar.day"],
+        "suppressed_fact_ids": ["hour_pillar"],
+    }
+
+    class FakeDoc:
+        page_count = 1
+
+        def load_page(self, index):
+            assert index == 0
+            return type("FakePage", (), {"get_text": lambda self: "synthetic"})()
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(hverify_pdf.os.path, "isfile", lambda path: True)
+    monkeypatch.setattr(
+        hverify_pdf,
+        "_build_specs",
+        lambda profile: {
+            "ref_year": 2026,
+            "names": ["DOC_A"],
+            "name_full": None,
+            "identity": None,
+            "singang": None,
+            "product": "integrated",
+            "premium": False,
+            "role_perspective": None,
+            "honorific": None,
+        },
+    )
+    monkeypatch.setattr(
+        hverify_pdf,
+        "_file_meta",
+        lambda path: {
+            "sha256": "0" * 64,
+            "pages": 1,
+            "size": 10,
+            "mtime": "2026-01-01 00:00:00",
+        },
+    )
+    monkeypatch.setattr(fitz, "open", lambda path: FakeDoc())
+
+    def fake_verify(*args, **kwargs):
+        captured.update(kwargs)
+        return {
+            "gate_pass": True,
+            "unknown_time_provenance_clean": True,
+            "unknown_time_provenance_hits_count": 0,
+        }
+
+    monkeypatch.setattr(verify_mod, "verify", fake_verify)
+    result = hverify_pdf.verify_profile(
+        {
+            "type": "personal",
+            "pdf": "synthetic.pdf",
+            "birth_time_mode": "three_pillar",
+            "three_pillar_provenance": provenance,
+        }
+    )
+
+    assert captured["birth_time_mode"] == "three_pillar"
+    assert captured["three_pillar_provenance"] == provenance
+    assert result["unknown_time_provenance_clean"] is True
+    assert result["unknown_time_provenance_hits_count"] == 0
 
 
 def test_integrated_hrun_regen_uses_integrated_module(monkeypatch):

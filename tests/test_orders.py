@@ -368,20 +368,23 @@ def test_invalid_partner_intake_creates_no_order(
         store.close()
 
 
-def test_integrated_full_unknown_time_creates_no_order_but_integrated_is_unchanged(tmp_path):
+def test_integrated_full_unknown_time_stores_three_pillar_without_clock(tmp_path):
     full_db = tmp_path / "unknown-full.sqlite"
-    with pytest.raises(ValueError, match="known birth time"):
-        order_flow.create_order(
-            birth="2000-01-01",
-            gender="male",
-            name="DOC_A",
-            product="integrated_full",
-            brand="default",
-            db_path=str(full_db),
-        )
+    full_id, _ = order_flow.create_order(
+        birth="2000-01-01",
+        gender="male",
+        name="DOC_A",
+        product="integrated_full",
+        brand="default",
+        db_path=str(full_db),
+    )
     full_store = OrderStore(full_db)
     try:
-        assert full_store.list_orders() == []
+        report = full_store.get_report(full_id)
+        params = report.render_meta["gen_params"]
+        assert params["birth_time_mode"] == "three_pillar"
+        assert "hour" not in params and "minute" not in params
+        assert params["modules"] == []
     finally:
         full_store.close()
 
@@ -398,7 +401,8 @@ def test_integrated_full_unknown_time_creates_no_order_but_integrated_is_unchang
     try:
         report = legacy_store.get_report(order_id)
         assert report.birth.birth_time is None
-        assert report.render_meta["gen_params"]["unknown_time"] is True
+        assert report.render_meta["gen_params"]["birth_time_mode"] == "three_pillar"
+        assert "hour" not in report.render_meta["gen_params"]
         assert "modules" not in report.render_meta["gen_params"]
     finally:
         legacy_store.close()

@@ -85,7 +85,7 @@ def test_generate_integrated_full_creates_waiting_order(client, tmp_path, monkey
         store.close()
 
 
-def test_generate_integrated_full_unknown_time_returns_422_without_order(
+def test_generate_integrated_full_unknown_time_creates_waiting_three_pillar_order(
     client, tmp_path, monkeypatch
 ):
     db = tmp_path / "integrated-full-unknown-app.sqlite"
@@ -102,10 +102,16 @@ def test_generate_integrated_full_unknown_time_returns_422_without_order(
         follow_redirects=False,
     )
 
-    assert r.status_code == 422
+    assert r.status_code == 303
+    order_id = r.headers["location"].rstrip("/").split("/")[-1]
     store = OrderStore(db)
     try:
-        assert store.list_orders() == []
+        report = store.get_report(order_id)
+        params = report.render_meta["gen_params"]
+        assert store.get_state(order_id) == OrderState.NORMALIZED
+        assert params["birth_time_mode"] == "three_pillar"
+        assert "hour" not in params and "minute" not in params
+        assert params["modules"] == []
     finally:
         store.close()
 

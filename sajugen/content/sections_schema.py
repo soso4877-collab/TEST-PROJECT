@@ -77,6 +77,12 @@ class Report23(BaseModel):
     # QI-2026-07-04: 상대방 명식 주입 여부 — verify 커플 지칭 승격 판정용.
     # None=미상(레거시 저장분, 승격 비적용) / False=1인 문서(커플 지칭 hard) / True=파트너 有.
     partner_present: bool | None = None
+    # 생시 미상 삼주 계약. known-time 레거시/현행 산출은 기본값을 사용해 직렬화 소비처와
+    # 동작을 깨지 않는다. three_pillar 결과는 빌더가 허용 출처 ID와 PII-free provenance만
+    # 명시하며 후보별 원시 값은 이 모델 표면에 존재하지 않는다.
+    birth_time_mode: str = "known"
+    three_pillar_provenance: dict = Field(default_factory=dict)
+    fact_source_ids: list[str] = Field(default_factory=list)
 
     def section(self, sid: str) -> Section:
         return next(s for s in self.sections if s.id == sid)

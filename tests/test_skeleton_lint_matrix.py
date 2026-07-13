@@ -132,6 +132,7 @@ _ENROLLED_GATE_KEYS = {
     "loanword_clean",
     "raw_calc_head_clean",
     "client_register_clean",
+    "unknown_time_provenance_clean",
     "customer_meta_clean",
     "placeholder_residue_clean",
 }

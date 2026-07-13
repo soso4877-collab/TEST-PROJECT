@@ -927,6 +927,196 @@ def _love_consult_intro(focus: str, near_label: str) -> str:
     )
 
 
+def _build_three_pillar_all(
+    saju,
+    *,
+    ref_year: int,
+    name: str | None,
+    concern_category: str | None,
+    closing_sign: str | None,
+    work_modules: tuple[str, ...] | list[str] | None,
+) -> dict[str, str]:
+    """삼주 결과만으로 만드는 결정론 룰 골격.
+
+    ``ThreePillarMyeongni``에는 의도적으로 시각 의존 필드가 없다. 이 함수는 그 좁은
+    타입 표면만 소비하므로, 정오 기반 옛 ``Myeongni``를 실수로 읽어 시주·자미·용신·
+    신강약·대운을 고객 문안에 섞을 수 없다.
+    """
+
+    from .unknown_time_policy import THREE_PILLAR_NOTICE
+
+    m = saju.three_pillar
+    nm_call = call_name(name)
+    nm_pfx = f"{nm_call}, " if name else ""
+    dm_ko = _GAN_KO.get(m.day_master, m.day_master)
+    day_gz = _gz_ko(m.day.ganzhi)
+    month_gz = _gz_ko(m.month.ganzhi)
+    year_gz = _gz_ko(m.year.ganzhi)
+    geukguk = (m.geukguk or "월령의 틀").split("(")[0]
+
+    # calendar_flow는 계산기가 제공한 세운·월운만 쓴다. 값이 없으면 그 사실을 새로
+    # 만들어 내지 않고 생활 기준 문장만 남긴다.
+    seun_rows = list(getattr(m, "seun", ()) or ())
+    flow_items = [
+        f"{year}년 {_gz_ko(ganzhi)} 흐름"
+        for year, ganzhi in seun_rows
+        if int(year) >= int(ref_year)
+    ][:3]
+    flow_evidence = ", ".join(flow_items)
+    flow_line = (
+        f"계산된 해의 흐름 가운데 가까운 기준은 {flow_evidence}입니다. "
+        if flow_evidence
+        else "해와 달의 흐름은 계산된 달력 사실이 있는 범위에서만 살핍니다. "
+    )
+
+    source_note = (
+        "아래 내용은 확인된 연주·월주·일주와 출생 시간에 따라 달라지지 않는 사실만 "
+        "사용합니다. 시간에 따라 달라지는 내용은 짐작해서 채우지 않고 뺐습니다."
+    )
+    identity_line = (
+        f"일간 {dm_ko}은 풀이에서 자기 중심을 읽는 기준 글자이고, "
+        f"{day_gz}일주는 그 기준이 생활과 관계에서 드러나는 바탕을 보여 줍니다."
+    )
+    month_line = (
+        f"월주 {month_gz}의 월령을 중심으로 본 큰 틀은 {geukguk}입니다. "
+        "이 이름은 좋고 나쁨을 가르는 판정이 아니라 어떤 역할과 환경에서 힘을 쓰는지 "
+        "살피는 분류입니다."
+    )
+
+    intro = (
+        f"{nm_pfx}이번 풀이는 확인할 수 있는 사실과 확인할 수 없는 사실을 먼저 나누었습니다. "
+        f"출생 시간이 확인되지 않은 만큼, 이번 글은 세 기둥에서 분명히 읽을 수 있는 "
+        f"내용에 집중했습니다. {source_note}\n\n"
+        f"{identity_line} {month_line} 읽을 때에는 한 문장을 운명의 확정으로 받기보다, "
+        "현재 선택의 속도와 우선순위를 정리하는 기준으로 써 주세요."
+    )
+    wonguk = (
+        "이번 원국은 확인된 연주·월주·일주만 놓고 읽습니다.\n"
+        f"연주는 {year_gz}, 월주는 {month_gz}, 일주는 {day_gz}입니다. "
+        "연주는 뿌리와 환경, 월주는 성장 과정과 사회적 역할, 일주는 자기 중심과 가까운 "
+        "생활의 바탕을 읽는 자리입니다. 천간은 겉으로 드러나는 기운을 적은 글자이고, "
+        "지지는 그 기운을 받치는 바탕 글자입니다. 세 자리는 따로 떼어 길흉을 단정하지 "
+        "않고 서로 어떤 방향을 보태는지 살핍니다.\n\n"
+        f"{source_note} 따라서 이 장에는 확인되지 않은 세부 자리를 채워 넣지 않았습니다."
+    )
+    nature = (
+        f"{identity_line} 이 중심 글자를 성격표처럼 고정해 읽기보다, 어떤 선택을 할 때 "
+        "자기답게 힘을 쓰는지 살피는 출발점으로 보는 편이 알맞습니다.\n\n"
+        f"연주 {year_gz}와 월주 {month_gz}가 보여 주는 바깥 환경의 결, 일주 {day_gz}가 "
+        "보여 주는 자기 기준을 함께 놓으면, 주변의 기대를 받아들이는 일과 자기 속도를 "
+        "지키는 일을 구분해 볼 수 있습니다. 무리하게 한쪽을 없애기보다 맡을 일과 내려놓을 "
+        "일을 나누는 습관이 이 고정된 사실을 생활에서 쓰는 방법입니다."
+    )
+    frame = (
+        f"{month_line} {m.geukguk_note or ''} 이 틀은 한 가지 직업을 정답으로 고르는 표가 "
+        "아니라, 같은 일을 해도 어떤 역할과 방식에서 오래 버틸 수 있는지 살피는 기준입니다.\n\n"
+        "출생 시간에 따라 달라지지 않는 보조 단서만 남겼습니다. 시간의 영향을 받는 힘의 강약, "
+        "균형을 돕는 기운, 순위와 시작점은 이번 풀이에서 다루지 않습니다. 알 수 없는 부분을 "
+        "좋은 말로 메우지 않는 것이 이번 풀이의 정확도를 지키는 방법입니다."
+    )
+    love = (
+        f"관계에서는 {day_gz}일주가 보여 주는 자기 기준을 먼저 살핍니다. 가까운 사람에게 "
+        "맞추는 일과 자기 경계를 지키는 일을 한꺼번에 해결하려 하면 마음이 쉽게 지칩니다. "
+        "대화가 이어지는지, 약속이 구체적인지, 한쪽만 계속 설명하고 있지는 않은지를 차례로 "
+        "보면 관계의 현재 상태를 더 분명하게 판단할 수 있습니다.\n\n"
+        "좋은 관계는 감정의 크기만으로 정해지지 않습니다. 부탁과 거절, 기다림과 확인, 돌봄과 "
+        "책임이 한쪽으로 굳지 않는지가 중요합니다. 관계가 흔들릴 때는 결론을 서두르기보다 "
+        "지금 확인할 한 가지를 짧게 묻고, 상대의 실제 반응을 본 뒤 다음 속도를 정해 주세요."
+    )
+    work_job = (
+        f"일의 방향은 {month_line} 직업 이름 하나를 맞히기보다, 맡을 역할과 일하는 방식을 "
+        "고르는 데 이 기준을 쓰는 편이 안전합니다. 설명하고 가르치는 역할, 사람을 돌보는 "
+        "역할, 물건과 흐름을 관리하는 역할 가운데 무엇을 오래 유지할 수 있는지 실제 생활의 "
+        "체력과 책임 범위로 좁혀 보세요.\n\n"
+        "새 일을 한꺼번에 넓히기보다 이미 해 본 일에서 반복 가능한 부분과 소모가 큰 부분을 "
+        "나누는 것이 먼저입니다. 수입의 크기만 보지 말고 준비 시간, 사람을 관리하는 부담, "
+        "회복에 필요한 시간을 같은 표에 놓으면 두 번째 일의 조건이 더 구체적으로 보입니다."
+    )
+    work_wealth = (
+        f"재물은 {day_gz}일주의 자기 기준과 월령의 역할을 함께 놓고, 벌기와 지키기의 순서를 "
+        "나누어 보는 영역입니다. 큰 결과를 미리 약속하기보다 고정비, 반복 지출, 변동 수입을 "
+        "따로 적어 지금 조절할 수 있는 폭부터 확인하는 편이 좋습니다.\n\n"
+        "경제적 자유는 특정 해에 저절로 완성되는 사건으로 단정할 수 없습니다. 대신 생활비를 "
+        "지키는 일, 새 수입원을 작은 규모로 시험하는 일, 감당하기 어려운 약속을 늦추는 일을 "
+        "순서대로 두면 불안을 실제 행동으로 바꿀 수 있습니다."
+    )
+    health = (
+        f"몸과 마음의 박자는 {day_gz}일주의 고정된 바탕을 생활 습관과 연결해 살피되, 질환을 "
+        "예측하거나 진단하지 않습니다. 피로가 쌓이는 상황, 쉬어도 회복되지 않는 날, 걱정이 "
+        "생활을 방해하는 때를 기록하면 무엇을 줄여야 하는지 더 일찍 알아차릴 수 있습니다.\n\n"
+        "해야 할 일만 일정에 넣지 말고 쉬는 시간과 정리 시간을 같은 비중으로 두세요. 걷기, "
+        "가벼운 호흡 운동, 손으로 만드는 취미처럼 결과 경쟁이 적고 중간에 멈추기 쉬운 활동은 "
+        "일과 돌봄에서 잠시 거리를 만드는 데 도움이 될 수 있습니다. 불편이 이어지면 명리 풀이가 "
+        "아닌 의료 검진과 상담의 판단을 우선해야 합니다."
+    )
+    flow = (
+        f"{flow_line}이 흐름은 결과를 보장하는 날짜표가 아니라, 일을 밀 때와 살필 때를 나누는 "
+        "달력 기준입니다. 같은 해 안에서도 먼저 정리할 일, 작은 규모로 시험할 일, 다른 사람과 "
+        "합의한 뒤 움직일 일을 구분하면 부담을 한꺼번에 떠안지 않을 수 있습니다.\n\n"
+        "월 단위로 볼 때에는 한 달마다 가장 중요한 일 하나와 반드시 비워 둘 회복 시간 하나를 "
+        "함께 정해 두세요. 계산된 흐름이 있더라도 생활 조건과 몸의 반응이 다르면 속도를 낮추는 "
+        "판단이 우선입니다. 달력의 기운은 선택을 대신하지 않고 점검할 때를 알려 주는 보조 기준입니다."
+    )
+    category = concern_category or "전반"
+    consult = (
+        f"{nm_pfx}신청하신 질문은 {category} 영역을 중심으로 봅니다. 결론부터 말하면, 확인되지 "
+        f"않은 세부 정보로 답을 크게 만들기보다 {day_gz}일주의 자기 기준과 {geukguk}의 역할 "
+        "방식을 바탕으로 선택지를 줄이는 쪽이 맞습니다.\n\n"
+        "먼저 지금 지켜야 할 생활 조건을 적고, 그 조건을 해치지 않는 가장 작은 행동을 하나 "
+        "고르세요. 사람과 함께 정할 일은 혼자 확정하지 말고, 혼자 조절할 수 있는 속도와 휴식은 "
+        "남의 허락을 기다리지 않는 편이 좋습니다. 답이 필요한 때일수록 실행 뒤의 반응을 보고 "
+        "다음 단계를 정하는 방식이 불안을 줄입니다.\n\n"
+        f"{flow_line}이 근거가 허용하는 범위 안에서 선택의 방향과 완급만 나눕니다. "
+        "이 범위를 벗어나는 현실 조건은 이 풀이가 대신 결정하지 않습니다."
+    )
+    closing = (
+        f"{nm_pfx}이번 글에서 분명히 확인한 것은 {year_gz}, {month_gz}, {day_gz} 세 자리와 그에 "
+        "기초한 고정된 사실입니다. 확인되지 않은 부분을 채우지 않았기 때문에 문장이 덜 화려해 "
+        "보일 수 있지만, 선택에 쓰는 기준은 오히려 분명합니다.\n\n"
+        "지금 바로 바꿀 수 있는 한 가지, 조금 더 지켜볼 한 가지, 멈추어야 할 한 가지를 나누어 "
+        "적어 보세요. 풀이의 역할은 결정을 대신하는 데 있지 않고, 무리한 선택을 줄이고 자기 "
+        "속도를 되찾는 데 있습니다."
+        + (f"\n\n{closing_sign}" if closing_sign else "")
+    )
+    appendix = (
+        "용어 풀이\n"
+        "본문에 나온 용어를 한곳에 모아 쉬운 말로 풀었습니다.\n"
+        "연주: 태어난 해를 기준으로 뿌리와 환경을 읽는 자리.\n"
+        "월주: 태어난 달의 절기와 월령을 기준으로 성장 과정과 사회적 역할을 읽는 자리.\n"
+        "일주: 태어난 날을 기준으로 자기 중심과 가까운 생활의 바탕을 읽는 자리.\n"
+        "일간: 일주의 첫 글자로, 풀이에서 자기 중심을 읽는 기준.\n"
+        "격국: 월령을 중심으로 역할과 환경의 큰 틀을 분류한 이름.\n"
+        "세운과 월운: 해와 달 단위로 달라지는 달력의 흐름.\n"
+        "시간 영향이 없는 사실: 출생 시간이 달라도 내용이 바뀌지 않아 남긴 사실."
+    )
+
+    selected_work = ("job", "wealth") if work_modules is None else tuple(work_modules)
+    unknown_work = sorted(set(selected_work) - {"job", "wealth"})
+    if unknown_work or len(selected_work) != len(set(selected_work)):
+        raise ValueError("invalid work module providers")
+    work_map = {"job": work_job, "wealth": work_wealth}
+    work = "\n\n".join(work_map[module_id] for module_id in selected_work)
+    return {
+        "cover": THREE_PILLAR_NOTICE,
+        "intro": intro,
+        "wonguk": wonguk,
+        "nature": nature,
+        "frame": frame,
+        "love": love,
+        "work_job": work_job,
+        "work_wealth": work_wealth,
+        "work": work,
+        "health": health,
+        "flow": flow,
+        "ziwei": "",
+        "together": "",
+        "consult": consult,
+        "closing": closing,
+        "appendix_terms": appendix,
+        "colophon": closing_sign or "확인된 범위 안에서 정직하게 풀었습니다.",
+    }
+
+
 def build_all(
     saju,
     ref_year: int | None = None,
@@ -937,7 +1127,19 @@ def build_all(
     closing_sign: str | None = None,
     is_leap: bool = False,
     work_modules: tuple[str, ...] | list[str] | None = None,
+    birth_time_mode: str | None = None,
 ) -> dict[str, str]:
+    if birth_time_mode == "three_pillar" or getattr(saju, "birth_time_mode", None) == "three_pillar":
+        if ref_year is None:
+            ref_year = int(getattr(saju, "ref_year", 0) or 0)
+        return _build_three_pillar_all(
+            saju,
+            ref_year=ref_year,
+            name=name,
+            concern_category=concern_category,
+            closing_sign=closing_sign,
+            work_modules=work_modules,
+        )
     m, z, x = saju.myeongni, saju.ziwei, saju.crosscheck
     # 호명 = 성 제외('김수하'→'수하님'), '당신' 금지(운영자 지시 2026-06-12).
     nm_call = call_name(name)

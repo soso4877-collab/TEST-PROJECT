@@ -17,6 +17,7 @@ import fitz
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from playwright.sync_api import sync_playwright
 
+from ..content import unknown_time_policy
 from . import charts
 from . import layout
 
@@ -87,19 +88,85 @@ def render_html(
     saju,
     name: str | None = None,
     unknown_time: bool = False,
+    birth_time_mode: str | None = None,
+    three_pillar_provenance: object | None = None,
     brand: dict | None = None,
     chapter_breaks: bool = True,
     body_font_size: str = "14.5pt",
     body_line_height: str = "1.8",
 ) -> str:
-    # 도판 전면 제거(운영자 지시 — 목차+글만). 챕터·번호·차트 변수 미전달.
+    report_mode = birth_time_mode or getattr(report, "birth_time_mode", None)
+    report_provenance = getattr(report, "three_pillar_provenance", None)
+    if report_mode is None and (
+        three_pillar_provenance is not None or report_provenance
+    ):
+        report_mode = unknown_time_policy.THREE_PILLAR_MODE
+    birth_time_mode = unknown_time_policy.normalize_mode(
+        report_mode,
+        unknown_time=unknown_time,
+    )
+    three_pillar = birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
+    provenance = (
+        three_pillar_provenance
+        if three_pillar_provenance is not None
+        else report_provenance
+    )
+    unknown_time_policy.assert_unknown_time_provenance_clean(
+        report.sections,
+        birth_time_mode=birth_time_mode,
+        provenance=provenance,
+        source="render_html",
+    )
+    # known-time 도판 정책은 그대로 유지한다. 삼주만 확정된 문서는 고객이 빠진 자리를
+    # 오해하지 않도록 원국 장에 연·월·일 3열 표를 한 번 넣는다.
     # 본문은 빈 줄 기준 문단 분할 → 템플릿 <p> 렌더(단문 호흡 보존 + tagged 구조 개선).
     # brand = config.brand() 프로필(다계정 — 표지 표제·세로 박스 가변).
     brand_profile = _require_brand(brand)
-    secs = [
-        {"id": s.id, "title": s.title, "paragraphs": _split_paragraphs(s.final_text)}
-        for s in report.sections
-    ]
+    chart_anchor_index = None
+    if three_pillar:
+        # 정상 개인/통합 경로는 wonguk 장에 붙인다. integrated sparse 병합이 짧은
+        # personal_wonguk를 앞 장에 합쳐 ID를 없앤 경우에는 첫 고객 노출 개인 장을 쓴다.
+        # index를 먼저 하나만 고정해 중복 ID가 있더라도 도판은 정확히 한 번만 삽입한다.
+        chart_anchor_index = next(
+            (
+                index
+                for index, section in enumerate(report.sections)
+                if str(section.id).removeprefix("personal_") == "wonguk"
+            ),
+            None,
+        )
+        if chart_anchor_index is None:
+            chart_anchor_index = next(
+                (
+                    index
+                    for index, section in enumerate(report.sections)
+                    if str(section.id).startswith("personal_")
+                ),
+                None,
+            )
+        if chart_anchor_index is None:
+            chart_anchor_index = next(
+                (
+                    index
+                    for index, section in enumerate(report.sections)
+                    if str(section.id) not in {"cover", "toc"}
+                ),
+                None,
+            )
+
+    secs = []
+    for index, section in enumerate(report.sections):
+        chart_svg = ""
+        if index == chart_anchor_index:
+            chart_svg = charts.three_pillar_table(saju.three_pillar)
+        secs.append(
+            {
+                "id": section.id,
+                "title": section.title,
+                "paragraphs": _split_paragraphs(section.final_text),
+                "chart_svg": chart_svg,
+            }
+        )
     # 목차 재넘침 방어(T3.5a): 목차 행(표지·목차 제외)이 단일 열 용량(_TOC_SINGLE_COL_MAX,
     # 실측 14행/페이지)을 넘으면 2단 목차로 전환해 1페이지 유지(행 크기 보존, 운영자 결정).
     toc_row_count = sum(1 for s in secs if s["id"] not in ("cover", "toc"))
@@ -113,8 +180,12 @@ def render_html(
         brand_title=brand_profile["cover_title"],
         brand_seal=brand_profile["seal"],
         cover_name=_clean_cover_text(f"{name} 님") if name else "",
-        cover_sub=_clean_cover_text(
-            f"{saju.input_civil}" + ("  (생시 미상·추정)" if unknown_time else "")
+        cover_sub=(
+            _clean_cover_text(str(saju.input_civil_date))
+            + "\n"
+            + unknown_time_policy.THREE_PILLAR_NOTICE
+            if three_pillar
+            else _clean_cover_text(f"{saju.input_civil}")
         ),
         sections=secs,
         chapter_breaks=chapter_breaks,
@@ -153,6 +224,8 @@ def render_pdf(
     out_name: str = "saju_report.pdf",
     name: str | None = None,
     unknown_time: bool = False,
+    birth_time_mode: str | None = None,
+    three_pillar_provenance: object | None = None,
     brand: dict | None = None,
     chapter_breaks: bool = True,
     body_font_size: str = "14.5pt",
@@ -170,6 +243,8 @@ def render_pdf(
         saju,
         name=name,
         unknown_time=unknown_time,
+        birth_time_mode=birth_time_mode,
+        three_pillar_provenance=three_pillar_provenance,
         brand=brand_profile,
         chapter_breaks=chapter_breaks,
         body_font_size=body_font_size,
