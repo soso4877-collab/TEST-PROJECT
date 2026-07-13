@@ -1,3 +1,275 @@
+# 교차 리뷰 — 2026-07-13 (라운드 22, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `084e04c` 위) 라운드21 잔존 1건 수정분(test_p8 무공백 정규화) · 구현자: Codex · 지시문: `handoff/tasks/beta-2-round21-blocker-fix-20260713.md` (SHA `db54f027…dd46`)
+
+## 최종 판정: **승인(CODE_PASS)** — 기준환경 전체 pytest **1036 passed / 4 skipped / exit 0** (beta-2 삼주 태스크 최초 전체 GREEN). 삼주 E2E 실렌더가 skip 아닌 실행으로 게이트+후단 계약 전부 통과. 미해결 블로커 0.
+
+### 실측
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 수정 내용 | test_p8.py 101-125행 — 추출문·고지 상수·양성 3토큰(年柱 등)·금지 9토큰 전부 무공백(`re.sub(r"\s+", "", …)`) 기준 판정 + 사유·fail-closed 과탐 주석. 생성 인자·게이트 단언·제품 코드·조판 무변경 — 패킷 §1 사양 그대로 | ✓ |
+| 변경 집합 | **SHA 증명**(라운드21 종료 vs 라운드22 시작 스냅샷 전수 대조): 경계 54파일 중 변경 = `tests/test_p8.py` 정확히 1개. 인계 3종 외 그 외 변경 0. 동결 핀 5종 불변 | ✓ |
+| 전체 pytest | **1036 passed / 4 skipped / exit 0** (229.8s) — 라운드21 1035+1(E2E 전환), 기존 감소 0 | ✓ |
+| test_p8 실렌더 | 3/3 PASSED (solar·leap·unknown_time 전부 Playwright 실행, 26.7s — skip 아님) | ✓ |
+| golden | 28 passed | ✓ |
+| 정적 | 변경 38파일 합집합: Ruff 부채 rules.py 17 + verify.py 1(구성 동일·신규 0) · py_compile exit 0 · `git diff --check` exit 0 | ✓ |
+| 절차 | manifest validate exit 0(Codex write 성공) · REVIEW-FEEDBACK 라운드 절 구조 불변 · 리뷰어 제품/테스트 무수정 | ✓ |
+
+### 실행한 검증 명령
+```
+node handoff.mjs validate                                  → HANDOFF_VALID / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q             → 1036 passed / 4 skipped / exit 0 (229.8s)
+./.venv/Scripts/python.exe -m pytest tests/test_p8.py -v   → 3 passed (unknown_time 포함 전부 실렌더 PASSED)
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden   → 28 passed
+./.venv/Scripts/python.exe -m ruff check / py_compile (38) → 부채 18(구성 동일·신규 0) / exit 0 · git diff --check → exit 0
+Get-FileHash(.ps1) 스냅샷 전수 대조                          → 라운드21 종료 대비 변경 = test_p8.py 1개뿐
+```
+
+### 미검증(정직 보고)
+- 실제 Anthropic API·고객 주문 PDF·실상품 재생성·hrun·hsweep·300dpi·육안 Z=0 — 이 판정은 CODE_PASS 교차리뷰 범위다. pytest 합성 산출물 외 PDF 생성 0. commit·push·API 없음.
+- checkpoint 시 운영자 확인 3건(누적): ① 스코프 밖 변경 2건(라운드18 rules 문구 순화·order_flow enum 정본화)의 "운영자 추가 승인" 주장 ② 삼주 delivery 하한 12쪽/3,500자 수치 ③ 표지 고지 음절 중간 개행 조판(word-break: keep-all 후보, advisory).
+
+다음: Codex 신선 read-only 확인 → PASS 시 운영자 checkpoint commit 결정(위 확인 3건 포함). API·유료 재생성·commit·push 금지 유지.
+
+---
+---
+
+# 교차 리뷰 — 2026-07-13 (라운드 21, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `084e04c` 위) 라운드20 잔존 블로커 3건 수정분 · 구현자: Codex · 지시문: `handoff/tasks/beta-2-round20-blockers-fix-20260713.md` v2 (SHA `04d5ee5f…d59d`)
+
+## 최종 판정: **수정 요청(changes_requested)** — 라운드20 블로커 3건(style·quality·delivery)은 제품 수준에서 전부 해소 실측(**gate_pass=True**). 잔존 1건은 **테스트 전용 잠복 결함**(test_p8 정규화 방식)으로, 게이트가 처음 통과한 이번 라운드에야 처음 실행된 단언이다. 제품 코드 수정 불요.
+
+### 라운드20 블로커 처리 실측 (전부 완결)
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| B1 style | `three_pillar_table` 공백 join(charts.py:317·321, manse_table 불가침) + 부록 "세운과 월운"·마커 "본문에 나온" 추가(rules.py:1083·1089). E2E 동일 입력 verify: `style_clean=True`. PDF 실측: 표지 고지(불가침) 외 전 페이지 가운뎃점 0, 부록 구역 제외 적용 | ✓ |
+| B2 quality | frame "이번 풀이에서 다루지 않습니다"(rules.py:1014) — `quality_clean=True`, final_text 매트릭스 전 섹션 quality 0 | ✓ |
+| B3 delivery | `analyze(birth_time_mode=None)` 신설 + verify:722 배선 + 명시 three_pillar만 12쪽/3,500자·`missing_usable_ziwei` 면제(delivery_quality.py:800·863-872·933). `delivery_quality_clean=True`·failures=[] 실측. 3방 회귀 실재(통과 14쪽/4,600자·차단 8쪽/2,000자+보장표현·비악화 None==known dict 완전 동일+known ziwei 요구 유지) + 배선 spy 테스트 | ✓ |
+| §4 회귀 | final_text 전 섹션 × quality/style 0(리뷰어 독립 프로브 동일 재현: 14섹션 전부 DOTS/STYLE/QUALITY 0) + 차단측 2건 + 차트 `·` 0 단언 + 층 구분 도크스트링 | ✓ |
+| §5 QI | `QI-2026-07-13-01` docs/16 기록(2층 원인·재발 방지·PII 0) | ✓ |
+| 게이트 비악화 | GATE_KEYS 무변경, lint 4파일(style/quality/customer_meta/client_tone) git 무수정, verify 변경 = analyze 인자 전달 1곳 | ✓ |
+
+### 잔존 블로커 (신규 발견 — 테스트 전용)
+
+1. **`tests/test_p8.py:101-115` 공백 보존 정규화가 한국어 음절 중간 개행을 복원하지 못함**
+   - 실측: 전체 pytest **1 failed / 1035 passed / 4 skipped / exit 1**. 실패 = `test_e2e_unknown_time` `assert 0 == 1`(102행 고지 카운트). 원인: 표지에서 고지가 "…세부 해석"|"은 제외했습니다."로 **음절 중간 줄바꿈** → 추출 텍스트 "해석\n은" → `" ".join(text.split())`이 단어 내부 개행을 "해석 은"으로 만들어 상수(65자, 바이트 동일)와 불일치.
+   - 제품 정상 실측: **공백 전제거 기준 고지 정확 1회·금지 토큰 9종 전부 0**. HTML 층 고지 1회 테스트도 GREEN. 즉 계약 위반 없음 — 카운트 방법만 조판 현실과 불일치.
+   - 이 단언은 라운드18에 작성됐으나 게이트 실패로 한 번도 도달한 적이 없던 잠복 결함(게이트 통과 후에만 실행되는 코드 + Codex 환경 E2E skip).
+   - 수정 방향(테스트만): 101-115행 판정을 **무공백 기준**(`re.sub(r"\s+", "", …)`)으로 — 고지 카운트·"年柱" 등 양성 단언(2자 한자 토큰도 같은 개행 취약, 인접)·금지 스캔 전부. 금지 스캔의 무공백화는 어절 경계 결합 과탐 가능성이 있으나 fail-closed 방향이라 허용(도크스트링에 명시). 제품·게이트 수정 금지.
+   - advisory(비차단): 표지 고지의 음절 중간 개행 자체는 조판 품질 사안(`word-break: keep-all` 후보) — 운영자 육안 검수 시 판단, 이번 스코프 아님.
+
+### GREEN 실측 / 실행한 검증 명령
+```
+node handoff.mjs validate                                  → HANDOFF_VALID / exit 0 (Codex write 성공 — 직전 GIT_COMMAND_FAILED 재발 없음)
+./.venv/Scripts/python.exe -m pytest tests/ -q             → 1 failed / 1035 passed / 4 skipped / exit 1 (217.9s; +3 신규, 기존 감소 0, 실패는 위 1건뿐)
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden   → 28 passed
+./.venv/Scripts/python.exe -m pytest (집중 4파일) -q        → 82 passed / 1 failed (동일 재현)
+r20_diag(-m, 합성): verify 전체 덤프                        → gate_pass=True, False 키 = layout_geometry_skipped·verapdf(비게이트, 7.1-3 비악화)뿐, DQ_FAILURES=[]
+r20_finaltext(-m): 빌더 final_text 14섹션                   → DOTS/STYLE/QUALITY 전부 0
+r21_nospace(-m): 무공백 기준                                → 고지 1회 / 금지 9종 0 (제품 정상 확정)
+Ruff(38 합집합) → 부채 rules.py 17 + verify.py 1(구성 동일·신규 0) · py_compile exit 0 · git diff --check exit 0
+경계 스냅샷 53파일 시작 수집 + 동결 핀 4종·REVIEW-FEEDBACK 불변 확인(종료 대조는 기록 후)
+```
+
+### 미검증(정직 보고)
+- 실LLM·고객 PDF·비용·hsweep K/Z·300dpi·육안 Z=0 동일. pytest·진단 프로브 합성 산출물 외 PDF 생성 0. commit·push·API 없음.
+- 스코프 밖 변경 2건 플래그·삼주 delivery 하한 수치(12쪽/3,500자) 최종 확인은 checkpoint 시 운영자 몫.
+
+다음: Codex가 잔존 1건(test_p8 무공백 정규화)만 수정 → Claude 라운드22 재검증(전체 GREEN 기대) → Codex 신선 read-only 확인 → 운영자 checkpoint commit.
+
+---
+---
+
+# 교차 리뷰 — 2026-07-13 (라운드 20, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `084e04c` 위) 라운드19 잔존 블로커 수정분 · 구현자: Codex · 지시문: `handoff/tasks/beta-2-round19-blocker-fix-20260713.md` (+ REVIEW-FEEDBACK 라운드19 절)
+
+## 최종 판정: **수정 요청(changes_requested)** — 패킷 범위(wonguk 문장 치환 + 골격×meta 회귀)는 사양대로 완결이나, E2E는 라운드19 리뷰가 열거하지 못했던 별개 게이트 3키로 여전히 RED. 잔존 블로커 3건(그중 1건은 운영자 정책 결정 선행 필요).
+
+### 패킷 이행 실측 (Codex 구현 자체 = 사양 충족)
+
+- `rules.py:999` "함께 읽습니다" → "살핍니다" 1곳 치환 확인, "세 자리를 따로 떼어 길흉 단정하지 않는다" 관법 의미 보존. repo 전체 "함께 읽습니다" 잔존 0. `customer_meta_lint.py`·`client_tone_lint.py`·`temporal_lint.py`는 git 기준 전 라운드 통틀어 무변경(lint 완화·예외 추가 0).
+- 신규 회귀 `test_unknown_time_provenance_gate.py::test_three_pillar_rule_skeletons_do_not_conflict_with_final_text_lints`: 실계산(`engine.build` 삼주) 골격 전 키 × customer_meta/loanword/raw_calc == [] + 차단측(수정 전 문장 → `guided_structure_walkthrough` 정확 1건) 양방 단언 + 도크스트링(검증 범위/비범위·라운드19 실사고 근거) — 패킷 §2 사양 충족, 기준환경 GREEN.
+- 리뷰어 독립 프로브(합성, PII 0, venv -m 형식): SKELETON_KEYS=17 전수 HITS=0, **TOTAL_HIT_RULES=0**, 차단측 `guided_structure_walkthrough` 재현. E2E verify 실측에서도 `ai_meta_hits=[]`·`customer_meta_clean=True` — 라운드19 잔존 충돌 자체는 해소.
+
+### 잔존 블로커 (라운드19 리뷰의 열거 누락 — E2E gate_pass=False 지속)
+
+전체 pytest = **1 failed / 1032 passed / 4 skipped / exit 1**(216.4s). 실패 = `test_p8.py::test_e2e_unknown_time` 단건, 집중 재실행 동일 재현(결정론). 동일 합성 입력의 verify 전체 덤프로 게이트 실패 키 3개를 실측 열거(모두 GATE_KEYS 구성원, verapdf 7.1-3은 비게이트·기존 비악화):
+
+1. **style_clean=False — `ai_signature_punctuation` 2건 (가운뎃점)**
+   - 4쪽: 삼주 명식표 `charts.py:317·321`이 지장간·지지십성을 `"·".join`으로 나열 — 대조 실측: known E2E PDF 2건(e2e_pipeline·e2e_p8_solar)은 **전 페이지 가운뎃점 0**. 삼주 차트가 고객 본문 페이지에 가운뎃점을 신규 도입한 결함.
+   - 13쪽: 삼주 부록 골격 "세운·월운"(`rules.py:1088`) + 삼주 부록에 verify 부록 구역 마커 문구 "본문에 나온"(`verify.py:117 _APPENDIX_MARK`)이 없어 **부록 제외 자체가 미적용**(이중 결함 — 전문용어 허용·저밀도 제외 등 부록 구역 정책 전반에 영향).
+   - 표지(1쪽)의 고정 고지 "연·월·일"은 표지 제외 구역이라 비발화 — 고지 문안(불변규칙 8, 운영자 확정)은 변경 대상 아님.
+   - 수정 방향: 차트 구분자를 known 경로와 정합하게 제거/치환 + 부록 골격 문구 재서술("세운과 월운" 등) + 부록 도입부에 구역 마커 규약 반영. 게이트/lint 수정 금지.
+2. **quality_clean=False — `internal_meta_label` 1건**
+   - 6쪽 frame 골격 "…순위와 시작점은 **이 장에서** 말하지 않습니다"(`rules.py:1013-1015`). 문장 재서술 필요. 인접: wonguk "이 장에는"(`rules.py:1000`)은 현재 패턴 비매치(실측 hit 1건뿐)이나 같은 클래스 — 수정 시 인접 동반 점검.
+3. **delivery_quality_clean=False — failures 3건 (운영자 정책 결정 선행 필요)**
+   - `premium_pages`(14 < 20) · `premium_text_chars`(4,615 < 10,000) · `missing_usable_ziwei`(자미 마커 0).
+   - 삼주 상품은 자미 서술 자체가 금지(불변규칙 8)라 missing_usable_ziwei는 **구조적으로 충족 불가**, 분량도 시간 의존 챕터 제외로 known 프리미엄 하한과 양립 불가 — 골격 문장 수정으로 해결되지 않는다.
+   - 필요 결정: 삼주 상품 클래스 전용 delivery 프로파일(분량 하한·자미 요구 재정의) 신설 vs 삼주 콘텐츠 확충/상품 재정의. 게이트 기준 변경이므로 **운영자 승인 + (정상 통과/결함 차단) 양방 회귀 필수** — Codex 단독 수정 불가.
+   - 참고(비차단): 반복어 "흐름" 14회·"중심" 11회(>8)는 `domain_term_repetition` warning 전용(FAIL 승격어는 "또렷"뿐), `premium_low_density_pages`는 실주문(has_customer_context) 경로에서 failure로 승격되는 구조 — 현재 low_density_pages=[].
+
+### 근본원인 2층 (왜 라운드19가 "잔존 1건"으로 오판했나)
+
+- 라운드19 리뷰는 E2E 실패를 pytest assertion repr(절단 출력)로만 진단해 첫 실패 축(customer_meta)만 열거했다 — 같은 시점에 style/quality/delivery도 이미 False였다(분량·문구 동일). **재발 방지(리뷰 절차): E2E 게이트 실패 시 verify 전체 False 키 덤프를 표준 진단 절차로 고정**(이번 라운드 진단 프로브 방식). docs/16 QI 기록 추가는 리뷰어 파일 경계 밖 — checkpoint 시 운영자/구현자 몫.
+- 신규 매트릭스 회귀는 3개 lint 군만 커버 — verify가 소비하는 문안 lint(`style_lint` 시맨틱·quality `internal_meta_label`)로 확장해야 같은 클래스 재발을 차단한다(비Playwright 가능). 분량/구성(delivery)은 렌더 의존이라 회귀 설계 별도.
+
+### GREEN 실측
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 전체 pytest | 1 failed / **1032 passed** / 4 skipped / exit 1 — 라운드19 1031 대비 +1(신규 회귀), 기존 passed 감소 0, 실패는 위 E2E 단건뿐 | 부분 |
+| golden | 28 passed / exit 0 | ✓ |
+| 집중 3파일 | 39 passed + 동일 1 failed | 부분 |
+| 정적 | 변경 Python 36(합집합) py_compile exit 0 · Ruff 18건 = rules.py 17 + verify.py 1(라운드19와 동일 구성, 신규 0) · `git diff --check` exit 0 | ✓ |
+| 절차 | manifest validate exit 0 · packet/notes/review SHA 핀 일치 · 보류 패킷 `b981a996…5819` 불변 · 경계 스냅샷 50파일 시작 수집(종료 대조는 기록 후) · 리뷰어 제품 코드 무수정 | ✓ |
+
+### 실행한 검증 명령
+```
+node handoff.mjs validate                                  → HANDOFF_VALID / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q             → 1 failed / 1032 passed / 4 skipped / exit 1 (216.4s)
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden   → 28 passed / exit 0
+./.venv/Scripts/python.exe -m pytest (집중 3파일) -q        → 39 passed / 1 failed (동일 재현)
+./.venv/Scripts/python.exe -m r20_probe (scratchpad, -m)   → 17키 전수 0 / TOTAL_HIT_RULES=0 / 차단측 재현
+./.venv/Scripts/python.exe -m r20_diag (scratchpad, -m)    → gate 실패 키 3개 + delivery failures 3건 실측
+./.venv/Scripts/python.exe -m ruff check / py_compile (36) → 부채 18(구성 동일·신규 0) / exit 0 · git diff --check → exit 0
+known E2E PDF 가운뎃점 분포 대조(PyMuPDF, 읽기 전용)        → known 2건 전 페이지 0 vs 삼주 1·4·13쪽 발화
+Get-FileHash(.ps1): 시작 스냅샷 50파일 + 핀 4종 대조 일치
+```
+
+### 미검증(정직 보고)
+- 라운드19 종료 SHA 스냅샷이 세션 소멸로 부재 — "이번 수정 라운드 변경 = 정확히 rules.py+테스트 1+인계 3종"의 SHA 증명은 불가. 보완 증거(Ruff 부채 구성 동일·lint/게이트 파일 git 무변경·신규 테스트 전문 리뷰·프로브 재현)로 대체했고 Codex 자진 보고와 정합. 라운드 종료 스냅샷의 세션 밖 영속화는 운영자 결정 사항으로 제안.
+- 실제 Anthropic API·고객 주문 PDF·실상품 재생성·hrun·hsweep 미실행 — compose 실품질·비용·조판·hsweep K/Z·육안 Z=0 확정 불가. pytest·진단 프로브의 합성 테스트 산출물 외 PDF 생성 0.
+- 스코프 밖 변경 2건(라운드18 rules 문구 순화·order_flow enum 정본화)의 "운영자 추가 승인" 주장은 계속 확인 불가 — checkpoint commit 시 운영자 확인.
+
+다음: ① 운영자 — 블로커 3(delivery 프로파일) 정책 결정. ② 결정 후 Codex 수정 패킷(블로커 1·2 골격/차트/부록 마커 + 매트릭스 회귀를 style_lint·quality lint로 확장) → Claude 라운드21 재검증. API·유료 재생성·commit·push 금지 유지.
+
+---
+---
+
+# 교차 리뷰 — 2026-07-13 (라운드 19, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `084e04c` 위) 라운드18 블로커 수정분 · 구현자: Codex · 지시문: `handoff/tasks/beta-2-round18-blockers-fix-20260713.md` (+ REVIEW-FEEDBACK 라운드18 절)
+
+## 최종 판정: **수정 요청(changes_requested)** — 블로커 4건 중 B2·B3·B4 완결, B1은 테스트 갱신 자체는 올바르나 복구된 E2E가 라운드18부터 잠복해 있던 제품 결함 1건을 새로 적발. 잔존 블로커 1건만 수정.
+
+수정 라운드 변경 파일 실측(라운드18 종료 스냅샷과 SHA 대조) = 정확히 8파일 + 리뷰어 지시문 패킷 1: `tests/test_p8.py`, `sajugen/render/pdf.py`, `sajugen/content/llm_sections.py`, `sajugen/content/rules.py`, `sajugen/order_flow.py`, 테스트 3파일. REVIEW-FEEDBACK·동결 패킷 2·보류 패킷 SHA 전부 불변 — Codex 자진 보고 목록과 일치.
+
+### 잔존 블로커 (미해결 — Codex 수정 필요)
+
+1. **삼주 wonguk 골격 문장이 기존 AI-meta 게이트와 충돌 — E2E `gate_pass=False`**
+   - 실측: `pytest tests/ -q` → **1 failed / 1031 passed / 4 skipped / exit 1**. 실패 = `test_p8.py::test_e2e_unknown_time`, 이번에는 경계 차단이 아니라 `_assert_gate`: `ai_meta_hits = [{rule: guided_structure_walkthrough, page: 4, count: 1}]` → `customer_meta_clean=False`. 집중 재실행에서도 동일 재현(결정론).
+   - 원인: `sajugen/content/rules.py:999` wonguk 골격 "…서로 어떤 방향을 보태는지 **함께 읽습니다**"가 `customer_meta_lint.py:31`의 `guided_structure_walkthrough` 패턴(`함께\s*읽습니다`)에 정확히 매치. 이 문장은 라운드18 구현부터 있었으나 당시엔 E2E가 경계 차단으로 먼저 죽어 게이트까지 도달하지 못했고, 빌더 pre-render 벨트(`_customer_policy_lints`)에 customer_meta 계열이 없어 최종 PDF verify에서만 발화한다("유닛 GREEN ≠ 실경로 안전" 클래스). 라운드18 리뷰도 골격 텍스트를 meta 패턴과 전수 대조하지 않아 놓쳤다.
+   - 사각 인접 전수 프로브(리뷰어 실측): 삼주 골격 17개 키 전부 × customer_meta_lint 8룰 → 충돌은 **wonguk 1건뿐** (`TOTAL_HIT_RULES=1`). 수정 범위는 문장 1곳으로 특정됨.
+   - 수정 방향: (a) rules.py:999 문장을 meta 패턴 비충돌 표현으로 재서술(게이트 완화 금지 — lint 수정이 아니라 골격 수정). (b) **근본원인 2층**: 삼주 골격 전 섹션 × `customer_meta_lint` clean을 고정하는 비Playwright 단위 회귀를 동반 — Codex 환경에서 E2E가 skip이므로 이 회귀 없이는 같은 클래스가 재발한다.
+
+### 라운드18 블로커 처리 실측 (B2·B3·B4 완결, B1 부분)
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| B1 test_p8 갱신 | 비절입일 `2000-01-15` + 레거시 `12:00+unknown_time=True` 정규화 겸증 + 정확 고지 1회·금지 토큰 9종 0 단언 — 테스트 설계는 지시문 사양 충족. 단 위 잔존 블로커로 E2E 자체는 아직 RED | 부분 |
+| B2 원국표 배선 | `pdf.py` anchor 단일 index 고정(wonguk→personal_* 폴백→첫 고객 장, 정확 1회) + known은 anchor 없음. 실빌드 테스트로 integrated 삼주 표 1회·고지 1회·時柱 0, content.json 라운드트립 복원 소비, known integrated 표 0 전부 실재·GREEN | ✓ |
+| B3 compose 상충 제거 | `_THREE_PILLAR_SYSTEM_REPLACEMENTS` 9쌍 결정론 치환(원문 count!=1이면 import-time RuntimeError — 드리프트 fail-closed). known `_COMPOSE_SYSTEM` 바이트 불변을 SHA-256 `a17f90fb…380a` 핀으로 고정. SDK 경계 캡처 양방 테스트: 삼주 = 중립 시스템+override+cache 블록 구조·금지 긍정 지시 4종 부재·user 근거 축소, known = 블록/user 바이트 동일·override 부재. `_LAYER_WEAVE`(자미 겹쳐 읽기)는 known 가이드 전용으로 삼주 미전달 확인 | ✓ |
+| B4 경계 테스트 3건 | 소서 1995-07-07 차단+07-06/08 통과 · three_pillar+시각 접수 ValueError+주문 0 · 레거시 known(mode 키 없음, legacy false 유무 parametrize) KNOWN 복원+최종 발급 통과 — 전부 실재·GREEN | ✓ |
+| 스코프 밖 변경(자진 보고 2건) | `rules.py` "추정값" 문구 순화(B1 단언 `추정` 0과 정합에 필요) · `order_flow.py` create_order 정규화 1블록(명시 enum일 때 가짜 legacy boolean 합성 중단 — 양쪽 다 fail-closed 유지, 오류 정밀도만 개선, B4-2 단언에 필요). 변경 자체는 최소·비악화 실측 GREEN. **Codex가 주장한 "운영자 추가 승인"은 리뷰어가 확인 불가 — 운영자 확인 필요** | 플래그 |
+| 기준환경 | 전체 **1 failed / 1031 passed / 4 skipped / exit 1**(232.6s) — 라운드18 1022 대비 +9, 기존 감소 0, 실패는 위 잔존 1건뿐. golden **28** · 집중 6파일 **124 passed + 동일 1 failed** | 부분 |
+| 정적 | 변경 Python 36(합집합) — 부채 2파일 제외 34 Ruff GREEN, 부채 18건 HEAD 동일 구성(신규 0) · py_compile 36 exit 0 · `git diff --check` exit 0 | ✓ |
+| 절차 | packet/notes/review SHA manifest MATCH · 보류 패킷 `b981a996…5819` 불변 · 경계 스냅샷 49파일 시작 수집(종료 대조는 기록 후) · 리뷰어 제품 코드 무수정 | ✓ |
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 1 failed / 1031 passed / 4 skipped / exit 1 (잔존 블로커)
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed / exit 0
+./.venv/Scripts/python.exe -m pytest (집중 6파일) -q       → 124 passed / 1 failed (동일 재현)
+./.venv/Scripts/python.exe -m ruff check / py_compile (36파일) → 신규 0 / exit 0 · git diff --check → exit 0
+삼주 골격 17키 × customer_meta_lint 전수 프로브(합성, PII 0) → HIT wonguk guided_structure_walkthrough 1건뿐
+Get-FileHash(.ps1): 스냅샷 대조 — 수정 파일 8 + 지시문 1 외 변경 0
+```
+
+### 미검증(정직 보고)
+- 실제 Anthropic API·고객 주문 PDF·실상품 재생성·hrun·hsweep 미실행 — compose 실품질·prompt cache·비용·조판·hsweep K/Z·육안 Z=0 확정 불가. pytest 합성 테스트 산출물 외 PDF 생성 0.
+- 스코프 밖 변경 2건의 "운영자 추가 승인" 주장은 세션 밖 사실이라 확인 불가 — checkpoint commit 결정 시 운영자 확인 필요.
+
+다음: Codex가 잔존 블로커 1건만 수정(rules.py:999 문장 재서술 + 골격×meta lint 비Playwright 회귀) → Claude 라운드20 재검증. 통과 시에만 Codex 신선 read-only 확인 → 운영자 checkpoint commit.
+
+---
+---
+
+# 교차 리뷰 — 2026-07-13 (라운드 18, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `084e04c` 위, tracked 41파일 +1712/-246 + 현 태스크 신규 8파일) · 구현자: Codex · 지시문: `handoff/tasks/beta-2-unknown-time-three-pillar-20260712.md` (생시 미상 삼주 전환·12지지 민감도·출처 게이트)
+
+## 최종 판정: **수정 요청(changes_requested)** — 설계·배선·게이트·문서 정합은 광범위하게 GREEN이나, 기준환경 pytest exit 1(기존 테스트 1건 회귀)을 포함한 블로커 4건. 아래 미해결 항목만 수정.
+
+판정 범위는 CODE_PASS 교차리뷰다. 실제 API·고객 PDF·300dpi 조판·비용·hsweep K/Z·육안 Z=0은 판정 밖(여전히 확정 불가). 전체 pytest에 포함된 합성 PDF 렌더 테스트(test_p8·test_consistency·test_harness 등)가 만드는 **합성 테스트 PDF/HTML 산출은 운영자 승인 예외**이며, 고객 주문 PDF·실상품 pipeline 재생성·API 호출은 0.
+
+### 블로커 (미해결 — Codex 수정 필요)
+
+1. **기준환경 전체 pytest exit 1 — `tests/test_p8.py::test_e2e_unknown_time` FAILED (기존 passed 감소 1)**
+   - 실측: `pytest tests/ -q` → **1 failed / 1022 passed / 4 skipped / 207.2s / exit 1**. 수용 기준 §8(exit 0, 기존 passed 감소 0) 위반.
+   - 원인: `tests/test_p8.py:78`은 구계약 테스트 — 1995-07-07(**소서 절입일**)을 `unknown_time=True`+정오로 생성하고 `"추정" in text`(구 고지)와 자미 미렌더를 단언한다. 새 계약에서 (a) 절입일이라 `NEEDS_INFO_TIME_BOUNDARY`로 차단되고, (b) 날짜를 바꿔도 `추정` 고지 자체가 제거된 계약이라 단언이 이중으로 무효다. 이 파일은 수정 목록에 없다.
+   - Codex 환경에서 미관측된 이유: playwright 계열 32건 skip(995/32) — 이 테스트가 그 안에 있었다. 기준환경(4 skip)에서만 발화.
+   - 수정 방향: test_p8을 새 계약으로 갱신(비절입 날짜 + 정확 고지 문자열 + 3열/시주 부재 단언). 부수 효과로 이 실패는 비입춘 절입 차단이 실경로에서 작동함을 실증했다.
+
+2. **integrated_full 삼주 원국표 팬텀 배선 — 3열 표가 실제로 렌더되지 않음 (A-5 소비처 미배선 클래스)**
+   - 실측: 원국표 삽입 조건은 `sajugen/render/pdf.py:128` `section.id == "wonguk"` 하나뿐인데, integrated 조립 섹션 ID는 `sajugen/integrated.py:117,256`의 `_copy_section(prefix="personal")`로 전부 `personal_wonguk`이 된다 → 조건이 영구 False.
+   - 결과: `_render_integrated`의 `fake_saju.three_pillar` 배선(integrated.py:501), 재렌더용 `three_pillar_chart` 영속·`_three_pillar_from_chart_data` 복원 헬퍼가 전부 **받기만 하고 소비되지 않는다**. integrated_full(삼주 주문의 주력 상품) 고객 PDF에 원국표가 없다 — 패킷 §4·notes "3열 원국표" 주장과 불일치. personal 경로(`wonguk` 비프리픽스)만 표가 들어간다(테스트 실재).
+   - 수정 방향: 조건을 raw ID 기준(`removeprefix("personal_")` 등)으로 확장 + integrated 삼주 고객 표면 테스트(3열 표 존재 + 정확 고지 1회 + 時柱 0)를 동반. 게이트 완화 없음.
+
+3. **삼주 compose의 상충 시스템 지시 + override 배선 캡처 테스트 부재 (운영자 교정 4호 렌즈)**
+   - 실측: `_COMPOSE_SYSTEM`(sajugen/content/llm_sections.py:46 "사주·자미두수 상담가" 페르소나, :108 "사실 토큰(간지·연도·신살·**궁 이름**)을 챕터당 충분히 호명", :154-157 "자미두수 궁 이야기를 …같은 호흡 안에서 겹쳐")이 삼주 compose에도 그대로 1블록으로 전달되고, 뒤의 `_THREE_PILLAR_SYSTEM_OVERRIDE`(:252)가 이를 금지한다. 금지 사실을 쓰라는 긍정 지시가 남은 채 뒤에서 덮는 구조 — 모델이 궁/자미 표현을 내면 후보 lint가 죽이고 재시도→룰 폴백을 **유도할 수 있다**(fail-closed라 고객 유출은 없으나 품질·비용 방향). 실LLM 미검증이므로 유도 빈도는 확정 불가.
+   - 배선 사각: `_compose_system_blocks`의 override 분기 자체를 단언하는 테스트가 0(`grep _THREE_PILLAR_SYSTEM_OVERRIDE tests/` 무매치) — 분기가 사라져도 어떤 테스트도 RED가 되지 않는다. 패킷 §6.8(LLM 캡처 입력 검증)은 report_context prompt까지만 커버.
+   - 수정 방향: 삼주 모드에서 자미/궁 긍정 지시가 시스템 표면에 남지 않게 분리(삼주 전용 시스템 블록 또는 조건 조립) + 삼주 compose 전체 system blocks·user payload 캡처 양방 테스트(override 존재·금지 지시 부재·허용 출처만). 게이트 완화 아님.
+
+4. **필수 경계 테스트 누락 3건 (운영자 교정 7호 — 프로브 대체 불가 항목)**
+   - (a) **비입춘 월 절입 당일 차단 + 전날·다음날 통과** 테스트 부재 — 현재는 입춘(2000-02-04 차단·02-05 통과)만 고정(test_three_pillar_calc.py:145). 블로커 1의 소서 실패가 실증 증거이나 설계된 회귀로 고정 필요.
+   - (b) **`birth_time_mode=three_pillar` + 시각 동시 입력 접수 차단** 테스트 부재 — 코드는 존재(order_flow.create_order "must not include a birth time")하나 `grep` 무매치.
+   - (c) **레거시 known 주문(mode 키 없음 + hour/minute 존재) 오분류 방지** 테스트 부재 — `report_birth_time_mode`의 legacy 복원 분기(store/orders.py)를 직접 단언하는 테스트 0. 현재 테스트는 전부 explicit mode 저장본만 사용.
+
+### advisory (비블로커)
+
+- `unknown_time_policy._FORBIDDEN_TEXT_RULES`의 `ziwei_fact` 궁 폐쇄 목록이 12궁 중 7개(명·신·부처·관록·재백·질액·천이)만 커버 — 형제·자녀·노복·전택·복덕·부모궁 단독 언급은 이 규칙 미포착(자미 주성 14종은 factcheck가 전면 차단 실측 확인). 사각 축소 방향의 저비용 확장 후보.
+- engine 표면 한정: mode 미지정 + `hour=None, minute=30` 호출 시 three_pillar로 minute을 조용히 무시(접수 경로는 "HH:MM" 원자 파싱이라 발생 불가). 라이브러리 직접 호출 방어는 후속 후보.
+- (관찰) 12후보 대표점은 짝수 정각(조자시 기준) — JST_2300 야자시(23시) 변형의 시간간 차이는 스윕 범위 밖이나, docs/03 §1-2 "후보 시각 때문에 연·월·일주가 바뀌는 계산은 허용하지 않는다"는 운영자 결정과 정합(정책 준수).
+
+### GREEN 확인 (실측 근거 — 재작업 불필요 범위)
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 전제 | HEAD=base `084e04c` · packet/notes/review SHA-256 3건 manifest MATCH(Get-FileHash 재대조) · 보류 패킷 `b981a996…5819` 시작/종료 불변 · 경계 스냅샷 47파일 시작/종료 전수 일치 | ✓ |
+| golden / 집중 | **28 passed** · 신규 4파일+핵심 수정 4파일 **176 passed** | ✓ |
+| 정적 | 변경 Python 35(tracked 27+untracked 8) — rules.py·verify.py 제외 33파일 Ruff GREEN, 두 파일 18건은 HEAD 추출본과 동일 구성(F541 16·F841 2 — **신규 0**) · py_compile 35 exit 0 · `git diff --check` exit 0 | ✓ |
+| 계산·정규화 | `birth_time.py` 단일 enum 정규화+모순 ValueError · `three_pillar.py` 12/12 승격·11/12 억제·digest 순서불변·candidate_count 0/11/13 거부·`NEEDS_INFO_TIME_BOUNDARY`(월건 변화 검사라 입춘 포함 전 절입 커버) · 명시적 `ThreePillarMyeongni`(hour/elements/singang/yongshin/daewoon 필드 부재를 테스트로 고정) | ✓ |
+| 자미 미생성 정밀 판정(교정 5호) | 자미 계산 비호출(monkeypatch 테스트) + Section 객체 0·LLM 대상 0·직렬화 ID 0(rule_texts가 drop 후에만 구성). rules의 빈 `ziwei:""` 호환 키는 골격 dict 내부 표면일 뿐 Section·LLM·직렬화에 진입하지 않음 → 패킷 "사후 ID 삭제 불수용"과 **비충돌 판정**(생성 후 삭제가 아니라 생성 대상 제외) | ✓ |
+| 주문·레거시 | 접수 시각/모드 모순 4종 ValueError·절입 접수 전 차단(주문 0)·gunghap/ziwei/partner 명시 차단 · three_pillar 주문 hour/minute/unknown_time 비저장+성공 시 잔재 scrub · provenance 계산→콘텐츠→verify 3표면 일치 검증 후에만 DRAFTED · 레거시 정오 잔재/`provenance_missing` 최종 발급 차단(발급 함수 2경로 모두 render_fn 호출 전) · store/content validator 동등성 테스트 | ✓ |
+| 게이트 | GATE_KEYS 21→22키(제거·완화 0 — diff+22키 동결 테스트) · cover/toc/본문/appendix 주입 차단+정상 통과 양방 · mode 미전달 우회 차단(notice/provenance 신호로 복원) · known 오탐 0(네 기둥·사주팔자 포함 known 문서 clean 실측 테스트) · finding 5키 고정·PII 0 | ✓ |
+| 금지어 문맥 판정(교정 6호) | 차단측 8룰 전부 문맥 패턴(시각값 결합·정오 대입·시주 표현·네 기둥/사주팔자·자미 사실·업셀) + 허용측(일반 `사주`·생활 시각 `오후 3시 산책`·정확 고지) 비오탐 테스트 실재 · 정확 고지 **HTML 1회** 실렌더 단언(personal 경로) | ✓ |
+| known 비악화(교정 8호) | golden 28 · known implicit/explicit `model_dump` 동일 테스트 · known 4주/자미/대운 allow_tokens 분기 보존 · known compose 시스템 블록 의미 불변(_COMPOSE_SYSTEM 원문 무변경·override는 삼주에만 삽입) · Report23 additive 필드 기본값으로 직렬화 하위호환 | ✓ |
+| 문서-코드 | 00-immutable §8·calc.md·content.md·docs/03 §1-2·07·16(QI-2026-07-12-02 2층 원인)·20(22키 레지스트리)·22(20키 표기 오류도 22로 정정)·23 전부 코드 실동작과 일치 | ✓ |
+| 하네스 | hverify_pdf 날짜-only None/None·mode/provenance 전달 테스트 · hsummary 화이트리스트에 hits/count 등재(관측 드롭 없음) | ✓ |
+
+### 실행한 검증 명령
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            → 1 failed / 1022 passed / 4 skipped / exit 1 (블로커 1)
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  → 28 passed / exit 0
+./.venv/Scripts/python.exe -m pytest (신규 4+수정 4파일) -q → 176 passed / exit 0
+./.venv/Scripts/python.exe -m ruff check (변경 35 중 부채 2 제외 33) → All checks passed / HEAD 추출 대조 신규 0
+./.venv/Scripts/python.exe -m py_compile (35파일) → exit 0 · git diff --check → exit 0
+Get-FileHash(.ps1): packet/notes/review vs manifest 3건 MATCH · 보류 패킷 SHA 불변 · 경계 스냅샷 47파일 시작/종료 전수 대조
+```
+
+### 미검증(정직 보고)
+- 실제 Anthropic API·고객 주문 PDF·실상품 재생성·hrun·hsweep 미실행 — 삼주 compose 실품질·상충 지시의 실제 폴백률·prompt cache·비용·조판·hsweep K/Z·육안 Z=0 확정 불가. pytest가 만든 합성 테스트 PDF/HTML 외 PDF 생성 0.
+- 리뷰어는 제품 코드·테스트를 수정하지 않았다(허용 4파일 외 diff 0 — 경계 스냅샷 47파일 SHA 전수 대조).
+
+다음: Codex가 블로커 1~4만 수정(승인 범위 밖 변경 금지) → Claude 재검증. 통과 시에만 Codex 신선 read-only 확인 → 운영자 checkpoint commit.
+
+---
+---
+
 # 교차 리뷰 — 2026-07-12 (라운드 17, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, HEAD `1b46b47` 위, 제품 2파일 + 인계 3파일) · 구현자: Codex · 지시문: `handoff/tasks/beta-1-schedule-boundary-20260712.md` (라운드16 advisory `일정/일정한` 오탐 소수정)

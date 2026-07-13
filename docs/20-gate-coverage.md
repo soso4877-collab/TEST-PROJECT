@@ -10,7 +10,7 @@
 > 사각을 못 봄, (b) 대다수 게이트가 '추출 텍스트'라는 프록시를 재므로 물리(시각) 결함을
 > 놓침. 이 문서가 (a) 커버리지 지도와 (b) 물리/프록시 분류를 명문화한다.
 
-## GATE_KEYS 레지스트리 (verify.gate_pass AND-체인 SSOT — 21키)
+## GATE_KEYS 레지스트리 (verify.gate_pass AND-체인 SSOT — 22키)
 
 각 행: 게이트 키 · 검증 대상 · 유형 · 측정면(물리/프록시) · 알려진 괴리/스코프.
 유형 = structural(PDF 구조) / lint-text(추출 본문 텍스트) / lint-specs(런타임 스펙 필요) /
@@ -28,6 +28,7 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | `no_orphan` | 저글자 독립 꼬리 페이지 0 | geometry | 물리 | 페이지 텍스트 기준(<40 orphan·<90 꼬리) |
 | `loanword_clean` | 외래어 hard-ban(본문구역) | lint-text | 프록시 | 부록 용어집 제외(allowed_section) |
 | `raw_calc_head_clean` | 표제형 날것 계산어(본문구역) | lint-text | 프록시 | 부록 정의 제외; headword 한정 |
+| `unknown_time_provenance_clean` | 생시 미상 provenance·시주/자미/정오 잔재 | aggregate | 프록시 | `three_pillar`일 때 cover·toc·본문·appendix 전역 + 최종 발급; known은 비적용 |
 | `client_register_clean` | 상담가 화자 register hard 규칙(고객 가시 전역) | lint-text | 프록시 | cover·toc·본문·appendix 포함; warning은 gate 비편입 |
 | `customer_meta_clean` | AI/meta/문서 자기지칭(본문 페이지) | lint-text | 프록시 | 표지·목차·부록 제외 |
 | `placeholder_residue_clean` | placeholder/마스킹 잔재 | lint-text | 프록시 | — |
@@ -55,13 +56,13 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 
 | 문서 부위 | 구조(text/font/tag) | 텍스트 lint(loanword/raw_calc/register/customer_meta/style/quality/temporal) | specs lint(name/identity/singang/honorific/role) | 기하(no_orphan/layout_geometry) | delivery | 벨트(safe/fact/trace) |
 |---|---|---|---|---|---|---|
-| 표지(cover) | ✓ | register ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
-| 목차(toc) | ✓ | register ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
+| 표지(cover) | ✓ | register·unknown-time provenance ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
+| 목차(toc) | ✓ | register·unknown-time provenance ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
 | intro(1장) | ✓ | ✓ | ✓(전달 시) | ✓ | ✓ | ✓ |
 | 각 해석 장 | ✓ | ✓ | ✓(전달 시) | ✓ | ✓ | ✓ |
 | consult(질문 답변) | ✓ | ✓ | ✓ | ✓ | ✓(직답 게이트) | ✓ |
 | 장 제목 | — | customer_meta ✓ | — | layout ✓ | — | 생성 시 |
-| 부록 용어집 | ✓ | register ✓, loanword/raw_calc 등은 **제외**(정의 허용구역) | 제외 | layout ✓ | 제외 | — |
+| 부록 용어집 | ✓ | register·unknown-time provenance ✓, loanword/raw_calc 등은 **제외**(정의 허용구역) | 제외 | layout ✓ | 제외 | — |
 | 기하(전 페이지) | — | — | — | ✓(no_orphan·layout_geometry) | — | — |
 
 ## 프록시 레지스트리 (C5 — 신규 검증은 물리 측정 우선)
@@ -74,7 +75,7 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | 분류 | 게이트 | 알려진 괴리 |
 |---|---|---|
 | 물리(신뢰 높음) | text_layer_ok·fonts_embedded·tagged·daewoon_consistent·no_orphan·layout_geometry_clean | — |
-| 프록시(텍스트) | markdown/quality/temporal/loanword/raw_calc_head/client_register/customer_meta/placeholder/style/specs·delivery | 추출 텍스트↔물리 레이아웃 괴리: 순서·위치·시각 결함 미포착 |
+| 프록시(텍스트) | markdown/quality/temporal/loanword/raw_calc_head/unknown_time_provenance/client_register/customer_meta/placeholder/style/specs·delivery | 추출 텍스트↔물리 레이아웃 괴리: 순서·위치·시각 결함 미포착 |
 | 최종 방어 | 운영자 육안(300dpi, 다이어트 체크리스트 ≤7항목) | 자동 게이트가 못 재는 미감·몰입·물리 배치 |
 
 ## 열린 품질 차원 책임표
@@ -88,6 +89,7 @@ GATE_KEYS 양방 일치는 **등록된 게이트의 배선 완전성**만 증명
 | 상담가 화자 register | docs/14 프롬프트·룰 골격 | `client_register_clean` hard만 | hsweep narrator lens | 운영자 육안 Z |
 | 외부 도메인 사실·절차 | docs/14 consult 경계 | `delivery_quality_clean/external_domain_advice` | hsweep direct-answer lens | 운영자 육안 Z |
 | 어려운 사주 용어 이해 | 첫 등장 즉석 풀이·기능적 비유 | 하드 게이트 없음(오탐 방지) | warning·합성 holdout | 운영자 육안 Z |
+| 생시 미상 사실 출처 | 세 기둥·12/12 불변 사실만 compose | `unknown_time_provenance_clean` | provenance 메타 검토 | 운영자 육안 Z |
 | 시각·몰입·물리 배치 | 템플릿·골격 계약 | geometry·structure 게이트 | 300dpi 검수 보조 | 운영자 육안 |
 
 > 폐기된 프록시(참고): `frontloaded_answer`/`physical_frontloaded_answer`(초반 1800자/물리 3쪽
