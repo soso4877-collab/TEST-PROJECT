@@ -49,29 +49,31 @@
 
 ## 역할 분리
 - **Cursor (사람+IDE)**: 탐색·편집·diff 검토. 변경 전 `.cursor/rules/*` 컨텍스트 확인.
-- **Claude Code**: 승인 범위 안에서 계획·구현·검증. 매 작업 단위로 plan -> 승인 -> 구현 -> Programmatic checks -> 증거 보고. 커밋/푸시/PDF 재생성/LLM 호출은 명시 승인 시에만.
-- **Codex (리뷰어)**: 기본 = 리뷰어. 권한·금지·동반 의무는 아래 `## Codex 운영 계약` 참조.
-- 구현 세션과 검증 세션은 분리한다(신선 컨텍스트 리뷰어가 diff+기준만 보고 갭을 보고).
+- **Claude Code = 설계자·최종 리뷰어**: 상태 실측 → 승인용 TASK_PACKET 작성 → Codex 구현 결과를 신선 컨텍스트에서 독립 검증한다. 운영자가 Claude 구현을 별도로 승인한 경우만 예외다.
+- **Codex = 구현자·자체 검증자**: 승인된 TASK_PACKET의 허용 파일만 수정하고 Programmatic checks와 증거 보고를 수행한다. Claude가 직접 구현한 태스크에서는 별도 지시가 있을 때 read-only 리뷰어가 된다.
+- 기본 사이클은 `Claude 설계 → Codex 구현 → Claude 교차리뷰 → 사용자 checkpoint` 한 번이다. Claude PASS 뒤 Codex를 다시 확인자로 보내지 않는다. 예외는 Claude 직접 구현·미해결 의견 충돌·릴리스급 별도 감사·운영자 명시 지시뿐이다.
+- Playwright 실렌더처럼 환경 종속 검증은 패킷이 지정한 증거 소유자만 실행한다. 다른 환경의 예정된 skip은 코드 실패가 아니며 동일 tree SHA·수집 총수·skip 사유로 분리 증거를 합성한다.
 
 ## Phase 0 containment — handoff source of truth
-- 고객 납품·품질 사고 대응은 역할을 분리한다: Claude는 Plan Architect와 Semantic Reviewer, Codex는 승인된 TASK_PACKET 구현자, Codex Verifier는 별도 세션 검증자다.
+- 고객 납품·품질 사고 대응은 역할을 분리한다: Claude는 Plan Architect와 Semantic Reviewer, Codex는 승인된 TASK_PACKET 구현자다. Claude가 직접 구현한 예외 태스크만 신선 Codex 세션이 검증한다.
 - 구현의 source of truth는 `handoff/templates/task_packet.json` 형식의 TASK_PACKET(또는 승인된 로드맵 문서, 예: `handoff/audit-followup-roadmap.md`)이다. 구현 보고와 검증 보고는 분리하고, 세션 전환은 `handoff/templates/context_snapshot.md` 형식을 따른다.
+- 실제 활성 지시문은 `handoff/current/manifest.json`의 `packet_path`와 SHA 하나뿐이다. `next_action` 자유문장으로 다른 미고정 task packet을 지시하지 않는다.
 - 납품 후보는 표준 게이트 파이프라인에서만 만든다. 손편집 HTML/PDF는 최종 납품 기준선으로 쓰지 않고, 실제 PDF는 render_verify·금칙 텍스트 스캔·300dpi 시각 점검·운영자 전문 검수 전 발송 금지다.
 - 컨텍스트가 길어지면 대화 전문이 아니라 파일 경로, SHA, 결정사항, 실패 rule만 인계한다. 최신본 판단은 파일명이 아니라 SHA 기준.
 - 고객 실데이터, PDF, PNG, summary는 gitignore 영역에만 둔다(`tmp/`·`synthetic-tmp/`·`*.content.json` 포함 — 2026-07-03 감사 A-1).
 - 세부 운영 순서는 `docs/17-agent-tooling-runbook.md`, 품질 사고 기록은 `docs/16-quality-incident-ledger.md`, PDF 수동 검수는 `handoff/templates/pdf_review_report.md`.
 
 ## Codex 운영 계약 (권한 경계 — 강제는 코드·게이트·git hook, 이 절은 경계 정의)
-1. 기본 역할 = 리뷰어. Codex는 diff와 `handoff/reports/<stamp>/summary.md`(+ `summary.json`)를 받아 게이트·회귀·안전(PII/secrets) 관점으로 읽고 판정만 한다.
-2. 구현(파일 수정) 권한 없음 — 코드를 고치려면 운영자의 사안별 명시 승인이 매번 필요(포괄 승인 불가).
+1. manifest `next_actor=codex`이고 승인된 TASK_PACKET이 구현을 지시하면 Codex가 구현자다. Claude 구현분 검증이나 운영자 명시 read-only 태스크에서는 판정만 한다.
+2. 수정 권한은 TASK_PACKET의 허용 파일·수용 기준으로 한정한다. 요구사항을 충족하려면 허용 파일 밖 수정이 필요하거나 실행 능력과 완료 조건이 모순되면 우회하지 않고 `BLOCKED_CONTRACT`로 정지한다.
 3. Codex 전용 상시 금지(구현 승인을 받은 뒤에도 금지): PDF 재생성, LLM(Anthropic API 포함) 호출, git commit, push, 배포(deploy).
 4. 데이터 경계: (a) 접근 금지 — `.env`·secret 값, 실고객 데이터, `harness/profiles/local/**` 비열람. 실데이터 확인은 PII 제거된 `summary.{json,md}`만. (b) 인용 금지 — 리뷰·리포트에 PII(실명·생년월일·출생시간) 인용·전재 금지.
 5. (구현 승인 시) `calc/`·`input/` 변경 -> 같은 작업 단위에 골든·회귀 테스트 동반(절대규칙 20, calc.md).
 6. (구현 승인 시) `content/` 변경 -> 3단 가드(safe_lint/factcheck/trace) 완화·우회 금지(절대규칙 12, content.md).
 7. (구현 승인 시) `sajugen/render/**`(특히 `render/verify.py`) 변경 -> 기존 `gate_pass` 구성 비악화(게이트 키 제거·완화·기준 하향 금지, render.md) + 양방 테스트(작업 규율 3).
 8. (구현 승인 시) 주문/검수 경로(`order_flow.py`·`store/orders.py`·`admin.py`·`app.py`) 변경 -> APPROVED 전 발송 차단 회귀(`tests/test_orders.py`·`tests/test_final_render_gate.py`) 통과 필수(절대규칙 16).
-9. 승인 근거 리포트: 최종 승인 근거는 "전체 tests 실행본 리포트"만 인정 = `scripts/hrun.py`를 `--no-tests` 없이 돌려 만든 `summary.json`의 `pytest.returncode == 0`(passed 수 포함).
-10. 리포트 산출물: `summary.{json,md}`가 리뷰의 필수 첨부 근거물이며, diff·`git status`·`git log` 등 다른 증거와 함께 종합 판정한다.
+9. 승인 근거 리포트: 해당 환경에서 실행 가능한 전체 tests를 직접 실행한다. `scripts/hrun.py` 증거가 필요한 태스크는 `--no-tests` 없이 만든 `summary.json`의 `pytest.returncode == 0`을 요구하되, 패킷에 지정된 다른 환경의 실렌더 증거를 Codex가 억지로 재현하지 않는다.
+10. 판정은 `CODE_PASS`·`EVIDENCE_SPLIT_PASS`·`CHANGES_REQUESTED`·`BLOCKED_ENV`·`BLOCKED_CONTRACT`로 구분한다. 리포트는 diff·`git status`·`git log`·동일 tree SHA와 함께 종합하며, 환경별 raw passed 수만 직접 비교하지 않는다.
 
 ## 불변 제약 (요약 — 원문 `.claude/rules/00-immutable.md`)
 - 계산은 LLM 위임 금지. `sajugen/calc/`·`input/` 수정은 테스트+골든 회귀 동반.
