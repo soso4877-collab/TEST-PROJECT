@@ -1,10 +1,10 @@
 # TASK_PACKET — 하네스 프로파일 모듈 계약 배선 (HRUN_EVIDENCE_INVALID_MODULE_SPEC_GAP 종결)
 
 - task_id: `beta-1-hverify-module-contract-20260712`
-- base_commit: `084e04c` (HEAD, working tree clean 실측 2026-07-12)
+- base_commit: `2d91933` (HEAD, working tree clean 실측 2026-07-14 **재베이스라인** — 구 base `084e04c`는 삼주 라인 완결 전 값. task_id는 동일 태스크라 유지)
 - 구현자: Codex
 - 검증자: Claude 신선 컨텍스트 교차리뷰
-- 상태: `planned`
+- 상태: `planned` (2026-07-14 재활성 — 삼주 라인 종결 뒤 보류 해제, 갭 잔존 재확인)
 
 ## 0. 역할·금지 경계 (YOU MUST)
 
@@ -21,20 +21,20 @@
 
 ## 1. 상태(전제) — 실측 근거
 
-- 라운드17까지 종결: register/외부조언 게이트·`일정(?!한|하게|하지)` 경계 배선 완료, 기준선
-  **949 passed / 4 skipped / exit 0**(hrun 2회 재확인, `pytest.returncode=0`).
-- Phase C replacement 완료(파이프라인 정확 1회, 재실행 금지): 주문 `ord_19f55b6b8f8becf6ba0`
-  = DRAFTED, 인라인 verify **gate_pass=True·실패 키 0·29p**, PDF SHA256
-  `63383335e830bd04681ccd655bc300098779e204e79b6ce925f989b12e5704d0`. 이 PDF는 검수 후보로
-  유지하며 재생성하지 않는다.
-- **판정 HRUN_EVIDENCE_INVALID_MODULE_SPEC_GAP**: hrun/hverify 프로파일 경로가
-  `selected_modules`를 선언·전달할 수단이 없어 4모듈 주문(하한 28p, 런타임 실측
-  `module_minimums([love,job,wealth,health])=(28, 9000)`)을 기본 5모듈 스펙
-  (`module_minimums(None)=(30, 10000)`)으로 판정 → 유일 실패 `premium_pages: 29 < 30`.
-  나머지 게이트 키 전부 GREEN(register_hard=0·external_advice=0). 방법론 A-5 "팬텀 파라미터"
-  클래스: `V.verify(selected_modules=...)` 파라미터가 프로파일 경계에서 소비되지 않았다.
-- 부수 관측 갭: hrun summary에 `pytest.skipped`가 null — `949 passed / 4 skipped`가 요약
-  파일 자체에 보존되지 않는다.
+- **현재 기준선(2026-07-14 재베이스라인 실측, HEAD `2d91933`)**: `.\.venv\Scripts\python.exe -m pytest tests\ -q`
+  → **1061 passed / 4 skipped / exit 0**, `-k golden` **28 passed**. (구 949/4는 삼주 라인 착수 전 값 —
+  그 사이 삼주 생시 미상·근거화·품질 후속이 종결되며 신규 테스트가 누적됐다.)
+- ~~Phase C replacement 옛 증거(주문 `ord_19f55b6b…`·PDF SHA `63383335…`·29p)~~ = **stale(2026-07-14)**:
+  해당 replacement PDF는 현재 `render/out`에 없음(파일명 부재 — PII 정리로 소멸 추정). §7.3의 옛 PDF 의존
+  수용 기준은 이행 불가 → **합성 모듈 제한 픽스처로 재정의(아래 §7.3)**. 실 replacement 재생성은 하지 않는다.
+- **판정 HRUN_EVIDENCE_INVALID_MODULE_SPEC_GAP — 2026-07-14 현재 HEAD에서 갭 잔존 재확인**:
+  `scripts/hverify_pdf.py:178`의 `V.verify(...)` 호출에 `selected_modules` 인자가 없고(제품 verify는 받지만
+  하네스가 전달 안 함), `scripts/hrun.py`에 module 참조 0, 비-local 프로파일 스키마에 `modules` 필드 0.
+  → 4모듈 주문(하한 `module_minimums([love,job,wealth,health])=(28, 9000)`)을 기본 5모듈 스펙
+  (`module_minimums(None)=(30, 10000)`)으로 오판 → 거짓 실패 `premium_pages`. 제품 경로(verify/
+  delivery_quality/builder/integrated)는 Q7에서 `selected_modules` 배선 완료 — **갭은 하네스 증거 경로 한정**.
+  방법론 A-5 "팬텀 파라미터" 클래스: `V.verify(selected_modules=...)`가 프로파일 경계에서 미소비.
+- 부수 관측 갭: hrun summary에 `pytest.skipped`가 null — `passed / skipped`가 요약 파일 자체에 보존되지 않는다.
 
 ## 2. 목표
 
@@ -86,9 +86,9 @@
 
 ## 6. 기준선·검증 명령 (구현자 실측 의무)
 
-- 시작 전: HEAD `084e04c`·clean 실측(다르면 정지·보고).
+- 시작 전: HEAD `2d91933`·clean 실측(다르면 정지·보고).
 - 완료 근거: `.\.venv\Scripts\python.exe -m pytest tests\ -q` 전체 GREEN, 기존 감소 0
-  (기준선 949/4 + 신규 테스트 수 명시), `-k golden` 28, 변경 Python Ruff·py_compile,
+  (기준선 **1061/4** + 신규 테스트 수 명시), `-k golden` 28, 변경 Python Ruff·py_compile,
   `git diff --check`, `sajugen/**` diff 0 확인.
 - 검증 중 API 호출 0. 실행 명령 + 출력(passed/exit code)을 notes에 기록.
 
@@ -97,15 +97,18 @@
 1. 구현 완료 → `implementation-notes.md` 기록 → manifest `review_requested/next_actor=claude`.
 2. Claude 신선 컨텍스트 교차리뷰(diff 전량 + 기준환경 pytest 직접 실행) → PASS 시
    `verified/next_actor=user`.
-3. PASS 뒤 운영자 지시로 **기존 replacement PDF SHA가 동일한 상태에서 hrun 1회만 재실행**
-   (`--regen` 없이, API 0). 최종 수용값:
-   - 같은 PDF SHA(`63383335e830…`) · `pages=29` · `minimum_pages=28` · `gate_pass=True`
-   - 실패 게이트 키 0 · `retry_blocked=False` · `api_calls=0` · `regen_allowed=False`
+3. PASS 뒤 운영자 지시로 **합성 모듈 제한 픽스처 PDF로 hrun/hverify 1회 검증**(`--regen` 없이·API 0·
+   옛 고객 replacement PDF 의존 제거 — 그 PDF는 소멸). 픽스처 = 4모듈(love/job/wealth/health) 프로파일 +
+   그 주문 meta의 PII-free `module_sections`/`premerge_section_ids`(합성). 최종 수용값:
+   - 4모듈 프로파일이 **5모듈이 아니라 4모듈 스펙(`minimum_pages=28`·`minimum_text_chars=9000`)으로 판정**됨을
+     summary로 확인 = 거짓 5모듈 오판 소멸(수용 핵심). `gate_pass`는 픽스처 페이지수에 따르되 모듈 스펙 적용이 요점.
+   - `retry_blocked` 정합 · `api_calls=0` · `regen_allowed=False`
+   - hsummary에 `selected_modules`·`module_schema_version`·`minimum_pages=28`·`minimum_text_chars=9000` 보존
    - 전체 pytest GREEN(passed·skipped 요약 보존 포함)
 4. 그 뒤에만 별도 승인으로 hsweep 진행.
 
 ## 8. 미검증·범위 밖 (정직 경계)
 
-- replacement PDF의 육안 품질(consult·love 룰 폴백 직답성/자연스러움, 36→29쪽 감소의 내용
-  누락 여부, register warning 4건의 실제 어색함)은 운영자 검수 몫 — 이 패킷 범위 밖.
-- prompt cache 비용 절감률 확정(기존 1호 계측 부재)·hsweep K/Z·Z=0은 후속 단계.
+- 이 패킷은 **하네스 증거 경로 전용**(제품/calc/input diff 0)이라 실제 고객 PDF·육안 품질은 범위 밖이다.
+  (옛 Phase C replacement PDF는 소멸했고 §7.3은 합성 픽스처로 재정의됨 — 실 replacement 재생성 없음.)
+- prompt cache 비용·hsweep K/Z·Z=0·실고객 발송은 이 패킷 밖의 후속 단계다.

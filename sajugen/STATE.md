@@ -1,5 +1,18 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-14 하네스 모듈 계약 태스크 재활성 — 이 블록 먼저 읽기) =====
+>   [활성 태스크 전환] 삼주 실모델 품질 후속(`three-pillar-real-model-quality-followup`) = 종결(verified·커밋 `2d91933`까지 push).
+>     보류였던 `beta-1-hverify-module-contract-20260712`를 **재베이스라인 후 재활성**(삼주 라인 종결로 보류 해제).
+>     manifest = `planned / next_actor=codex`, packet SHA `15030847…`, base `2d91933`.
+>   [갭 실측] HRUN_EVIDENCE_INVALID_MODULE_SPEC_GAP **현재 HEAD에 잔존 재확인**: `hverify_pdf.py:178` `V.verify(...)`에
+>     `selected_modules` 미전달·`hrun.py` module 참조 0·비-local 프로파일 modules 필드 0 → 모듈 제한 주문을 5모듈 스펙으로
+>     오판(거짓 `premium_pages` FAIL). 제품 경로는 Q7에서 배선됨 — **갭은 하네스 증거 경로 한정**(실 발급 게이트 무관).
+>   [재베이스라인] 패킷 §1·§6 기준선 949/4→**1061/4**·base→`2d91933`. §7.3은 소멸한 옛 replacement PDF(SHA `63383335…`)
+>     의존을 제거하고 **합성 모듈 제한 픽스처**로 재정의(무과금). 핵심 계약 §2~§5 불변. 제품/calc/input diff 0 계약.
+>   [다음] Codex가 §2~§7.1 원자 배선(프로파일 modules→hverify/verify 전달+fail-closed+hrun --module argv+hsummary 관측+
+>     pytest.skipped 갭) + §4 양방 테스트 → Claude 교차리뷰. PDF 재생성·LLM·commit·push 금지.
+>   [미커밋] 재베이스라인 패킷·manifest·이 STATE 갱신은 working tree(미커밋) — 운영자 commit 지시 대기.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-14 삼주 실모델 품질 후속 Claude 교차리뷰 CODE_PASS — 이 블록 먼저 읽기) =====
 >   [판정] `three-pillar-real-model-quality-followup-20260714` Claude 신선 교차리뷰 = **CODE_PASS(no-LLM/mock 층)**.
 >     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `74e94e5` 유지.
