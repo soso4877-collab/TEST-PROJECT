@@ -13,8 +13,13 @@
 >   [비차단 finding] Codex notes의 full HEAD SHA(c4cd93b17421f781…)가 실제 HEAD(c4cd93b17421c408…)와 12자
 >     이후 불일치 → notes에서 정정(short prefix는 정확해 리뷰 대상 영향 0).
 >   [정적확인] classify `strict=True`는 유효 GA 필드(top-level, no beta)로 확인, Haiku 4.5 지원 범위 → 400 위험 없음.
->   [미검증] 실모델 삼주 `gate_pass=True`·실 PDF·300dpi 육안·비용은 판정 밖 = 운영자 승인 유료 재run 몫.
->   [다음] 운영자 checkpoint: 승인 유료 재run 1회로 실 gate_pass 재측정 결정. 통과 전 APPROVED·발송 금지.
+>   [유료검증 2026-07-14] 운영자 승인 유료 재run 1회(합성 9축 복합고민 × 삼주 integrated_full × [job,wealth,health]):
+>     **gate_pass=True**(사고 delivery/style 실패 해소 실모델 확정). 최종 PDF 금칙토큰 0·고지 1회·3열·12쪽,
+>     비용 15콜 약 $0.33. 단 compose 9챕 중 4개(intro·nature·flow·consult) 룰 폴백 — 실모델이 여전히
+>     시주·맨몸월표기 생성→guard 차단(유출0)→폴백 통과. 프롬프트 억제 100% 아님(guard+fallback이 담보).
+>     육안 nit 2: 표지 h1 관|계 개행, 본문 조사 정축가/임신가. → 후속 품질 packet(draft) 분리.
+>   [다음] 운영자: 후속 품질 태스크(three-pillar-real-model-quality-followup) 승인 여부 결정. 실고객 발송은
+>     표준 게이트→검수 Z=0 뒤에만. 통과 전 APPROVED·발송 금지.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-13 삼주 LLM 근거화 구현 완료 — 이 블록 먼저 읽기) =====
 >   [현재] `three-pillar-llm-grounding-fix-20260713` packet 구현·Codex 자체 검증 완료.
