@@ -10,24 +10,158 @@
 - secrets scan 이 값 출력 없이 redacted/count 만.
 """
 
+import json
 import subprocess
 import sys
 import types
-import json
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import hpreflight  # noqa: E402
+import hprofile_check  # noqa: E402
 import hrun  # noqa: E402
 import hstate  # noqa: E402
 import hverify_pdf  # noqa: E402
+from sajugen import modules as integrated_modules  # noqa: E402
 from playwright_guard import require_playwright_subprocess  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 FIX_P = "harness/profiles/fixtures/personal_synthetic.yml"
+
+
+def _synthetic_module_profile() -> dict:
+    """실고객/산출물 없이 4모듈 저장 메타 모양만 재현한다."""
+    module_sections = integrated_modules.empty_module_sections()
+    module_sections.update(
+        {
+            "core": ["personal_intro"],
+            "love": ["personal_love"],
+            "job": ["personal_work"],
+            "wealth": ["personal_work"],
+            "health": ["personal_health"],
+            "tail": ["personal_consult"],
+        }
+    )
+    premerge_section_ids = list(
+        dict.fromkeys(
+            section_id for section_ids in module_sections.values() for section_id in section_ids
+        )
+    )
+    return {
+        "type": "integrated_full",
+        "product": "integrated_full",
+        "premium": True,
+        "pdf": "synthetic-module-contract.pdf",
+        "modules": ["love", "job", "wealth", "health"],
+        "module_schema_version": integrated_modules.MODULE_SCHEMA_VERSION,
+        "module_sections": module_sections,
+        "premerge_section_ids": premerge_section_ids,
+    }
+
+
+def _patch_hverify_module_surface(monkeypatch, verify_impl) -> list[dict]:
+    """실 PDF를 만들지 않고 hverify→V.verify 소비 경계만 합성한다."""
+    import fitz
+    from sajugen.render import verify as verify_mod
+
+    captured: list[dict] = []
+
+    class FakePage:
+        def get_text(self):
+            return "synthetic module text"
+
+    class FakeDoc:
+        page_count = 29
+
+        def load_page(self, index):
+            assert 0 <= index < self.page_count
+            return FakePage()
+
+        def close(self):
+            return None
+
+    def capture_verify(*args, **kwargs):
+        captured.append(dict(kwargs))
+        return verify_impl(*args, **kwargs)
+
+    monkeypatch.setattr(hverify_pdf.os.path, "isfile", lambda path: True)
+    monkeypatch.setattr(
+        hverify_pdf,
+        "_build_specs",
+        lambda profile: {
+            "ref_year": 2026,
+            "names": [],
+            "name_full": [],
+            "identity": None,
+            "singang": None,
+            "product": "integrated_full",
+            "premium": True,
+            "role_perspective": None,
+            "honorific": None,
+        },
+    )
+    monkeypatch.setattr(
+        hverify_pdf,
+        "_file_meta",
+        lambda path: {
+            "sha256": "0" * 64,
+            "pages": 29,
+            "size": 10,
+            "mtime": "2026-01-01 00:00:00",
+        },
+    )
+    monkeypatch.setattr(fitz, "open", lambda path: FakeDoc())
+    monkeypatch.setattr(verify_mod, "_split_body_appendix", lambda pages: ("", ""))
+    monkeypatch.setattr(verify_mod, "verify", capture_verify)
+    return captured
+
+
+def _module_verify_result(*args, **kwargs) -> dict:
+    """제품 모듈 정본으로 29쪽 하한/커버리지만 계산하는 V.verify 합성 대역."""
+    coverage = integrated_modules.module_coverage(
+        kwargs.get("selected_modules"),
+        kwargs.get("module_sections"),
+        kwargs.get("premerge_section_ids"),
+    )
+    minimum_pages, minimum_text_chars = integrated_modules.module_minimums(
+        kwargs.get("selected_modules")
+    )
+    failures = []
+    if coverage["missing_modules"]:
+        failures.append({"rule": "missing_module_sections"})
+    if coverage["unexpected_modules"] or coverage["unknown_section_ids"]:
+        failures.append({"rule": "unexpected_module_sections"})
+    if 29 < minimum_pages:
+        failures.append({"rule": "premium_pages", "value": 29, "minimum": minimum_pages})
+    delivery_quality = {
+        "clean": not failures,
+        "premium": True,
+        "product": "integrated_full",
+        "pages": 29,
+        "text_chars": minimum_text_chars,
+        "minimum_pages": minimum_pages,
+        "minimum_text_chars": minimum_text_chars,
+        "selected_modules": coverage["selected_modules"],
+        "module_schema_version": integrated_modules.MODULE_SCHEMA_VERSION,
+        "module_sections": coverage["module_sections"],
+        "required_axes": [],
+        "missing_axes": [],
+        "failures": failures,
+        "warnings": [],
+    }
+    return {
+        "gate_pass": not failures,
+        "delivery_quality_clean": not failures,
+        "selected_modules": coverage["selected_modules"],
+        "module_schema_version": integrated_modules.MODULE_SCHEMA_VERSION,
+        "module_sections": coverage["module_sections"],
+        "delivery_quality": delivery_quality,
+    }
 
 
 def _args(**kw):
@@ -50,6 +184,129 @@ def test_hverify_date_only_birth_never_defaults_to_noon():
     assert hverify_pdf._parse_birth("2001-03-05 12:00") == (2001, 3, 5, 12, 0)
 
 
+@pytest.mark.parametrize("missing_key", ["module_sections", "premerge_section_ids"])
+def test_explicit_modules_missing_coverage_fail_closed_before_pdf(missing_key):
+    # modules만 남기고 증거 원자 하나를 빼면 PDF 부재보다 먼저 계약 오류로 닫혀야 한다.
+    profile = _synthetic_module_profile()
+    profile.pop(missing_key)
+
+    result = hverify_pdf.verify_profile(profile)
+
+    assert result["status"] == "invalid_module_contract"
+    assert result["gate_pass"] is False
+    assert f"{missing_key}_missing" in result["module_contract_errors"]
+
+
+@pytest.mark.parametrize(
+    ("modules", "schema_version", "expected_error"),
+    [
+        ([], integrated_modules.MODULE_SCHEMA_VERSION, "modules_invalid"),
+        (["love", "not_registered"], integrated_modules.MODULE_SCHEMA_VERSION, "modules_invalid"),
+        (["love"], integrated_modules.MODULE_SCHEMA_VERSION + 1, "module_schema_version_mismatch"),
+    ],
+)
+def test_module_contract_rejects_empty_unknown_and_schema_mismatch(
+    modules, schema_version, expected_error
+):
+    # 경계 인접 세 종류를 제품 normalize/schema 정본으로 거부해 조용한 보정을 막는다.
+    profile = _synthetic_module_profile()
+    profile["modules"] = modules
+    profile["module_schema_version"] = schema_version
+
+    contract = hprofile_check.module_contract(profile)
+
+    assert contract["ok"] is False
+    assert expected_error in contract["errors"]
+
+
+def test_hverify_applies_four_module_floor_and_preserves_legacy_floor(monkeypatch):
+    # 같은 29쪽을 4모듈은 하한 28로 통과시키고, modules 미지정 레거시는 30쪽 실패로 유지한다.
+    captured = _patch_hverify_module_surface(monkeypatch, _module_verify_result)
+
+    four_module = hverify_pdf.verify_profile(_synthetic_module_profile())
+    legacy_profile = {
+        "type": "integrated_full",
+        "product": "integrated_full",
+        "premium": True,
+        "pdf": "synthetic-legacy.pdf",
+    }
+    legacy = hverify_pdf.verify_profile(legacy_profile)
+
+    assert captured[0]["selected_modules"] == ["love", "job", "wealth", "health"]
+    assert captured[0]["module_sections"] == _synthetic_module_profile()["module_sections"]
+    assert captured[0]["premerge_section_ids"] == _synthetic_module_profile()[
+        "premerge_section_ids"
+    ]
+    assert four_module["gate_pass"] is True
+    assert four_module["minimum_pages"] == 28
+    assert four_module["minimum_text_chars"] == 9000
+
+    assert captured[1]["selected_modules"] is None
+    assert captured[1]["module_sections"] is None
+    assert captured[1]["premerge_section_ids"] is None
+    assert legacy["selected_modules"] == list(integrated_modules.SELECTABLE_MODULES)
+    assert legacy["minimum_pages"] == 30
+    assert legacy["gate_pass"] is False
+    assert {failure["rule"] for failure in legacy["delivery_quality"]["failures"]} == {
+        "premium_pages"
+    }
+
+
+def test_hverify_blocks_unselected_gunghap_section(monkeypatch):
+    # 선택하지 않은 gunghap 섹션을 구조화 맵과 평면 증거에 함께 주입하면 제품 커버리지가 차단한다.
+    _patch_hverify_module_surface(monkeypatch, _module_verify_result)
+    profile = _synthetic_module_profile()
+    profile["module_sections"]["gunghap"] = ["relationship_overview"]
+    profile["premerge_section_ids"].append("relationship_overview")
+
+    result = hverify_pdf.verify_profile(profile)
+
+    assert result["gate_pass"] is False
+    assert "unexpected_module_sections" in {
+        failure["rule"] for failure in result["delivery_quality"]["failures"]
+    }
+
+
+def test_regen_command_repeats_modules_and_legacy_omits_flag():
+    # 순수 argv 구성만 검사한다. subprocess/API/PDF 재생성은 호출하지 않는다.
+    profile = _synthetic_module_profile()
+    profile["people"] = [
+        {"name": "DOC_A", "birth": "2000-01-01 10:00", "gender": "남"},
+        {"name": "DOC_B", "birth": "2000-01-02 11:00", "gender": "여"},
+    ]
+    command = hrun._regen_command(profile, "python")
+    module_argv = [command[index + 1] for index, value in enumerate(command) if value == "--module"]
+    assert module_argv == ["love", "job", "wealth", "health"]
+
+    legacy = dict(profile)
+    for key in ("modules", "module_schema_version", "module_sections", "premerge_section_ids"):
+        legacy.pop(key)
+    assert "--module" not in hrun._regen_command(legacy, "python")
+
+
+def test_invalid_module_contract_blocks_regen_before_subprocess(monkeypatch):
+    # 3중 잠금이 열려 있어도 증거 원자가 빠진 프로파일은 _regen_pdf/API 경계에 닿지 않는다.
+    profile = _synthetic_module_profile()
+    profile.pop("premerge_section_ids")
+    monkeypatch.setenv("SAJUGEN_HARNESS_ALLOW_REGEN", "1")
+    monkeypatch.setattr(hrun.hverify_pdf, "load_profile", lambda path: dict(profile))
+    monkeypatch.setattr(
+        hrun,
+        "_regen_pdf",
+        lambda *args, **kwargs: pytest.fail("invalid module contract must block regen"),
+    )
+
+    summary = hrun.run(
+        ["synthetic-profile.yml"],
+        _args(regen=True, allow_llm=True, stamp="pytest-invalid-module-contract"),
+    )
+
+    assert summary["pdfs"][0]["status"] == "invalid_module_contract"
+    assert summary["pdfs"][0]["regen"] == "blocked_invalid_module_contract"
+    assert summary["retry_blocked"] is True
+    assert "invalid_module_contract" in summary["retry_reasons"]
+
+
 def test_regen_triple_lock(monkeypatch):
     monkeypatch.delenv("SAJUGEN_HARNESS_ALLOW_REGEN", raising=False)
     assert hrun._regen_allowed(_args(regen=False, allow_llm=False)) is False
@@ -58,6 +315,24 @@ def test_regen_triple_lock(monkeypatch):
     monkeypatch.setenv("SAJUGEN_HARNESS_ALLOW_REGEN", "1")
     assert hrun._regen_allowed(_args(regen=True, allow_llm=True)) is True
     assert hrun._regen_allowed(_args(regen=False, allow_llm=True)) is False  # 플래그 없음
+
+
+def test_run_pytest_preserves_passed_and_skipped(monkeypatch):
+    # pytest quiet summary의 두 카운트를 함께 보존해 passed만 있고 skipped=null인 관측 갭을 막는다.
+    monkeypatch.setattr(
+        hrun.subprocess,
+        "run",
+        lambda *args, **kwargs: types.SimpleNamespace(
+            returncode=0,
+            stdout="1068 passed, 4 skipped in 1.23s\n",
+        ),
+    )
+
+    result = hrun._run_pytest("python")
+
+    assert result["returncode"] == 0
+    assert result["passed"] == 1068
+    assert result["skipped"] == 4
 
 
 def test_no_regen_does_not_call_cli(monkeypatch):
@@ -529,10 +804,18 @@ def test_hsummary_whitelists_regen_usage_and_returncode():
         "regen": "done",
         "regen_returncode": 0,
         "regen_llm_usage": {"calls": 7, "input_tokens": 1200, "output_tokens": 340},
+        "selected_modules": ["love", "job", "wealth", "health"],
+        "module_schema_version": integrated_modules.MODULE_SCHEMA_VERSION,
+        "minimum_pages": 28,
+        "minimum_text_chars": 9000,
     }
     out = hsummary._redact_pdf(p)
     assert out["regen_returncode"] == 0
     assert out["regen_llm_usage"] == {"calls": 7, "input_tokens": 1200, "output_tokens": 340}
+    assert out["selected_modules"] == ["love", "job", "wealth", "health"]
+    assert out["module_schema_version"] == integrated_modules.MODULE_SCHEMA_VERSION
+    assert out["minimum_pages"] == 28
+    assert out["minimum_text_chars"] == 9000
     # 필드 부재 시 키 미출현(None 오염 방지)
     out2 = hsummary._redact_pdf({"type": "personal", "pdf": "y.pdf", "status": "verified"})
     assert "regen_llm_usage" not in out2 and "regen_returncode" not in out2

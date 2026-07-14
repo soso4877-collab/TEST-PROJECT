@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from sajugen.modules import SELECTABLE_MODULES  # noqa: E402  모듈 enum SSOT
 from sajugen.render.verify import GATE_KEYS  # noqa: E402  게이트 키 SSOT(수동 목록 복제 금지)
 
 # regen stderr tail 의 생년월일·시각형 토큰 결정론 레닥션(T5.2/E-5) — hsummary 는 self_civil 이
@@ -208,6 +209,23 @@ def _redact_pdf(p: dict) -> dict:
         out["semantic_review_status"] = None
     if p.get("delivery_quality"):
         out["delivery_quality"] = _summarize_delivery_quality(p["delivery_quality"])
+    # 모듈 ID는 제품 enum으로 제한하고, 나머지는 비음수 정수만 허용한다. 이 네 값은
+    # 실제 적용된 선택과 분량 하한을 summary만으로 대조하기 위한 PII-free 관측면이다.
+    selected_modules = p.get("selected_modules")
+    if isinstance(selected_modules, (list, tuple)) and all(
+        module_id in SELECTABLE_MODULES for module_id in selected_modules
+    ):
+        out["selected_modules"] = list(selected_modules)
+    for key in ("module_schema_version", "minimum_pages", "minimum_text_chars"):
+        value = p.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            out[key] = value
+    module_contract_errors = p.get("module_contract_errors")
+    if isinstance(module_contract_errors, list) and all(
+        isinstance(error, str) and re.fullmatch(r"[a-z0-9_]+", error)
+        for error in module_contract_errors
+    ):
+        out["module_contract_errors"] = module_contract_errors
     out["daewoon_current"] = p.get("daewoon_current")
     # 재생성 실패 진단(T5.2/E-5) — PII 레닥션 통과분만 화이트리스트 포함(그동안 드롭되던 관측 갭).
     if p.get("regen_stderr_tail"):
@@ -317,7 +335,7 @@ def _md(summary: dict) -> str:
     L += [
         "",
         "## pytest",
-        f"- passed: {pt.get('passed')} / returncode: {pt.get('returncode')} / skipped(regen): {pt.get('skipped')}",
+        f"- passed: {pt.get('passed')} / returncode: {pt.get('returncode')} / skipped: {pt.get('skipped')}",
     ]
     L += ["", "## PDF 검증", f"- all_gates_pass: {summary['all_gates_pass']}"]
     for p in summary["pdfs"]:
@@ -326,6 +344,13 @@ def _md(summary: dict) -> str:
             L.append(f"- (검증 안 됨: {p['status']}) — 재생성하지 않음")
             continue
         L.append(f"- sha256: {p.get('sha256')} / pages: {p.get('pages')} / size: {p.get('size')}")
+        if "selected_modules" in p:
+            L.append(
+                "- module contract: "
+                f"selected={p.get('selected_modules')} / schema={p.get('module_schema_version')} / "
+                f"minimum_pages={p.get('minimum_pages')} / "
+                f"minimum_text_chars={p.get('minimum_text_chars')}"
+            )
         L.append("- gates: " + ", ".join(f"{k}={p.get(k)}" for k in _PDF_GATE if k in p))
         L.append("- hit counts: " + ", ".join(f"{k}={p.get(k)}" for k in _PDF_COUNT if k in p))
         if p.get("delivery_quality"):

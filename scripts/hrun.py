@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import hpreflight  # noqa: E402
+import hprofile_check  # noqa: E402
 import hstate  # noqa: E402
 import hsummary  # noqa: E402
 import hverify_pdf  # noqa: E402
@@ -49,11 +50,20 @@ def _run_pytest(python: str) -> dict:
             timeout=1800,
         )
         tail = (r.stdout or "")[-2000:]
-        m = re.search(r"(\d+) passed", tail)
+        passed_match = re.search(r"(\d+)\s+passed\b", tail)
+        skipped_match = re.search(r"(\d+)\s+skipped\b", tail)
         return {
             "returncode": r.returncode,
-            "passed": int(m.group(1)) if m else None,
-            "skipped": None,
+            "passed": int(passed_match.group(1)) if passed_match else None,
+            # pytest는 skip이 0이면 summary 토큰 자체를 생략한다. passed 요약을 읽은 경우
+            # 부재를 0으로 확정하고, 출력 형식 자체를 못 읽은 경우에만 None으로 둔다.
+            "skipped": (
+                int(skipped_match.group(1))
+                if skipped_match
+                else 0
+                if passed_match
+                else None
+            ),
             "tail": tail.splitlines()[-3:],
         }
     except Exception as e:  # noqa: BLE001
@@ -67,8 +77,13 @@ def _regen_allowed(args) -> bool:
     )
 
 
-def _regen_pdf(profile: dict, python: str) -> dict:
-    """승인된 경우에만 호출(3중 잠금 통과 후). 기존 cli/gunghap 으로 재생성."""
+def _regen_command(profile: dict, python: str) -> list[str]:
+    """재생성용 argv만 결정론적으로 구성한다(API/PDF 실행 없음).
+
+    모듈 선택 프로파일은 hverify와 같은 원자 계약을 통과한 경우에만 제품 CLI의 반복
+    ``--module`` 인자로 정규 순서 전달한다. 레거시는 플래그를 넣지 않아 기존 기본값을
+    유지한다.
+    """
     out_name = Path(profile["pdf"]).name
     if profile["type"] == "personal":
         cmd = [
@@ -110,6 +125,13 @@ def _regen_pdf(profile: dict, python: str) -> dict:
             cmd += ["--brand", str(profile["brand"])]
         if profile.get("situation") or profile.get("concern"):
             cmd += ["--situation", str(profile.get("situation") or profile.get("concern"))]
+        module_contract = hprofile_check.module_contract(profile)
+        if not module_contract["ok"]:
+            errors = ",".join(module_contract["errors"])
+            raise ValueError(f"invalid module contract: {errors}")
+        if module_contract["explicit"]:
+            for module_id in module_contract["selected_modules"]:
+                cmd += ["--module", module_id]
     else:
         cmd = [python, "-m", "sajugen.gunghap", "--llm"]
         for p in profile["people"]:
@@ -125,6 +147,12 @@ def _regen_pdf(profile: dict, python: str) -> dict:
             cmd += ["--mode", str(profile["mode"])]
         if profile.get("situation") or profile.get("concern"):
             cmd += ["--situation", str(profile.get("situation") or profile.get("concern"))]
+    return cmd
+
+
+def _regen_pdf(profile: dict, python: str) -> dict:
+    """승인된 경우에만 호출(3중 잠금 통과 후). 기존 cli/gunghap 으로 재생성."""
+    cmd = _regen_command(profile, python)
     r = subprocess.run(
         cmd,
         cwd=ROOT,
@@ -190,8 +218,19 @@ def run(profiles: list[str], args) -> dict:
         # integrated/궁합 프로파일의 고민(situation)을 concern 으로 정규화 —
         # verify_profile 이 concern 만 읽어 질문축 검사가 no-op 되던 갭 차단(P1).
         prof["concern"] = _profile_concern(prof)
+        module_contract = hprofile_check.module_contract(prof)
         regen_result = None
-        if regen_ok and not retry_blocked:
+        if regen_ok and not module_contract["ok"]:
+            # 잘못된 모듈 증거로 API/PDF 경로에 진입하지 않는다. verify_profile도 같은
+            # 오류 코드를 반환해 summary에 차단 사유가 남는다.
+            retry_blocked = True
+            retry_reasons.append("invalid_module_contract")
+            regen_result = {
+                "returncode": None,
+                "blocked": True,
+                "block_reason": "invalid_module_contract",
+            }
+        elif regen_ok and not retry_blocked:
             regen_result = _regen_pdf(prof, python)  # 승인 시에만(3중 잠금)
             if regen_result.get("returncode") != 0:
                 retry_blocked = True
@@ -203,7 +242,11 @@ def run(profiles: list[str], args) -> dict:
         # 재생성 여부와 무관하게 항상 '읽기 전용 검증'
         res = hverify_pdf.verify_profile(prof)
         if regen_result and regen_result.get("blocked"):
-            res["regen"] = "blocked_after_failure"
+            res["regen"] = (
+                "blocked_invalid_module_contract"
+                if regen_result.get("block_reason") == "invalid_module_contract"
+                else "blocked_after_failure"
+            )
         elif regen_ok:
             # rc!=0 인데 "done" 으로 표기되던 관측 갭(2026-07-05 h153 실측: 빌드 하드 게이트
             # 실패가 summary 에서 done 으로 보임) — 실패는 실패로 드러낸다(fail-closed 관측).

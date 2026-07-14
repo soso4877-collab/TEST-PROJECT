@@ -95,3 +95,19 @@ GATE_KEYS 양방 일치는 **등록된 게이트의 배선 완전성**만 증명
 > 폐기된 프록시(참고): `frontloaded_answer`/`physical_frontloaded_answer`(초반 1800자/물리 3쪽
 > 직답 프록시)는 2026-07-05 운영자 지시로 폐기 — 1장 직답 문단 제거 + 직답은 consult 장 전담
 > (docs/16). 프록시가 실제 품질과 어긋난 사례.
+
+## 하네스 모듈 증거 계약
+
+`integrated_full` 프로파일이 `modules`를 명시하면 아래 필드는 한 원자로 이동한다. 실제 운용값은
+저장 주문의 PII-free render/module 메타에서 복사하며 본문이나 고객 식별값으로 재구성하지 않는다.
+
+| 경계 | 필수 입력·출력 | fail-closed 조건 |
+|---|---|---|
+| profile | `modules`·`module_schema_version`·`module_sections`·`premerge_section_ids` | 빈/미등록 모듈, 현재 스키마 불일치, 두 커버리지 증거 누락·형태 오류 |
+| hverify | profile `modules`를 `selected_modules`로 바꾸고 두 커버리지 증거와 함께 `verify()` 전달 | 세 증거 중 일부만 전달, verify 응답의 선택/스키마 불일치 |
+| hrun argv | 명시 모듈마다 반복 `--module <id>` | profile 계약 실패 시 subprocess 진입 전 차단 |
+| hsummary | `selected_modules`·`module_schema_version`·`minimum_pages`·`minimum_text_chars` | 제품 enum 밖 모듈 ID나 비정수 하한은 요약에서 제외 |
+
+`modules`가 없는 레거시 프로파일만 선택 기능 이전의 5모듈 전체 계약을 사용한다. 이때 hverify는
+세 인자를 모두 `None`으로 전달하고 제품 정본이 5모듈·30쪽·10,000자를 복원한다. 명시 프로파일의
+증거 누락을 이 레거시 분기로 보정하는 것은 금지한다.

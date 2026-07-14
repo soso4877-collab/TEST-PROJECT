@@ -10,6 +10,27 @@ pdf: sajugen/render/out/FINAL_UPLOAD_integrated_full_EXAMPLE.pdf
 ref_year: 2026
 receiver: 갑동
 situation: "합성 관계와 생활 기준을 함께 확인합니다."
+modules:
+  - love
+  - job
+  - wealth
+  - health
+module_schema_version: 1
+# 실제 운용 프로파일은 저장 주문의 PII-free render/module 메타를 그대로 옮긴다.
+module_sections:
+  core: [personal_intro]
+  love: [personal_love]
+  job: [personal_work]
+  wealth: [personal_work]
+  health: [personal_health]
+  gunghap: []
+  tail: [personal_consult]
+premerge_section_ids:
+  - personal_intro
+  - personal_love
+  - personal_work
+  - personal_health
+  - personal_consult
 people:
   - {name: 갑동, birth: "1990-01-01 10:00", gender: 남}
   - {name: 을순, birth: "1991-02-02 11:00", gender: 여}

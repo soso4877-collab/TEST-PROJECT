@@ -1,5 +1,20 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-14 추가: QI-2026-07-14-01 하네스 모듈 계약 미배선으로 4모듈 PDF를 5모듈 하한으로 오판
+
+- 증상: 제품 `verify()`는 `selected_modules`·`module_sections`·`premerge_section_ids`를 받지만 `scripts/hverify_pdf.py`가 프로파일의 모듈 메타를 전달하지 않았다. `hrun.py` 재생성 argv에도 `--module`이 없고 summary에는 선택 모듈·적용 하한과 pytest skip 수가 남지 않았다. 따라서 4모듈 하한 `(28쪽, 9,000자)`인 29쪽 결과도 레거시 5모듈 `(30쪽, 10,000자)`로 판정돼 `premium_pages` 거짓 실패가 가능했다.
+- 영향: 결함은 하네스 증거 경로에 한정되고 제품 생성·계산·발송 경로는 변경하지 않았다. 잘못된 하한은 false-pass가 아니라 false-fail이지만, 운영자가 정상 4모듈 산출물을 부적합으로 오판하고 재생성 비용을 지출할 수 있었다. 실고객 PDF 재검증·재생성·API 호출은 하지 않았다.
+- 원인(2층):
+  - 표면: 프로파일 스키마에 `modules` 원자가 없었고 hverify 호출이 제품의 세 모듈 인자를 소비하지 않았다. hrun과 hsummary도 각각 argv·관측 소비처가 없어 모듈 계약이 부분 배선 상태였다.
+  - 시스템: 제품 경로의 모듈 공식·커버리지 테스트는 있었지만, `profile → hverify → verify → hsummary`와 `profile → hrun argv`를 관통하는 소비 테스트가 없었다. 레거시 기본값이 정상 동작해 인자 누락이 예외가 아니라 5모듈 보정으로 숨었고, summary가 적용 하한과 skip 수를 버려 사후 증거에서도 오판 원인을 볼 수 없었다.
+- 재발 방지(2026-07-14 Codex 구현, Claude 교차리뷰 대기):
+  - `modules` 명시 시 현재 `module_schema_version`과 두 커버리지 증거를 함께 요구하고, 누락·형태 오류·빈/미등록 모듈을 PDF/subprocess 전 `invalid_module_contract`로 차단한다. 레거시는 세 인자를 `None`으로 유지해 기존 5모듈 계약을 보존한다.
+  - hverify가 정규화한 선택과 두 증거를 `V.verify`에 함께 넘기고 verify 응답의 선택·스키마 역불일치도 gate 실패로 닫는다. hrun은 순수 argv 구성에서 모듈마다 반복 `--module`을 추가하며 계약 실패 시 재생성 진입을 막는다.
+  - hsummary에 PII-free 관측 4종(`selected_modules`·`module_schema_version`·`minimum_pages`·`minimum_text_chars`)을 화이트리스트하고, pytest quiet summary의 passed·skipped를 함께 파싱한다.
+  - 합성 회귀는 29쪽 4모듈 통과(하한 28), 29쪽 레거시 실패(하한 30), gunghap 혼입 차단, 증거 누락·빈/미등록 모듈·스키마 불일치 차단, 반복 argv/레거시 무플래그, pytest skip 보존을 양방으로 고정한다.
+- 구현자 검증(2026-07-14, API/PDF 0): 집중 `37 passed / 1 skipped`, 전체 **1043 passed / 32 skipped / exit 0**(동일 환경 직전 1033/32 대비 +10·감소 0, 총 수집 1075), golden **28 passed**. 기준환경 기대는 1061/4+신규 10=`1071/4`이며 Claude 교차리뷰가 확정한다. 변경 Python Ruff `All checks passed!`·py_compile exit 0·`git diff --check` exit 0·`sajugen/**` 구현 diff 0이다.
+- 미검증: 실제 PDF·운영 프로파일·API/LLM·재생성·hsweep·발송은 범위 밖이다.
+
 ## 2026-07-13 추가: QI-2026-07-13-02 첫 실LLM-on 생시미상 삼주 유료 run 게이트 실패 — LLM 콘텐츠 경로 근거화·축 커버리지 갭
 
 - 증상: 첫 실LLM-on 생시 미상 삼주 `integrated_full` 주문(익명 `DOC_1F3817DC9C`, 실고객 재생성 후보, 모듈 `[job,wealth,health]`)이 운영자 승인 유료 파이프라인 1회에서 `DRAFTED` 승격에 실패하고 `NORMALIZED`에 정지했다(PDF 미생성). 하드 게이트 = `gate_pass=False`, `failed_clean_flags=[delivery_quality_clean, style_clean]`, `delivery_failures=[missing_question_axes]`(+ `low_density` 절단). 로그: `classify` LLM이 `InstructorRetryException`으로 실패해 룰 폴백; `flow`·`consult`·`closing` 챕터의 LLM 출력이 가드에 거부(factcheck가 삼주 금칙 `시주`·근거 밖 월주 간지 `정미월/경술` 등 차단, consult `질문 직답 미달`)돼 룰 폴백.

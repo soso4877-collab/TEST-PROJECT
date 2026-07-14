@@ -20,6 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import hprofile_check  # noqa: E402
+
 
 def _parse_birth(s: str) -> tuple[int, int, int, int | None, int | None]:
     parts = s.strip().split()
@@ -164,16 +166,32 @@ def _build_specs(profile: dict) -> dict:
 
 def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
     """프로파일 1건 검증. 재생성하지 않는다. PDF 없으면 status=missing_pdf."""
-    from sajugen.content import client_tone_lint as ct
-    from sajugen.render import verify as V
-
     pdf = pdf_override or profile.get("pdf")
     pdf_abs = str((ROOT / pdf).resolve()) if pdf and not os.path.isabs(pdf) else pdf
     out: dict = {"type": profile.get("type"), "pdf": pdf}
+
+    # ``modules`` 명시 프로파일은 저장 주문에서 온 모듈/커버리지/스키마 원자를 모두
+    # 갖춰야 한다. PDF 존재 여부보다 먼저 닫아 증거 누락이 missing_pdf나 레거시 5모듈
+    # 보정으로 가려지지 않게 한다.
+    module_contract = hprofile_check.module_contract(profile)
+    if module_contract["explicit"]:
+        out["selected_modules"] = module_contract["selected_modules"]
+        out["module_schema_version"] = module_contract["module_schema_version"]
+    if not module_contract["ok"]:
+        out["status"] = "invalid_module_contract"
+        out["gate_pass"] = False
+        out["module_contract_errors"] = module_contract["errors"]
+        return out
+
     if not pdf_abs or not os.path.isfile(pdf_abs):
         out["status"] = "missing_pdf"  # 재생성하지 않고 스킵/실패 보고
         out["gate_pass"] = False
         return out
+
+
+    from sajugen.content import client_tone_lint as ct
+    from sajugen.render import verify as V
+
     specs = _build_specs(profile)
     v = V.verify(
         pdf_abs,
@@ -192,6 +210,11 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         # QI-2026-07-04: 프로파일이 파트너 유무를 선언하면 커플 지칭 승격 판정에 사용
         # (미선언 None = 기존 동작 — 잘못된 hard fail 방지 위해 운영자가 명시할 때만).
         partner_present=profile.get("partner_present"),
+        # Q7 모듈 계약은 세 원자를 함께 넘긴다. explicit=False 레거시는 모두 None이라
+        # 제품 정본이 기존 5모듈/30쪽 계약을 복원한다.
+        selected_modules=module_contract["selected_modules"],
+        module_sections=module_contract["module_sections"],
+        premerge_section_ids=module_contract["premerge_section_ids"],
         # 생시 미상 삼주 PDF는 프로파일의 PII-free 출처 계약을 최종 verify까지 전달한다.
         # 두 필드가 빠진 레거시 unknown 프로파일은 새 게이트의 승인 근거로 쓸 수 없다.
         birth_time_mode=profile.get("birth_time_mode"),
@@ -278,11 +301,33 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "product": _dq.get("product"),
         "pages": _dq.get("pages"),
         "text_chars": _dq.get("text_chars"),
+        "minimum_pages": _dq.get("minimum_pages"),
+        "minimum_text_chars": _dq.get("minimum_text_chars"),
+        "selected_modules": _dq.get("selected_modules"),
+        "module_schema_version": _dq.get("module_schema_version"),
         "required_axes": _dq.get("required_axes"),
         "missing_axes": _dq.get("missing_axes"),
         "failures": [_safe_finding(f) for f in (_dq.get("failures") or [])],
         "warnings": [_safe_finding(w) for w in (_dq.get("warnings") or [])],
     }
+    # summary가 본문이나 섹션 원문 없이도 적용된 모듈 하한을 직접 관측하도록 PII-free
+    # 정수/enum 네 값만 최상위로 올린다.
+    out["selected_modules"] = v.get("selected_modules")
+    out["module_schema_version"] = v.get("module_schema_version")
+    out["minimum_pages"] = _dq.get("minimum_pages")
+    out["minimum_text_chars"] = _dq.get("minimum_text_chars")
+
+    # 제품 verify 응답이 프로파일 원자와 다른 스키마/선택을 되돌리면 gate_pass가 참이어도
+    # 하네스 증거로 사용할 수 없다. 조용한 재정규화 대신 명시적 계약 오류로 닫는다.
+    if module_contract["explicit"]:
+        mismatch_errors: list[str] = []
+        if out["module_schema_version"] != module_contract["module_schema_version"]:
+            mismatch_errors.append("verify_module_schema_version_mismatch")
+        if out["selected_modules"] != module_contract["selected_modules"]:
+            mismatch_errors.append("verify_selected_modules_mismatch")
+        if mismatch_errors:
+            out["gate_pass"] = False
+            out["module_contract_errors"] = mismatch_errors
     # 보조: 외래어 원시 substring(목록은 client_tone_lint.LOANWORDS 재사용 — 정규식 복붙 아님)
     import fitz
 
