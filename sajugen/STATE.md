@@ -1,5 +1,37 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-14 삼주 근거화 Claude 교차리뷰 PASS — 이 블록 먼저 읽기) =====
+>   [판정] `three-pillar-llm-grounding-fix-20260713` Claude 신선 교차리뷰 = **CODE_PASS(no-LLM/mock 층)**.
+>     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `c4cd93b` 유지.
+>   [기준환경 실측] 전체 **1049 passed / 4 skipped / exit 0**(기준선 1036/4 대비 +13·감소 0·skip 불변),
+>     golden **28 passed**, 집중 4+1테스트 **62 passed**. 변경 Python 9파일 py_compile·diff-check exit 0.
+>     Ruff: rules.py 기존 17건(F841 1+F541 16) HEAD==worktree 구성 동일=신규 0, 다른 8파일 GREEN.
+>   [경계] diff=packet §7 정합. calc/input·verify.py 게이트·factcheck/safe/style lint 변경 0(실측).
+>     §4 known-time 바이트 보존은 `_COMPOSE_SYSTEM` SHA 핀 테스트로 고정. §5 6개 필수 테스트 양방·비-no-op
+>     (fail-closed는 API 도달 시 pytest.fail, usage 7/2/1 vs 0/0/0, factcheck 전량 부재). concern_text 생산
+>     경로 배선 확인(A-5 팬텀 아님). `_retry_feedback_labels` consult_direct 분기 live.
+>   [비차단 finding] Codex notes의 full HEAD SHA(c4cd93b17421f781…)가 실제 HEAD(c4cd93b17421c408…)와 12자
+>     이후 불일치 → notes에서 정정(short prefix는 정확해 리뷰 대상 영향 0).
+>   [정적확인] classify `strict=True`는 유효 GA 필드(top-level, no beta)로 확인, Haiku 4.5 지원 범위 → 400 위험 없음.
+>   [미검증] 실모델 삼주 `gate_pass=True`·실 PDF·300dpi 육안·비용은 판정 밖 = 운영자 승인 유료 재run 몫.
+>   [다음] 운영자 checkpoint: 승인 유료 재run 1회로 실 gate_pass 재측정 결정. 통과 전 APPROVED·발송 금지.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-13 삼주 LLM 근거화 구현 완료 — 이 블록 먼저 읽기) =====
+>   [현재] `three-pillar-llm-grounding-fix-20260713` packet 구현·Codex 자체 검증 완료.
+>     manifest는 `review_requested / next_actor=claude`로 전환해 신선 교차리뷰를 요청한다. commit 없음, HEAD `c4cd93b` 유지.
+>   [수정] 삼주 compose의 고정 예시·금칙 개념 유도원을 제거하고 장별 fact source scope를 API 전 fail-closed했다.
+>     retry에는 거부 원시 토큰 대신 고정 사유만 전달한다. 룰 폴백은 기존 concern 축 추출기와 실제 세운 연도를 써
+>     복합 6축·단일 축·무축 경계를 닫는다. 오류 종료도 PII-free `llm_usage`를 최신 report에 영속한다.
+>   [classify] 사고 당시 `InstructorRetryException`의 내부 원인은 로그 부재로 확정 불가(schema 오류와 일시 API 오류가
+>     같은 외부 예외로 래핑됨). 설정 취약점은 direct strict tool·강제 enum/required·추가필드 금지·SDK retry 0으로 보강했다.
+>   [검증] 전체 **1021 passed / 32 skipped / exit 0**(Codex 기준선 1008/32 대비 +13·감소 0), golden **28 passed**.
+>     집중 14+11+34+3, 인접 60/1s. 변경 Python 8파일 Ruff GREEN, `rules.py` 기존 17건은 HEAD와 동일해 신규 0,
+>     py_compile·diff-check exit 0. calc/input·factcheck·safe/style·verify gate 변경 0.
+>   [불변/미검증] API·LLM·PDF·고객 데이터·local profile·commit/push/deploy 접근 0. 실모델 삼주 `gate_pass=True`,
+>     실제 PDF·비용·300dpi 육안은 미검증이며 운영자 승인 유료 재run/Claude 환경 증거로 분리한다.
+>   [다음] Claude가 diff 전량·기준환경 전체 pytest·게이트 비악화를 교차리뷰한다. PASS 뒤 운영자 승인 전에는
+>     유료 재run·APPROVED·발송을 실행하지 않는다.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-13 삼주 replacement 유료 run 게이트 실패 — 이 블록 먼저 읽기) =====
 >   [현재] 운영자 승인 유료 파이프라인 1회 실행. 저장 order#2(생시미상 실고객, brand=seodam, 레거시 정오 결함)를
 >     원본으로 three_pillar `integrated_full`+[job,wealth,health] replacement 1건 생성(익명 `DOC_1F3817DC9C`).

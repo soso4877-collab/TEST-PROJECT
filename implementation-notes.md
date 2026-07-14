@@ -1,5 +1,33 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — three-pillar-llm-grounding-fix-20260713
+
+- 현재 상태: 승인 packet 구현과 Codex 자체 검증 완료. manifest를 `review_requested / next_actor=claude`로 전환해 신선 교차리뷰를 요청한다. commit은 금지 계약에 따라 만들지 않았고 HEAD는 `c4cd93b17421c408a1757b387a772a7f2365c2f3` 그대로다. <!-- Claude 교차리뷰 정정 2026-07-14: 원본 보고의 full SHA(c4cd93b17421f781…)는 short prefix만 정확했고 뒤가 불일치라 실제 HEAD로 교체 -->
+- 근본원인 실측:
+  - 삼주 compose system·override·공용 시간 닻에 현재 근거와 무관한 고정 예시 간지·금칙 개념·월간지 형식 요구가 들어 있었고, 장별 근거 슬롯보다 공통 출처 목록이 넓었다.
+  - 가드가 거부한 원시 토큰을 retry feedback에 다시 넣어 다음 요청의 유도원으로 만들었다.
+  - 삼주 룰 폴백은 `concern_text`를 받지 않아 복합 고민 축을 잃었고, 시기 축을 보장할 결정론 문장이 없었다.
+  - `run_generation` usage snapshot은 성공 저장 뒤에만 있어 생성 예외·provenance·계산 불일치의 조기 반환에서 collector와 함께 유실됐다.
+  - 사고의 `InstructorRetryException` 내부 원인은 사후 확정 불가다. 합성 실측상 schema 오류와 일시 API 오류가 같은 외부 예외로 래핑됐고, 기존 요청에는 strict schema가 없었다.
+- 수정 파일과 이유:
+  - `sajugen/content/llm_sections.py`: 삼주 고정 예시 제거, 긍정형 근거 계약, 삼주 전용 시간 닻, 장별 source scope API 전 fail-closed, direct strict classifier와 응답 직후 usage 기록.
+  - `sajugen/content/report_context.py`: 장별 삼주 fact source 단일 매핑과 “출처 ID는 근거 밖 사실 생성 권한이 아님” 계약.
+  - `sajugen/content/builder.py`: 장별 source 전달과 삼주 retry feedback 고정 사유화. 거부된 토큰 원문은 재전송하지 않는다.
+  - `sajugen/content/rules.py`: `concern_text` 배선, 기존 축 추출기 재사용, 실제 세운 연도 기반 시기·행동 최소 골격. 월운 값은 새로 노출하지 않는다.
+  - `sajugen/order_flow.py`: 생성 시작 뒤 모든 종료 경로에서 최신 report에 PII-free usage만 병합하고 성공 중복 저장을 생략.
+  - `tests/test_unknown_time_provenance_gate.py`, `tests/test_three_pillar_fallback_axes.py`, `tests/test_integrated_order_flow.py`, `tests/test_sdk_retry_policy.py`: 프롬프트·금칙/정상 양방·복합/단일/무축·오류 usage·strict parse 경계 회귀.
+  - `docs/16-quality-incident-ledger.md`, `sajugen/STATE.md`: 사고 액션 상태와 실모델 미검증 경계 갱신.
+- 실행 검증:
+  - 집중: SDK `14 passed`, order flow `11 passed`, unknown-time provenance `34 passed`, fallback axes `3 passed`; 인접 회귀 `60 passed / 1 skipped`.
+  - 전체 `.\.venv\Scripts\python.exe -m pytest tests\ -q`: **1021 passed / 32 skipped / exit 0**. 이 환경 기준선 1008/32 대비 +13, passed 감소 0. Claude 기준환경 1036/4와 skip 수는 분리 증거다.
+  - `.\.venv\Scripts\python.exe -m pytest tests\ -q -k golden`: **28 passed / exit 0**.
+  - 변경 Python 8파일 Ruff GREEN. `rules.py` 전체는 기존 부채 F841 1건+F541 16건으로 exit 1이며 HEAD 원본과 코드별 개수가 동일해 신규 위반 0이다.
+  - 변경 Python 9파일 `py_compile`: exit 0. `git diff --check`: exit 0.
+- 불변·미검증: calc/input·factcheck·safe/style·`render/verify.py`·게이트 기준 변경 0. API/LLM·PDF 재생성·고객 데이터·local profile·commit/push/deploy 접근 0. 실모델 `gate_pass=True`, 실제 PDF, 300dpi 육안과 비용 재측정은 운영자/Claude 후속이다.
+- 사소한 절차 기록: 초기 `handoff/` 파일명 탐색 1회가 필수 제외 글롭 없이 실행됐으나 검색 범위가 안전한 `handoff/`로 한정돼 금지 데이터 접근은 0이었다. 이후 모든 `rg`에 네 제외 글롭을 적용했다. Windows wildcard·인용 파서 실패는 파일을 읽기 전 종료됐고 다른 방식으로 전환했다.
+
+---
+
 ## 표지 keep-all·낙관 안전 여백 checkpoint 종결 — 2026-07-13
 
 - 최종 판정: **EVIDENCE_SPLIT_PASS / checkpoint 완료**. Claude 라운드23 기준환경 실렌더와 Codex의 동일 tree 전체·정적 검증을 합성했다.

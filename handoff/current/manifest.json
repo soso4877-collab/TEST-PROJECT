@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task_id": "three-pillar-llm-grounding-fix-20260713",
-  "status": "planned",
-  "base_commit": "e94e3bdfb1f361c831e16e602d7b02dd18abc8cc",
+  "status": "verified",
+  "base_commit": "c4cd93b17421c408a1757b387a772a7f2365c2f3",
   "packet_path": "handoff/tasks/three-pillar-llm-grounding-fix-20260713.md",
   "packet_sha256": "3e119a5a8b958bbf656d3761448a4a6d3babfdd8f5da048e0e3e00616db600c4",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "1a7c5274181eee81bb1baee648307d6831e2a70e1063ba5032a4ad8742929a47",
+  "notes_sha256": "390e2054f998e98436784e3c1e4a4e00483cc7e845973fe6831687a2a98dd2b2",
   "review_path": "REVIEW-FEEDBACK.md",
-  "review_sha256": "4f5da36629071cf65804b242052d3365d70e9b1f44481875319d339358c972a5",
-  "next_actor": "codex",
-  "next_action": "handoff/tasks/three-pillar-llm-grounding-fix-20260713.md 구현: §3 루트커즈 실측 선행, Codex는 LLM 금지로 no-LLM/mock 회귀만, 실모델 재run은 운영자 몫",
-  "updated_at": "2026-07-13T14:27:36.895Z"
+  "review_sha256": "93e80187f2a421dc61fa43a32f729920ce1a7390d9f4e2c1ba4ad757d644925d",
+  "next_actor": "user",
+  "next_action": "운영자 checkpoint: 승인 유료 재run 1회로 실 gate_pass 재측정 결정. 통과 전 APPROVED·발송 금지.",
+  "updated_at": "2026-07-14T09:24:03.449Z"
 }

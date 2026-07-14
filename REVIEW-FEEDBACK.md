@@ -1,3 +1,55 @@
+# 교차 리뷰 — 2026-07-14 (삼주 LLM 근거화, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `c4cd93b`) `three-pillar-llm-grounding-fix-20260713` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/three-pillar-llm-grounding-fix-20260713.md` (SHA `3e119a5a…b600c4`, manifest 핀 일치) · 근거 사고: QI-2026-07-13-02.
+
+## 최종 판정: **승인(CODE_PASS — no-LLM/mock 층)** — 기준환경 전체 pytest **1049 passed / 4 skipped / exit 0**(기준선 1036/4 대비 +13, 기존 감소 0, skip 불변). 삼주 근거화·폴백 축·오류경로 usage 영속이 양방·비-no-op 회귀로 실증됨. 미해결 블로커 0. 비차단 문서 finding 1건(정정 완료). 실모델 `gate_pass` 재측정은 판정 밖(운영자 승인 유료 재run 몫).
+
+### 실측
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| diff 범위 | packet §7 정합 — 생성/근거(`llm_sections.py`·`rules.py`·`report_context.py`), 배선(`builder.py`), 관측(`order_flow.py`), 테스트 4+신규 1, 문서(docs/16·notes·STATE·manifest). **calc/input·`render/verify.py` 게이트·factcheck/safe/style lint 변경 0**(diff+`git status -uall -- sajugen/calc sajugen/input` 양쪽 0) | ✓ |
+| 전체 pytest | **1049 passed / 4 skipped / exit 0** (199.75s) — 기준선 1036/4 +13, 기존 감소 0, skip==4 불변(passed→skipped 은닉 회귀 0). Codex 환경 1021/32와는 raw 미비교(환경 skip 차 28) | ✓ |
+| golden | 28 passed / exit 0 | ✓ |
+| 집중 | 변경 4테스트 + 신규 `test_three_pillar_fallback_axes.py` = **62 passed / exit 0** | ✓ |
+| §4 known 바이트 보존 | `test_known_time_compose_request_preserves_original_system_and_user_bytes`가 `_COMPOSE_SYSTEM` SHA-256 핀(`a17f90fb…380a`)+system block 구조+`_THREE_PILLAR_SYSTEM_OVERRIDE` 부재로 고정. 삼주 분기(`source_scope`/`temporal_anchor(three_pillar=)`/compose)는 전부 `birth_time_mode=="three_pillar"` 게이팅, known은 `source_scope=""`로 바이트 동일 → builder.py 스코프 우려 해소 | ✓ |
+| §5.1 구조적 부재 | `test_three_pillar_compose_request…`: system+user 전량에 고정 예시 토큰(임술일주·경오·신금·병오년·7월 병신월) 부재 + `factcheck.check(full_request, saju)==[]`. 실 `rules.build_all` base_text 사용 | ✓ |
+| §5.2 fail-closed | `…fails_closed_before_api_for_invalid_source_scope`: scope 4종(None·()·불일치·계약외) → `base_text` 반환, API `create` 도달 시 `pytest.fail`(비-no-op 증명). 정상 scope는 API 도달(통과측) | ✓ |
+| §5.3 폴백 축 | `test_three_pillar_fallback_axes.py`: 복합 6축·단일축·무축 경계를 production `_axis_evidence_hits`·`consult_direct_result`·`style_lint`·`verify._semantic_style_hits`로 검증(tautology 아님). 시기=실 세운 연도만, 월운 원시값 미노출 | ✓ |
+| §5.4 오류경로 usage | `test_generation_error_persists_isolated_llm_usage`: 생성 예외 주입 → `NORMALIZED`+`render_meta["llm_usage"]` 정확 영속+`generation_error` audit+collector reset. 성공 경로 중복 저장 회피 | ✓ |
+| §5.5 classify strict | 정상 tool-use(strict·enum·tool_choice·max_retries 부재·usage 7/2/1) + 6-case parse 실패(invalid-enum·missing·extra-field·no-tool·wrong-name·multi) → 룰 폴백+usage 유지(7/2/1)+PII 미유출. api 오류=usage 0/0/0 구분 | ✓ |
+| §5.6 경계·오탐 | 재시도 sanitize: 금칙 `경오월` 재시도 피드백 미복제(고정 라벨만). `_retry_feedback_labels` consult_direct 분기 live(builder.py:554-561이 실제 violation 생성) | ✓ |
+| concern_text 배선 | `build_report`(builder.py:316) → `build_all`(rules.py:1166) → `_build_three_pillar_all` → `_consult_context` 생산 경로 실전달(A-5 팬텀 아님, 소스 실측) | ✓ |
+| 정적 | py_compile(9) exit 0 · `git diff --check` exit 0 · Ruff: rules.py 기존 17건(F841 1+F541 16) **HEAD==worktree 구성 동일=신규 0**, 다른 8파일 GREEN | ✓ |
+| 경계 스냅샷 | 허용 4파일 제외 dirty+untracked 10파일 시작 SHA 수집(종료 대조는 산출 기록 후) | ✓ |
+
+### 비차단 finding (정정 완료)
+
+- Codex `implementation-notes.md`가 인용한 HEAD full SHA `c4cd93b17421f781bd602c1eb2d9df99aaf7e410`가 실제 HEAD `c4cd93b17421c408a1757b387a772a7f2365c2f3`와 12자 이후 불일치. short prefix `c4cd93b`는 정확해 리뷰 대상(워킹트리 diff)엔 영향 0. notes에서 실제 HEAD로 정정하고 정정 주석을 남겼다.
+
+### 실행한 검증 명령
+```
+Get-FileHash(경계 스냅샷 시작 10파일) + calc/input diff·status                 → 무변경(양쪽 0)
+py_compile(9) / git diff --check                                              → exit 0 / exit 0
+ruff check(9) + git show HEAD:rules.py 대조                                    → rules.py 17(구성 동일·신규 0), 8파일 GREEN
+./.venv/Scripts/python.exe -m pytest tests/ -q                                → 1049 passed / 4 skipped / exit 0 (199.75s)
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden                      → 28 passed / exit 0
+./.venv/Scripts/python.exe -m pytest (집중 4+신규 1) -q                        → 62 passed / exit 0
+소스 추적: consult_direct violation(builder.py:554) · concern_text 배선(builder.py:316→rules.py:1166)
+```
+
+### 정적 확인 완료 (구현 검증)
+- classify tool의 `"strict": True`는 **유효한 GA 필드**로 확인. Anthropic Messages API는 custom tool 정의에 `name`/`description`/`input_schema`와 나란히 top-level `strict: true`를 허용하며(no beta), 스키마의 `additionalProperties:false`+`required`와 함께 `tool_use.input`을 정확히 강제한다. 구현이 정확히 이 형태다(claude-api 레퍼런스 대조). 지원 모델 = Fable 5/Opus 4.8/Sonnet 5/**Haiku 4.5**이며 classify 모델이 `claude-haiku-4-5-20251001`(config.py:38)이라 지원 범위 안이다 → 400 위험 없음(advisor 지적대로 실모델 질문이 아니라 정적 계약 질문이라 무과금 확인).
+
+### 미검증(정직 보고)
+- 실모델 삼주 `integrated_full` × 실복합 고민의 `gate_pass=True`, 실 PDF·300dpi 육안·비용은 이 CODE_PASS 범위 밖 = **운영자 승인 유료 재run(운영자/Claude 환경) 몫**. pytest 합성 테스트 산출물 외 PDF 생성 0. commit·push·API·LLM 없음.
+- 사고 당시 `InstructorRetryException` 내부 원인은 로그 부재로 사후 확정 불가(설정 취약점은 direct strict tool로 보강).
+
+다음: 운영자 checkpoint — 승인 유료 재run 1회로 실 `gate_pass` 재측정 결정. 통과 시에만 표준 게이트→hrun→hsweep(과금 선보고)→300dpi 육안→운영자 전문 검수 Z=0 뒤 APPROVED/수동 발송. Claude PASS 뒤 Codex 재확인은 열지 않는다(역할 계약).
+
+---
+---
+
 # 운영자 checkpoint 종결 — 2026-07-13 (표지 keep-all + 낙관 안전 여백)
 
 대상: `cover-sub-keepall-20260713` · 제품 commit `2fc7309` · 역할 계약 commit `7ff7f56`
