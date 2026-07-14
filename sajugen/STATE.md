@@ -1,5 +1,19 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-14 하네스 모듈 계약 Claude 교차리뷰 CODE_PASS — 이 블록 먼저 읽기) =====
+>   [판정] `beta-1-hverify-module-contract-20260712` Claude 신선 교차리뷰 = **CODE_PASS**.
+>     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `519fc61` 유지(Codex 미커밋 8파일).
+>   [기준환경 실측] 전체 **1071 passed / 4 skipped / exit 0**(226.51s, 기준선 1061/4 +10·감소 0·skip 불변),
+>     golden **28 passed**. 변경 5 py Ruff All checks passed·py_compile·diff-check 0. **제품 diff 0**(sajugen/** 변경 0).
+>   [배선] hverify가 3원자(selected_modules·module_sections·premerge_section_ids)를 V.verify 전달, 레거시 None→
+>     제품 5모듈/30p 복원(회귀 0). 계약은 제품 sajugen.modules 정본 fail-closed(PDF 검사보다 먼저·조용한 보정 없음).
+>   [자문 사각 확인] 테스트가 V.verify mock이라 실 `verify.py:484-485` 시그니처·`719-720` analyze 전달을 **소스로 확인**
+>     → A-5 팬텀 재발 아님. 런타임 증명은 §7.3(운영자 hrun) 몫.
+>   [§4 양방·비-no-op] 4모듈=28p / 레거시=30p(captured kwargs 전달 실증·제품 module_minimums 실호출), fail-closed
+>     (3중잠금 열려도 regen 차단=pytest.fail), gunghap 혼입 차단, argv, pytest.skipped 보존, hsummary 4종. 경계 8파일 불변.
+>   [다음] 운영자 checkpoint = commit 여부 + (별도 지시 시) §7.3 합성 모듈 제한 픽스처 hrun 1회로 런타임 확정.
+>     실고객 발송은 표준 게이트→검수 Z=0 뒤에만.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-14 하네스 모듈 계약 태스크 재활성 — 이 블록 먼저 읽기) =====
 >   [활성 태스크 전환] 삼주 실모델 품질 후속(`three-pillar-real-model-quality-followup`) = 종결(verified·커밋 `2d91933`까지 push).
 >     보류였던 `beta-1-hverify-module-contract-20260712`를 **재베이스라인 후 재활성**(삼주 라인 종결로 보류 해제).

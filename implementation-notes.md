@@ -1,5 +1,64 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — beta-1-hverify-module-contract-20260712
+
+- 판정: **EVIDENCE_SPLIT_PASS / 구현 완료·Claude 기준환경 교차리뷰 요청**. 활성 packet §2~§7.1의
+  하네스 원자 배선과 합성 양방·경계 회귀를 완료했다. commit·push는 실행하지 않았다.
+- 기준/HEAD 경계: 시작 시 manifest 고정 base와 HEAD는 `2d91933`이었고 packet SHA
+  `15030847…2720ce8b`, notes/review SHA, `next_actor=codex`가 일치했다. 작업 중 외부에서 시작 시 이미
+  dirty였던 활성화 3파일(manifest·packet·`sajugen/STATE.md`)만 `519fc61`로 commit/push해 HEAD가
+  이동했다. 구현 허용 파일과 겹침 0, 고정 SHA·manifest 내용 불변이며 이 커밋은 Codex 작업으로
+  주장하지 않는다. 현재 구현 diff는 `519fc61` 위 미커밋 8파일이다.
+- 근본원인 실측:
+  - `hverify_pdf.py`의 `V.verify()` 호출이 제품에 이미 존재하는 `selected_modules`·
+    `module_sections`·`premerge_section_ids` 세 인자를 전달하지 않아, 명시 4모듈도 제품 레거시
+    기본 5모듈로 복원됐다.
+  - `hrun.py` 재생성 argv에 `--module` 소비처가 없고, `hsummary.py`는 적용 모듈/하한 4종과
+    pytest skipped를 버려 부분 배선을 사후 증거로도 발견할 수 없었다.
+- 수정 파일과 이유:
+  - `scripts/hprofile_check.py`: 제품 `sajugen.modules` 정본으로 `modules` 명시 계약을 검증한다.
+    현재 schema, `module_sections`, `premerge_section_ids`가 한 원자로 없거나 빈/미등록 모듈이면
+    PII-free 오류 코드로 fail-closed한다. `modules` 미지정은 세 verify 인자를 None으로 유지한다.
+  - `scripts/hverify_pdf.py`: PDF 존재 검사보다 먼저 계약을 닫고, 세 모듈 원자를 함께 `V.verify`로
+    전달한다. verify 응답의 선택/schema 역불일치도 gate 실패로 닫고 적용 하한 4종을 올린다.
+  - `scripts/hrun.py`: 실행 없는 `_regen_command()`를 분리해 명시 모듈을 반복 `--module` argv로
+    구성한다. 계약 오류면 3중 잠금이 열려도 `_regen_pdf`/subprocess 전에 차단한다. pytest quiet
+    summary에서 passed와 skipped를 함께 파싱한다.
+  - `scripts/hsummary.py`: 제품 enum으로 제한한 `selected_modules`와 비음수 정수
+    `module_schema_version`·`minimum_pages`·`minimum_text_chars`를 JSON/MD에 보존한다.
+  - `tests/test_harness.py`: 29쪽 4모듈(하한 28) 통과/레거시(하한 30) 실패, gunghap 혼입,
+    증거 누락, 빈/미등록 모듈, schema 불일치, regen 사전 차단, 반복 argv/레거시 무플래그,
+    pytest skipped, hsummary 4종을 합성 PII 0으로 고정했다.
+  - `harness/profiles/integrated_full.example.yml`: 저장 주문 meta에서 복사할 4모듈 원자 예시를 추가했다.
+  - `docs/20-gate-coverage.md`, `docs/16-quality-incident-ledger.md`: 하네스 경계 계약과
+    HRUN_EVIDENCE_INVALID_MODULE_SPEC_GAP의 표면/감지 시스템 2층 원인을 기록했다.
+- 실행 검증:
+  - 집중: `tests/test_harness.py + tests/test_gate_registry.py` = **37 passed / 1 skipped / exit 0**.
+  - 전체 `.\.venv\Scripts\python.exe -m pytest tests\ -q` = **1043 passed / 32 skipped / exit 0**.
+    동일 환경 직전 notes 기준 1033/32 대비 신규 +10·기존 감소 0, 총 수집 1075다. 기준환경
+    1061/4에는 신규 10을 합친 **1071/4**가 기대값이며 Claude 환경이 확정한다.
+  - golden `-k golden` = **28 passed / exit 0**.
+  - 예시 프로파일 검사 = `ok=true`, 4모듈/schema 1/커버리지 증거 count 관측.
+  - 변경 Python 5파일 Ruff `All checks passed!`, py_compile exit 0, `git diff --check` exit 0,
+    `git diff --exit-code -- sajugen` 및 `git status -- sajugen` 출력 0(제품 구현 diff 0).
+- 금지/미검증: API·LLM·PDF 재생성·hsweep·local profile·ignored 고객 산출물·commit·push·발송 접근 0.
+  실제 합성 모듈 제한 PDF의 hrun/hverify 1회는 packet §7.3에 따라 Claude PASS 뒤 운영자 별도 지시
+  대상이며 이번 EVIDENCE_SPLIT_PASS에 포함하지 않는다.
+
+## 하네스 모듈 계약 교차리뷰 — 2026-07-14 (검증 세션, 리뷰어 Claude 신선 컨텍스트)
+
+- 판정: **승인(CODE_PASS)** — 미해결 블로커 0. 정본 = `REVIEW-FEEDBACK.md` 최상단 절.
+- 기준환경 전체 pytest **1071 passed / 4 skipped / exit 0**(226.51s), golden **28 passed** — 기준선 1061/4 +10·감소 0·skip 불변. Codex 기대값 정확 일치.
+- **제품 diff 0**(하드 경계): `git diff -- sajugen/` 0 + untracked 0. 변경 10파일 전부 하네스·테스트·문서·handoff.
+- 배선: hverify가 3원자(`selected_modules`·`module_sections`·`premerge_section_ids`)를 `V.verify` 전달, 레거시 None→제품 5모듈 복원(회귀 0). 계약은 제품 `sajugen.modules` 정본 fail-closed(PDF 검사보다 먼저·조용한 보정 없음).
+- **자문 사각 확인(소스)**: 테스트가 `V.verify` mock이라, 실 `verify.py:484-485` 시그니처·`719-720` analyze 전달을 소스로 확인 → A-5 팬텀 재발 아님. 런타임은 §7.3.
+- §4 양방·비-no-op: 4모듈=28p / 레거시=30p(captured kwargs로 전달 실증·제품 module_minimums 실호출), fail-closed(3중잠금 열려도 regen 차단=pytest.fail), gunghap 혼입 차단, argv, pytest.skipped 보존, hsummary 4종.
+- 정적: Ruff 5 py All checks passed·py_compile·diff-check exit 0. 경계 read-only 8파일 시작=종료 불변.
+- HEAD 경계: base `519fc61`은 리뷰어(Claude) 재활성 커밋, Codex는 그 위 미커밋 8파일뿐(commit·push 0 실측).
+- 미검증(판정 밖): 실 V.verify 통과 합성 픽스처 hrun 1회 = §7.3 운영자 몫. 다음 manifest `verified/next_actor=user`.
+
+---
+
 ## CODEX_IMPLEMENTATION_REPORT — three-pillar-real-model-quality-followup-20260714
 
 - 현재 상태: 활성 packet §2~§5 구현과 Codex 자체 검증 완료. 실제 HEAD는 활성화 커밋

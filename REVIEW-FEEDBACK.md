@@ -1,3 +1,51 @@
+# 교차 리뷰 — 2026-07-14 (하네스 모듈 계약 배선, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `519fc61`) `beta-1-hverify-module-contract-20260712` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/beta-1-hverify-module-contract-20260712.md`(SHA `15030847…20ce8b`, manifest 핀 일치) · 근거: HRUN_EVIDENCE_INVALID_MODULE_SPEC_GAP(하네스 증거 경로가 모듈 제한 주문을 5모듈 하한으로 오판).
+
+## 최종 판정: **승인(CODE_PASS)** — 기준환경 전체 pytest **1071 passed / 4 skipped / exit 0**(기준선 1061/4 대비 +10·감소 0·skip 불변). 하네스 모듈 계약이 프로파일→hverify→verify→hsummary + hrun argv로 원자 배선되고 fail-closed·회귀 0가 양방·비-no-op으로 실증됨. **제품 diff 0**. 미해결 블로커 0.
+
+### 실측
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 제품 diff 0(하드 경계) | `git diff --stat -- sajugen/` 비어있음 + untracked sajugen 0 = **제품/calc/input 변경 0**. 변경 10파일 전부 하네스(scripts 4·profiles 1)·테스트·문서(docs/16·20)·handoff | ✓ |
+| 전체 pytest | **1071 passed / 4 skipped / exit 0**(226.51s) — 기준선 1061/4 +10, 감소 0, skip==4 불변. Codex 기대값 1071/4 정확 일치 | ✓ |
+| golden | 28 passed / 1047 deselected / exit 0 | ✓ |
+| **실 verify() 시그니처·전달(자문 사각 — 소스 확인)** | 하네스 테스트는 `V.verify`를 mock하므로 소스로 확인: `verify.py:484-485` `module_sections`·`premerge_section_ids` **시그니처 존재**, `719-720` `analyze`로 **전달**, `735` 표면화. → hverify의 3원자 전달이 TypeError·silent drop 없음(A-5 팬텀 재발 아님). 런타임 증명은 §7.3(운영자 hrun) 몫 | ✓ |
+| 배선(§3.2·§3.5) | `hverify_pdf.py`가 `selected_modules`·`module_sections`·`premerge_section_ids`를 `V.verify`에 함께 전달. explicit=False 레거시는 3인자 None → 제품이 5모듈/30p 복원(회귀 0) | ✓ |
+| 계약 fail-closed(§3.1·§3.3·§3.4) | `hprofile_check.module_contract`가 제품 `sajugen.modules` 정본(normalize·`MODULE_SCHEMA_VERSION`)으로 검증, 커버리지/스키마 누락·형태오류·빈/미등록을 `invalid_module_contract`로 차단(조용한 5모듈 보정 없음). PDF 존재 검사보다 **먼저** 닫아 증거누락 미마스킹. verify 응답 역불일치도 gate 실패 | ✓ |
+| §4 양방·비-no-op | 핵심 `test_hverify_applies_four_module_floor_and_preserves_legacy_floor`: captured kwargs로 **3원자 전달 실증**(4모듈=28p 통과 / 레거시=None·30p 실패). minimums는 제품 `module_minimums` 실호출(하드코딩 아님). + fail-closed(커버리지 누락·3중잠금 열려도 regen 차단=`pytest.fail` 도달 시 실패)·gunghap 혼입 차단(real coverage)·argv·pytest.skipped 보존·경계(빈/미등록/schema+1) | ✓ |
+| 관측(§3.8·§3.9) | hsummary 4종(`selected_modules`·`module_schema_version`·`minimum_pages`·`minimum_text_chars`) 제품 enum·비음수 int(bool 제외)만 PII-free 보존. hrun `_run_pytest`가 passed·skipped 함께 파싱(skip 0=토큰 생략→0 확정, 형식 미파싱만 None) | ✓ |
+| 정적 | Ruff 변경 5 py **All checks passed** · py_compile 5 exit 0 · `git diff --check` exit 0 | ✓ |
+| 문서 | docs/16 QI-2026-07-14-01(근본원인 2층 포스트모템·false-fail 정직 명시) + docs/20 하네스 모듈 계약표(경계별 fail-closed) — §5 범위 | ✓ |
+| 경계 스냅샷 | 리뷰어 read-only 8파일(docs/16·20·profile·scripts 4·test) 시작/종료 SHA 전수 일치(무변경) | ✓ |
+
+### HEAD 경계 확인
+
+- base HEAD `519fc61`은 **Claude(리뷰어)가 만든 재활성 커밋**이고 Codex 구현은 그 위 미커밋 8파일이다. Codex commit·push 0 실측(HEAD=519fc61 불변, working tree dirty). Codex notes의 "commit/push해"는 이 외부(Claude) 활성화 커밋을 가리키며 자기 작업으로 주장하지 않는다고 명시 — 계약 위반 아님.
+
+### 실행한 검증 명령
+
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            # 1071 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  # 28 passed
+./.venv/Scripts/python.exe -m ruff check <변경 5 py>       # All checks passed!
+./.venv/Scripts/python.exe -m py_compile <변경 5 py>       # exit 0
+git diff --stat -- sajugen/                               # 비어있음(제품 diff 0)
+grep -n module_sections\|premerge_section_ids sajugen/render/verify.py  # 484-485 sig · 719-720 forward
+```
+
+### 미검증 (판정 밖 — 정직 보고)
+
+- 실 `V.verify`를 통과하는 합성 모듈 제한 PDF의 hrun/hverify 1회(4모듈=28p 실적용 summary 확인) = packet §7.3, 운영자 hrun 지시 몫. 테스트가 V.verify를 mock하므로 이 층은 소스 확인으로 대체하고 런타임은 §7.3에 위임.
+- 합성 테스트 산출물 외 PDF 0. commit·push·API·고객/local/ignored 비접촉.
+
+### 다음
+
+- manifest `verified / next_actor=user`(packet §7에 Codex 재확인 단계 없음). 운영자 = commit 여부 + (별도 지시 시) §7.3 합성 픽스처 hrun 1회로 런타임 확정.
+
+---
+
 # 교차 리뷰 — 2026-07-14 (삼주 실모델 품질 후속, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, base=HEAD `74e94e5`) `three-pillar-real-model-quality-followup-20260714` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/three-pillar-real-model-quality-followup-20260714.md`(SHA `7533f515…647167`, manifest 핀 일치) · 근거: QI-2026-07-13-02 유료 재run(2026-07-14) 실측 거동·육안 nit 2건.
