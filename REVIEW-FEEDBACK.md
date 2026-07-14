@@ -1,3 +1,53 @@
+# 교차 리뷰 — 2026-07-14 (삼주 실모델 품질 후속, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `74e94e5`) `three-pillar-real-model-quality-followup-20260714` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/three-pillar-real-model-quality-followup-20260714.md`(SHA `7533f515…647167`, manifest 핀 일치) · 근거: QI-2026-07-13-02 유료 재run(2026-07-14) 실측 거동·육안 nit 2건.
+
+## 최종 판정: **승인(CODE_PASS — no-LLM/mock 층)** — 기준환경 전체 pytest **1061 passed / 4 skipped / exit 0**(기준선 1049/4 대비 +12, 감소 0, skip 불변). 프롬프트 억제 강화(생성 측 한정)·조사 `_J` 배선·표지 h1 keep-all이 양방·비-no-op 회귀로 실증. 미해결 블로커 0. 비차단 scope 플래그 1건(운영자 checkpoint 확인).
+
+**⚠️ CODE_PASS ≠ "품질 개선 완료".** 이 판정은 no-LLM/mock 층에서 (a) 프롬프트가 관측 금칙(`시주`·맨몸월·§12 메타)을 더는 **포함하지 않고** 억제 지시를 **포함하며**, (b) 조사가 결정론임을 증명한다. **packet 목표 #1(실 Sonnet의 4챕터 폴백률↓)은 이 층에서 증명 불가** — 실모델이 실제로 금칙 생성을 멈추는지는 운영자 승인 유료 재run(packet §6·§8)으로만 확정된다. 운영자의 다음 결정은 "이미 고쳤다"가 아니라 **유료 재run으로 폴백률 감소·조사 육안 재측정**이다.
+
+### 실측
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| diff 범위 | packet §7 정합 — 프롬프트(`llm_sections.py` 삼주 파생 system·override·temporal), 조사(`rules.py` 삼주 골격 `_J` + meta 순화), 표지(`report.html.j2` h1 keep-all), 테스트 3파일, 문서(docs/16·notes·STATE·manifest). **calc/input·`render/verify.py` 게이트·factcheck/safe/style lint·`GATE_KEYS` 변경 0**(diff+`git status -uall -- sajugen/calc sajugen/input` 양쪽 0) | ✓ |
+| 전체 pytest | **1061 passed / 4 skipped / exit 0**(241.31s) — 기준선 1049/4 +12, 감소 0, skip==4 불변(passed→skipped 은닉 0). Codex 기대값 1061/4와 정확 일치 | ✓ |
+| golden | 28 passed / 1037 deselected / exit 0 | ✓ |
+| 억제 강화(생성 측 한정) | `llm_sections.py` 변경 전량이 삼주 게이팅(`three_pillar` 분기) 또는 삼주 파생 system 전용(`_THREE_PILLAR_SYSTEM_REPLACEMENTS` +2·`_THREE_PILLAR_SYSTEM_OVERRIDE`·`_THREE_PILLAR_COMPOSE_GUIDE`). known `_COMPOSE_SYSTEM` 정의·`temporal_anchor` else-branch(`이 풀이의`·`ref_date` 주입) 바이트 불변. **게이트/가드/factcheck/safe/style 미변경** | ✓ |
+| §4 known 바이트 | `test_known_time_compose_request_preserves_original_system_and_user_bytes` SHA 핀(`a17f90fb…380a`) — `_COMPOSE_SYSTEM` diff 미변경 → 전체 run 포함 GREEN | ✓ |
+| §5 억제 지시 배선(A-5 팬텀 아님) | `test_three_pillar_failed_chapter_prompts_suppress_observed_output_tokens`가 SDK 경계에서 **realized 요청**을 캡처 → "누락된 자리를 이름 붙이지 않는다"가 `system_text`에 실재 + `운명이 정해`·`이 풀이`·`시주`·맨몸월(정규식 `(?<!\d)\d{1,2}월`) 부재를 4챕터(intro/nature/flow/consult) 장별 1차원인+공통계약으로 단언. 정의만이 아닌 **소비 증명** | ✓ |
+| §5 조사 결정론 | `test_three_pillar_ganzhi_josa_table`(받침 유무 6종 `_J` 직접) + `…nature_routes_ganzhi_particles_through_josa_helper`(production `build_all` 실골격 양방 — `정축이`/`임신이`/`무는` present·`정축가`/`무은` absent·병기 `이(가)`·mojibake `�` absent). Codex 보고 구현 전 RED | ✓ |
+| §5 폴백 축 비악화 | 기존 `test_three_pillar_fallback_axes` 3종 유지(diff 추가만·삭제 0) | ✓ |
+| §5 표지 h1 | `test_report_template_keeps_cover_heading_syllables_together`가 `.cover h1` 셀렉터에 keep-all/overflow-wrap/line-break 고정(정적, 제거 시 RED). template diff = `.cover h1`에 3속성 추가만 | ✓ |
+| rules.py 바이트 | 조사·meta 순화 = 삼주 전용(의도적 바이트 변경=테스트 커버). F541/F841 정리(scope 플래그 참조)는 바이트 불변 — F541=placeholder 없는 f-string→일반 문자열(전부 `{}` 부재), F841 `day_sg`=전체 참조 0(grep). golden 28 GREEN이 known-time 문자열 바이트 불변 담보 | ✓ |
+| 정적 | Ruff 변경 5 py **All checks passed**(rules.py 부채 완전 해소) · py_compile(5) exit 0 · `git diff --check` exit 0 · calc/input 무변경 | ✓ |
+| 경계 스냅샷 | 리뷰어 read-only 7파일(docs/16·llm_sections·rules·report.html.j2·테스트 3) 시작/종료 SHA 전수 일치(무변경) | ✓ |
+
+### 비차단 scope 플래그 (운영자 checkpoint 확인)
+
+- Codex가 `rules.py`의 **기존 Ruff 부채(F541 16 + F841 1)를 packet scope 밖에서 함께 제거**했다. 이유 = "변경 Python Ruff GREEN"(packet §6) 완료 조건을 문자 그대로 충족. 바이트 불변은 검증됨(F541 자명 · `day_sg` 미사용 실측 · golden 28). 이전 라운드는 이 부채를 "기존 구성 동일 = 신규 0"으로 수용해 왔으나 이번엔 정리를 택했다 → **checkpoint 시 운영자가 scope 확장을 인지**할 것(정당·비악화이나 packet 명시 변경 유형 밖).
+
+### 실행한 검증 명령
+
+```
+./.venv/Scripts/python.exe -m pytest tests/ -q            # 1061 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden  # 28 passed
+./.venv/Scripts/python.exe -m ruff check <변경 5 py>       # All checks passed!
+./.venv/Scripts/python.exe -m py_compile <변경 5 py>       # exit 0
+git diff --check                                          # exit 0
+```
+
+### 미검증 (판정 밖 — 정직 보고)
+
+- 실모델 4챕터 폴백률 감소·실 PDF 조사(`정축이`) 육안·표지 h1 개행 조판 = 운영자 승인 유료 재run(packet §6·§8) 몫. no-LLM/mock 층은 프롬프트·조사·정적 CSS만 증명한다.
+- 합성 테스트 산출물 외 PDF 생성 0. commit·push·API·고객/local/ignored 비접촉.
+
+### 다음
+
+- manifest `verified / next_actor=user`(packet §8에 Codex 재확인 단계 없음 — grounding-fix 라운드와 동일). 운영자 checkpoint = (1) scope 플래그 확인 (2) commit 여부 결정 (3) **유료 재run으로 폴백률·조사 육안 재측정**. 통과 전 APPROVED·발송 금지.
+
+---
+
 # 교차 리뷰 — 2026-07-14 (삼주 LLM 근거화, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, base=HEAD `c4cd93b`) `three-pillar-llm-grounding-fix-20260713` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/three-pillar-llm-grounding-fix-20260713.md` (SHA `3e119a5a…b600c4`, manifest 핀 일치) · 근거 사고: QI-2026-07-13-02.

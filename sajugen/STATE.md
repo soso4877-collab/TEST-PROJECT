@@ -1,5 +1,38 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-14 삼주 실모델 품질 후속 Claude 교차리뷰 CODE_PASS — 이 블록 먼저 읽기) =====
+>   [판정] `three-pillar-real-model-quality-followup-20260714` Claude 신선 교차리뷰 = **CODE_PASS(no-LLM/mock 층)**.
+>     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `74e94e5` 유지.
+>   [기준환경 실측] 전체 **1061 passed / 4 skipped / exit 0**(241.31s, 기준선 1049/4 대비 +12·감소 0·skip 불변),
+>     golden **28 passed**. Codex 기대값 1061/4와 정확 일치. 변경 5 py Ruff All checks passed·py_compile·diff-check 0.
+>   [경계] diff=packet §7 정합. calc/input·`render/verify.py` 게이트·factcheck/safe/style·`GATE_KEYS` 변경 0(실측).
+>     억제 강화는 **생성 측 한정**(삼주 게이팅/삼주 파생 system 전용, known `_COMPOSE_SYSTEM`·temporal else 바이트 불변·SHA 핀 GREEN).
+>     §5 양방·비-no-op: 억제 지시 SDK realized 캡처(누락자리 비호명 소비 증명), 조사 `_J` 실골격 양방(`정축이`/`무는`),
+>     표지 h1 CSS 계약. 경계 read-only 7파일 시작/종료 SHA 불변.
+>   [비차단 scope 플래그] Codex가 rules.py 기존 Ruff 부채(F541 16+F841 1)를 packet scope 밖에서 정리 —
+>     바이트 불변 검증(F541 자명·`day_sg` 미사용·golden 28), "변경 Python Ruff GREEN" 조건 충족. checkpoint 시 운영자 scope 인지.
+>   [⚠️ CODE_PASS ≠ 품질해결] no-LLM 층은 프롬프트 금칙 부재·억제 지시 존재·조사 결정론만 증명. **packet 목표 #1(실 Sonnet
+>     4챕터 폴백률↓)은 이 층에서 증명 불가** → 운영자 승인 유료 재run(§6·§8)이 폴백률·조사 육안의 게이트다.
+>   [다음] 운영자 checkpoint = (1) scope 플래그 확인 (2) commit 여부 (3) **유료 재run으로 폴백률·조사 육안 재측정**.
+>     실고객 발송은 표준 게이트→검수 Z=0 뒤에만. 통과 전 APPROVED·발송 금지.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-14 삼주 실모델 품질 후속 Codex 구현 완료 — 이 블록 먼저 읽기) =====
+>   [현재] `three-pillar-real-model-quality-followup-20260714` 활성 packet 구현·자체 검증 완료.
+>     시작 HEAD `74e94e5`, commit·push·API·운영 PDF 재생성 없음. Claude 신선 교차리뷰 요청 단계.
+>   [루트커즈] intro는 삼주 system·temporal이 관측 메타 어간을 직접 재노출. nature·consult는
+>     “제외 범위 설명” 지시가 빠진 시간 자리를 호명하도록 유도하면서 비호명 계약이 없었다.
+>     flow·consult는 기준일 블록이 맨몸 `7월` 3회·`12월` 1회를 직접 주입했다. 조사 오류는
+>     삼주 nature 한 문형의 `{month_gz}가`·`{day_gz}가` 하드코딩으로 `_J`를 우회한 것이 원인.
+>   [수정] known 바이트는 유지하고 삼주 파생 system·override·temporal만 억제 강화. 삼주 골격의
+>     일간·연/월/일주 조사를 `_J`로 결정하며 메타 유도 문구를 직접 화법으로 정리. 표지 h1 keep-all 3종 추가.
+>   [검증] 구현 전 prompt 4+nature 조사 1+h1 CSS 1 RED. 수정 후 핵심 **17 passed**, 인접 **81 passed**,
+>     전체 **1033 passed / 32 skipped / exit 0**(이 환경 1021/32+신규 12, 감소 0), golden **28 passed**.
+>     기준환경 기대 1061/4와 총 수집 1065 일치. 변경 Python Ruff·py_compile·diff-check GREEN,
+>     known `_COMPOSE_SYSTEM` SHA와 known user bytes 핀 GREEN.
+>   [불변/미검증] calc/input·factcheck/safe/style·verify/GATE_KEYS 변경 0. 고객/local/ignored 비접촉.
+>     실모델 폴백률 감소·실 PDF 조사·표지 육안은 운영자 승인 유료 재run/Claude 증거 몫으로 분리.
+>   [다음] Claude가 diff 전량·기준환경 1061/4·게이트 비악화를 교차리뷰한다. 그 전 commit·push·유료 run 금지.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-14 삼주 근거화 Claude 교차리뷰 PASS — 이 블록 먼저 읽기) =====
 >   [판정] `three-pillar-llm-grounding-fix-20260713` Claude 신선 교차리뷰 = **CODE_PASS(no-LLM/mock 층)**.
 >     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `c4cd93b` 유지.

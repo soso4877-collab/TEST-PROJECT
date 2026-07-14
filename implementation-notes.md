@@ -1,5 +1,60 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — three-pillar-real-model-quality-followup-20260714
+
+- 현재 상태: 활성 packet §2~§5 구현과 Codex 자체 검증 완료. 실제 HEAD는 활성화 커밋
+  `74e94e59d5803c4249a4a373cace65f078003627`이며 시작 워킹트리는 깨끗했다. commit·push는 만들지 않았다.
+- 구현 전 루트커즈 실측(no-LLM/mock, PII 0):
+  - `intro`: 삼주 파생 system에도 금칙 예시 `운명이 정해졌다`와 섹션 예고 예시 `이 풀이는 …`가 남고,
+    공용 기준시점도 `이 풀이의 …`로 시작해 관측 메타 어간을 최종 요청에 직접 재노출했다.
+  - `nature`·`consult`: 삼주 override가 시간 의존 내용을 “제외했다는 범위를 짧게 설명”하라고 요구하면서
+    누락된 시간 자리를 호명하지 말라는 출력 계약은 없어 `시주` 발화를 유도·미억제했다.
+  - `flow`·`consult`: 삼주 기준시점 user 블록이 `오늘은 … 7월 …`, `7월부터 12월`을 직접 넣었지만
+    삼주 분기에는 맨몸 숫자 월 금지가 없었다. mock 캡처에서 `7월` 3회·`12월` 1회를 재현했다.
+  - 조사: 삼주 `nature`의 `연주 {year_gz}와 월주 {month_gz}가 … 일주 {day_gz}가` 한 문형만
+    기존 `_josa/_J` 소비처를 우회했다. 합성 정축·임신 값에서 `정축가`·`임신가`를 RED로 재현했다.
+- 수정 파일과 이유:
+  - `sajugen/content/llm_sections.py`: known 원문은 유지하고 삼주 파생 system에서 관측 금칙 예시를
+    중립화했다. override에 내부 범위 안내 비복제·누락 자리 비호명 계약을 추가하고, 삼주 temporal 분기는
+    기준일 숫자 월을 넣지 않으며 근거 없는 달을 해 단위로만 말하게 했다.
+  - `sajugen/content/rules.py`: intro·nature·consult의 메타 유도 문구를 직접 화법으로 바꾸고,
+    일간·연주·월주·일주 조사를 `_J`로 결정했다. Ruff 완료 조건을 위해 같은 허용 파일의 기존
+    F541 16건과 F841 1건도 출력 바이트·로직 불변인 기계 정리로 함께 제거했다.
+  - `sajugen/render/templates/report.html.j2`: advisory 표지 h1에 keep-all 3종만 추가했다.
+  - 테스트 3파일: 폴백 4장 SDK 경계 캡처, known SHA 핀, 받침 유무 조사 표·실골격 양방,
+    병기/mojibake 부재, h1 HTML CSS 계약을 추가했다. 기존 `test_three_pillar_fallback_axes` 3종은 유지했다.
+- 실행 검증:
+  - 구현 전 RED: prompt 4건, 실제 nature 조사 1건, h1 CSS 1건 실패; 조사 헬퍼 표 6건 통과.
+  - 수정 후 핵심 `17 passed`, 인접 5파일 `81 passed`, 전체
+    `.\.venv\Scripts\python.exe -m pytest tests\ -q` = **1033 passed / 32 skipped / exit 0**.
+    이 환경 직전 1021/32 대비 +12·기존 감소 0이며, 기준환경 기대 1061/4와 총 수집 1065가 일치한다.
+  - 골든 **28 passed**, 변경 Python 5파일 Ruff `All checks passed!`, py_compile exit 0,
+    `git diff --check` exit 0. known `_COMPOSE_SYSTEM` SHA·known user bytes 핀 GREEN.
+- 불변·미검증: calc/input·factcheck/safe/style·`render/verify.py`·`GATE_KEYS` 변경 0.
+  API/LLM·운영 PDF 재생성·local profile·고객/ignored 산출물·commit/push/deploy 접근 0.
+  실모델 폴백률 감소와 실제 PDF 조사·표지 육안 개선은 운영자 승인 유료 재run/Claude 환경 몫이며
+  이번 CODE_PASS에 포함하지 않는다.
+
+---
+
+## 삼주 실모델 품질 후속 교차리뷰 — 2026-07-14 (검증 세션, 리뷰어 Claude 신선 컨텍스트)
+
+- 판정: **승인(CODE_PASS — no-LLM/mock 층)** — 미해결 블로커 0. 정본 = `REVIEW-FEEDBACK.md` 최상단 절.
+- 기준환경 전체 pytest **1061 passed / 4 skipped / exit 0**(241.31s), golden **28 passed** — 기준선 1049/4 대비
+  +12·감소 0·skip 4 불변(passed→skip 은닉 0). Codex 기대값 1061/4와 정확 일치.
+- 정적: 변경 5 py Ruff **All checks passed**(rules.py 부채 완전 해소) · py_compile 5 exit 0 · diff-check 0 · calc/input 무변경.
+- 억제 강화는 **생성 측 한정**: `llm_sections.py` 전 변경이 삼주 게이팅/삼주 파생 system 전용이고 known
+  `_COMPOSE_SYSTEM`·temporal else-branch 바이트 불변(SHA 핀 GREEN). factcheck/safe/style·`render/verify.py`·`GATE_KEYS` 미변경.
+- §5 양방·비-no-op: 억제 지시 SDK 경계 realized 캡처(누락자리 비호명 소비 증명·A-5 팬텀 아님), 조사 `_J`
+  production `build_all` 실골격 양방(`정축이`/`무는` vs `정축가`/`무은`·병기·mojibake 부재), 표지 h1 CSS 계약. Codex 구현 전 RED 재현.
+- **비차단 scope 플래그**: rules.py 기존 Ruff 부채(F541 16+F841 1) packet scope 밖 정리 — 바이트 불변 검증됨
+  (F541 자명·`day_sg` 미사용·golden 28), "변경 Python Ruff GREEN" 완료 조건 충족. checkpoint 시 운영자 scope 인지.
+- 경계 스냅샷: 리뷰어 read-only 7파일 시작/종료 SHA 전수 일치(무변경). 리뷰어 편집은 허용 4파일만.
+- 미검증(판정 밖): 실모델 4챕터 폴백률 감소·실 PDF 조사 육안·표지 개행 조판 = 운영자 승인 유료 재run(§6·§8) 몫.
+- 다음: manifest `verified / next_actor=user`. 운영자 checkpoint = scope 확인·commit 여부·**유료 재run 재측정**. 통과 전 발송 금지.
+
+---
+
 ## CODEX_IMPLEMENTATION_REPORT — three-pillar-llm-grounding-fix-20260713
 
 - 현재 상태: 승인 packet 구현과 Codex 자체 검증 완료. manifest를 `review_requested / next_actor=claude`로 전환해 신선 교차리뷰를 요청한다. commit은 금지 계약에 따라 만들지 않았고 HEAD는 `c4cd93b17421c408a1757b387a772a7f2365c2f3` 그대로다. <!-- Claude 교차리뷰 정정 2026-07-14: 원본 보고의 full SHA(c4cd93b17421f781…)는 short prefix만 정확했고 뒤가 불일치라 실제 HEAD로 교체 -->
