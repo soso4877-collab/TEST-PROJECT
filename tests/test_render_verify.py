@@ -144,6 +144,16 @@ def test_report_template_keeps_paragraph_tails_together():
     assert "orphans:4;widows:4" in template
 
 
+def test_report_template_keeps_cover_heading_syllables_together():
+    """긴 표지 제목이 한글 음절 사이에서 강제로 갈라지지 않게 CSS 계약을 고정한다."""
+
+    template = Path("sajugen/render/templates/report.html.j2").read_text(encoding="utf-8")
+    selector = template.split(".cover h1{", 1)[1].split("}", 1)[0]
+    assert "word-break:keep-all" in selector
+    assert "overflow-wrap:normal" in selector
+    assert "line-break:strict" in selector
+
+
 # ───────────────── H1.5.3: 본문 페이지 분리(단어 키워드로 제외 금지) ─────────────────
 def test_customer_body_pages_keeps_keyword_pages():
     # '오행/명식/십성'이 있어도 본문 페이지를 제외하면 안 된다(치명 구멍 방지).

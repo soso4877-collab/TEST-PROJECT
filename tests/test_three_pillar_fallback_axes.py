@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from sajugen.calc import engine
@@ -127,3 +129,70 @@ def test_three_pillar_fallback_no_axis_does_not_invent_topics(three_pillar_resul
     direct = delivery_quality.consult_direct_result(consult, concern)
     assert direct["ok"] is True, direct
     assert style_lint.lint(consult) == []
+
+
+@pytest.mark.parametrize(
+    ("word", "kind", "expected"),
+    [
+        ("정축", "이가", "정축이"),
+        ("임신", "이가", "임신이"),
+        ("경오", "은는", "경오는"),
+        ("병오년", "은는", "병오년은"),
+        ("정축", "을를", "정축을"),
+        ("경오", "을를", "경오를"),
+    ],
+)
+def test_three_pillar_ganzhi_josa_table(word, kind, expected):
+    """받침 유무가 다른 간지의 주격·보조사·목적격을 결정론적으로 고른다."""
+
+    assert rules._J(word, kind) == expected
+
+
+def test_three_pillar_nature_routes_ganzhi_particles_through_josa_helper():
+    """실제 삼주 nature 골격이 간지 뒤 하드코딩 조사를 다시 만들지 않는다."""
+
+    three_pillar = SimpleNamespace(
+        year=SimpleNamespace(ganzhi="庚午"),
+        month=SimpleNamespace(ganzhi="丁丑"),
+        day=SimpleNamespace(ganzhi="壬申"),
+        day_master="壬",
+        geukguk="합성 격국",
+        geukguk_note="",
+        seun=((2026, "丙午"), (2027, "丁未")),
+        worun=(),
+    )
+    saju = SimpleNamespace(
+        three_pillar=three_pillar,
+        birth_time_mode="three_pillar",
+    )
+    skeletons = rules.build_all(
+        saju,
+        ref_year=2026,
+        concern_category="전반",
+        birth_time_mode="three_pillar",
+    )
+    nature = skeletons["nature"]
+    joined = "\n".join(skeletons.values())
+
+    assert "연주 경오와 월주 정축이" in nature
+    assert "일주 임신이" in nature
+    assert "정축가" not in joined
+    assert "임신가" not in joined
+    assert all(token not in joined for token in ("이(가)", "은(는)", "을(를)", "�"))
+
+    # 같은 실제 문형에 무받침 간지를 넣어 반대편 조사도 확인한다. 일간의 보조사까지
+    # 같은 헬퍼를 타야 `무은`처럼 하드코딩된 받침형이 되살아나지 않는다.
+    three_pillar.year.ganzhi = "丁丑"
+    three_pillar.month.ganzhi = "庚午"
+    three_pillar.day.ganzhi = "戊午"
+    three_pillar.day_master = "戊"
+    no_batchim = rules.build_all(
+        saju,
+        ref_year=2026,
+        concern_category="전반",
+        birth_time_mode="three_pillar",
+    )
+    assert "일간 무는" in no_batchim["nature"]
+    assert "연주 정축과 월주 경오가" in no_batchim["nature"]
+    assert "일주 무오가" in no_batchim["nature"]
+    assert "무은" not in "\n".join(no_batchim.values())

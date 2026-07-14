@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import hashlib
+import re
 import sys
 from types import SimpleNamespace
 
@@ -351,6 +352,70 @@ def test_three_pillar_compose_request_has_neutral_system_and_narrow_user_evidenc
     assert factcheck.check(full_request, saju) == []
     for forbidden_contract_term in ("시주", "사주팔자", "자미두수", "대운", "후보"):
         assert forbidden_contract_term not in llm_sections._THREE_PILLAR_SYSTEM_OVERRIDE
+
+
+@pytest.mark.parametrize(
+    ("section_id", "expected_sources"),
+    [
+        ("intro", ("three_pillar", "time_invariant")),
+        ("nature", ("three_pillar", "time_invariant")),
+        ("flow", ("calendar_flow",)),
+        ("consult", ("three_pillar", "time_invariant", "calendar_flow")),
+    ],
+)
+def test_three_pillar_failed_chapter_prompts_suppress_observed_output_tokens(
+    monkeypatch,
+    section_id,
+    expected_sources,
+):
+    """실모델 폴백 4장의 최종 요청이 관측 금칙을 되먹이지 않는지 검증한다.
+
+    실제 모델 호출 대신 SDK 경계에서 system/user를 잡는다. 따라서 이 테스트는 문안 품질을
+    추정하지 않고, 2026-07-14 유료 재run에서 나온 토큰의 직접 유도원과 누락된 억제 지시만
+    결정론적으로 확인한다.
+    """
+
+    saju = _result()
+    context = _report_context("three_pillar")
+    skeletons = rules.build_all(
+        saju,
+        ref_year=2026,
+        concern_category="전반",
+        concern_text="직업과 돈 관리, 건강, 월별 시기의 방향",
+        birth_time_mode="three_pillar",
+    )
+    captured = _capture_compose_request(
+        monkeypatch,
+        context,
+        section_id=section_id,
+        base_text=skeletons[section_id],
+        fact_source_ids=expected_sources,
+    )
+    system_text = "\n".join(block["text"] for block in captured["system"])
+    user_text = captured["messages"][0]["content"]
+    full_request = f"{system_text}\n{user_text}"
+
+    # 각 실패 장의 1차 원인을 먼저 독립 단언해 RED가 한 원인에 가려지지 않게 한다. intro는
+    # 금칙 예시의 직접 재노출, nature는 누락 자리 호명 억제 부재, flow는 기준일 숫자 월 주입,
+    # consult는 뒤 두 위험이 합쳐진 경로였다.
+    if section_id == "intro":
+        assert "운명이 정해" not in full_request
+        assert "이 풀이" not in full_request
+    elif section_id == "nature":
+        assert "누락된 자리를 이름 붙이지 않는다" in system_text
+    elif section_id == "flow":
+        assert re.findall(r"(?<!\d)\d{1,2}월", user_text) == []
+    else:
+        assert "누락된 자리를 이름 붙이지 않는다" in system_text
+        assert re.findall(r"(?<!\d)\d{1,2}월", user_text) == []
+
+    # 수정 뒤에는 네 장 모두 같은 삼주 출력 계약을 공유해야 한다. 부정문 예시도 모델에는
+    # 복사 가능한 토큰이므로 관측된 메타 어간을 요청 표면에서 제거한다.
+    assert "운명이 정해" not in full_request
+    assert "이 풀이" not in full_request
+    assert "시주" not in full_request
+    assert "누락된 자리를 이름 붙이지 않는다" in system_text
+    assert re.findall(r"(?<!\d)\d{1,2}월", user_text) == []
 
 
 def test_three_pillar_compose_fails_closed_before_api_for_invalid_source_scope(
