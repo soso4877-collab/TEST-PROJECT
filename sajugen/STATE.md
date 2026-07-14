@@ -11,8 +11,11 @@
 >     → A-5 팬텀 재발 아님. 런타임 증명은 §7.3(운영자 hrun) 몫.
 >   [§4 양방·비-no-op] 4모듈=28p / 레거시=30p(captured kwargs 전달 실증·제품 module_minimums 실호출), fail-closed
 >     (3중잠금 열려도 regen 차단=pytest.fail), gunghap 혼입 차단, argv, pytest.skipped 보존, hsummary 4종. 경계 8파일 불변.
->   [다음] 운영자 checkpoint = commit 여부 + (별도 지시 시) §7.3 합성 모듈 제한 픽스처 hrun 1회로 런타임 확정.
->     실고객 발송은 표준 게이트→검수 Z=0 뒤에만.
+>   [§7.3 런타임 확정 2026-07-14 운영자 지시·무LLM·무과금·합성] rule-only 합성 4모듈 PDF + 제품 module 메타로
+>     실 hverify 2회: 모듈 프로파일 **minimum_pages=28·9000·contract_errors=null**, 레거시(같은 PDF) **30·10000**.
+>     → 실 V.verify가 3원자 소비해 4모듈 하한 실적용·레거시 5모듈 = 갭 해소 런타임 확증. docs/16 QI-2026-07-14-01 추기.
+>   [커밋·push] 구현 `26026ab`(fix harness)·리뷰 `5e61601`(docs handoff) 커밋+origin push 완료. §7.3 doc 갱신(docs/16·STATE)은 미커밋.
+>   [다음] 태스크 실질 종결(갭 해소 소스+양방+런타임 3중 확증). 실고객 발송은 표준 게이트→검수 Z=0 뒤에만.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-14 하네스 모듈 계약 태스크 재활성 — 이 블록 먼저 읽기) =====
 >   [활성 태스크 전환] 삼주 실모델 품질 후속(`three-pillar-real-model-quality-followup`) = 종결(verified·커밋 `2d91933`까지 push).

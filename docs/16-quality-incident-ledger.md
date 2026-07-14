@@ -13,7 +13,8 @@
   - hsummary에 PII-free 관측 4종(`selected_modules`·`module_schema_version`·`minimum_pages`·`minimum_text_chars`)을 화이트리스트하고, pytest quiet summary의 passed·skipped를 함께 파싱한다.
   - 합성 회귀는 29쪽 4모듈 통과(하한 28), 29쪽 레거시 실패(하한 30), gunghap 혼입 차단, 증거 누락·빈/미등록 모듈·스키마 불일치 차단, 반복 argv/레거시 무플래그, pytest skip 보존을 양방으로 고정한다.
 - 구현자 검증(2026-07-14, API/PDF 0): 집중 `37 passed / 1 skipped`, 전체 **1043 passed / 32 skipped / exit 0**(동일 환경 직전 1033/32 대비 +10·감소 0, 총 수집 1075), golden **28 passed**. 기준환경 기대는 1061/4+신규 10=`1071/4`이며 Claude 교차리뷰가 확정한다. 변경 Python Ruff `All checks passed!`·py_compile exit 0·`git diff --check` exit 0·`sajugen/**` 구현 diff 0이다.
-- 미검증: 실제 PDF·운영 프로파일·API/LLM·재생성·hsweep·발송은 범위 밖이다.
+- **§7.3 런타임 확정(2026-07-14 운영자 지시, 무LLM·무과금·합성·PII 0)**: rule-only 합성 4모듈 `integrated_full` PDF 1건 생성(게이트는 24p<28p로 raise하나 PDF·content.json은 디스크 기록) 뒤, 제품 빌드가 만든 `module_sections`(7키)·`premerge_section_ids`(14)를 실은 프로파일로 실 `hverify_pdf.verify_profile`(→ 실 `V.verify`) 2회 실행. **모듈 프로파일 = status verified·`selected_modules=[love,job,wealth,health]`·`minimum_pages=28`·`minimum_text_chars=9000`·contract_errors=null**, 같은 PDF **레거시 프로파일(modules 없음) = 5모듈·`minimum_pages=30`·`minimum_text_chars=10000`**. → 실 verify가 3원자를 TypeError 없이 소비해 **4모듈 하한을 실제 적용**하고 레거시는 5모듈로 판정 = 갭 해소 런타임 확증(테스트 mock 층 위의 실 경로). `gate_pass=false`는 rule-only 분량(하한 적용이 요점이지 통과 아님).
+- 미검증: 운영 프로파일·실고객 PDF·API/LLM·재생성·hsweep·발송은 범위 밖이다.
 
 ## 2026-07-13 추가: QI-2026-07-13-02 첫 실LLM-on 생시미상 삼주 유료 run 게이트 실패 — LLM 콘텐츠 경로 근거화·축 커버리지 갭
 
