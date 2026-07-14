@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "three-pillar-llm-grounding-fix-20260713",
-  "status": "verified",
-  "base_commit": "c4cd93b17421c408a1757b387a772a7f2365c2f3",
-  "packet_path": "handoff/tasks/three-pillar-llm-grounding-fix-20260713.md",
-  "packet_sha256": "3e119a5a8b958bbf656d3761448a4a6d3babfdd8f5da048e0e3e00616db600c4",
+  "task_id": "three-pillar-real-model-quality-followup-20260714",
+  "status": "planned",
+  "base_commit": "584d5c3533e921f4db1db98b09b79a24e2d18688",
+  "packet_path": "handoff/tasks/three-pillar-real-model-quality-followup-20260714.md",
+  "packet_sha256": "7533f515f10c3d56add83946f35f9690d28a4a4394812cae022d668379647167",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "390e2054f998e98436784e3c1e4a4e00483cc7e845973fe6831687a2a98dd2b2",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "93e80187f2a421dc61fa43a32f729920ce1a7390d9f4e2c1ba4ad757d644925d",
-  "next_actor": "user",
-  "next_action": "운영자 checkpoint: 승인 유료 재run 1회로 실 gate_pass 재측정 결정. 통과 전 APPROVED·발송 금지.",
-  "updated_at": "2026-07-14T09:24:03.449Z"
+  "next_actor": "codex",
+  "next_action": "Codex: 루트커즈(§3) mock/no-LLM 실측 후 §2·§4 구현 + 양방 테스트(§5). PDF 재생성·LLM·commit·push 금지.",
+  "updated_at": "2026-07-14T10:38:09.280Z"
 }

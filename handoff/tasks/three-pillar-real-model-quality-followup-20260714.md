@@ -4,7 +4,7 @@
 - base_commit: 활성화 시점 feat HEAD (실측 — 운영자가 manifest SHA로 고정)
 - 구현자: Codex
 - 검증자: Claude 교차리뷰 (+ 실모델 재측정 증거는 운영자 승인 유료 재run 몫)
-- 상태: `draft`(미활성 — manifest 미고정. 운영자 승인 후 `planned/next_actor=codex`로 전환)
+- 상태: `planned`(활성 — 2026-07-14 운영자 승인, manifest가 `packet_path`+SHA로 고정, `next_actor=codex`)
 - 근거: `docs/16` QI-2026-07-13-02 검증(2026-07-14 유료 재run)에서 실측된 실모델 거동·육안 nit
 
 ## 0. 우선순위·금지 경계
