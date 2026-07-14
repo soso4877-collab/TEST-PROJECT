@@ -8,11 +8,13 @@
   - 표면: 삼주 콘텐츠 경로의 LLM 챕터가 허용 출처(`three_pillar`/`time_invariant`/`calendar_flow`) 밖 토큰(시주·미승격 월주 간지)을 생성 → factcheck/safe 가드가 정확히 거부 → 룰 폴백. 룰 폴백 본문이 고민 원문의 topic 축(직업/경제/건강 + 월별·이사·취미)을 채우지 못했고(`delivery_quality._required_axes`는 concern 기반, 모듈 독립) `style_clean`도 미달했다.
   - 시스템: (a) 실LLM-on 삼주 `integrated_full` 경로가 실복합 고민에서 gate_pass 하는지 측정하는 실모델 실측이 없었다(E2E·회귀는 합성·no-LLM 빌더 층 위주 — QI-2026-07-13-01도 같은 층). "가드가 차단한다"와 "상품이 준수 출력을 산출한다"는 별개인데 후자를 검증한 적이 없다. (b) `order_flow.run_generation`이 `llm_usage`를 성공 경로(save at report save)에서만 영속하고 오류 경로에서 유실 → 실패 run 비용 불가시(관측 갭).
 - 왜 기존 게이트가 못 잡았나: 삼주 계약 검증은 계산·가드 차단·no-LLM 빌더에 집중됐고, 실LLM 출력이 삼주 허용 출처를 폴백 없이 얼마나 준수하는지를 실복합 고민으로 측정한 적이 없다. 게이트는 정상 fail-closed 했으나 산출 가능성은 미검증 사각으로 남아 있었다.
-- 재발 방지(방향 — 구현은 Codex 별도 TASK_PACKET):
-  - 삼주 LLM 챕터 프롬프트·fact allowlist·compose slot을 정합시켜 허용 출처 밖 토큰(시주·미승격 월주 간지) 생성을 구조적으로 억제하고, 폴백이 나더라도 고민 topic 축·style을 충족하는 최소 골격을 보장한다.
-  - `run_generation` 오류 경로에서도 `llm_usage`(호출·토큰, PII 0)를 audit/summary에 영속해 실패 run 비용을 가시화한다.
-  - `classify`의 `InstructorRetryException`을 별도 조사한다(구조화 출력 실패 vs 일시 API — 축 검사와는 독립이나 첫 호출 실패로 분류가 룰 폴백됐다).
-  - 실LLM-on 삼주 `integrated_full` × 실복합 고민류의 gate_pass 회귀를 추가한다(합성 고민 픽스처, PII 0; 실모델 증거는 운영자/Claude 환경 몫 — Codex는 LLM 금지이므로 no-LLM/mock 층 회귀 + 실모델 재run 분리 증거).
+- 재발 방지(2026-07-13 Codex 구현, Claude 교차리뷰 대기):
+  - 삼주 공통 프롬프트의 고정 예시 간지와 금칙 개념 되먹임을 제거했다. 공통 출처 목록과 별도로 장별 `fact_source_ids`를 단일 매핑에서 공급·검증하며, 현재 장 근거 블록에 실제 없는 사실은 생성 권한이 아니라는 계약을 API 호출 전에 fail-closed한다. known-time 프롬프트는 기존 바이트를 유지한다.
+  - 삼주 재작성 피드백은 거부된 원시 토큰을 다시 프롬프트에 넣지 않고 고정 사유만 전달한다. 금칙 토큰 주입은 기존 factcheck가 그대로 차단하고 룰 폴백으로 닫으며, 근거 안의 정상 합성 출력은 통과하는 양방 회귀를 추가했다.
+  - 삼주 룰 폴백에 기존 결정론 질문 축 추출기를 배선하고 실제 세운 연도만으로 시기 축을 만든다. 복합 6축·단일 축·축 없음 경계에서 `consult_direct_result`·`style_lint`·페이지 semantic style 검사를 통과하도록 고정했다. 월운 원시값은 새로 노출하지 않는다.
+  - `run_generation`의 생성 진입 뒤 `finally`에서 최신 주문을 다시 읽어 PII-free `llm_usage`만 병합한다. 생성 예외에서도 호출·토큰·고정 이벤트가 영속되고, 성공 경로 중복 저장과 미확정 모듈의 0 usage 기록은 피한다.
+  - 사고 당시 `InstructorRetryException`의 내부 원인은 로그에 남지 않아 **확정 불가**다. 합성 프로브에서 잘못된 enum과 일시 API 오류가 같은 외부 예외로 래핑됨을 확인했으므로 어느 쪽도 사고 원인으로 단정하지 않는다. 다만 기존 비엄격 tool-use 설정 취약점은 확인돼 분류기를 Anthropic direct strict tool(`strict=true`, enum·required·추가 필드 금지, 강제 tool choice, SDK 재시도 0)로 전환하고 응답 수신 직후 usage를 기록한다.
+  - no-LLM/mock 검증은 전체 `1021 passed / 32 skipped`, 골든 `28 passed`다. 실LLM-on 삼주 `integrated_full`의 `gate_pass=True` 재측정은 이 구현 판정에 포함하지 않으며 운영자 승인 유료 재run과 Claude 환경 증거로 분리한다.
 - 교훈: 가드가 비준수 출력을 차단하는 것과 상품이 준수 출력을 산출하는 것은 다른 명제다. 실LLM-on 경로의 산출 가능성은 계산·차단 테스트가 아니라 실모델 실측으로만 증명된다. 실패 run의 비용조차 관측 못 하면 유료 실험의 회계가 닫히지 않는다.
 
 ## 2026-07-13 추가: QI-2026-07-13-01 삼주 E2E 게이트 3키 RED가 두 수정 라운드 동안 잠복
@@ -437,4 +439,3 @@ docs/14-tone-spec.md, docs/16-quality-incident-ledger.md를 읽고 시작해라.
 PDF 재생성/LLM/API 호출/커밋/푸시는 명시 승인 전 금지다.
 오류가 나면 추측하지 말고 관련 코드, 테스트, 공식 문서 또는 검증된 자료를 확인한 뒤 결론을 내라.
 ```
-

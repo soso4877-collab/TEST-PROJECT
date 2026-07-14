@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -62,6 +63,8 @@ from .store.orders import (
 
 DEFAULT_DB = "data/orders.sqlite"
 MAX_FOLLOWUP_PAGES = 15
+
+_log = logging.getLogger(__name__)
 
 
 class EditNotAllowed(Exception):
@@ -700,6 +703,35 @@ def create_order(
 # ───────────────── 생성(백그라운드) ─────────────────
 
 
+def _current_llm_usage_meta() -> dict[str, object]:
+    """현재 생성 run의 PII-free 사용량을 주문 저장 형식으로 복사한다."""
+
+    return {
+        **llm_usage.snapshot(),
+        **llm_usage.detail_snapshot(),
+    }
+
+
+def _persist_generation_usage(st: OrderStore, order_id: str) -> None:
+    """생성 결과와 무관하게 현재 run의 사용량을 최신 주문에 병합한다.
+
+    생성은 수분 걸릴 수 있으므로 시작 시 읽은 report를 재사용하지 않는다. 성공 경로가
+    이미 같은 collector를 저장했다면 다시 save_report하지 않아 감사 로그 중복도 막는다.
+    """
+
+    usage_meta = _current_llm_usage_meta()
+    report = st.get_report(order_id)
+    render_meta = dict(report.render_meta or {})
+    if render_meta.get("llm_usage") == usage_meta:
+        return
+    render_meta["llm_usage"] = usage_meta
+    st.save_report(
+        order_id,
+        report.model_copy(update={"render_meta": render_meta}),
+        actor="system",
+    )
+
+
 @llm_usage.isolated_run
 def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB) -> None:
     """파이프라인 실행 + 상태 전이. LLM 포함 시 3~5분 — BackgroundTasks 로 호출.
@@ -708,6 +740,7 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
     monkeypatch 유효)."""
     gen = generate_fn or pipeline.generate
     st = OrderStore(db_path)
+    generation_started = False
     try:
         report = st.get_report(order_id)
         p = dict(report.render_meta.get("gen_params", {}))
@@ -722,6 +755,7 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
                 note="integrated_full modules unconfirmed",
             )
             return
+        generation_started = True
         try:
             if selection["product"] == integrated.PRODUCT:
                 r = _run_integrated_generation(p, order_id)
@@ -815,10 +849,7 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
 
         report = st.get_report(order_id)  # 최신본 재로드(경합 회피)
         guard = r.guard or {}
-        usage_meta = {
-            **llm_usage.snapshot(),
-            **llm_usage.detail_snapshot(),
-        }
+        usage_meta = _current_llm_usage_meta()
         report = report.model_copy(
             update={
                 "content": (r.report.model_dump() if r.report is not None else {}),
@@ -862,7 +893,20 @@ def run_generation(order_id: str, *, generate_fn=None, db_path: str = DEFAULT_DB
         st.save_report(order_id, report, actor="system")
         st.transition(order_id, OrderState.DRAFTED, actor="system", note=r.pdf_path)
     finally:
-        st.close()
+        try:
+            if generation_started:
+                # isolated_run이 collector를 reset하기 전에 실행된다. 생성 실패·provenance
+                # 차단·계산 불일치에서도 이미 과금된 호출 수와 토큰을 잃지 않는다.
+                _persist_generation_usage(st, order_id)
+        except Exception as exc:
+            # 관측 영속 실패가 원래 생성 오류/반환을 덮지 않게 타입만 남긴다. 예외 문자열은
+            # 고객 입력을 포함할 수 있으므로 로그에 복제하지 않는다.
+            _log.warning(
+                "run_generation llm_usage persistence failed: %s",
+                type(exc).__name__,
+            )
+        finally:
+            st.close()
 
 
 def retry_calc(order_id: str, *, db_path: str = DEFAULT_DB) -> None:

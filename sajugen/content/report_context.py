@@ -195,6 +195,28 @@ _THREE_PILLAR_FACT_SOURCE_IDS = (
     "calendar_flow",
 )
 
+# 장별 근거 슬롯의 단일 소스. 공통 fact_source_ids 전체는 보고서가 사용할 수 있는
+# 출처 집합일 뿐이고, 실제 compose는 현재 장에 보이는 이 부분집합만 받는다.
+_THREE_PILLAR_SECTION_FACT_SOURCE_IDS: dict[str, tuple[str, ...]] = {
+    "cover": ("three_pillar",),
+    "intro": ("three_pillar", "time_invariant"),
+    "wonguk": ("three_pillar",),
+    "nature": ("three_pillar", "time_invariant"),
+    "frame": ("three_pillar", "time_invariant"),
+    "love": ("three_pillar",),
+    "work": ("three_pillar",),
+    "health": ("three_pillar",),
+    "flow": ("calendar_flow",),
+    "consult": ("three_pillar", "time_invariant", "calendar_flow"),
+    "closing": ("three_pillar",),
+}
+
+
+def three_pillar_section_fact_source_ids(section_id: str) -> tuple[str, ...]:
+    """삼주 장에 실제 공급되는 근거 출처 ID를 결정론적으로 반환한다."""
+
+    return _THREE_PILLAR_SECTION_FACT_SOURCE_IDS.get(str(section_id), ())
+
 _NARRATIVE_TEXT = {
     "strength_before_task": "강점을 먼저 충분히 짚고 보완 과제를 잇는다.",
     "evidence_before_advice": "간지·십성·신살·궁·운의 근거를 제시한 뒤 조언한다.",
@@ -365,9 +387,18 @@ class ReportContext:
             f"{GLOSSARY_EXPLANATIONS[concept]}"
             for concept in self.glossary_explanation_ids
         )
+        # 삼주 출처 ID는 사실 생성 권한이 아니라 현재 장 근거의 provenance 표지다.
+        # known-time은 빈 문자열을 사용해 승인된 prompt bytes를 그대로 보존한다.
+        source_scope = (
+            "출처 계약: fact_source_ids는 현재 근거 블록 안에 실제 있는 사실의 출처만 "
+            "표시한다. 근거 블록에 없는 사실을 만들 권한이 아니다.\n"
+            if self.birth_time_mode == "three_pillar"
+            else ""
+        )
         return (
             "[리포트 공통 문맥 — 모든 장에서 동일, 고객 원문 없음]\n"
             f"계약 JSON: {payload}\n"
+            f"{source_scope}"
             f"공통 논지:\n{narratives}\n"
             f"장별 책임:\n{ownership}\n"
             "용어 계약: 아래 개념은 처음 나오는 같은 문장이나 바로 다음 문장에서 승인된 "

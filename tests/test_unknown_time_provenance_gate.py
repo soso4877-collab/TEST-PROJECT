@@ -55,7 +55,15 @@ def _report_context(birth_time_mode: str):
     )
 
 
-def _capture_compose_request(monkeypatch, context):
+def _capture_compose_request(
+    monkeypatch,
+    context,
+    *,
+    section_id="wonguk",
+    base_text="연주와 월주와 일주의 합성 근거입니다.",
+    fact_source_ids=None,
+    feedback=None,
+):
     """네트워크 없이 Anthropic SDK 경계에서 최종 system/user 요청을 캡처한다."""
 
     captured = {}
@@ -81,15 +89,19 @@ def _capture_compose_request(monkeypatch, context):
     monkeypatch.setitem(sys.modules, "anthropic", fake_anthropic)
     backend = llm_sections.AnthropicBackend()
     monkeypatch.setattr(backend, "available", lambda: True)
-    result = backend.compose(
-        section_id="wonguk",
-        title="원국",
-        category="전반",
-        base_text="연주와 월주와 일주의 합성 근거입니다.",
-        ref_year=2026,
-        ref_date="2026-07-13",
-        report_context=context,
-    )
+    compose_kwargs = {
+        "section_id": section_id,
+        "title": "원국",
+        "category": "전반",
+        "base_text": base_text,
+        "ref_year": 2026,
+        "ref_date": "2026-07-13",
+        "report_context": context,
+        "feedback": feedback,
+    }
+    if fact_source_ids is not None:
+        compose_kwargs["fact_source_ids"] = fact_source_ids
+    result = backend.compose(**compose_kwargs)
     assert result == "합성 응답"
     return captured
 
@@ -279,13 +291,25 @@ def test_three_pillar_prompt_context_has_narrow_fact_sources_and_no_forbidden_ow
     assert "spouse_palace" not in prompt
     assert "current_daewoon_single_owner" not in prompt
     assert "ziwei_core" not in prompt
+    assert "근거 블록에 없는 사실을 만들 권한" in prompt
 
 
 def test_three_pillar_compose_request_has_neutral_system_and_narrow_user_evidence(
     monkeypatch,
 ):
     context = _report_context("three_pillar")
-    captured = _capture_compose_request(monkeypatch, context)
+    saju = _result()
+    base_text = rules.build_all(
+        saju,
+        ref_year=2026,
+        birth_time_mode="three_pillar",
+    )["wonguk"]
+    captured = _capture_compose_request(
+        monkeypatch,
+        context,
+        base_text=base_text,
+        fact_source_ids=("three_pillar",),
+    )
     system = captured["system"]
     user = captured["messages"][0]["content"]
 
@@ -313,10 +337,135 @@ def test_three_pillar_compose_request_has_neutral_system_and_narrow_user_evidenc
     ):
         assert forbidden_positive_instruction not in positive_system
     assert "계약 JSON의 허용 출처" in user
+    assert "[현재 장 허용 출처]\nthree_pillar" in user
     assert "신살·별·궁·연도" not in user
     assert llm_sections._THREE_PILLAR_COMPOSE_GUIDE["wonguk"] in user
-    assert "연주와 월주와 일주의 합성 근거입니다." in user
+    assert base_text in user
     assert "시주" not in user and "자미두수" not in user and "후보" not in user
+
+    # 전체 요청에 고정 예시 간지나 근거 밖 간지가 들어가면 모델이 그대로 모사할 수 있다.
+    # 실제 근거 블록과 동일한 allowlist로 system+user까지 검사해 유도원을 닫는다.
+    full_request = "\n".join(block["text"] for block in system) + "\n" + user
+    for prompt_only_token in ("임술일주", "경오", "신금", "병오년", "7월 병신월"):
+        assert prompt_only_token not in full_request
+    assert factcheck.check(full_request, saju) == []
+    for forbidden_contract_term in ("시주", "사주팔자", "자미두수", "대운", "후보"):
+        assert forbidden_contract_term not in llm_sections._THREE_PILLAR_SYSTEM_OVERRIDE
+
+
+def test_three_pillar_compose_fails_closed_before_api_for_invalid_source_scope(
+    monkeypatch,
+):
+    context = _report_context("three_pillar")
+    base_text = rules.build_all(
+        _result(),
+        ref_year=2026,
+        birth_time_mode="three_pillar",
+    )["wonguk"]
+
+    class _Messages:
+        def create(self, **_kwargs):
+            pytest.fail("invalid source scope must not reach the API boundary")
+
+    fake_anthropic = SimpleNamespace(
+        Anthropic=lambda **_kwargs: SimpleNamespace(messages=_Messages())
+    )
+    monkeypatch.setitem(sys.modules, "anthropic", fake_anthropic)
+    backend = llm_sections.AnthropicBackend()
+    monkeypatch.setattr(backend, "available", lambda: True)
+
+    for fact_source_ids in (None, (), ("calendar_flow",), ("outside_contract",)):
+        result = backend.compose(
+            section_id="wonguk",
+            title="원국",
+            category="전반",
+            base_text=base_text,
+            ref_year=2026,
+            report_context=context,
+            fact_source_ids=fact_source_ids,
+        )
+        assert result == base_text
+
+
+def test_three_pillar_builder_blocks_forbidden_fact_and_sanitizes_retry_feedback(
+    monkeypatch,
+):
+    saju = _result()
+    forbidden_fact = "경오월"
+    assert factcheck.check(forbidden_fact, saju)
+    calls = []
+
+    class _Backend:
+        name = "anthropic"
+
+        def compose(
+            self,
+            *,
+            section_id,
+            base_text,
+            feedback=None,
+            fact_source_ids=None,
+            **_kwargs,
+        ):
+            calls.append((section_id, feedback, fact_source_ids))
+            text = (
+                base_text + f"\n\n{forbidden_fact}의 흐름을 따르세요."
+                if section_id == "flow"
+                else base_text
+                + "\n\n확인된 내용은 생활의 속도를 정하는 기준으로만 활용해 주세요."
+            )
+            return llm_sections.ComposeResult(
+                text,
+                cache_observed=True,
+                api_succeeded=True,
+            )
+
+    monkeypatch.setattr(llm_sections, "get_backend", lambda: _Backend())
+    report = builder.build_report(
+        saju,
+        use_llm=True,
+        ref_year=2026,
+        birth_time_mode="three_pillar",
+        product="integrated_full",
+    )
+
+    flow_calls = [call for call in calls if call[0] == "flow"]
+    assert len(flow_calls) == 2
+    assert flow_calls[0][1:] == (None, ("calendar_flow",))
+    retry_labels = set(flow_calls[1][1].split(", "))
+    assert "현재 장 근거에 없는 사실" in retry_labels
+    assert retry_labels <= {"현재 장 근거에 없는 사실", "작성 규칙 위반"}
+    assert forbidden_fact not in flow_calls[1][1]
+    assert report.section("flow").polished is False
+    assert "flow" in report.guard.fallback_section_ids
+
+
+def test_three_pillar_builder_accepts_grounded_candidate(monkeypatch):
+    calls = []
+
+    class _Backend:
+        name = "anthropic"
+
+        def compose(self, *, section_id, base_text, fact_source_ids=None, **_kwargs):
+            calls.append((section_id, fact_source_ids))
+            return llm_sections.ComposeResult(
+                base_text + "\n\n확인된 흐름은 선택의 속도를 조절하는 기준으로 활용해 주세요.",
+                cache_observed=True,
+                api_succeeded=True,
+            )
+
+    monkeypatch.setattr(llm_sections, "get_backend", lambda: _Backend())
+    report = builder.build_report(
+        _result(),
+        use_llm=True,
+        ref_year=2026,
+        birth_time_mode="three_pillar",
+        product="integrated_full",
+    )
+
+    assert ("flow", ("calendar_flow",)) in calls
+    assert report.section("flow").polished is True
+    assert "flow" not in report.guard.fallback_section_ids
 
 
 def test_known_time_compose_request_preserves_original_system_and_user_bytes(

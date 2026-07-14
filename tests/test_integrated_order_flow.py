@@ -247,6 +247,70 @@ def test_confirmed_integrated_generation_and_retry_use_native_builder(
     assert llm_usage.snapshot() == {"input_tokens": 0, "output_tokens": 0, "calls": 0}
 
 
+def test_generation_error_persists_isolated_llm_usage(tmp_path, monkeypatch):
+    db = tmp_path / "integrated-usage-error.sqlite"
+    order_id = _create_confirmed_order(db)
+    llm_usage.reset()
+
+    def fail_after_usage(*args, **kwargs):
+        # 실제 API 없이 응답 계측 뒤 생성 후처리가 실패한 경로만 합성한다.
+        llm_usage.add(
+            17,
+            5,
+            role="compose",
+            model="unknown",
+            section="intro",
+            attempt=2,
+            cache_creation_input_tokens=11,
+            stop_reason="end_turn",
+        )
+        raise RuntimeError("synthetic generation failure")
+
+    monkeypatch.setattr(
+        order_flow.integrated,
+        "build_integrated_full",
+        fail_after_usage,
+    )
+
+    order_flow.run_generation(order_id, db_path=str(db))
+
+    store = OrderStore(db)
+    try:
+        assert store.get_state(order_id) == OrderState.NORMALIZED
+        report = store.get_report(order_id)
+        assert report.render_meta["llm_usage"] == {
+            "input_tokens": 17,
+            "output_tokens": 5,
+            "calls": 1,
+            "cache_creation_input_tokens": 11,
+            "cache_read_input_tokens": 0,
+            "events": [
+                {
+                    "role": "compose",
+                    "model": "unknown",
+                    "section": "intro",
+                    "attempt": 2,
+                    "input_tokens": 17,
+                    "cache_creation_input_tokens": 11,
+                    "cache_read_input_tokens": 0,
+                    "output_tokens": 5,
+                    "stop_reason": "end_turn",
+                }
+            ],
+        }
+        errors = [
+            entry.note
+            for entry in store.audit(order_id)
+            if entry.action == "generation_error"
+        ]
+        assert errors == ["RuntimeError: synthetic generation failure"]
+    finally:
+        store.close()
+
+    # 주문 collector는 영속된 뒤 외부 ContextVar 상태로 복귀해 다음 주문과 섞이지 않는다.
+    assert llm_usage.snapshot() == {"input_tokens": 0, "output_tokens": 0, "calls": 0}
+
+
 def test_partner_gunghap_generation_passes_two_people_and_persists_partner_flag(
     tmp_path,
     monkeypatch,

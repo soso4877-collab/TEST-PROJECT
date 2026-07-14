@@ -141,19 +141,34 @@ _PRODUCT_DROP = {
     "ziwei": {"wonguk", "nature", "frame", "flow", "together"},
 }
 
-_THREE_PILLAR_SOURCE_KEYS = {
-    "cover": ["three_pillar"],
-    "intro": ["three_pillar", "time_invariant"],
-    "wonguk": ["three_pillar"],
-    "nature": ["three_pillar", "time_invariant"],
-    "frame": ["three_pillar", "time_invariant"],
-    "love": ["three_pillar"],
-    "work": ["three_pillar"],
-    "health": ["three_pillar"],
-    "flow": ["calendar_flow"],
-    "consult": ["three_pillar", "time_invariant", "calendar_flow"],
-    "closing": ["three_pillar"],
-}
+def _retry_feedback_labels(
+    style_violations: list[dict],
+    fact_violations: list[dict],
+    *,
+    three_pillar: bool,
+) -> set[str]:
+    """재작성 프롬프트에 넣을 PII-free 고정 사유만 반환한다.
+
+    known-time은 기존의 구체 표현 피드백을 유지한다. 삼주는 근거 밖 간지·금칙 토큰을
+    그대로 되먹이면 다음 호출의 새 사실 슬롯이 되는 구조적 문제가 있으므로, 원문 토큰을
+    절대 복제하지 않고 고정된 사유 ID 수준의 한국어만 전달한다.
+    """
+
+    if not three_pillar:
+        return {
+            str(v.get("match") or v.get("token") or v.get("rule") or "")
+            for v in (*style_violations, *fact_violations)
+        } - {""}
+
+    labels: set[str] = set()
+    if fact_violations:
+        labels.add("현재 장 근거에 없는 사실")
+    for violation in style_violations:
+        if violation.get("type") == "consult_direct":
+            labels.add("질문 축 직접 답 누락")
+        else:
+            labels.add("작성 규칙 위반")
+    return labels
 
 
 def build_report(
@@ -345,7 +360,9 @@ def build_report(
             rt = rt + "\n\n" + partner_text  # 상대방 명식 사실 슬롯(룰 폴백에도 포함)
         rule_texts[sid] = rt
         section_source = (
-            _THREE_PILLAR_SOURCE_KEYS.get(sid, src) if unknown_time else src
+            report_context.three_pillar_section_fact_source_ids(sid)
+            if unknown_time
+            else src
         )
         source_of[sid] = list(section_source)
         rule_viol[sid] = (
@@ -419,6 +436,12 @@ def build_report(
                 }
                 if accepts_kwargs or "report_context" in compose_params:
                     compose_kwargs["report_context"] = shared_report_context
+                if unknown_time and (
+                    accepts_kwargs or "fact_source_ids" in compose_params
+                ):
+                    # 현재 장의 base_text를 실제로 만든 출처만 전달한다. 공통 문맥의 전체
+                    # 출처 목록을 생성 권한처럼 해석하지 못하도록 장별 슬롯을 좁힌다.
+                    compose_kwargs["fact_source_ids"] = tuple(source_of[sid])
                 if accepts_kwargs or "attempt" in compose_params:
                     compose_kwargs["attempt"] = attempt
                 return backend.compose(**compose_kwargs)
@@ -553,10 +576,11 @@ def build_report(
                     # 재작성 피드백(2026-07-04): 직전 초안의 위반 표현을 프롬프트로 전달 —
                     # 사유 없이 재시도하면 같은 단어가 재발해 폴백률이 높았다(실측: '쯤' 2회 연속).
                     # 2차 재시도는 라운드별 위반을 누적 전달(같은 실패 반복 방지).
-                    _fb_pool |= {
-                        str(v.get("match") or v.get("token") or v.get("rule") or "")
-                        for v in (csv + cfv)
-                    } - {""}
+                    _fb_pool |= _retry_feedback_labels(
+                        csv,
+                        cfv,
+                        three_pillar=unknown_time,
+                    )
                     _fb = ", ".join(sorted(_fb_pool)[:8])
                     retry = _normalize_llm_candidate(
                         _compose_one(sid, attempt=_round + 1, feedback=_fb or None) or "",
@@ -606,10 +630,11 @@ def build_report(
                     else:
                         # 실패 라운드의 위반도 다음 라운드 피드백에 누적(원 csv/cfv 는 유지 —
                         # 최종 폴백 판단·섹션 위반 기록의 기준은 본경로 초안).
-                        _fb_pool |= {
-                            str(v.get("match") or v.get("token") or v.get("rule") or "")
-                            for v in (rsv + rfv)
-                        } - {""}
+                        _fb_pool |= _retry_feedback_labels(
+                            rsv,
+                            rfv,
+                            three_pillar=unknown_time,
+                        )
                 if not csv and not cfv:
                     final, polished = cand, True
                     polished_n += 1

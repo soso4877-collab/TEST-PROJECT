@@ -933,6 +933,7 @@ def _build_three_pillar_all(
     ref_year: int,
     name: str | None,
     concern_category: str | None,
+    concern_text: str | None,
     closing_sign: str | None,
     work_modules: tuple[str, ...] | list[str] | None,
 ) -> dict[str, str]:
@@ -968,6 +969,27 @@ def _build_three_pillar_all(
         if flow_evidence
         else "해와 달의 흐름은 계산된 달력 사실이 있는 범위에서만 살핍니다. "
     )
+    # 질문 답변의 시기 축도 계산기가 실제로 준 세운 연도에만 기대게 한다. 월운은
+    # 절기 경계 표기까지 함께 맞춰야 하므로 이 폴백에서 새로 풀어 쓰지 않는다.
+    flow_years = [
+        int(year) for year, _ganzhi in seun_rows if int(year) >= int(ref_year)
+    ][:2]
+    if len(flow_years) >= 2:
+        timing_line = (
+            f"시기는 계산된 세운의 {flow_years[0]}년과 {flow_years[1]}년을 가까운 기준으로 "
+            "나누어 봅니다. 앞선 해에는 생활 조건을 정리하고, 다음 해에는 그 조건을 "
+            "지키면서 움직일 범위를 넓혀 보세요. "
+        )
+    elif flow_years:
+        timing_line = (
+            f"시기는 계산된 세운의 {flow_years[0]}년을 가까운 기준으로 봅니다. "
+            "생활 조건을 먼저 정리한 뒤 그 조건을 지키는 범위에서 움직이세요. "
+        )
+    else:
+        timing_line = (
+            "시기는 계산된 달력 사실이 있는 범위에서만 나누어 봅니다. "
+            "확인되지 않은 연도나 달을 새로 정하지 않습니다. "
+        )
 
     source_note = (
         "아래 내용은 확인된 연주·월주·일주와 출생 시간에 따라 달라지지 않는 사실만 "
@@ -1058,15 +1080,33 @@ def _build_three_pillar_all(
         "판단이 우선입니다. 달력의 기운은 선택을 대신하지 않고 점검할 때를 알려 주는 보조 기준입니다."
     )
     category = concern_category or "전반"
+    # known-time 폴백과 같은 결정론 축 추출기를 재사용한다. 고객 문장을 옮기지 않고
+    # 승인된 생활 주제와 조언 문장만 조립하므로, 복합 고민도 PII 없이 직답 근거를 갖는다.
+    consult_context = _consult_context(concern_text)
+    consult_topics = list(consult_context["topics"])
+    consult_detail = str(consult_context["detail"])
+    if consult_topics:
+        topic_text = ", ".join(consult_topics)
+        focus_text = _concern_snapshot_label(consult_topics)
+        consult_axis_block = (
+            f"질문에 담긴 생활 조건 가운데 {topic_text}을 함께 살펴야 합니다. "
+            f"{focus_text}을 한꺼번에 밀어붙이지 말고 각각 감당할 범위와 순서를 나누세요. "
+            f"{consult_detail}\n\n"
+        )
+    else:
+        consult_axis_block = ""
     consult = (
         f"{nm_pfx}신청하신 질문은 {category} 영역을 중심으로 봅니다. 결론부터 말하면, 확인되지 "
         f"않은 세부 정보로 답을 크게 만들기보다 {day_gz}일주의 자기 기준과 {geukguk}의 역할 "
         "방식을 바탕으로 선택지를 줄이는 쪽이 맞습니다.\n\n"
+        f"{consult_axis_block}"
         "먼저 지금 지켜야 할 생활 조건을 적고, 그 조건을 해치지 않는 가장 작은 행동을 하나 "
         "고르세요. 사람과 함께 정할 일은 혼자 확정하지 말고, 혼자 조절할 수 있는 속도와 휴식은 "
         "남의 허락을 기다리지 않는 편이 좋습니다. 답이 필요한 때일수록 실행 뒤의 반응을 보고 "
-        "다음 단계를 정하는 방식이 불안을 줄입니다.\n\n"
-        f"{flow_line}이 근거가 허용하는 범위 안에서 선택의 방향과 완급만 나눕니다. "
+        "다음 단계를 정하는 방식이 불안을 줄입니다. 지금 지킬 조건과 바꿀 조건을 나누고, "
+        "결정 뒤의 부담을 감당할 수 있는지도 먼저 확인하세요. 결정을 내리기 전에는 지금 가진 "
+        "시간과 책임을 적어 보고, 하나를 바꿨을 때 다른 조건이 무너지지 않는지 살피세요.\n\n"
+        f"{timing_line}{flow_line}이 근거가 허용하는 범위 안에서 선택의 방향과 완급만 나눕니다. "
         "이 범위를 벗어나는 현실 조건은 이 풀이가 대신 결정하지 않습니다."
     )
     closing = (
@@ -1137,6 +1177,7 @@ def build_all(
             ref_year=ref_year,
             name=name,
             concern_category=concern_category,
+            concern_text=concern_text,
             closing_sign=closing_sign,
             work_modules=work_modules,
         )
