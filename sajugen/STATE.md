@@ -17,7 +17,12 @@
 >   [커밋·push] 구현 `26026ab`(fix harness)·리뷰 `5e61601`(docs handoff) 커밋+origin push 완료. §7.3 doc 갱신(docs/16·STATE)은 미커밋.
 >   [표준 발급 회귀 감사 2026-07-15 무과금·합성] rule-only N=2 integrated_full 실렌더→실 verify:
 >     **gate_pass=True·실패 게이트 키 0·24p**(N=2 하한 20p). 831→1071 누적 게이트/문안 변경이 결정론 발급
->     경로를 fail-closed로 깨지 않음 확인(실렌더 층). 단 실 베타 상품 4모듈 LLM-on 재검증은 미실측(유료 몫).
+>     경로를 fail-closed로 깨지 않음 확인(실렌더 층).
+>   [4모듈 LLM-on 유료 확인 2026-07-15 운영자 승인·합성·PII 0] 실 베타 상품(known-time 4모듈 love/job/wealth/health
+>     integrated_full × use_llm) 1회 생성: **gate_pass=True·실패 게이트 키 0·31p**(하한 28p), 비용 19콜·출력 32,406 tok
+>     (~$1). → 실 LLM-on 베타 상품이 현재 HEAD에서 발급 가능·회귀 0 확정. 단 compose 9챕 중 4개(love·flow·consult·
+>     closing) 룰 폴백(실 Sonnet이 근거밖 간지·맨몸월·단정·**서양 별자리 off-domain** 생성→가드 차단 유출0→폴백 통과).
+>     closing 서양 별자리는 benign 신규 관찰(가드 담보)·후속 품질 후보(필수 아님). 실 문안 육안은 운영자 몫.
 >   [다음] 태스크 실질 종결(갭 해소 소스+양방+런타임 3중 확증). 코드 백로그 소진 — 대기 Codex 태스크 0.
 >     남은 진짜 선택지 = (운영자) 4모듈 LLM-on 유료 확인 or 베타 발급 트랙(육안→APPROVED→발송). 발송은 검수 Z=0 뒤에만.
 
