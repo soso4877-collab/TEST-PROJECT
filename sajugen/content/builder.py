@@ -32,6 +32,7 @@ from . import (
     temporal_lint,
     trace,
     unknown_time_policy,
+    western_astrology_lint,
 )
 from .sections_schema import _STATIC_OK, SECTION_SPECS, GuardReport, Report23, Section
 
@@ -73,6 +74,7 @@ def _customer_policy_lints(
     return (
         register_hard
         + delivery_quality.external_domain_advice_lint(text)
+        + western_astrology_lint.lint(text)
         + unknown_time_policy.unknown_time_provenance_lint(
             text,
             birth_time_mode=birth_time_mode,

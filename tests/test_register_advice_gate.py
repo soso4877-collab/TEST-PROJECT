@@ -367,7 +367,38 @@ def test_external_domain_advice_reaches_final_delivery_gate(monkeypatch):
     assert result["gate_pass"] is False
 
 
-@pytest.mark.parametrize("bad_candidate", ["결과지입니다.", "시험 일정과 마감일을 확인하세요."])
+def test_western_astrology_reaches_final_pdf_gate(monkeypatch):
+    """compose를 우회한 저장·관리자 수정분도 최종 verify AND 게이트에서 차단한다."""
+
+    pages = ["표지", (_CLEAN * 18) + " 태양 별자리는 쌍둥이자리에 속합니다.", "맺음"]
+    monkeypatch.setattr(verify_pdf.fitz, "open", lambda _path: _FakeDoc(pages))
+    monkeypatch.setattr(
+        verify_pdf,
+        "_verapdf_ua1",
+        lambda _path: {"available": False, "note": "test"},
+    )
+
+    result = verify_pdf.verify("synthetic.pdf")
+
+    assert result["western_astrology_clean"] is False
+    assert result["western_astrology_hits_count"] == 2
+    assert result["gate_pass"] is False
+    assert {hit["token"] for hit in result["western_astrology_hits"]} == {
+        "별자리",
+        "쌍둥이자리",
+    }
+    allowed_fields = {"type", "rule", "token", "count", "severity", "page"}
+    assert all(set(hit) <= allowed_fields for hit in result["western_astrology_hits"])
+
+
+@pytest.mark.parametrize(
+    "bad_candidate",
+    [
+        "결과지입니다.",
+        "시험 일정과 마감일을 확인하세요.",
+        "태양 별자리는 쌍둥이자리에 속합니다.",
+    ],
+)
 def test_builder_rejects_policy_candidate_then_accepts_clean_retry(monkeypatch, bad_candidate):
     """개인 builder의 최초 후보·재작성 양쪽 배선을 경로 수준으로 고정한다."""
 
@@ -405,8 +436,9 @@ def test_builder_rejects_policy_candidate_then_accepts_clean_retry(monkeypatch, 
     assert "nature" not in report.guard.fallback_section_ids
 
 
-def test_builder_falls_back_when_policy_violation_persists(monkeypatch):
-    """재작성도 hard register를 내면 승인된 결정론 골격으로 닫힌다."""
+@pytest.mark.parametrize("bad_candidate", ["결과지입니다.", "사자자리 기질입니다."])
+def test_builder_falls_back_when_policy_violation_persists(monkeypatch, bad_candidate):
+    """재작성도 고객 정책 위반이면 승인된 결정론 골격으로 닫힌다."""
 
     calls = 0
 
@@ -420,7 +452,7 @@ def test_builder_falls_back_when_policy_violation_persists(monkeypatch):
             nonlocal calls
             calls += 1
             return llm_sections.ComposeResult(
-                base_text + "\n결과지입니다.",
+                base_text + "\n" + bad_candidate,
                 cache_observed=True,
                 api_succeeded=True,
             )
@@ -433,13 +465,17 @@ def test_builder_falls_back_when_policy_violation_persists(monkeypatch):
 
     assert calls == 2
     assert report.section("nature").polished is False
-    assert "결과지" not in report.section("nature").final_text
+    assert bad_candidate not in report.section("nature").final_text
     assert "nature" in report.guard.fallback_section_ids
 
 
 @pytest.mark.parametrize(
     "injection",
-    ("결과지입니다.", "시험 일정과 영어 점수 요건을 확인하세요."),
+    (
+        "결과지입니다.",
+        "시험 일정과 영어 점수 요건을 확인하세요.",
+        "황도 12궁으로 보면 게자리에 가까운 성향입니다.",
+    ),
 )
 def test_builder_rule_skeleton_policy_violation_marks_aggregate_unclean(
     monkeypatch, injection
@@ -463,7 +499,14 @@ def test_builder_rule_skeleton_policy_violation_marks_aggregate_unclean(
     assert report.section("nature").guard_violations
 
 
-@pytest.mark.parametrize("bad_candidate", ["큰 그림을 잡습니다.", "시험 일정과 마감일을 확인하세요."])
+@pytest.mark.parametrize(
+    "bad_candidate",
+    [
+        "큰 그림을 잡습니다.",
+        "시험 일정과 마감일을 확인하세요.",
+        "당신은 사자자리 기질이 강한 분입니다.",
+    ],
+)
 def test_gunghap_compose_rejects_customer_policy_candidate(monkeypatch, bad_candidate):
     """궁합 LLM 후보도 공통 고객 정책을 지우면 깨지는 회귀를 잡는다."""
 
@@ -493,6 +536,21 @@ def test_gunghap_compose_rejects_customer_policy_candidate(monkeypatch, bad_cand
 
     assert result == "두 사람은 속도와 방향을 차분히 맞춥니다."
     assert bad_candidate not in result
+
+
+def test_gunghap_rule_fallback_rejects_western_astrology():
+    """궁합 결정론 폴백에 서양 점성술이 섞여도 LLM 유무와 무관하게 fail-closed한다."""
+
+    with pytest.raises(RuntimeError, match="western_astrology"):
+        gunghap._compose(
+            "each",
+            "두 사람은 사자자리 기질이 강합니다.",
+            {"ganzhi": [], "ganzhi_ko": []},
+            "",
+            ["합성갑", "합성을"],
+            2026,
+            use_llm=False,
+        )
 
 
 @pytest.mark.parametrize(

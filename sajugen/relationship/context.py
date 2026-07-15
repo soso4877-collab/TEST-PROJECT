@@ -202,6 +202,7 @@ def only_low_density_failure(v: dict) -> bool:
             "loanword_clean",
             "raw_calc_head_clean",
             "client_register_clean",
+            "western_astrology_clean",
             "name_policy_clean",
             "identity_role_clean",
             "singang_role_clean",

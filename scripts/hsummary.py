@@ -99,6 +99,7 @@ _PDF_COUNT = [
     "register_hard_hits_count",
     "register_warning_hits_count",
     "unknown_time_provenance_hits_count",
+    "western_astrology_hits_count",
     "raw_calc_phrase_hits_count",
     "punctuation_hits_count",
     "semantic_style_hits_count",
@@ -137,6 +138,7 @@ _SEMANTIC_HIT_FIELDS = (
     "role_perspective_hits",
     "honorific_consistency_hits",
     "unknown_time_provenance_hits",
+    "western_astrology_hits",
 )
 
 

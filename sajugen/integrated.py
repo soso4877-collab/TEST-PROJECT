@@ -56,6 +56,7 @@ _LOW_DENSITY_ONLY_CLEAN_FLAGS = (
     "customer_meta_clean",
     "placeholder_residue_clean",
     "style_clean",
+    "western_astrology_clean",
     "role_perspective_clean",
     "honorific_consistency_clean",
     "name_policy_clean",

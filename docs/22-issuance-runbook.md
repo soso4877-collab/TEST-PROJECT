@@ -65,7 +65,7 @@
 
 ## 3. 게이트 (다층 검증 — 자동)
 
-- 하드 게이트 AND-체인 = `GATE_KEYS` 22키(`sajugen/render/verify.py`, `docs/20-gate-coverage.md`). `gate_pass=false`면 발급 불가.
+- 하드 게이트 AND-체인 = `GATE_KEYS` 23키(`sajugen/render/verify.py`, `docs/20-gate-coverage.md`). `gate_pass=false`면 발급 불가.
 - 컴포즈 시점 벨트: safe_lint(§12) → factcheck(간지·별 토큰) → trace(그라운딩) + 확장 린트군.
 - **게이트 통과는 발급의 필요조건일 뿐, 충분조건이 아니다** — 반드시 4단계 육안·전문 검수를 거친다(QI-2026-07-02: gate_pass=true인데 육안 불합격 반복).
 

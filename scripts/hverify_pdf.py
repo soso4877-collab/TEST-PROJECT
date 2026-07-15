@@ -237,6 +237,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "customer_meta_clean",
         "placeholder_residue_clean",
         "style_clean",
+        "western_astrology_clean",
         "name_policy_clean",
         "identity_role_clean",
         "singang_role_clean",
@@ -244,6 +245,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "register_hard_hits_count",
         "register_warning_hits_count",
         "unknown_time_provenance_hits_count",
+        "western_astrology_hits_count",
         "delivery_external_domain_advice_hits_count",
         "role_perspective_clean",
         "honorific_consistency_clean",
@@ -277,6 +279,7 @@ def verify_profile(profile: dict, pdf_override: str | None = None) -> dict:
         "placeholder_residue_hits",
         "role_perspective_hits",
         "unknown_time_provenance_hits",
+        "western_astrology_hits",
     ):
         val = _safe_hits(v.get(k) or [])
         out[k + "_count"] = len(v.get(k) or [])

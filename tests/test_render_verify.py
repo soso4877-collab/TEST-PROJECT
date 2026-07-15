@@ -226,6 +226,28 @@ def _sn(sid, title, text):
     return SimpleNamespace(id=sid, title=title, source_keys=["m"], final_text=text)
 
 
+def test_real_pdf_text_layer_blocks_western_astrology(tmp_path):
+    """실제 PDF 텍스트 추출→verify 경로에서도 off-domain 토큰이 발급을 막는다."""
+
+    path = tmp_path / "western-astrology-gate.pdf"
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    page.insert_text(
+        (36, 72),
+        "태양 별자리는 쌍둥이자리에 속합니다.",
+        fontname="korea",
+        fontsize=12,
+    )
+    doc.save(path)
+    doc.close()
+
+    result = v.verify(str(path))
+
+    assert result["western_astrology_clean"] is False
+    assert result["western_astrology_hits_count"] == 2
+    assert result["gate_pass"] is False
+
+
 def _write_exact_text_pdf(path, char_count):
     """fitz 추출 결과가 ``char_count``자인 단일 페이지 합성 PDF를 만든다."""
 

@@ -10,7 +10,7 @@
 > 사각을 못 봄, (b) 대다수 게이트가 '추출 텍스트'라는 프록시를 재므로 물리(시각) 결함을
 > 놓침. 이 문서가 (a) 커버리지 지도와 (b) 물리/프록시 분류를 명문화한다.
 
-## GATE_KEYS 레지스트리 (verify.gate_pass AND-체인 SSOT — 22키)
+## GATE_KEYS 레지스트리 (verify.gate_pass AND-체인 SSOT — 23키)
 
 각 행: 게이트 키 · 검증 대상 · 유형 · 측정면(물리/프록시) · 알려진 괴리/스코프.
 유형 = structural(PDF 구조) / lint-text(추출 본문 텍스트) / lint-specs(런타임 스펙 필요) /
@@ -33,6 +33,7 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | `customer_meta_clean` | AI/meta/문서 자기지칭(본문 페이지) | lint-text | 프록시 | 표지·목차·부록 제외 |
 | `placeholder_residue_clean` | placeholder/마스킹 잔재 | lint-text | 프록시 | — |
 | `style_clean` | 시맨틱 style_lint(반복 패턴) | lint-text | 프록시 | 본문 페이지 한정 |
+| `western_astrology_clean` | 서양 별자리·황도·점성술 off-domain 토큰 0 | lint-text | 프록시 | 표지·목차·본문·부록 전역 |
 | `role_perspective_clean` | 수신자 관점(integrated_full) | lint-specs | 프록시 | receiver specs 필요 |
 | `honorific_consistency_clean` | 존칭 일관(integrated_full) | lint-specs | 프록시 | specs 필요 |
 | `name_policy_clean` | 전체 이름 반복(H1.5.3) | lint-specs | 프록시 | full_names 전달 시만 |
@@ -48,21 +49,22 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | `factcheck` | 사실 슬롯 외 간지·별·수치 생성 차단 | allowed_tokens 기준 하드 차단 |
 | `trace` | 그라운딩(근거 슬롯 대조) | 근거 밖 사실 금지 |
 | `customer_policy_lint` | register hard·외부 도메인 사실/절차 조언 | 후보·재작성·룰 골격과 최종 섹션 재집계; `GuardReport.clean` 편입 |
+| `western_astrology_lint` | 서양 별자리·황도·점성술 off-domain | 개인·궁합 후보/재작성/룰 폴백 차단; 최종 PDF 게이트와 이중화 |
 
 ## 커버리지 매트릭스 (문서 부위 × 게이트)
 
 행 = 고객이 보는 문서 부위, 열 = 그 부위를 실제로 검사하는 게이트/벨트. "제외"는 의도적
 스코프 제외(사유 명시) — 사각이 아니라 설계다.
 
-| 문서 부위 | 구조(text/font/tag) | 텍스트 lint(loanword/raw_calc/register/customer_meta/style/quality/temporal) | specs lint(name/identity/singang/honorific/role) | 기하(no_orphan/layout_geometry) | delivery | 벨트(safe/fact/trace) |
+| 문서 부위 | 구조(text/font/tag) | 텍스트 lint(loanword/raw_calc/register/customer_meta/style/quality/temporal/western_astrology) | specs lint(name/identity/singang/honorific/role) | 기하(no_orphan/layout_geometry) | delivery | 벨트(safe/fact/trace/western_astrology) |
 |---|---|---|---|---|---|---|
-| 표지(cover) | ✓ | register·unknown-time provenance ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
-| 목차(toc) | ✓ | register·unknown-time provenance ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
+| 표지(cover) | ✓ | register·unknown-time provenance·western astrology ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
+| 목차(toc) | ✓ | register·unknown-time provenance·western astrology ✓, 나머지 제외 | 제외 | layout ✓ | 제외 | 생성 시 |
 | intro(1장) | ✓ | ✓ | ✓(전달 시) | ✓ | ✓ | ✓ |
 | 각 해석 장 | ✓ | ✓ | ✓(전달 시) | ✓ | ✓ | ✓ |
 | consult(질문 답변) | ✓ | ✓ | ✓ | ✓ | ✓(직답 게이트) | ✓ |
 | 장 제목 | — | customer_meta ✓ | — | layout ✓ | — | 생성 시 |
-| 부록 용어집 | ✓ | register·unknown-time provenance ✓, loanword/raw_calc 등은 **제외**(정의 허용구역) | 제외 | layout ✓ | 제외 | — |
+| 부록 용어집 | ✓ | register·unknown-time provenance·western astrology ✓, loanword/raw_calc 등은 **제외**(정의 허용구역) | 제외 | layout ✓ | 제외 | — |
 | 기하(전 페이지) | — | — | — | ✓(no_orphan·layout_geometry) | — | — |
 
 ## 프록시 레지스트리 (C5 — 신규 검증은 물리 측정 우선)
@@ -75,7 +77,7 @@ geometry(레이아웃 기하) / calc(계산 정합) / aggregate(복합).
 | 분류 | 게이트 | 알려진 괴리 |
 |---|---|---|
 | 물리(신뢰 높음) | text_layer_ok·fonts_embedded·tagged·daewoon_consistent·no_orphan·layout_geometry_clean | — |
-| 프록시(텍스트) | markdown/quality/temporal/loanword/raw_calc_head/unknown_time_provenance/client_register/customer_meta/placeholder/style/specs·delivery | 추출 텍스트↔물리 레이아웃 괴리: 순서·위치·시각 결함 미포착 |
+| 프록시(텍스트) | markdown/quality/temporal/loanword/raw_calc_head/unknown_time_provenance/client_register/customer_meta/placeholder/style/western_astrology/specs·delivery | 추출 텍스트↔물리 레이아웃 괴리: 순서·위치·시각 결함 미포착 |
 | 최종 방어 | 운영자 육안(300dpi, 다이어트 체크리스트 ≤7항목) | 자동 게이트가 못 재는 미감·몰입·물리 배치 |
 
 ## 열린 품질 차원 책임표
@@ -88,6 +90,7 @@ GATE_KEYS 양방 일치는 **등록된 게이트의 배선 완전성**만 증명
 |---|---|---|---|---|
 | 상담가 화자 register | docs/14 프롬프트·룰 골격 | `client_register_clean` hard만 | hsweep narrator lens | 운영자 육안 Z |
 | 외부 도메인 사실·절차 | docs/14 consult 경계 | `delivery_quality_clean/external_domain_advice` | hsweep direct-answer lens | 운영자 육안 Z |
+| 서양 점성술 off-domain | 명리·자미 근거만 사용, 별자리 생성 금지 | `western_astrology_clean` | 금칙 토큰 스캔 | 운영자 육안 Z |
 | 어려운 사주 용어 이해 | 첫 등장 즉석 풀이·기능적 비유 | 하드 게이트 없음(오탐 방지) | warning·합성 holdout | 운영자 육안 Z |
 | 생시 미상 사실 출처 | 세 기둥·12/12 불변 사실만 compose | `unknown_time_provenance_clean` | provenance 메타 검토 | 운영자 육안 Z |
 | 시각·몰입·물리 배치 | 템플릿·골격 계약 | geometry·structure 게이트 | 300dpi 검수 보조 | 운영자 육안 |

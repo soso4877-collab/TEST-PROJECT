@@ -1,5 +1,19 @@
 # 16. 품질 사고 장부와 재발 방지 규칙
 
+## 2026-07-15 추가: QI-2026-07-15-01 서양 점성술 off-domain 문안이 전용 가드 없이 최종 게이트 통과 가능
+
+- 증상: 운영자 승인 4모듈 LLM-on 합성 확인에서 closing 초안이 황도 별자리 이름과 양력 구간을 생성했다. 그 초안은 `safe_lint` 1건에 우연히 걸려 룰 폴백됐지만, 결과 보장·단정이 없는 합성 프로브 3종은 수정 전 `safe=0`·`style=0`·`external_domain=0`으로 전부 통과했다. `safe_lint.RULES` 9개에는 별자리·황도·점성 토큰 규칙이 0개였다.
+- 영향: 관측 run은 우연한 다른 안전표현 위반으로 폴백돼 고객 유출이 없었다. 그러나 같은 별자리 내용을 직설형이 아닌 깨끗한 문장으로 생성하면 개인·궁합 compose와 최종 `gate_pass`를 모두 통과할 수 있어, 명리+자미 전용 상품에 서양 점성술이 섞일 수 있었다.
+- 원인(2층):
+  - 표면: `safe_lint`는 결과 보장·공포·의료·운명론만, `factcheck`는 허용 간지·별·수치만, `style_lint`는 표현 형식만 검사한다. 어느 층도 서양 점성술이라는 도메인 자체를 차단하지 않았고 `_COMPOSE_SYSTEM`·closing guide에도 생성 금지가 없었다.
+  - 시스템: 새 off-domain 품질 차원을 `GATE_KEYS`·docs/20 레지스트리·골격 lint 매트릭스에 등록하는 절차가 없었다. compose에서 우연히 다른 lint가 잡은 한 인스턴스를 전용 가드 담보로 오판했고, 최종 PDF 전역 스캔이 없어 저장본·관리자 수정분의 우회도 막지 못했다.
+- 기존 우연 catch의 정확한 raw match: 허용된 handoff/STATE에는 `safe=1` 카운트만 남고 match 문자열은 영속되지 않았다. ignored 산출물은 데이터 경계상 읽지 않았으므로 **확정 불가**다. 합성 문장 `별자리가 운명이 정해졌다는 뜻은 아닙니다`는 `운명론` 규칙의 `운명이 정해졌`에 걸려, 별자리 자체가 아니라 이웃 안전표현이 우연 catch를 만들 수 있음을 재현했다.
+- 재발 방지(2026-07-15 Codex 구현, no-LLM·PII 0):
+  - 전용 `western_astrology_lint`가 황도 12궁 이름 12종(사수/궁수 별칭 포함)과 `별자리`·`황도`·`점성`·`점성술`을 hard finding으로 집계한다. bare `자리`·`별`·`사자`·`게`·`처녀`·`물고기`와 `관록궁 자리`·자미 `주성`은 차단하지 않는다.
+  - 개인 builder의 후보·재작성·룰 골격·최종 집계와 궁합 후보·폴백에 같은 lint를 배선한다. 공용 compose system과 closing guide에는 서양 점성술 생성 금지를 명시한다.
+  - 최종 PDF의 표지·목차·본문·부록 전역을 스캔하는 `western_astrology_clean`을 `GATE_KEYS` 23번째 AND 키로 추가한다. hverify/hsummary 관측, 통합·궁합 레이아웃 재시도 판정, docs/20 레지스트리와 골격 매트릭스도 함께 동기화한다.
+- 검증(2026-07-15 Codex, no-LLM): 구현 전 프로브 3종이 `safe=0`·`style=0`·`external_domain=0`임을 RED로 재현했다. 구현 후 집중 양방·배선 **213 passed / 1 skipped**, 전체 **1080 passed / 32 skipped / exit 0**(동일 환경 직전 1043/32 대비 신규 +37·기존 감소 0·skip 불변, 총 수집 1112), golden **28 passed**다. 기준환경 기대는 1071/4+신규 37=`1108/4`이며 Claude 교차리뷰가 확정한다. 변경 Python Ruff `All checks passed!`, py_compile·`git diff --check` exit 0, calc/input diff 0이다. 운영 PDF·LLM·commit·push는 실행하지 않았고 실제 최종 게이트는 PyMuPDF PII-free 임시 PDF 텍스트층으로 확인했다.
+
 ## 2026-07-14 추가: QI-2026-07-14-01 하네스 모듈 계약 미배선으로 4모듈 PDF를 5모듈 하한으로 오판
 
 - 증상: 제품 `verify()`는 `selected_modules`·`module_sections`·`premerge_section_ids`를 받지만 `scripts/hverify_pdf.py`가 프로파일의 모듈 메타를 전달하지 않았다. `hrun.py` 재생성 argv에도 `--module`이 없고 summary에는 선택 모듈·적용 하한과 pytest skip 수가 남지 않았다. 따라서 4모듈 하한 `(28쪽, 9,000자)`인 29쪽 결과도 레거시 5모듈 `(30쪽, 10,000자)`로 판정돼 `premium_pages` 거짓 실패가 가능했다.

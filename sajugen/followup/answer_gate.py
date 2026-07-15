@@ -22,6 +22,7 @@ from sajugen.content import (
     style_lint,
     temporal_lint,
     trace,
+    western_astrology_lint,
 )
 from sajugen.content.sections_schema import Section
 from sajugen.render import verify
@@ -193,6 +194,12 @@ def check(
         "external_domain_advice_lint",
         delivery_quality.external_domain_advice_lint(text),
         "external_domain_advice",
+    )
+    _add_hits(
+        failures,
+        "western_astrology_lint",
+        western_astrology_lint.lint(text),
+        "western_astrology",
     )
     _add_hits(failures, "customer_meta_lint", customer_meta_lint.lint(text), "customer_meta")
     _add_hits(failures, "placeholder_residue_lint", client_tone_lint.placeholder_residue_lint(text), "placeholder_residue")

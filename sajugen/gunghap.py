@@ -33,6 +33,7 @@ from .content import (
     style_lint,
     temporal_lint,
     trace,
+    western_astrology_lint,
 )
 from .input import partner as input_partner
 from .refdate import default_ref_date_iso
@@ -766,7 +767,9 @@ def _compose(
         hit
         for hit in client_tone_lint.register_lint(fallback)
         if hit.get("severity") == "hard"
-    ] + delivery_quality.external_domain_advice_lint(fallback)
+    ] + delivery_quality.external_domain_advice_lint(fallback) + western_astrology_lint.lint(
+        fallback
+    )
     if fallback_policy:
         codes = sorted(
             {str(hit.get("rule") or "customer_policy") for hit in fallback_policy}
@@ -874,6 +877,7 @@ def _compose(
                 if hit.get("severity") == "hard"
             ]
             + delivery_quality.external_domain_advice_lint(cand)
+            + western_astrology_lint.lint(cand)
             + (client_tone_lint.name_policy_lint(cand, names) if names else [])
             + (
                 client_tone_lint.identity_role_lint(cand, id_spec[0], id_spec[1], id_spec[2])

@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import hrun  # noqa: E402
 import hsummary  # noqa: E402
 
-# 22키 동결 앵커(verify.py GATE_KEYS 순서 그대로). GATE_KEYS 도입 후
+# 23키 동결 앵커(verify.py GATE_KEYS 순서 그대로). GATE_KEYS 도입 후
 # 이 튜플과 verify.GATE_KEYS 가 정확히 일치(멤버십+순서)함을 test_gate_keys_frozen 이 고정.
 _EXPECTED_GATE_KEYS = (
     "text_layer_ok",
@@ -37,6 +37,7 @@ _EXPECTED_GATE_KEYS = (
     "customer_meta_clean",
     "placeholder_residue_clean",
     "style_clean",
+    "western_astrology_clean",
     "role_perspective_clean",
     "honorific_consistency_clean",
     "name_policy_clean",
@@ -81,13 +82,13 @@ def test_structural_key_failure_surfaces_and_reasons():
 
 
 def test_gate_keys_frozen():
-    # 22키 동결(멤버십+순서). verify.GATE_KEYS 변경 = 게이트 의미 변경 → 별도 결정·양방 필수.
+    # 23키 동결(멤버십+순서). verify.GATE_KEYS 변경 = 게이트 의미 변경 → 별도 결정·양방 필수.
     # 이 테스트가 RED 면 순수 리팩터가 아니라 게이트 집합이 바뀐 것(의도했는지 확인).
     from sajugen.render import verify
 
     assert verify.GATE_KEYS == _EXPECTED_GATE_KEYS
-    assert len(verify.GATE_KEYS) == 22
-    assert len(set(verify.GATE_KEYS)) == 22  # 중복 없음
+    assert len(verify.GATE_KEYS) == 23
+    assert len(set(verify.GATE_KEYS)) == 23  # 중복 없음
 
 
 def test_gate_pass_is_pure_all_of_gate_keys():

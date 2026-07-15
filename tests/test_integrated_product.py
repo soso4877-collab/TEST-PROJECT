@@ -162,6 +162,7 @@ def _verify_result(*, gate_pass: bool, failures: list[dict]) -> dict:
         "customer_meta_clean": True,
         "placeholder_residue_clean": True,
         "style_clean": True,
+        "western_astrology_clean": True,
         "role_perspective_clean": True,
         "honorific_consistency_clean": True,
         "name_policy_clean": True,
@@ -503,6 +504,10 @@ def test_integrated_full_low_density_only_requires_clean_integrated_flags():
     register_failure = _verify_result(gate_pass=False, failures=low_density)
     register_failure["client_register_clean"] = False
     assert integrated._integrated_only_low_density_failure(register_failure) is False
+
+    western_astrology_failure = _verify_result(gate_pass=False, failures=low_density)
+    western_astrology_failure["western_astrology_clean"] = False
+    assert integrated._integrated_only_low_density_failure(western_astrology_failure) is False
 
     other_delivery_failure = _verify_result(
         gate_pass=False,

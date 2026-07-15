@@ -28,6 +28,7 @@ from sajugen.content import (  # noqa: E402
     rules,
     safe_lint,
     temporal_lint,
+    western_astrology_lint,
 )
 from sajugen.render import verify  # noqa: E402
 from sajugen import gunghap, integrated  # noqa: E402
@@ -112,6 +113,7 @@ _LINTS = [
     _Lint("temporal", lambda t: temporal_lint.lint(t, 2026)),
     _Lint("guarantee", lambda t: dq.guarantee_lint(t)),
     _Lint("external_domain_advice", lambda t: dq.external_domain_advice_lint(t)),
+    _Lint("western_astrology", lambda t: western_astrology_lint.lint(t)),
     _Lint("loanword", lambda t: ct.loanword_lint(t), body_scoped=True),
     # 게이트 raw_calc_head_clean 과 동일 함수(표제형만) — raw_calc_lint(산문 용어까지)가
     # 아니라 raw_calc_headwords 를 써야 게이트 스코프를 정확히 미러링(오행국 산문 언급은 비표제).
@@ -135,6 +137,7 @@ _ENROLLED_GATE_KEYS = {
     "unknown_time_provenance_clean",
     "customer_meta_clean",
     "placeholder_residue_clean",
+    "western_astrology_clean",
 }
 _MATRIX_EXCLUDED = {
     # 게이트 style_clean 은 verify._semantic_style_hits(렌더 body 페이지) 사용 — raw 골격의

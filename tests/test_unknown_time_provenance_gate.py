@@ -543,7 +543,7 @@ def test_known_time_compose_request_preserves_original_system_and_user_bytes(
 
     # known-time 프롬프트는 삼주 분기 도입 전 승인 문자열을 byte-for-byte로 고정한다.
     assert hashlib.sha256(llm_sections._COMPOSE_SYSTEM.encode("utf-8")).hexdigest() == (
-        "a17f90fb0aa09ebf86adbac0efe6e1b2fc406ea7a7de46c2757fa626c7c4380a"
+        "76e1645d71353c5dfc15db0481ee2a85a88977f60033358e3058d587a80fa32d"
     )
     assert system == [
         {"type": "text", "text": llm_sections._COMPOSE_SYSTEM},

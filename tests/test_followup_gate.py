@@ -56,6 +56,37 @@ def test_clean_answer_passes_and_reports_skipped_specs():
     assert "name_policy_lint" in skipped
 
 
+def test_western_astrology_answer_is_blocked():
+    text = _DIRECT + " 덧붙이면, 사자자리 기질이 강해 리더십이 돋보입니다."
+    result = answer_gate.check(
+        text,
+        concern=_CONCERN,
+        allow_tokens=_ALLOW,
+        ref_year=2026,
+        ref_date="2026-07-07",
+        specs=None,
+    )
+
+    # 수정 전에는 전용 lint가 게이트에 배선되지 않아 이 답변이 ok=True로 통과했다.
+    assert result["ok"] is False
+    assert "western_astrology" in {failure["rule"] for failure in result["failures"]}
+
+
+def test_ziwei_terms_do_not_trigger_western_astrology_rule():
+    text = _DIRECT + " 자미의 주성과 별을 함께 보고, 관록궁 자리를 살핍니다."
+    result = answer_gate.check(
+        text,
+        concern=_CONCERN,
+        allow_tokens=_ALLOW,
+        ref_year=2026,
+        ref_date="2026-07-07",
+        specs=None,
+    )
+
+    rules = {failure["rule"] for failure in result["failures"]}
+    assert "western_astrology" not in rules
+
+
 @pytest.mark.parametrize(
     ("text", "rule"),
     [

@@ -37,6 +37,7 @@ GATE_KEYS = (
     "customer_meta_clean",  # AI/meta/document self-reference residue
     "placeholder_residue_clean",  # placeholder/masking residue
     "style_clean",  # compose 외 경로까지 style_lint 보편 적용
+    "western_astrology_clean",  # 서양 별자리·황도·점성술 off-domain 전역 차단
     "role_perspective_clean",  # integrated_full receiver perspective
     "honorific_consistency_clean",  # integrated_full honorific consistency
     "name_policy_clean",  # 전체 이름 반복(H1.5.3, name_full 전달 시)
@@ -424,11 +425,8 @@ _VERA_BASE = os.path.abspath(os.path.join(_TOOLS, "verapdf"))
 
 def _verapdf_ua1(pdf_path: str) -> dict:
     """포터블 veraPDF로 PDF/UA-1 검증 → {compliant, failed_clauses, available}."""
-    if not (os.path.isfile(_JAVA) and os.path.isdir(_VERA_BASE)):
-        if shutil.which("verapdf"):  # 시스템 설치 폴백
-            base = None
-        else:
-            return {"available": False, "note": "veraPDF 미설치 — sajugen/tools 포터블 설치 필요"}
+    if not (os.path.isfile(_JAVA) and os.path.isdir(_VERA_BASE)) and not shutil.which("verapdf"):
+        return {"available": False, "note": "veraPDF 미설치 — sajugen/tools 포터블 설치 필요"}
     cp = f"{_VERA_BASE}{os.sep}etc;{_VERA_BASE}{os.sep}bin{os.sep}*"
     try:
         out = subprocess.run(
@@ -649,6 +647,19 @@ def verify(
     r["placeholder_residue_clean"] = _placeholder_residue_hits_clean(
         placeholder_hits, product=product, partner_present=partner_present
     )
+    # 서양 점성술은 상품 도메인 밖이므로 표지·목차·본문·부록을 포함한 고객 가시
+    # 전 페이지를 검사한다. finding은 고정 토큰과 page/count만 남겨 원문을 노출하지 않는다.
+    from ..content import western_astrology_lint as _western_astrology
+
+    western_astrology_hits = _paged_lint_hits(
+        list(enumerate(pages_text, start=1)),
+        _western_astrology.lint,
+    )
+    r["western_astrology_hits"] = western_astrology_hits
+    r["western_astrology_hits_count"] = sum(
+        int(hit.get("count", 1)) for hit in western_astrology_hits
+    )
+    r["western_astrology_clean"] = not western_astrology_hits
     r["role_perspective_hits"] = []
     r["role_perspective_hits_count"] = 0
     role_hits = _paged_lint_hits(
