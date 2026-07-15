@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "beta-1-hverify-module-contract-20260712",
-  "status": "verified",
-  "base_commit": "519fc6100837ecbd399102f18c40c6f36b2c2e94",
-  "packet_path": "handoff/tasks/beta-1-hverify-module-contract-20260712.md",
-  "packet_sha256": "15030847f164ab1ed3d1037e75bb98a4517c81fd8bbf78bfd12da0462720ce8b",
+  "task_id": "offdomain-zodiac-guard-20260715",
+  "status": "review_requested",
+  "base_commit": "da0a6368260fcc07c5aaf5c018a9625bb2fd6a59",
+  "packet_path": "handoff/tasks/offdomain-zodiac-guard-20260715.md",
+  "packet_sha256": "07f47dac9e2c24fe4d773c75475c6f9208895b05c36455faf566f6f84bfd7af4",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "f6d83e489a4887d1c42d564e7c5cffe546029e2189d12830b7c9058891eba3d7",
+  "notes_sha256": "f4b02c70eca3b2aad7da9309ca7a91be174a541ffd077087366411f99b21d49d",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "7c8ae2ea77ee2da17201625684f221ad469dfce4627690508d242d92cca1d922",
-  "next_actor": "user",
-  "next_action": "운영자 checkpoint: (1) commit 여부 결정 (2) 별도 지시 시 §7.3 합성 모듈 제한 픽스처로 hrun/hverify 1회 실행해 4모듈=28p 실적용 summary 확정(실 V.verify 통과 런타임 증명 — 테스트는 mock이라 소스로만 확인됨). 제품 diff 0·1071/4·golden 28. 발송은 표준 게이트→검수 Z=0 뒤에만.",
-  "updated_at": "2026-07-14T13:14:30.627Z"
+  "next_actor": "claude",
+  "next_action": "Claude: Codex 구현 diff 전량, 서양 점성술 프로브 3종·12궁 차단과 명리/자미 정상어 오탐 0, 개인·궁합 compose 가드, GATE_KEYS 23키·docs/20·최종 PDF 게이트, 기준환경 pytest 기대 1108/4를 신선 컨텍스트에서 교차검증. PDF 재생성·LLM 없이 판정.",
+  "updated_at": "2026-07-15T09:37:57.183Z"
 }

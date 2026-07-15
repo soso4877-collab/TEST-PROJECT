@@ -1,5 +1,24 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 Codex 구현 완료) =====
+>   [판정] `offdomain-zodiac-guard-20260715` = **EVIDENCE_SPLIT_PASS / review_requested / next_actor=claude**.
+>   [루트커즈] 기존 `safe_lint` 9규칙에 별자리·황도·점성 토큰 0. 프로브 3종은 수정 전 safe/style/external-domain 전부 0으로 유출 가능. 유료 run의 `safe=1` raw match는 기록 부재·ignored 비열람으로 확정 불가(합성 `운명이 정해졌` 우연 catch만 재현).
+>   [구현] `western_astrology_lint`(황도 12궁 12종+사수/궁수 별칭, 별자리/황도/점성) → 개인 후보·재작성·룰·최종 집계 + 궁합 후보·폴백 배선. `_COMPOSE_SYSTEM`/closing 억제. 최종 전 페이지 `western_astrology_clean`을 GATE_KEYS 23번째 AND 키로 추가하고 hverify/hsummary·integrated/relationship 재시도·docs/20/22 동기화.
+>   [양방] 프로브 3종·12궁 전부 차단. `관록궁 자리`·bare 자리/사자/게/처녀궁/물고기·자미 주성/별 오탐 0. 실제 PyMuPDF 임시 PDF에서 해당 clean=False·gate_pass=False.
+>   [검증] 집중 **213/1**, 전체 **1080 passed / 32 skipped / exit 0**(직전 1043/32 +37·기존 감소 0·skip 불변, 총 1112), golden 28, Ruff/py_compile/diff-check GREEN, calc/input diff 0. 기준환경 기대 **1108/4**는 Claude 확정.
+>   [금지] API/LLM·운영 PDF·local profile·ignored 고객 산출물·commit·push·deploy 접근 0. 다음 = Claude 신선 교차리뷰.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 태스크 발주 — 이 블록 먼저 읽기) =====
+>   [활성 태스크] `offdomain-zodiac-guard-20260715` = `planned / next_actor=codex`, packet SHA `07f47dac…`.
+>     하네스 모듈 계약(직전) = 종결(verified·소스+양방+런타임 3중 확증·커밋 push 완료).
+>   [발주 근거·실측] 4모듈 LLM-on 유료 확인에서 closing이 서양 별자리(쌍둥이/게/사자자리+양력) 생성. **전용 가드 부재**
+>     (sajugen/content grep 0·factcheck fact=0), 그 인스턴스는 safe_lint 우연 catch. **유출 프로브 확정**: 깨끗한
+>     별자리 문장 3종 safe=0·style=0 = 전 가드 통과(유출). → benign 아님, off-domain 미커버 갭.
+>   [목표] (1) 서양 점성술 전용 하드 가드 추가(fail-closed·유출 0, compose 체인+최종 게이트 배선) (2) 프롬프트 억제.
+>     명리/자미 정상어(관록궁 자리·사자獅子·주성·별) 오탐 0 양방 필수. 기준선 1071/4 비감소.
+>   [다음] Codex 구현(§2~§5) → Claude 교차리뷰(유출 0 실증). PDF 재생성·LLM·commit·push 금지.
+>   [미커밋] 발주 패킷·manifest·이 STATE 갱신은 working tree — 운영자 commit 지시 대기.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-14 하네스 모듈 계약 Claude 교차리뷰 CODE_PASS — 이 블록 먼저 읽기) =====
 >   [판정] `beta-1-hverify-module-contract-20260712` Claude 신선 교차리뷰 = **CODE_PASS**.
 >     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `519fc61` 유지(Codex 미커밋 8파일).
