@@ -1,5 +1,9 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CLAUDE_REVIEW — offdomain-zodiac-guard-20260715 (2026-07-15, 라운드2 = CODE_PASS)
+
+- 판정 = **CODE_PASS, 미해결 블로커 0**(정본 = REVIEW-FEEDBACK 라운드2 절). B-1 해소: `followup/answer_gate.py`에 `western_astrology_lint` 배선(+7), 라운드1 유출 입력 재실행 → **ok=False·rule=western_astrology**(비-no-op), 자미 정상어 오탐 0. 변경 2파일 순수 추가, **라운드1 19파일 SHA 불변**. 전체 **1110 passed / 4 skipped / exit 0**(1108+2·감소 0·skip 불변), golden 28, Ruff/py_compile/diff-check GREEN, calc/input 0, 경계 무변경. manifest `verified/user`. Codex 라운드1+2 구현 18파일 미커밋 = 운영자 checkpoint 대기.
+
 ## CLAUDE_REVIEW — offdomain-zodiac-guard-20260715 (2026-07-15, 라운드1)
 
 - 판정 = **CHANGES_REQUESTED, 블로커 1건**(정본 = REVIEW-FEEDBACK 2026-07-15 절). 핵심 가드·개인/궁합/최종 PDF 배선은 사양 충족 GREEN(전체 1108/4·golden 28·SHA 핀 독립 일치·오탐 0·경계 무변경)이나, **followup 텍스트 발급 게이트(`answer_gate.check`)에 `western_astrology_lint` 미배선** → pdf=False followup 답변이 프롬프트 억제만으로 유출 가능(실행 확증: 통과 픽스처 `_DIRECT`에 `사자자리` 주입해도 ok=True). 수정 = answer_gate 배선+양방(생성 측, 완화 0). manifest `changes_requested/codex`.

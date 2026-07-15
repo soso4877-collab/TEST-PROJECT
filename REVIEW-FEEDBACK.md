@@ -1,3 +1,43 @@
+# 교차 리뷰 라운드2 — 2026-07-15 (서양 점성술 off-domain 가드 B-1 수정 재검, 리뷰어: Claude)
+
+대상: 라운드1 changes_requested의 B-1 수정분(base=HEAD `0325ce7` 위 미커밋) · 구현자: Codex.
+
+## 최종 판정: **승인(CODE_PASS)** — 미해결 블로커 0.
+
+라운드1 블로커 B-1(followup 텍스트 발급 게이트에 서양 점성술 하드 가드 미배선)이 **해소 확정**. `answer_gate.check`에 `western_astrology_lint`가 다른 고객정책 lint와 동일 패턴으로 배선됐고, 라운드1에서 유출됐던 바로 그 입력이 이제 실차단된다. 라운드1 사양 충족 항목은 19파일 SHA 불변으로 재확인(재작업·회귀 0).
+
+### B-1 해소 실측
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 변경 범위 | `sajugen/followup/answer_gate.py`(+7: import +6배선) · `tests/test_followup_gate.py`(+31: 양방 2건). **순수 추가**(기존 15종 lint·완화 0). 다른 파일 변경 0 | ✓ |
+| **B-1 실차단 확증** | 라운드1 유출 입력 `_DIRECT + "…사자자리 기질…"`을 `answer_gate.check` → **ok=False, 실패 rule=`western_astrology`**(라운드1=ok=True/failures=[]). 전용 가드가 직접 차단(우연 아님·비-no-op) | ✓ |
+| 오탐 0(비-no-op) | `_DIRECT + "자미의 주성과 별… 관록궁 자리…"` → `western_astrology` rule 미발생 | ✓ |
+| 라운드1 19파일 불변 | 라운드1 경계 스냅샷 전수 SHA 재대조 = 변경 0(제품/테스트/docs 재작업·회귀 0) | ✓ |
+| 전체 pytest | **1110 passed / 4 skipped / exit 0**(212.41s) — 라운드1 1108/4 + 신규 2, 감소 0, skip==4 불변 | ✓ |
+| golden | **28 passed** | ✓ |
+| 정적 | 변경 2 py Ruff `All checks passed!`·py_compile·`git diff --check` exit 0. calc/input diff 0. 경계 스냅샷(허용4 제외 21파일) 시작=종료 SHA 무변경 | ✓ |
+
+### 태스크 종합(라운드1+2)
+
+전용 `western_astrology_lint`가 **개인 builder(후보·재작성·룰 골격·최종 집계) + 궁합(후보·폴백) + followup(텍스트 발급 게이트) + 최종 PDF verify() 23키(전 페이지)**에 배선돼, 서양 점성술 off-domain이 명리+자미 전용 상품의 어느 발급 표면에서도 유출 0(fail-closed)이다. packet §2 목표1(보편 유출 0)·§4(사각 축소·완화 0)·§5(compose 체인+최종 게이트 경유 양방) 충족.
+
+### 비블로커 관찰(운영자 checkpoint 인지 — 라운드1에서 이월)
+
+- `verify._verapdf_ua1` packet §7 범위 밖 죽은코드(F841) 정리 — 동작 보존·GREEN.
+- 황도/점성 동음이의어는 고정 토큰 계약 대상·fail-closed(무해). 의미적 우회는 계약 밖(미검증).
+
+### 미검증(정직 보고 — 판정 밖)
+
+- 실모델 폴백률 감소(closing·followup 별자리 미생성)·실 PDF·300dpi 육안·비용 = 운영자 승인 유료 재run 몫(packet §6 분리, CODE_PASS 미포함).
+
+### 절차·경계
+
+- 리뷰어 수정 = 허용 4파일뿐(경계 스냅샷 대조 무변경). commit·push·API·PDF 재생성 0. 합성 테스트 산출물 외 PDF 0.
+- manifest는 이 판정으로 `verified/next_actor=user`(packet §8: PASS 뒤 운영자 승인 유료 재run 결정 — Codex read-only 재확인 단계 없음). Codex 라운드1+2 구현(제품·테스트·docs 18파일)은 미커밋 = 운영자 checkpoint commit 대기.
+
+---
+
 # 교차 리뷰 — 2026-07-15 (서양 점성술 off-domain 가드, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, base=HEAD `098b737`) `offdomain-zodiac-guard-20260715` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/offdomain-zodiac-guard-20260715.md`(SHA `07f47dac…7af4`, manifest 핀 일치) · 근거: 4모듈 LLM-on 유료 확인에서 closing이 서양 별자리 생성 + 유출 프로브 실측(전용 가드 부재).

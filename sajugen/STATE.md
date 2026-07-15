@@ -1,5 +1,19 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 라운드2 재검 CODE_PASS — 이 블록 먼저 읽기) =====
+>   [판정] `offdomain-zodiac-guard-20260715` 라운드2 재검 = **CODE_PASS, 미해결 블로커 0**. 정본 = REVIEW-FEEDBACK 라운드2 절.
+>     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `0325ce7` 유지(Codex 라운드1+2 구현 18파일 미커밋).
+>   [B-1 해소 확증] `followup/answer_gate.py check()`에 `western_astrology_lint`가 다른 고객정책 lint와 동일 패턴으로 배선(+7). 라운드1 유출 입력
+>     `_DIRECT + 사자자리`을 재실행 → **ok=False·실패 rule=`western_astrology`**(라운드1=ok=True 유출 → 실차단, 우연 아님·비-no-op). 자미 주성/별·관록궁 자리 오탐 0.
+>   [경계·회귀] 변경 = `answer_gate.py`+`test_followup_gate.py` 2파일 순수 추가(기존 15종 lint 완화 0). **라운드1 19파일 SHA 전수 불변**(재작업·회귀 0).
+>   [기준환경 실측] 전체 **1110 passed / 4 skipped / exit 0**(212.41s, 라운드1 1108/4 +2·감소 0·skip==4 불변), golden **28 passed**.
+>     변경 2 py Ruff `All checks passed!`·py_compile·diff-check exit 0, calc/input diff 0. 경계 스냅샷(허용4 제외 21) 시작=종료 무변경.
+>   [태스크 종합] 전용 가드가 개인 builder(후보·재작성·룰·최종)+궁합(후보·폴백)+followup 텍스트 게이트+최종 PDF verify() 23키(전 페이지)에 배선 =
+>     명리+자미 전용 상품 어느 발급 표면에서도 별자리 off-domain 유출 0(fail-closed). packet §2 목표1·§4·§5 충족.
+>   [비블로커 관찰(checkpoint 인지)] verify._verapdf_ua1 범위 밖 죽은코드(F841) 정리(동작 보존). 황도/점성 동음이의어=고정 토큰 계약·fail-closed(무해).
+>   [미검증] 실모델 폴백률(closing·followup 별자리 미생성)·실 PDF·300dpi·비용 = 운영자 승인 유료 재run 몫(packet §6, CODE_PASS 밖).
+>   [다음] 운영자 checkpoint: Codex 라운드1+2 구현 18파일 commit 결정 + (선택) 유료 재run으로 억제 효과 재측정. 실고객 발송은 표준 게이트→검수 Z=0 뒤에만.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 Claude 교차리뷰 CHANGES_REQUESTED — 이 블록 먼저 읽기) =====
 >   [판정] `offdomain-zodiac-guard-20260715` Claude 신선 교차리뷰 = **CHANGES_REQUESTED, 블로커 1건**.
 >     manifest를 `changes_requested / next_actor=codex`로 전환. commit·push·API·PDF 없음, HEAD `098b737` 유지(Codex 미커밋 20파일).
