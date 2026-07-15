@@ -1,3 +1,49 @@
+# 교차 리뷰 — 2026-07-15 (서양 점성술 off-domain 가드, 리뷰어: Claude 신선 컨텍스트)
+
+대상: 워킹트리(미커밋, base=HEAD `098b737`) `offdomain-zodiac-guard-20260715` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/offdomain-zodiac-guard-20260715.md`(SHA `07f47dac…7af4`, manifest 핀 일치) · 근거: 4모듈 LLM-on 유료 확인에서 closing이 서양 별자리 생성 + 유출 프로브 실측(전용 가드 부재).
+
+## 최종 판정: **수정 요청(CHANGES_REQUESTED)** — 블로커 1건.
+
+핵심 가드 구현(전용 `western_astrology_lint`)·개인/궁합 compose 배선·GATE_KEYS 23키·최종 PDF 게이트·docs/매트릭스 등록은 **전부 사양 충족**이며 기준환경 pytest·정적 게이트·양방·오탐 0 실측 GREEN이다. 다만 **followup(후속 상담) 텍스트 발급 게이트에 신규 하드 가드가 미배선**되어 packet §2 목표1(보편 유출 0)을 그 발급 표면에서 충족하지 못한다. 아래 B-1만 수정하면 재검(라운드2) 대상이다.
+
+### 블로커 B-1 — followup 텍스트 발급 경로가 서양 점성술 하드 가드를 우회(유출 가능)
+
+- **결함**: `sajugen/followup/answer_gate.py:179-204` `check()`는 safe/factcheck/trace/temporal/loanword/raw_calc/register/**external_domain_advice**/customer_meta/placeholder/style/quality/guarantee/consult/markdown 15종 고객정책 lint를 돌리지만 **`western_astrology_lint`가 빠져 있다**. 이 게이트가 `sajugen/followup/compose.py:229`에서 followup 답변의 유일한 텍스트 게이트이고, `:256 if not pdf: return result`로 **pdf=False(텍스트 전용) 답변은 이 게이트만 통과하면 발급**된다. 소비 경로 = `order_flow.run_followup`(기본 `pdf=False`) → `cli.py:106·124 gen-followup`이 answer 텍스트를 emit + order 생성.
+- **실행 확증(실측)**: 기존 통과 픽스처 `tests/test_followup_gate.py::_DIRECT`(실제형 followup 직답)는 `ok=True/failures=[]`. 여기에 `" 덧붙이면, 사자자리 기질이 강해 리더십이 돋보입니다."`를 주입해도 **`ok=True/failures=[]`**(게이트 통과). 같은 문자열에 `western_astrology_lint.lint`는 `사자자리`를 hard finding으로 잡지만 `answer_gate`는 못 잡는다(`western_astrology` 룰 부재). = QI 메커니즘 재현(별자리가 우연히 다른 lint에 걸릴 때만 반려, 직답형은 유출).
+- **왜 최종 PDF 게이트로 안 잡히나**: pdf=True followup은 `_render_followup_pdf`(order_flow.py:178-229)가 `render_verify.verify()` 23키(신규 `western_astrology_clean` 포함)를 경유해 fail-closed로 차단된다 — **PDF 경로는 안전**. 그러나 pdf=False 텍스트 경로는 render/verify 백스톱이 없어 `answer_gate`가 사실상 최종 게이트다. 이 경로는 현재 **프롬프트 억제만** 있고 하드 가드가 없다(= 이 태스크가 "억제만으로 부족, 하드 가드 필요"라고 선언한 바로 그 구성).
+- **수정 방향(Codex, 생성/발급 측 — 게이트 완화 아님)**: `answer_gate.check`에 `western_astrology_lint.lint(text)`를 다른 `_add_hits` 고객정책 lint와 동일 패턴으로 추가(예: external_domain_advice 다음, rule=`western_astrology`·severity=hard 일관) + `tests/test_followup_gate.py` 양방(별자리 followup 답변 차단 + 자미 `주성`/`별`·`관록궁 자리` 오탐 0). calc/input·기존 lint 완화 0.
+
+### 사양 충족(재작업 불필요 — 실측 GREEN)
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 전체 pytest(기준환경) | **1108 passed / 4 skipped / exit 0**(217.12s) — 기준선 1071/4 + 신규 37, 감소 0, skip==4 불변. Codex 기대 1108/4 정확 일치 | ✓ |
+| golden | **28 passed**. 자미두수(별/주성) 포함 실콘텐츠 gate_pass=True 테스트가 23키 AND에서 전부 통과 = 신규 키 오탐 0 애그리게이트 증명 | ✓ |
+| 전용 가드 로직 | `western_astrology_lint`: 최장 토큰 우선 단일 정규식(중복집계 0), 컴파운드 sign name 12종(사수/궁수 별칭)+`별자리·황도·점성·점성술`. 독립 프로브 차단 3/3·오탐 0/6(`관록궁 자리`·bare `자리/사자/게/처녀궁/물고기`·자미 `주성/별`)·`사주/시주` 정상용법 0 | ✓ |
+| 개인·궁합 compose 배선 | builder `_customer_policy_lints`(후보·재작성·룰 골격·최종 집계 4소비처) + gunghap `_compose` 후보+폴백 배선. `test_register_advice_gate` 양방(별자리 후보 거부·룰폴백 RuntimeError·최종 PDF FakeDoc) | ✓ |
+| 최종 PDF 게이트 | `verify.GATE_KEYS` 23키(멤버십+순서 동결 갱신 22→23), 전 페이지(표지·목차·본문·부록) 스캔, hits/count/clean. **실 PyMuPDF PDF**에서 `western_astrology_clean=False`·hits_count=2·`gate_pass=False`(test_render_verify) | ✓ |
+| 재시도 판정 배선 | integrated·relationship 저밀도 단독 실패 판정에 `western_astrology_clean` 추가 = 별자리 실패를 레이아웃 재시도로 오판 안 함(진짜 콘텐츠 실패). test_integrated_product 양방 | ✓ |
+| 관측(PII-free) | hverify_pdf·hsummary 화이트리스트에 `western_astrology_clean`·`_hits_count`·`_hits`(토큰/count/page만) 등록 | ✓ |
+| 프롬프트 억제 | `_COMPOSE_SYSTEM` +2줄·closing guide +1문장. **SHA 핀 독립 재계산 = `76e1645d…fa32d` 정확 일치**(known-time·삼주 파생 시스템 모두 금지 계약 보존, test_western_astrology_guard) | ✓ |
+| 정적 게이트 | 변경 16 py Ruff `All checks passed!`·py_compile·`git diff --check` exit 0. **calc/input diff 0**. 리뷰어 경계 스냅샷(허용 4파일 제외 19파일) 시작=종료 SHA 무변경 | ✓ |
+
+### 비블로커 관찰(운영자 checkpoint 인지 — 재작업 아님)
+
+- **범위 밖 소변경**: `verify.py:_verapdf_ua1`가 packet §7 범위 밖에서 기존 죽은코드(`base = None`, F841)를 정리했다. 동작 보존(구/신 분기 결과 동일 — 포터블·시스템 둘 다 없을 때만 unavailable)·Ruff GREEN. 완료 checkpoint 시 운영자 scope 인지.
+- **황도/점성 동음이의어**: bare `황도`(황도 복숭아)·`점성`(粘性)은 사주 도메인에서 사실상 미출현이고 packet §3 고정 토큰 계약 대상이며 fail-closed(오차단=룰 폴백, 고객 무해). 의미적 우회는 고정 토큰 계약 밖(미검증으로 정직 보고).
+
+### 미검증(정직 보고 — 판정 밖)
+
+- 실모델 폴백률 감소(closing 별자리 미생성)·실 PDF·300dpi 육안·비용 = 운영자 승인 유료 재run 몫(packet §6 분리).
+- B-1 수정 후 followup 텍스트 경로 실차단은 라운드2 재검 대상.
+
+### 절차·경계
+
+- 리뷰어 수정 = 허용 4파일뿐. 제품/테스트/docs 미수정(경계 스냅샷 대조 무변경). commit·push·API·PDF 재생성 0. 합성 테스트 산출물 외 PDF 생성 0. 고객 실데이터·local profile 비열람.
+- 발주 커밋 `098b737`은 메시지가 '발주(planned)'이나 커밋 시점 manifest는 이미 review_requested였다(레이스). 실제 = Codex 완료 → Claude 교차리뷰(이 절). manifest는 이번 판정으로 `changes_requested/codex`로 전환.
+
+---
+
 # 교차 리뷰 — 2026-07-14 (하네스 모듈 계약 배선, 리뷰어: Claude 신선 컨텍스트)
 
 대상: 워킹트리(미커밋, base=HEAD `519fc61`) `beta-1-hverify-module-contract-20260712` 구현분 · 구현자: Codex · 지시문: `handoff/tasks/beta-1-hverify-module-contract-20260712.md`(SHA `15030847…20ce8b`, manifest 핀 일치) · 근거: HRUN_EVIDENCE_INVALID_MODULE_SPEC_GAP(하네스 증거 경로가 모듈 제한 주문을 5모듈 하한으로 오판).

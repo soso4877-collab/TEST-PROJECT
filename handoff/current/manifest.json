@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task_id": "offdomain-zodiac-guard-20260715",
-  "status": "review_requested",
-  "base_commit": "da0a6368260fcc07c5aaf5c018a9625bb2fd6a59",
+  "status": "changes_requested",
+  "base_commit": "098b73736d1e4e82ef7336d05b34bfe4f5fddca9",
   "packet_path": "handoff/tasks/offdomain-zodiac-guard-20260715.md",
   "packet_sha256": "07f47dac9e2c24fe4d773c75475c6f9208895b05c36455faf566f6f84bfd7af4",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "f4b02c70eca3b2aad7da9309ca7a91be174a541ffd077087366411f99b21d49d",
+  "notes_sha256": "7784bcf6dc99fd430e5f0d038a4967225c49329778a9ad9b7fe01e380b360c87",
   "review_path": "REVIEW-FEEDBACK.md",
-  "review_sha256": "7c8ae2ea77ee2da17201625684f221ad469dfce4627690508d242d92cca1d922",
-  "next_actor": "claude",
-  "next_action": "Claude: Codex 구현 diff 전량, 서양 점성술 프로브 3종·12궁 차단과 명리/자미 정상어 오탐 0, 개인·궁합 compose 가드, GATE_KEYS 23키·docs/20·최종 PDF 게이트, 기준환경 pytest 기대 1108/4를 신선 컨텍스트에서 교차검증. PDF 재생성·LLM 없이 판정.",
-  "updated_at": "2026-07-15T09:37:57.183Z"
+  "review_sha256": "5453213db4fa8d25d5d3197bcec7daf09acdb702676ccdcc0ddad4b90e6aa7c2",
+  "next_actor": "codex",
+  "next_action": "Codex: REVIEW-FEEDBACK 2026-07-15 절 블로커 B-1만 수정 — followup answer_gate.check에 western_astrology_lint 배선(다른 _add_hits 고객정책 lint 패턴 동일, rule=western_astrology·hard) + test_followup_gate 양방(별자리 followup 답변 차단·자미 주성/별·관록궁 자리 오탐 0). calc/input·기존 lint 완화 0. 그 외 파일 재작업 금지. PDF 재생성·LLM·commit·push 금지.",
+  "updated_at": "2026-07-15T11:23:12.128Z"
 }

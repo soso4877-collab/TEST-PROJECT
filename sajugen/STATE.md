@@ -1,5 +1,25 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 Claude 교차리뷰 CHANGES_REQUESTED — 이 블록 먼저 읽기) =====
+>   [판정] `offdomain-zodiac-guard-20260715` Claude 신선 교차리뷰 = **CHANGES_REQUESTED, 블로커 1건**.
+>     manifest를 `changes_requested / next_actor=codex`로 전환. commit·push·API·PDF 없음, HEAD `098b737` 유지(Codex 미커밋 20파일).
+>   [기준환경 실측] 전체 **1108 passed / 4 skipped / exit 0**(217.12s, 기준선 1071/4 +37·감소 0·skip 불변, Codex 기대 1108/4 정확 일치),
+>     golden **28 passed**. 변경 16 py Ruff `All checks passed!`·py_compile·diff-check exit 0. calc/input diff 0. 경계 스냅샷(허용 4파일 제외 19) 시작=종료 SHA 무변경.
+>   [블로커 B-1] **followup 텍스트 발급 게이트가 신규 하드 가드 우회 = 유출 가능**. `followup/answer_gate.py:179-204 check()`가
+>     15종 고객정책 lint(external_domain 포함)를 돌리면서 `western_astrology_lint`만 누락. `compose.py:229`가 followup 답변의 유일 텍스트 게이트,
+>     `:256 if not pdf: return`으로 pdf=False(텍스트 전용) 답변은 이 게이트만 통과하면 발급(`run_followup` 기본 pdf=False → `cli gen-followup`이 answer emit+order 생성).
+>     **실행 확증**: 통과 픽스처 `test_followup_gate._DIRECT`(ok=True)에 `사자자리 기질` 문장 주입해도 **ok=True/failures=[]**(유출), `western_astrology_lint`는 잡음·`answer_gate`는 못 잡음.
+>     PDF 경로는 `_render_followup_pdf`→verify() 23키로 안전하나 텍스트 경로는 render 백스톱 없어 answer_gate가 최종 게이트 = 현재 **프롬프트 억제만**(태스크가 부족하다 선언한 구성).
+>     수정 = `answer_gate.check`에 `western_astrology_lint.lint` 추가(다른 _add_hits 패턴 동일, rule=western_astrology·hard) + test_followup_gate 양방(별자리 차단·자미 주성/별 오탐 0). 완화 0.
+>   [사양 충족(재작업 불필요)] 전용 `western_astrology_lint`(최장토큰 우선 정규식·컴파운드 12종+사수/궁수·별자리/황도/점성) 로직·프로브 차단 3/3·오탐 0/6,
+>     개인 builder 4소비처·궁합 후보+폴백 배선, GATE_KEYS 23키(동결 22→23)·전 페이지 실PDF 게이트(clean=False·gate_pass=False 실측), integrated/relationship 재시도 판정,
+>     hverify/hsummary PII-free 관측, `_COMPOSE_SYSTEM` SHA 핀 독립 재계산 `76e1645d…fa32d` 정확 일치(known·삼주 파생 금지 보존). docs/16 QI·docs/20 23키 레지스트리 정확.
+>   [비블로커 관찰] (1) `verify._verapdf_ua1` packet §7 범위 밖 죽은코드(base=None F841) 정리 — 동작 보존·Ruff GREEN, checkpoint 시 scope 인지.
+>     (2) 황도/점성 동음이의어는 고정 토큰 계약 대상·fail-closed(무해). 의미적 우회는 계약 밖(미검증).
+>   [미검증] 실모델 폴백률·실 PDF·300dpi·비용 = 운영자 승인 유료 재run 몫(packet §6 분리). B-1 수정 후 followup 텍스트 실차단 = 라운드2.
+>   [정리] 발주 커밋 `098b737` 메시지 '발주(planned)'↔커밋 manifest review_requested 레이스는 이 판정에서 changes_requested/codex로 정리(정본=REVIEW-FEEDBACK 2026-07-15 절).
+>   [다음] Codex가 REVIEW-FEEDBACK B-1만 수정(followup answer_gate 배선+양방) → Claude 라운드2 재검. 그 전 commit·push·유료 run 금지.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 Codex 구현 완료) =====
 >   [판정] `offdomain-zodiac-guard-20260715` = **EVIDENCE_SPLIT_PASS / review_requested / next_actor=claude**.
 >   [루트커즈] 기존 `safe_lint` 9규칙에 별자리·황도·점성 토큰 0. 프로브 3종은 수정 전 safe/style/external-domain 전부 0으로 유출 가능. 유료 run의 `safe=1` raw match는 기록 부재·ignored 비열람으로 확정 불가(합성 `운명이 정해졌` 우연 catch만 재현).
@@ -16,8 +36,15 @@
 >     별자리 문장 3종 safe=0·style=0 = 전 가드 통과(유출). → benign 아님, off-domain 미커버 갭.
 >   [목표] (1) 서양 점성술 전용 하드 가드 추가(fail-closed·유출 0, compose 체인+최종 게이트 배선) (2) 프롬프트 억제.
 >     명리/자미 정상어(관록궁 자리·사자獅子·주성·별) 오탐 0 양방 필수. 기준선 1071/4 비감소.
->   [다음] Codex 구현(§2~§5) → Claude 교차리뷰(유출 0 실증). PDF 재생성·LLM·commit·push 금지.
->   [미커밋] 발주 패킷·manifest·이 STATE 갱신은 working tree — 운영자 commit 지시 대기.
+>   [Codex 구현 도착 2026-07-15 — 레이스] 위 발주 직후 Codex가 zodiac-guard 구현 완료 → manifest
+>     **`review_requested / next_actor=claude`**. 신규 `sajugen/content/western_astrology_lint.py` + builder·llm_sections·
+>     gunghap·integrated·relationship/context·render/verify·hsummary·hverify_pdf + 테스트(신규 test_western_astrology_guard 등)
+>     + docs 16/20/22·implementation-notes 갱신 = **working tree 미커밋**(base HEAD `098b737`).
+>   [주의·정리 필요] 발주 커밋 `098b737`은 메시지가 '발주(planned)'이나 커밋 시점 manifest는 이미 Codex의 review_requested였다
+>     (레이스). 이 STATE의 구 '[다음] Codex 구현' 문구도 그 시점 것. 실제 = Codex 완료·**Claude 교차리뷰 차례**. 리뷰 커밋에서 정리.
+>   [다음 = Claude 신선 교차리뷰] manifest SHA·base 재검증 → diff 전량(이번엔 content 가드 추가라 제품 diff 있음) →
+>     기준환경 pytest 1071/4 비감소·golden 28 → **별자리 유출 0 실증**(§1 프로브 차단) + 명리/자미 정상어 오탐 0 +
+>     factcheck/safe/style 기존 룰·게이트 비악화. PDF 재생성·LLM·commit·push 금지(리뷰어 편집=허용 4파일).
 
 > ===== 압축/새세션 재개 앵커 (2026-07-14 하네스 모듈 계약 Claude 교차리뷰 CODE_PASS — 이 블록 먼저 읽기) =====
 >   [판정] `beta-1-hverify-module-contract-20260712` Claude 신선 교차리뷰 = **CODE_PASS**.

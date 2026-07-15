@@ -1,5 +1,27 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CLAUDE_REVIEW — offdomain-zodiac-guard-20260715 (2026-07-15, 라운드1)
+
+- 판정 = **CHANGES_REQUESTED, 블로커 1건**(정본 = REVIEW-FEEDBACK 2026-07-15 절). 핵심 가드·개인/궁합/최종 PDF 배선은 사양 충족 GREEN(전체 1108/4·golden 28·SHA 핀 독립 일치·오탐 0·경계 무변경)이나, **followup 텍스트 발급 게이트(`answer_gate.check`)에 `western_astrology_lint` 미배선** → pdf=False followup 답변이 프롬프트 억제만으로 유출 가능(실행 확증: 통과 픽스처 `_DIRECT`에 `사자자리` 주입해도 ok=True). 수정 = answer_gate 배선+양방(생성 측, 완화 0). manifest `changes_requested/codex`.
+- 비블로커: `verify._verapdf_ua1` 범위 밖 죽은코드(F841) 정리(동작 보존, checkpoint scope 인지). 발주 `098b737` 메시지↔manifest 레이스는 이 판정에서 정리.
+
+## CODEX_IMPLEMENTATION_REPORT — offdomain-zodiac-guard-20260715
+
+- 판정: **EVIDENCE_SPLIT_PASS / 구현 완료·Claude 기준환경 교차리뷰 요청**. 시작 manifest의 packet/notes/review SHA가 모두 일치했고 HEAD·base ancestor는 `da0a6368260fcc07c5aaf5c018a9625bb2fd6a59`였다. 시작 dirty 3개는 활성화 파일(manifest·packet·`sajugen/STATE.md`)뿐이며 구현 파일과 겹침 0이었다. commit·push는 실행하지 않았다.
+- 루트커즈 RED:
+  - 합성 프로브 3종은 수정 전 모두 `safe=0`·`style=0`·`external_domain=0`이었고, `safe_lint.RULES` 9개에 별자리·황도·점성 토큰 규칙은 0개였다. 문제는 기존 룰 완화가 아니라 전용 도메인 가드 미커버다.
+  - 유료 run의 우연 catch는 허용된 기록에 `safe=1` 카운트만 남고 raw match가 영속되지 않아 정확한 패턴은 **확정 불가**다. ignored 산출물은 열지 않았다. 합성 `별자리가 운명이 정해졌다는 뜻은 아닙니다`는 `운명론/운명이 정해졌`에 걸려, 별자리와 무관한 이웃 안전표현이 우연히 잡을 수 있음을 재현했다.
+- 구현:
+  - 신규 `western_astrology_lint.py`에 황도 12궁 12종(사수/궁수 별칭 포함 13표기) + `별자리`·`황도`·`점성`·`점성술` 고정 토큰 hard finding을 추가했다. `관록궁 자리`·`자리를 잡다`·`사자(獅子)`·`게`·`처녀궁`·`물고기`·자미 `주성/별`은 clean이다.
+  - 개인 builder 후보·재작성·룰 골격·최종 집계와 궁합 후보·룰 폴백에 전용 lint를 배선했다. `_COMPOSE_SYSTEM`과 closing guide에 생성 금지를 추가했고 known SHA 핀을 `76e1645d…fa32d`로 갱신했다. 삼주 full-request factcheck도 GREEN이다.
+  - 최종 PDF 전 페이지(표지·목차·본문·부록) 스캔 `western_astrology_clean`을 `GATE_KEYS` 23번째 키로 추가했다. hverify/hsummary 관측, integrated/relationship 레이아웃 재시도 판정, docs/20·docs/22·골격 매트릭스를 함께 동기화했다. 실제 PyMuPDF 임시 PDF 텍스트층에서 `western_astrology_clean=False`·`gate_pass=False`를 확인했다.
+  - 사소한 발견: 변경 Python Ruff GREEN 검사에서 `render/verify.py`의 기존 미사용 변수 `base`(F841) 1건이 드러나 동작을 보존하며 대입만 제거했다. 가드 의미·기준과 무관한 기계 정리다.
+- 검증:
+  - 집중 양방·배선: **213 passed / 1 skipped / exit 0**.
+  - 전체 `.\.venv\Scripts\python.exe -m pytest tests\ -q`: **1080 passed / 32 skipped / exit 0**. 동일 환경 직전 1043/32 대비 신규 +37·기존 감소 0·skip 불변, 총 수집 1112다. 기준환경 기대는 1071/4+37=`1108/4`이며 Claude가 확정한다.
+  - golden **28 passed**, 변경 Python Ruff `All checks passed!`, py_compile·`git diff --check` exit 0, calc/input diff 0.
+- 금지·미검증: API/LLM·운영 PDF 재생성·local profile·ignored 고객 산출물·commit·push·deploy 접근 0. pytest의 PII-free 임시 PDF 외 PDF 생성 0. 기준환경 `1108/4`와 실모델 억제 효과는 각각 Claude 교차리뷰·운영자 승인 유료 재run 몫이다.
+
 ## CODEX_IMPLEMENTATION_REPORT — beta-1-hverify-module-contract-20260712
 
 - 판정: **EVIDENCE_SPLIT_PASS / 구현 완료·Claude 기준환경 교차리뷰 요청**. 활성 packet §2~§7.1의
