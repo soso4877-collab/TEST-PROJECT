@@ -17,7 +17,9 @@
 >     실 run 2회 모두 **compose 별자리 발화 0**(실모델이 새 프롬프트 억제로 별자리 미생성), 정상 run(concern 포함) **gate_pass=True·33쪽·최종 PDF 별자리 토큰 0**(전수 스캔).
 >     잔여 폴백 4챕(intro·work·health·flow)=별자리 아닌 근거밖 간지·맨몸월·완곡어(safe/fact 정상 차단, 기존 패턴). 비용 정상run calls=18·~$0.9. docs/16 QI-2026-07-15-01 추기.
 >     → 프롬프트 억제(생성 차단)+하드 가드(유출 차단) 실모델 동시 작동 확정. 첫 run(빈 concern) 게이트 실패는 측정 셋업 산물(별자리 무관).
->   [다음] 실고객 발송은 표준 게이트→검수 Z=0→APPROVED 뒤에만. Codex 코드 백로그 0. 이 억제 재측정 기록(docs/16·STATE)은 미커밋 = 운영자 commit 지시 대기.
+>   [종결 커밋·전진·정리 완료] 재측정 기록 `b40320d`(docs handoff) 커밋+push, main `2908900`→`b40320d` fast-forward 전진·push. 측정 산출물·tmp 스크립트 삭제(운영자, gitignored). feat=main=origin `b40320d` 동기.
+>   [known-time 4챕 폴백 조사 결과 = 수용(비태스크)] intro·work·health·flow 룰 폴백의 원인은 맨몸월(신사월·을미월)·근거밖 간지(경술·임술)로, `llm_sections.py:467-470` temporal 지시가 **이미 맨몸월·서수 표기를 금지**하는데도 실 Sonnet이 종종 생성 → 가드가 잡아 폴백. = 버그 아닌 LLM 불완전 준수의 fail-closed 특성(가드+폴백 안전 담보, gate_pass=True). 개선은 반복 유료 프롬프트 튜닝(ROI 불확실)이라 필수 아님 — 운영자 품질 디벨롭 선택지로 기록.
+>   [다음 = 운영자 몫] 코드 백로그 0. 릴리스 준비 완료(1110/4·golden 28·실 4모듈 렌더 gate_pass=True·별자리 0). 다음 = 베타 발급 트랙(docs/23: 지인 N=3 무료) — 표준 게이트→검수 체크리스트(handoff/beta-send-review-checklist.md)→Z=0→APPROVED→수동 발송. 전부 운영자 액션(Claude 육안/발송 불가). Claude/Codex 착수할 코드 태스크 없음.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 Claude 교차리뷰 CHANGES_REQUESTED — 이 블록 먼저 읽기) =====
 >   [판정] `offdomain-zodiac-guard-20260715` Claude 신선 교차리뷰 = **CHANGES_REQUESTED, 블로커 1건**.
