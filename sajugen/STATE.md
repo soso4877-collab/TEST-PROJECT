@@ -12,7 +12,12 @@
 >     명리+자미 전용 상품 어느 발급 표면에서도 별자리 off-domain 유출 0(fail-closed). packet §2 목표1·§4·§5 충족.
 >   [비블로커 관찰(checkpoint 인지)] verify._verapdf_ua1 범위 밖 죽은코드(F841) 정리(동작 보존). 황도/점성 동음이의어=고정 토큰 계약·fail-closed(무해).
 >   [미검증] 실모델 폴백률(closing·followup 별자리 미생성)·실 PDF·300dpi·비용 = 운영자 승인 유료 재run 몫(packet §6, CODE_PASS 밖).
->   [다음] 운영자 checkpoint: Codex 라운드1+2 구현 18파일 commit 결정 + (선택) 유료 재run으로 억제 효과 재측정. 실고객 발송은 표준 게이트→검수 Z=0 뒤에만.
+>   [커밋·전진 완료] 제품 `eb112b4`(feat 21파일)·문서 `2908900`(docs handoff 4파일) 커밋+origin push. main `763ed73`→`2908900` fast-forward 전진·push(선형).
+>   [억제 재측정 완료 2026-07-15 운영자 승인 유료·합성·PII 0] 4모듈 love/job/wealth/health × known-time integrated_full × 실 Sonnet LLM-on 재현.
+>     실 run 2회 모두 **compose 별자리 발화 0**(실모델이 새 프롬프트 억제로 별자리 미생성), 정상 run(concern 포함) **gate_pass=True·33쪽·최종 PDF 별자리 토큰 0**(전수 스캔).
+>     잔여 폴백 4챕(intro·work·health·flow)=별자리 아닌 근거밖 간지·맨몸월·완곡어(safe/fact 정상 차단, 기존 패턴). 비용 정상run calls=18·~$0.9. docs/16 QI-2026-07-15-01 추기.
+>     → 프롬프트 억제(생성 차단)+하드 가드(유출 차단) 실모델 동시 작동 확정. 첫 run(빈 concern) 게이트 실패는 측정 셋업 산물(별자리 무관).
+>   [다음] 실고객 발송은 표준 게이트→검수 Z=0→APPROVED 뒤에만. Codex 코드 백로그 0. 이 억제 재측정 기록(docs/16·STATE)은 미커밋 = 운영자 commit 지시 대기.
 
 > ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 Claude 교차리뷰 CHANGES_REQUESTED — 이 블록 먼저 읽기) =====
 >   [판정] `offdomain-zodiac-guard-20260715` Claude 신선 교차리뷰 = **CHANGES_REQUESTED, 블로커 1건**.
