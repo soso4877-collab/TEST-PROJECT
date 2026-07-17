@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "temporal-retry-format-feedback-20260717",
-  "status": "verified",
-  "base_commit": "d55a0060198b4566cec182b57e49255b4e393bb1",
-  "packet_path": "handoff/tasks/temporal-retry-format-feedback-20260717.md",
-  "packet_sha256": "8af5937e0e111f6e6dad935defaf8e800c8e29590cfe1b1ff8ebba435c83666b",
+  "task_id": "ziwei-temperament-wiring-20260717",
+  "status": "planned",
+  "base_commit": "c9396f40b548c7545ddfe4b2c9e28503a5488201",
+  "packet_path": "handoff/tasks/ziwei-temperament-wiring-20260717.md",
+  "packet_sha256": "ce227d07f42466a1bc020dc7b4678c3cbfeedd767a644ac960b85559b5d9e73d",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "97c64f7de66734b458fb1a9770bf0943c90b33c03e665fb6663bba893098c80f",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "1a1c1f47eb6a27cd60e51deec46f6345da141c7b6973d1e8a4d7c43f125acd8d",
-  "next_actor": "user",
-  "next_action": "1a CODE_PASS(Claude 신선 교차리뷰, 전체 1114/4·golden 28·가드 완화 0·팬텀 배선 차단). 운영자 checkpoint: 구현 commit 결정 → 이후 docs/24 자미정본 반영 + 1e/1d(성격 깊이·자미 정본 배선) 발주. 실모델 폴백률 감소는 Stage 1 완료 후 유료 재측정 몫.",
-  "updated_at": "2026-07-17T09:11:53.352Z"
+  "next_actor": "codex",
+  "next_action": "Codex가 자미 별-트레잇 정본 배선 구현: docs/24 단일 소스 테이블 신규 + rules.py 자미 소비처 배선(별 이름 나열→기질 서술, 밝기·사화 modifier). calc/ziwei·factcheck 사실 슬롯 불변·길흉/예측/성별 배제·가드 완화 0 + 양방/데이터순정/전수커버 테스트 + 전체 1114/4 비감소·golden 28. 완료 후 Claude 교차리뷰. commit/push/LLM/PDF 금지.",
+  "updated_at": "2026-07-17T09:54:45.958Z"
 }
