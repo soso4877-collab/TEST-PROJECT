@@ -1,5 +1,40 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-17 말투 개편 로드맵 착수 — 이 블록 먼저 읽기) =====
+>   [방향 전환] 베타 1호 드래프트(`ord_19f6a87d…`) 육안 검수 결과 톤이 "AI틱"으로 반려 → **베타 발급 보류**.
+>     발송은 톤 개선 → 운영자 승인 유료 1회 재측정 → 육안 Z=0 뒤에만. 활성 = **말투 개편 단계형 로드맵**.
+>   [플랜 정본] `C:\Users\pc\.claude\plans\virtual-drifting-pond.md`(운영자 승인). 진단(4탐색+2설계 에이전트, 코드 대조):
+>     톤 문장 규칙 자체는 목표와 정합, 갭 = **구조(12챕터 독립 병렬 조립·callback 억제) + 폴백 골격 템플릿티 +
+>     성격 추론 얕음(자미 별-트레잇 테이블 부재가 최대 결손)**. `builder.py:455-481`(병렬), `report_context.py:40-53,244-249`
+>     (anti-callback), `builder.py:640-654`(폴백 강등), `rules.py:1608`(세운 forward-only 필터).
+>   [단계형 결정] Stage 1(병렬 유지·저위험) 먼저 → 유료 1회 재측정 → Stage 2(연속서사 아키텍처) 근거 기반 결정.
+>     Stage 1 순서: **S0 자미정본 ∥ 1a → 1e/1d → 1c → 1b**. 반드시 살릴 4요소 = 연속서사·대운 연도별 회고검증·
+>     명리+자미 겹쳐읽기·폴백 템플릿 제거 + 성격·심리 추론 깊이.
+>   [★안전 제약(1b)] `temporal_lint`은 "과거를 미래처럼"만 잡고 "과거를 현재처럼(지금은 2025년)"은 못 잡음 →
+>     forward-only 필터가 2026-06-12 QI의 **유일 방어선**. 필터 해제 전 **보상 lint 신설 필수**(완화 아닌 게이트 강화).
+>   [★안전 제약(S0)] 자미 별-트레잇은 factcheck가 못 잡는 영역(간지·별·연도만 대조) → **큐레이션 정본 테이블만**
+>     (Claude 조사·초안 → 운영자 canon 승인 → Codex 배선). 즉흥 별-의미 = 할루시네이션.
+>   [현재 착수분 2026-07-17] (1) 1a 패킷 작성 완료 = `handoff/tasks/temporal-retry-format-feedback-20260717.md`
+>     (재시도 피드백 형식교정형 전환·비용중립·known-time만·삼주 불변·가드 완화 0). **운영자 dispatch 대기**(commit +
+>     manifest planned/next_actor=codex). (2) S0 자미 별-트레잇 정본 조사 = 백그라운드 진행 중(Claude, WebSearch 교차).
+>   [불변 경계] factcheck·temporal_lint 완화 0(1b는 lint 추가). GATE_KEYS 23키 비악화. calc/input 무변경. PII 0.
+>     골든 28 count 비감소(1b/1c 바이트 변경 허용). 기준선 1110 passed/4 skipped 비감소. HEAD `0c93f98`(clean).
+>   [보류 자산] 베타 주문 `ord_19f6a87d1441cbf1a2a`는 DB 영속(발급 안 함). uvicorn :8766 운영자 터미널 유지.
+>     베타 리허설 발견 이슈 6건(admin 폼 integrated_full 누락 등)은 톤 개편 후 별도 fix 배치.
+
+> ===== 압축/새세션 재개 앵커 (2026-07-17 베타 발급 진행 중 — 이 블록 먼저 읽기) =====
+>   [활성 작업] 지인 베타 1호 발급 진행 중. 도구 = 관리자 웹 UI(운영자 터미널 uvicorn `sajugen.app:app` :8766, 독립 프로세스·컴팩트 무관).
+>   [활성 주문] `ord_19f6a87d1441cbf1a2a` (data/orders.sqlite) = **DRAFTED·gate_pass=True·34쪽·integrated_full(love/job/wealth/health)·별자리0·module_coverage 정상·needs_review=False**.
+>     실 LLM 생성됨(calls=18·in51920/out28497·~$1). 폴백 4챕(intro·love·flow·consult)=기존 룰폴백 패턴(게이트 통과, 육안 대상).
+>   [다음 = 운영자] ① 상세화면 "드래프트 PDF 다운로드"로 육안 검수(handoff/beta-send-review-checklist.md; 폴백 4챕·금칙·별자리·consult 직답) ② "승인"(APPROVED) ③ "최종 PDF 발급" → DELIVERED.
+>     integrated_full 발급 경로는 무과금 룰전용 테스트로 이미 DELIVERED 검증됨(정상). 발급은 운영자 버튼(제 세션엔 LLM 키 없음).
+>   [베타 리허설 발견 이슈 = 후속 fix 배치 후보(코드)] (1) admin 접수 폼(`web_templates/admin_list.html.j2:34-35`)에 **integrated_full 옵션 누락**(홈 폼 app.py:56엔 있음) → 베타 제품 admin 접수 불가.
+>     (2) 주문 상세 자동새로고침(5s)이 **모듈 확정 체크박스 리셋** → 조작 불가(NORMALIZED blocked 때 "생성 중" 오표시). (3) "모듈 확정 저장"↔"확정 모듈로 재시도" 버튼 혼란.
+>     (4) 폼 **LLM 체크박스 미체크→use_llm=False→룰전용→4모듈 26p<28p 하한 미달**(무과금이나 실패·오해 소지; 룰전용 N≥3는 구조적 미달=기존 제약). (5) **레거시 `integrated` 발급 경로 결함**:
+>     `final_render_fn`이 integrated_full_meta 미영속(레거시)·모듈 계약 미전달→범용 render_pdf(37p)→`delivery_quality_clean` 실패(integrated_full은 메타 영속되어 정상). (6) 관측 갭: delivery_quality_clean=False인데 delivery_failures=None(레거시 케이스).
+>   [비용 실측 2026-07-16~17] 룰전용 생성 2회=$0(calls=0). 실 LLM 생성 1회=~$1(calls=18). 앞선 유료 억제측정 2회 ~$1.8(docs/16 기록). 삭제된 오접수 주문 3건(음력오입력·레거시 오선택×2)은 전부 무과금 룰전용/NORMALIZED.
+>   [정리 대기(gitignored·무해)] tmp/deliver_test.py·tmp/deliver_test_orders.sqlite·render/out/final_ord_*·deliver_test PDF. commit=현 세션 코드변경 없음(STATE 이 기록만). repo HEAD `0c93f98`(clean, 서양 가드 종결).
+
 > ===== 압축/새세션 재개 앵커 (2026-07-15 서양 점성술 off-domain 가드 라운드2 재검 CODE_PASS — 이 블록 먼저 읽기) =====
 >   [판정] `offdomain-zodiac-guard-20260715` 라운드2 재검 = **CODE_PASS, 미해결 블로커 0**. 정본 = REVIEW-FEEDBACK 라운드2 절.
 >     manifest를 `verified / next_actor=user`로 전환. commit·push·API·PDF 없음, HEAD `0325ce7` 유지(Codex 라운드1+2 구현 18파일 미커밋).

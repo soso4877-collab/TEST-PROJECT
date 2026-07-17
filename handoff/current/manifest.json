@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "offdomain-zodiac-guard-20260715",
-  "status": "verified",
-  "base_commit": "0325ce78020ffc330b0d97b4ddde5522c31e6fcb",
-  "packet_path": "handoff/tasks/offdomain-zodiac-guard-20260715.md",
-  "packet_sha256": "07f47dac9e2c24fe4d773c75475c6f9208895b05c36455faf566f6f84bfd7af4",
+  "task_id": "temporal-retry-format-feedback-20260717",
+  "status": "planned",
+  "base_commit": "0c93f98f32b2f47570e2b2a53f8d70f38c89799c",
+  "packet_path": "handoff/tasks/temporal-retry-format-feedback-20260717.md",
+  "packet_sha256": "8af5937e0e111f6e6dad935defaf8e800c8e29590cfe1b1ff8ebba435c83666b",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "3c1910da6420bdba71b2822ecf4d4ac89294bcef046a32cd98ed3ad319d5354e",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "f3ee477f788446400b68593b6c4ce73558995cc1ef065b89720eec59403772cc",
-  "next_actor": "user",
-  "next_action": "운영자 checkpoint: Codex 라운드1+2 구현(제품·테스트·docs 18파일) commit 결정 + (선택) 승인 유료 재run으로 억제 효과(closing·followup 별자리 미생성) 재측정. 실고객 발송은 표준 게이트→검수 Z=0 뒤에만. B-1 해소 CODE_PASS(전체 1110/4·golden 28).",
-  "updated_at": "2026-07-15T11:51:44.071Z"
+  "next_actor": "codex",
+  "next_action": "Codex가 1a(재시도 피드백 형식교정형) 구현: 패킷 §2·§4 — known-time만·three_pillar 불변·가드 완화 0 + 양방/비-no-op 테스트(§5) + 전체 pytest 1110/4 비감소·golden 28. 완료 후 Claude 신선 교차리뷰. commit/push/LLM/PDF 금지.",
+  "updated_at": "2026-07-17T07:12:44.064Z"
 }
