@@ -500,6 +500,7 @@ class LLMBackend(Protocol):
         call_name: str | None = None,
         ref_date: str | None = None,
         feedback: str | None = None,
+        feedback_fix: str | None = None,
         report_context: ReportContext | None = None,
         fact_source_ids: tuple[str, ...] | None = None,
         attempt: int = 1,
@@ -532,6 +533,7 @@ class RuleBackend:
         call_name: str | None = None,
         ref_date: str | None = None,
         feedback: str | None = None,
+        feedback_fix: str | None = None,
         report_context: ReportContext | None = None,
         fact_source_ids: tuple[str, ...] | None = None,
         attempt: int = 1,
@@ -627,6 +629,7 @@ class AnthropicBackend:
         call_name: str | None = None,
         ref_date: str | None = None,
         feedback: str | None = None,
+        feedback_fix: str | None = None,
         report_context: ReportContext | None = None,
         fact_source_ids: tuple[str, ...] | None = None,
         attempt: int = 1,
@@ -638,7 +641,8 @@ class AnthropicBackend:
         # ref_year: 풀이 기준 연도 — '지금/올해' 오서술 방지 닻(2026-06-12 버그).
         # ref_date: 풀이 기준 일자 — 지난 달을 행동 시기로 권하는 월 단위 시제 오류 방지
         # (QI-2026-07-04-02: 7월 생성 풀이가 '4월 안에 준비를 시작해 두라'를 권한 실사고).
-        # feedback: 재작성 사유(직전 초안의 위반 단어) — 같은 표현 재발 방지.
+        # feedback: 재작성 사유(직전 초안의 금칙 표현) — 같은 표현 재발 방지.
+        # feedback_fix: temporal 표기 위반의 정답 형식 — 토큰 삭제 대신 형식을 바로잡는다.
         three_pillar = (
             report_context is not None
             and report_context.birth_time_mode == "three_pillar"
@@ -682,6 +686,11 @@ class AnthropicBackend:
                 user += (
                     f"\n[재작성 사유 — 반드시 반영하라]\n직전 초안이 다음 표현 때문에 "
                     f"반려됐다: {feedback}. 이 단어·표현과 그 변형을 쓰지 말고 다시 써라.\n"
+                )
+            if feedback_fix:
+                user += (
+                    "\n[재작성 사유 — 형식 교정. 다음 지적대로 표현을 올바른 형식으로 "
+                    f"고쳐 다시 써라]\n{feedback_fix}\n"
                 )
             if section_id == "consult":
                 user += f"\n[신청자가 묻고 싶어 한 영역]\n{category}\n"

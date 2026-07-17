@@ -148,19 +148,33 @@ def _retry_feedback_labels(
     fact_violations: list[dict],
     *,
     three_pillar: bool,
-) -> set[str]:
-    """재작성 프롬프트에 넣을 PII-free 고정 사유만 반환한다.
+) -> tuple[set[str], set[str]]:
+    """재작성 프롬프트의 회피 사유와 형식 교정 사유를 분리해 반환한다.
 
-    known-time은 기존의 구체 표현 피드백을 유지한다. 삼주는 근거 밖 간지·금칙 토큰을
-    그대로 되먹이면 다음 호출의 새 사실 슬롯이 되는 구조적 문제가 있으므로, 원문 토큰을
-    절대 복제하지 않고 고정된 사유 ID 수준의 한국어만 전달한다.
+    known-time의 temporal 위반은 금칙 토큰이 아니라 표기 형식 오류이므로 가드가 제공한
+    ``why``를 교정 사유로 전달한다. 그 밖의 위반은 기존처럼 구체 표현을 회피한다.
+    삼주는 근거 밖 간지·금칙 토큰을 되먹이면 다음 호출의 새 사실 슬롯이 되므로, 원문
+    토큰과 ``why``를 복제하지 않고 고정된 사유 ID만 회피 버킷에 전달한다.
     """
 
     if not three_pillar:
-        return {
-            str(v.get("match") or v.get("token") or v.get("rule") or "")
-            for v in (*style_violations, *fact_violations)
-        } - {""}
+        avoid: set[str] = set()
+        fix: set[str] = set()
+        format_types = {"month_notation", "temporal", "relative_month_boundary"}
+        for violation in (*style_violations, *fact_violations):
+            why = str(violation.get("why") or "").strip()
+            if violation.get("type") in format_types and why:
+                fix.add(why)
+                continue
+            label = str(
+                violation.get("match")
+                or violation.get("token")
+                or violation.get("rule")
+                or ""
+            ).strip()
+            if label:
+                avoid.add(label)
+        return avoid, fix
 
     labels: set[str] = set()
     if fact_violations:
@@ -170,7 +184,7 @@ def _retry_feedback_labels(
             labels.add("질문 축 직접 답 누락")
         else:
             labels.add("작성 규칙 위반")
-    return labels
+    return labels, set()
 
 
 def build_report(
@@ -423,7 +437,10 @@ def build_report(
             )
 
             def _compose_one(
-                sid: str, attempt: int = 1, feedback: str | None = None
+                sid: str,
+                attempt: int = 1,
+                feedback: str | None = None,
+                feedback_fix: str | None = None,
             ) -> str:
                 compose_kwargs = {
                     "section_id": sid,
@@ -436,6 +453,8 @@ def build_report(
                     "ref_date": ref_date,
                     "feedback": feedback,
                 }
+                if accepts_kwargs or "feedback_fix" in compose_params:
+                    compose_kwargs["feedback_fix"] = feedback_fix
                 if accepts_kwargs or "report_context" in compose_params:
                     compose_kwargs["report_context"] = shared_report_context
                 if unknown_time and (
@@ -567,7 +586,8 @@ def build_report(
                 # 한 번 더 재시도(총 2회, 운영자 승인 +1콜). 그 외 챕터는 기존 1회 유지.
                 _max_retry = 2 if sid == "consult" else 1
                 _round = 0
-                _fb_pool: set[str] = set()
+                _fb_avoid_pool: set[str] = set()
+                _fb_fix_pool: set[str] = set()
                 while (
                     (csv or cfv)
                     and _round < _max_retry
@@ -578,14 +598,23 @@ def build_report(
                     # 재작성 피드백(2026-07-04): 직전 초안의 위반 표현을 프롬프트로 전달 —
                     # 사유 없이 재시도하면 같은 단어가 재발해 폴백률이 높았다(실측: '쯤' 2회 연속).
                     # 2차 재시도는 라운드별 위반을 누적 전달(같은 실패 반복 방지).
-                    _fb_pool |= _retry_feedback_labels(
+                    _fb_avoid, _fb_fix = _retry_feedback_labels(
                         csv,
                         cfv,
                         three_pillar=unknown_time,
                     )
-                    _fb = ", ".join(sorted(_fb_pool)[:8])
+                    _fb_avoid_pool |= _fb_avoid
+                    _fb_fix_pool |= _fb_fix
+                    _fb = ", ".join(sorted(_fb_avoid_pool)[:8])
+                    _fb_fix_text = ", ".join(sorted(_fb_fix_pool)[:6])
                     retry = _normalize_llm_candidate(
-                        _compose_one(sid, attempt=_round + 1, feedback=_fb or None) or "",
+                        _compose_one(
+                            sid,
+                            attempt=_round + 1,
+                            feedback=_fb or None,
+                            feedback_fix=_fb_fix_text or None,
+                        )
+                        or "",
                         name=name,
                         compose=True,
                     )
@@ -632,11 +661,13 @@ def build_report(
                     else:
                         # 실패 라운드의 위반도 다음 라운드 피드백에 누적(원 csv/cfv 는 유지 —
                         # 최종 폴백 판단·섹션 위반 기록의 기준은 본경로 초안).
-                        _fb_pool |= _retry_feedback_labels(
+                        _fb_avoid, _fb_fix = _retry_feedback_labels(
                             rsv,
                             rfv,
                             three_pillar=unknown_time,
                         )
+                        _fb_avoid_pool |= _fb_avoid
+                        _fb_fix_pool |= _fb_fix
                 if not csv and not cfv:
                     final, polished = cand, True
                     polished_n += 1
