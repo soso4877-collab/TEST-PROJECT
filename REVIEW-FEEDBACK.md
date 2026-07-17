@@ -1,3 +1,33 @@
+# 교차 리뷰 — 2026-07-17 (1a 재시도 피드백 형식교정형 전환, 리뷰어: Claude 신선 컨텍스트)
+
+대상: `temporal-retry-format-feedback-20260717` 구현(base=HEAD `d55a006` 위 미커밋) · 구현자: Codex.
+로드맵: 말투 개편 Stage 1 항목 1a(폴백 템플릿 제거, 비용중립).
+
+## 최종 판정: **승인(CODE_PASS)** — 미해결 블로커 0.
+
+폴백 최대 유발원(temporal 맨몸월/간지월)의 재시도 피드백을 "토큰 회피"→"형식 교정"으로 정확히 분기.
+가드가 이미 제공하는 `why`(정답 형식 내장)를 소비만 하고, 실제 재시도 호출까지 배선됨을 E2E로 확증(팬텀 아님).
+
+### 실측 표
+
+| 항목 | 실측 | 판정 |
+|---|---|---|
+| 변경 범위 | `builder.py`(`_retry_feedback_labels`→(avoid,fix)·두 풀 누적·`_compose_one` +feedback_fix) · `llm_sections.py`(compose 3 backend +feedback_fix + 형식교정 주입 블록) · `test_temporal_month.py`(+5테스트) + Codex 메타 3(notes/STATE/manifest). scope 이탈 0 | ✓ |
+| **분기 정확성** | known-time: type∈{month_notation,temporal,relative_month_boundary}+why → **fix**, 그 외 → **avoid**. format_types type은 `temporal_lint.py`만 emit(타 lint 충돌 0, grep 실측) | ✓ |
+| **삼주 보호 유지** | three_pillar → `(고정라벨, set())`, raw 토큰·why 누출 0(테스트 실증) | ✓ |
+| **가드 완화 0** | `temporal_lint`·`factcheck`·`safe_lint`·`style_lint` 로직 무변경(소비만). GATE_KEYS 무관·무변경 | ✓ |
+| 비용중립 | feedback_fix는 재시도(attempt≥2) user 블록 전용, 첫 호출 캐시 prefix 불변. 호출 수 불변 | ✓ |
+| **비-no-op·양방·팬텀 차단** | ①프롬프트 분리(형식 문구가 fix에만·avoid엔 부재) ②helper 3계열 라우팅(신사월 avoid에 없음) ③safe`반드시…`+fact`경술` avoid 유지 ④삼주 raw/why 누출 0 ⑤**E2E: 실 build_report flow 재시도가 `feedback=None·feedback_fix=why` 실수신**(소비처 배선 확증) | ✓ |
+| 전체 pytest | **1114 passed / 4 skipped / exit 0**(211s) — 기준선 1110/4 + 신규 4, 감소 0, skip==4 불변 | ✓ |
+| golden | **28 passed** | ✓ |
+| 정적 | 변경 3 py Ruff `All checks passed!`·py_compile·`git diff --check` exit 0. calc/input diff 0 | ✓ |
+
+### 미검증(정직 보고 — CODE_PASS 범위 밖)
+- 실모델 폴백률 실제 감소(맨몸월/간지월 재시도 교정 통과)는 운영자 승인 유료 재run 몫. 이 판정은 "형식교정
+  피드백이 정답 형식을 전달하고 회피형과 정확히 분기·실배선됨"의 결정론 실증에 한정.
+
+---
+
 # 교차 리뷰 라운드2 — 2026-07-15 (서양 점성술 off-domain 가드 B-1 수정 재검, 리뷰어: Claude)
 
 대상: 라운드1 changes_requested의 B-1 수정분(base=HEAD `0325ce7` 위 미커밋) · 구현자: Codex.

@@ -1,5 +1,39 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — temporal-retry-format-feedback-20260717
+
+- 판정: **EVIDENCE_SPLIT_PASS / 구현 완료·Claude 기준환경 교차리뷰 요청**. 시작 manifest는
+  `HANDOFF_VALID`, packet SHA `8af5937e…666b`·notes/review SHA 일치,
+  `status=planned / next_actor=codex`였고 HEAD `d55a006`에서 base `0c93f98` ancestor를 확인했다.
+  시작 워킹트리는 clean이었으며 commit·push는 실행하지 않았다.
+- RED 실증: 변경 전 `tests/test_temporal_month.py` 집중 실행은 **6 passed / 5 failed**였다.
+  `AnthropicBackend.compose`의 `feedback_fix` 부재, helper 단일 set 반환, known-time 재시도가
+  `"신사월"`을 회피형 `feedback`으로 전달하는 현행 오되먹임을 각각 직접 재현했다.
+- 구현:
+  - `builder._retry_feedback_labels`를 `(avoid, fix)` 두 set 반환으로 바꿨다. known-time의
+    `month_notation`·`temporal`·`relative_month_boundary`는 `why`가 있을 때 fix로 보내고,
+    safe/style/factcheck 및 `why` 없는 예외 finding은 기존 raw label을 avoid로 유지한다.
+  - 재시도 루프는 avoid 8개·fix 6개를 독립 누적하고 `_compose_one`이 지원 백엔드에만
+    `feedback_fix`를 전달한다. 기존 backend 호환 가드는 유지했다.
+  - `llm_sections`의 Protocol·RuleBackend·AnthropicBackend 시그니처에 `feedback_fix`를 추가하고,
+    기존 회피 블록 뒤에 `형식 교정 … 고쳐 다시 써라` 블록을 신설했다. 값이 없는 첫 호출의
+    user prompt는 불변이며 회피·교정 블록은 한 재시도에서 공존할 수 있다.
+  - 삼주는 기존 고정 라벨만 avoid에 두고 fix는 빈 set으로 유지해 raw 토큰·`why` 누출 0이다.
+    temporal/factcheck/safe/style 및 render 게이트 로직은 수정하지 않았다.
+- 양방·비-no-op 테스트: 프롬프트에서 교정 정답 형식이 fix 블록에만 있고 `쓰지 말고` 블록에는
+  없음을 고정했다. temporal 3타입→fix, safe+fact→avoid, `why` 누락→avoid, 삼주 고정 라벨·누출 0,
+  builder 실제 attempt=2가 `feedback=None / feedback_fix=why`로 호출되는 팬텀 배선 방지 테스트를 추가했다.
+- 검증:
+  - 관련 회귀 5파일: **69 passed / exit 0**.
+  - 전체 `.\.venv\Scripts\python.exe -m pytest tests\ -q`: **1086 passed / 32 skipped / exit 0**.
+    현재 Codex 환경의 직전 기준 1082/32에 신규 4개가 정확히 더해졌고 총 수집은 1118이다.
+    기준환경 기대는 기존 1110/4 + 신규 4 = **1114 passed / 4 skipped**이며 Claude가 확정한다.
+  - golden: **28 passed / exit 0**.
+  - 변경 Python Ruff `All checks passed!`, py_compile·`git diff --check` exit 0,
+    calc/input diff 0. 구현 diff는 제품 2파일+테스트 1파일, **197 insertions / 19 deletions**다.
+- 금지·미검증: API/LLM·PDF 재생성·local profile·ignored 고객 산출물·commit·push·deploy 접근 0.
+  실모델 폴백률 감소와 기준환경 1114/4는 각각 운영자 승인 유료 재run·Claude 교차리뷰 몫이다.
+
 ## CLAUDE_REVIEW — offdomain-zodiac-guard-20260715 (2026-07-15, 라운드2 = CODE_PASS)
 
 - 판정 = **CODE_PASS, 미해결 블로커 0**(정본 = REVIEW-FEEDBACK 라운드2 절). B-1 해소: `followup/answer_gate.py`에 `western_astrology_lint` 배선(+7), 라운드1 유출 입력 재실행 → **ok=False·rule=western_astrology**(비-no-op), 자미 정상어 오탐 0. 변경 2파일 순수 추가, **라운드1 19파일 SHA 불변**. 전체 **1110 passed / 4 skipped / exit 0**(1108+2·감소 0·skip 불변), golden 28, Ruff/py_compile/diff-check GREEN, calc/input 0, 경계 무변경. manifest `verified/user`. Codex 라운드1+2 구현 18파일 미커밋 = 운영자 checkpoint 대기.

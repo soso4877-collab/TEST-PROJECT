@@ -14,11 +14,20 @@
 >     forward-only 필터가 2026-06-12 QI의 **유일 방어선**. 필터 해제 전 **보상 lint 신설 필수**(완화 아닌 게이트 강화).
 >   [★안전 제약(S0)] 자미 별-트레잇은 factcheck가 못 잡는 영역(간지·별·연도만 대조) → **큐레이션 정본 테이블만**
 >     (Claude 조사·초안 → 운영자 canon 승인 → Codex 배선). 즉흥 별-의미 = 할루시네이션.
->   [현재 착수분 2026-07-17] (1) 1a 패킷 작성 완료 = `handoff/tasks/temporal-retry-format-feedback-20260717.md`
->     (재시도 피드백 형식교정형 전환·비용중립·known-time만·삼주 불변·가드 완화 0). **운영자 dispatch 대기**(commit +
->     manifest planned/next_actor=codex). (2) S0 자미 별-트레잇 정본 조사 = 백그라운드 진행 중(Claude, WebSearch 교차).
+>   [1a 교차리뷰 CODE_PASS 2026-07-17] `temporal-retry-format-feedback-20260717` = **CODE_PASS(Claude 신선), 블로커 0**.
+>     정본 = REVIEW-FEEDBACK 2026-07-17 절. manifest verified/next_actor=user 전환. HEAD `d55a006` 유지, 구현 미커밋(운영자 commit 결정 대기).
+>     known-time temporal 3타입(month_notation/temporal/relative_month_boundary)은 가드 `why`(정답 형식)를 형식교정 블록으로,
+>     safe/style/fact는 회피형 유지. format_types type은 temporal_lint.py만 emit(충돌 0). 삼주는 고정 라벨만 avoid·fix 빈 set(raw/why 누출 0).
+>     가드(temporal/factcheck/safe/style)·GATE_KEYS 완화 0, 첫 호출 prompt 불변(비용중립).
+>   [1a 검증 실측(기준환경)] 전체 **1114 passed / 4 skipped / exit 0**(기준선 1110/4 +4·감소 0·skip 불변), golden **28**,
+>     변경 3 py Ruff All checks passed·py_compile·diff-check GREEN, calc/input diff 0. 테스트 5종 양방·비-no-op·**E2E 팬텀 배선 차단**
+>     (실 build_report flow 재시도가 feedback=None·feedback_fix=why 실수신). 미검증 = 실모델 폴백률(운영자 승인 유료 재run 몫).
+>   [S0 자미 정본 승인·확정 2026-07-17] 운영자 canon 승인(化氣 뼈대 채택 + 밝기/사화 배정=엔진값·의미만 정본화 + 그늘=대표경향).
+>     확정본 스크래치패드 스테이징(→ repo `docs/24-ziwei-star-temperament.md`로 드롭 예정). 1e/1d 배선의 단일 소스.
+>   [다음 = 운영자→Claude] ① 운영자 1a commit 결정(CODE_PASS) → ② docs/24 정본 반영 + 1e/1d(성격 깊이·자미 정본 배선) 발주
+>     → 1c(폴백 골격 품질) → 1b(회고 검증, 보상 lint 선행) → Stage 1 완료 → 유료 1회 재측정 → Stage 2 판단.
 >   [불변 경계] factcheck·temporal_lint 완화 0(1b는 lint 추가). GATE_KEYS 23키 비악화. calc/input 무변경. PII 0.
->     골든 28 count 비감소(1b/1c 바이트 변경 허용). 기준선 1110 passed/4 skipped 비감소. HEAD `0c93f98`(clean).
+>     골든 28 count 비감소(1b/1c 바이트 변경 허용). 기준선 1110 passed/4 skipped 비감소.
 >   [보류 자산] 베타 주문 `ord_19f6a87d1441cbf1a2a`는 DB 영속(발급 안 함). uvicorn :8766 운영자 터미널 유지.
 >     베타 리허설 발견 이슈 6건(admin 폼 integrated_full 누락 등)은 톤 개편 후 별도 fix 배치.
 
