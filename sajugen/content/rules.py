@@ -25,6 +25,7 @@ import hashlib
 from datetime import timedelta, timezone
 
 from .. import modules as integrated_modules
+from . import ziwei_temperament as _zt
 
 # --- 표시 매핑 (계산 아님: lunar-python/iztro-py 한자 산출물을 한국어 표시로 치환) ---
 _SHISHEN_KO = {
@@ -619,6 +620,41 @@ def _stars_full(p) -> str:
     return out
 
 
+def _palace_temperament(p) -> str:
+    """궁의 주성을 docs/24 정본 기질로 서술(공궁·정본 밖 별은 건너뜀 = fail-closed).
+
+    별 이름·밝기·사화(사실 슬롯)는 _stars_full 이 그대로 다루고, 여기서는 그 별의 기질
+    '의미'만 정본 테이블(_zt)에서 덧붙인다. 정본 밖 별-의미는 만들지 않는다(할루시네이션 방지).
+    """
+    if p is None or not getattr(p, "major_stars", None):
+        return ""
+    sents: list[str] = []
+    for s in p.major_stars:
+        trait = _zt.STAR_TEMPERAMENT.get(s.name)
+        if not trait:
+            continue  # 정본 밖 별은 기질 서술 생략(fail-closed)
+        core, shadow = trait["core"], trait["shadow"]
+        # 문형은 _pick(md5 결정론)으로 별마다 다르게 — '~기질이고 다만 ~면도' 정형 반복 방지.
+        base = _pick(
+            "zt" + s.name,
+            [
+                f"{_J(s.name, '은는')} {core} 기질입니다. 다만 {shadow} 면도 함께 지녔습니다.",
+                f"{_J(s.name, '은는')} {core} 결을 지녔고, 한편으로 {shadow} 면이 그늘처럼 따라옵니다.",
+                f"기질로 풀면 {_J(s.name, '은는')} {core} 쪽이 도드라지되, {shadow} 면은 그 이면입니다.",
+            ],
+        )
+        extras: list[str] = []
+        # 밝기·사화 문구도 별마다 _pick 으로 문형을 달리한다(verbatim 반복 방지).
+        level = _zt.brightness_level(getattr(s, "brightness", "") or "")
+        if level:
+            extras.append(_pick("ztB" + s.name, _zt.BRIGHTNESS_FRAMES[level]))
+        direction = _zt.SIHUA_DIRECTION.get(getattr(s, "sihua", "") or "")
+        if direction:
+            extras.append(_pick("ztH" + s.name, _zt.SIHUA_FRAMES).format(d=direction))
+        sents.append(base + (" " + " ".join(extras) if extras else ""))
+    return " ".join(sents)
+
+
 def _palace_brief(p, role: str) -> str:
     if p is None:
         return ""
@@ -690,6 +726,11 @@ def _palace_para(p, role: str, myeongni_hint: str = "") -> str:
                 "읽으면 이 영역의 결이 분명해집니다.",
             ],
         )
+    temp = _palace_temperament(p)
+    if temp:
+        # 별 이름 나열(stars) 뒤에 그 별의 정본 기질(temp)을 붙여 '무슨 별이 있다'에서
+        # '그 별이 어떤 기질이다'까지 이어 읽는다. 공궁이면 temp 는 빈 문자열.
+        return f"{head} {stars} {temp} {tail}"
     return f"{head} {stars} {tail}"
 
 
@@ -1678,6 +1719,9 @@ def build_all(
         )
 
     # P4: '명리는 흐름/자미는 구조' 역할분담 정형 소거 — 지도 은유로 교체(반복어 '구조' 억제 겸).
+    # ziwei_summary 는 오리엔테이션(명궁·신궁 위치·바탕·읽는 원칙)만 낸다. 주성의 상세
+    # 기질 서술은 ziwei_palaces 의 _palace_para(핵심 궁 포함)가 전담한다 — 한 챕터
+    # (NT["ziwei"]=summary+palaces) 안에서 명궁 주성 풀이가 두 번 나오지 않게 한다.
     T["ziwei_summary"] = (
         f"자미두수 명반은 {nm_call}의 삶이 어느 자리에서 펼쳐지는지를 한 판에 그린 "
         f"지도입니다. {nm_call}의 명궁은 {z.soul_palace}(지지 "
