@@ -25,10 +25,18 @@
 >   [S0 자미 정본 승인·확정 2026-07-17] 운영자 canon 승인(化氣 뼈대 채택 + 밝기/사화 배정=엔진값·의미만 정본화 + 그늘=대표경향).
 >     확정본 스크래치패드 스테이징(→ repo `docs/24-ziwei-star-temperament.md`로 드롭 예정). 1e/1d 배선의 단일 소스.
 >   [1a 종결 2026-07-17] 커밋 `222ec1d`(feat content)·`c9396f4`(docs handoff), origin push(`0c93f98..c9396f4`). manifest verified→다음 발주로 교체.
->   [자미 정본 배선 발주 2026-07-17] `ziwei-temperament-wiring-20260717` = `planned/next_actor=codex`, packet SHA `ce227d07…`, base `c9396f4`.
->     docs/24 정본 repo 반영 완료. 자미 별 서술이 이름 나열→docs/24 정본 기질 서술(밝기·사화 modifier)로. calc/ziwei·factcheck 사실 슬롯 불변·
->     길흉/예측/성별 배제·가드 완화 0 + 양방/데이터순정/전수커버. **Codex 구현 대기**(운영자 dispatch).
->   [다음] Codex 자미 배선 구현 → Claude 교차리뷰 → PASS 뒤 **1e**(nature/character 다단 인과 + 명리↔자미 사실특정 겹쳐읽기)
+>   [자미 정본 배선 Claude 직접 구현 완료 2026-07-17] `ziwei-temperament-wiring-20260717`(운영자가 Claude 직접 구현 승인).
+>     신규 `content/ziwei_temperament.py`(docs/24 §1~§3 단일 소스: 14주성×化氣/기질/그늘 + 밝기 3단 + 사화 4방향) +
+>     `rules.py` `_palace_temperament` 헬퍼(문형 _pick 3종) → `_palace_para`(핵심 궁) 배선. ziwei_summary는 오리엔테이션만
+>     (명궁 기질 이중 서술 방지 — advisor 발견 수정). 별 이름·밝기·사화 사실 슬롯·factcheck·GATE_KEYS·calc 불변.
+>   [자미 배선 검증 실측 round-2] 전체 **1126 passed / 4 skipped / exit 0**(기준선 1114/4 +12 신규·감소 0·skip 불변), golden **28**,
+>     변경/신규 5파일 Ruff·py_compile·diff-check GREEN, calc/input diff 0. 신규 12테스트(전수커버·化氣 docs/24 오라클·사화 4축
+>     동결·데이터순정+비공허성·비-no-op·밝기/사화 문형 분산·fail-closed·joined 챕터 가드·style 격리·명궁 무중복). advisor 2건
+>     +Codex CHANGES_REQUESTED B-1/B-2 수정(명궁 중복·verbatim 반복→_pick / 化氣 印·庫 손실·사화 4축 생략 복원+오라클 테스트).
+>   [Codex round-1 = CHANGES_REQUESTED→수정] B-1(docs/24 化氣·사화 손실)·B-2(hwagi/성별 미검) 해소. 사실 슬롯·fail-closed·
+>     가드완화0·명궁무중복·문형분산은 round-1에서 이미 PASS 확인됨(CODEX_VERIFICATION_REPORT). Codex 환경 1096/32(sandbox Playwright +28 skip)=split.
+>   [핸드오프] manifest `review_requested/next_actor=codex`(Codex round-2 재검). base HEAD `461a0e9`, 미커밋. commit·push·LLM·PDF 0.
+>   [다음] Codex read-only 검증 → PASS·운영자 commit 뒤 **1e**(nature/character 다단 인과 + 명리↔자미 사실특정 겹쳐읽기, 이 정본을 프롬프트 근거로)
 >     → 1c(폴백 골격 품질) → 1b(회고 검증, 보상 lint 선행) → Stage 1 완료 → 유료 1회 재측정 → Stage 2 판단.
 >   [불변 경계] factcheck·temporal_lint 완화 0(1b는 lint 추가). GATE_KEYS 23키 비악화. calc/input 무변경. PII 0.
 >     골든 28 count 비감소(1b/1c 바이트 변경 허용). 기준선 1110 passed/4 skipped 비감소.

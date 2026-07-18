@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task_id": "ziwei-temperament-wiring-20260717",
-  "status": "planned",
-  "base_commit": "c9396f40b548c7545ddfe4b2c9e28503a5488201",
+  "status": "verified",
+  "base_commit": "461a0e9ec68ef33ef9fa60283901773f5afa4aa6",
   "packet_path": "handoff/tasks/ziwei-temperament-wiring-20260717.md",
   "packet_sha256": "ce227d07f42466a1bc020dc7b4678c3cbfeedd767a644ac960b85559b5d9e73d",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "97c64f7de66734b458fb1a9770bf0943c90b33c03e665fb6663bba893098c80f",
+  "notes_sha256": "9f2a63470be99f14f72bb3c147a1c23428f98a580fe1d70c6c851db0e2eba717",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "1a1c1f47eb6a27cd60e51deec46f6345da141c7b6973d1e8a4d7c43f125acd8d",
-  "next_actor": "codex",
-  "next_action": "Codex가 자미 별-트레잇 정본 배선 구현: docs/24 단일 소스 테이블 신규 + rules.py 자미 소비처 배선(별 이름 나열→기질 서술, 밝기·사화 modifier). calc/ziwei·factcheck 사실 슬롯 불변·길흉/예측/성별 배제·가드 완화 0 + 양방/데이터순정/전수커버 테스트 + 전체 1114/4 비감소·golden 28. 완료 후 Claude 교차리뷰. commit/push/LLM/PDF 금지.",
-  "updated_at": "2026-07-17T09:54:45.958Z"
+  "next_actor": "user",
+  "next_action": "자미 정본 배선 Codex round-2 PASS(B-1/B-2 해소). 운영자 commit 완료. 다음 = 1e(nature/character 다단 인과 + 명리↔자미 사실특정 겹쳐읽기, 이 정본을 프롬프트 근거로) → 1c → 1b → Stage 1 완료 → 유료 재측정.",
+  "updated_at": "2026-07-18T04:25:15.049Z"
 }

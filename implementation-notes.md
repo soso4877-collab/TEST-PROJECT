@@ -1,5 +1,41 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CLAUDE_IMPLEMENTATION_REPORT — ziwei-temperament-wiring-20260717 (Claude 직접 구현)
+
+- 판정: **구현 완료 / 신선 Codex read-only 검증 요청**(운영자가 Claude 직접 구현 승인 2026-07-17).
+  base HEAD `461a0e9`, commit·push·LLM·PDF 없음. manifest `review_requested / next_actor=codex`.
+- 배경: 자미 별이 이름·밝기·사화만 나열되고 기질 의미가 없어 성격 서술이 얕음(최대 결손).
+- 구현:
+  - 신규 `sajugen/content/ziwei_temperament.py` = docs/24 §1~§3 단일 소스 테이블. 14주성×{化氣,
+    핵심기질(관형형),그늘(관형형)} + 밝기 3단(廟旺=뚜렷 / 得利=무난 / 陷=눌림, 平閒不=중립 생략) +
+    사화 4방향(록/권/과/기). 정본 밖 별-의미 생성 0(fail-closed). 化氣 한자 미노출(순한글).
+  - `rules.py`: import + `_palace_temperament(p)` 헬퍼(별 이름·밝기·사화 사실 슬롯은 `_stars_full`이
+    그대로, 기질 '의미'만 정본에서 덧붙임). core 문형 3종 + 밝기 프레임 3종 + 사화 프레임 3종을 전부
+    `_pick`(md5 결정론, 별 이름 키)으로 다양화 → verbatim 반복 방지. 소비처 = `_palace_para`(핵심 궁).
+    `ziwei_summary`는 오리엔테이션만(주성 상세는 palaces 전담) → 한 챕터(NT["ziwei"]=summary+palaces)
+    안 명궁 기질 이중 서술 방지.
+  - advisor 교차점검으로 2건 수정: (1) summary×palaces 명궁 기질 중복 제거, (2) 밝기·사화 고정 문구
+    verbatim 반복 → 별별 `_pick` 문형 분산(운영자 반려 사유였던 "AI틱 반복" 선제 차단).
+- 실측(계산 프로브·무LLM·무과금): 실 엔진 14주성 이름(거문·무곡·염정·자미·천기·천동·천량·천부·천상·
+  칠살·탐랑·태양·태음·파군)이 정본 키와 정확 일치. 14주성 렌더 문장 육안 자연스러움 확인.
+  joined `chapters["ziwei"]`에 safe/quality/customer_meta_lint = clean, 명궁 주성 core 중복 count=1.
+  내 기질 문안 14주성 style_lint = clean(em dash·가운뎃점·시적비유·반복 유입 0). 챕터 기존 불릿 `· `·
+  구분자 ` — `는 이 배선과 무관한 골격 조판(내 추가분 아님).
+- 검증(round-2): 전체 `pytest tests/ -q` = **1126 passed / 4 skipped / exit 0**(기준선 1114/4 +12 신규·
+  감소 0·skip 불변), golden **28**. 변경 3파일 + 신규 2파일 Ruff `All checks passed!`·py_compile·diff-check
+  exit 0. calc/input diff 0. calc/ziwei·factcheck·GATE_KEYS 무변경(사실 슬롯 불변).
+- 신규 테스트 12(tests/test_ziwei_temperament.py): 14주성 전수 커버·**化氣 docs/24 오라클**·**사화 4축
+  동결**·엔진 이름 정합·데이터 순정(길흉/예측/성별 토큰 0·비공허성)·기질+밝기+사화 비-no-op·**밝기/사화
+  문형 분산(반복 방지)**·공궁/정본밖 fail-closed·joined 챕터 가드·내 문안 style 격리·**명궁 기질 무중복 회귀**.
+- **round-2 수정(Codex CHANGES_REQUESTED B-1/B-2 해소)**: (B-1a) `hwagi`를 docs/24 §1 化氣 그대로
+  보존 — 천부 `印·庫`(庫 복원)·태양 `貴(官祿主)`·칠살 `將(肅殺)` 등 축약 제거. (B-1b) `SIHUA_DIRECTION`을
+  docs/24 §3 4방향 축 손실 없이 확장(화록 기회·화권 경쟁/강화·화과 품격·화기 결핍/막힘 복원). (B-2)
+  `test_hwagi_matches_docs24`(14 化氣 오라클)·`test_sihua_direction_preserves_docs24_axes`(4축 동결) 신설,
+  데이터 순정에 hwagi·성별(여성/남성) 토큰 + 비공허성(심은 금칙 검출) 추가. 신규 테스트 10→12.
+- 미검증: 실모델 자미 서술 품질·실 PDF 육안·비용(운영자 승인 유료 재run 몫).
+- 검토 포인트(Codex round-2): docs/24↔ziwei_temperament 化氣·사화 손실 0 정합, 사실 슬롯 불변, 정본 밖
+  별-의미 유입 0, 가드 완화 0, joined 챕터 중복 0.
+
 ## CODEX_IMPLEMENTATION_REPORT — temporal-retry-format-feedback-20260717
 
 - 판정: **EVIDENCE_SPLIT_PASS / 구현 완료·Claude 기준환경 교차리뷰 요청**. 시작 manifest는
