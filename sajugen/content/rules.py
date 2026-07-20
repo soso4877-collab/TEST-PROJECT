@@ -25,6 +25,7 @@ import hashlib
 from datetime import timedelta, timezone
 
 from .. import modules as integrated_modules
+from . import myeongni_persona as _mp
 from . import ziwei_temperament as _zt
 
 # --- 표시 매핑 (계산 아님: lunar-python/iztro-py 한자 산출물을 한국어 표시로 치환) ---
@@ -653,6 +654,32 @@ def _palace_temperament(p) -> str:
             extras.append(_pick("ztH" + s.name, _zt.SIHUA_FRAMES).format(d=direction))
         sents.append(base + (" " + " ".join(extras) if extras else ""))
     return " ".join(sents)
+
+
+def _ilgan_persona_parts(dm: str, dm_ko: str, singang: str) -> tuple[str, str]:
+    """일간 성격(docs/25) 다단 인과용 두 조각: (일간 기질 문장, 신강 방향 문장).
+
+    물상 성격론은 B급이라 비단정 톤("~로 보는 갈래", "경향")으로만 서술한다. 문형은 _pick
+    (md5 결정론). 정본 밖 일간은 빈 문자열(fail-closed). 신강 modifier는 '이 결'을 받아
+    일간 기질 문장과 인과로 이어진다(일간 성격 → 신강이 그 결을 어느 방향으로).
+    """
+    p = _mp.GAN_PERSONA.get(dm)
+    if not p:
+        return "", ""
+    lead = _pick(
+        "gp" + dm,
+        [
+            f"물상으로 풀면 일간 {_J(dm_ko, '은는')} {p['symbol']} 같은 글자라, "
+            f"{p['core']} 결로 보는 갈래가 있습니다.",
+            f"일간 {_J(dm_ko, '은는')} {p['symbol']}에 견주어 {p['core']} 경향으로 "
+            f"읽는 것이 물상 명리의 한 갈래입니다.",
+            f"{p['symbol']}에 빗대는 일간 {_J(dm_ko, '은는')} {p['core']} 쪽의 기질로 보곤 합니다.",
+        ],
+    )
+    lead += f" 다만 {p['shadow']} 면도 함께 살핍니다."
+    mod = _mp.singang_modifier(singang)
+    mod_sent = f"여기에 타고난 힘의 강약을 겹치면, {mod}." if mod else ""
+    return lead, mod_sent
 
 
 def _palace_brief(p, role: str) -> str:
@@ -1385,10 +1412,15 @@ def build_all(
         )
         + f"{_singang_phrase(m.singang)}이 도움이 되고, {gk}의 틀에서는 "
         f"그 격의 방향을 살리는 쪽이 강점으로 이어지기 쉽습니다.\n"
-        f"보완할 점은 {mn_ko} 기운({mn_mn})이 옅다는 자리입니다. 관련 상황에선 "
-        f"한 박자 신중하게, 미리 준비하면 한결 수월합니다. 옅은 축은 결핍이 "
-        f"아니라 작은 습관으로 채워 갈 여지이고, 어느 쪽도 고정된 한계가 "
-        f"아니라 {_J(nm_call, '이가')} 다룰 수 있는 경향입니다."
+        f"보완할 점은 {mn_ko} 기운({mn_mn})이 옅다는 자리입니다. "
+        + (
+            # 없는/약한 오행 = 결핍↔갈망 양가(docs/25 §4). 단일 결핍 서사로 봉하지 않는다.
+            f"{_mp.elem_lack_phrase(mn_ko)}. "
+            if _mp.elem_lack_phrase(mn_ko)
+            else "옅은 축은 결핍이 아니라 작은 습관으로 채워 갈 여지입니다. "
+        )
+        + f"관련 상황에선 한 박자 신중하게, 미리 준비하면 한결 수월합니다. 어느 쪽도 "
+        f"고정된 한계가 아니라 {_J(nm_call, '이가')} 다룰 수 있는 경향입니다."
     )
 
     # character 종합: 상위 3개만 캡(신살 수가 많아도 문단이 비대해지지 않게)
@@ -1398,25 +1430,34 @@ def build_all(
         if _sal_top3
         else "두드러진 전통 신살은 적은 편"
     )
+    # 다단 인과(docs/25): 일간 성격 → 겉/속 십성 → 신강이 그 결을 어느 방향으로 → 신살 색.
+    # 물상 성격론 B급이라 비단정. 정본 밖 일간이면 두 조각 모두 빈 문자열로 자연 생략.
+    _gp_lead, _gp_mod = _ilgan_persona_parts(dm, dm_ko, m.singang)
+    _legacy_singang = (
+        "스스로 끌고 가는 추진의 색이 강해 속도와 완급을 조절하는 것이 과제"
+        if m.singang == "신강"
+        else "주변·환경과 함께 갈 때 안정되는 색이라 의지처를 잘 두는 것이 강점"
+        if m.singang == "신약"
+        else "이끌기와 맞추기 사이의 균형 감각이 특징"
+    )
     T["character"] = (
         f"성격과 기질은 어느 한 글자가 아니라 일간·십성·힘의 강약·신살이 "
         f"한데 어우러진 윤곽으로 드러납니다.\n"
-        f"중심은 일간 {dm_ko} — {dm_elem_mn}의 바탕입니다. 바깥에서 "
-        f"보이는 결(천간 십성)은 연 {_ss(m.year.shishen_gan)}·월 {mon_sg}·시 "
+        f"중심은 일간 {dm_ko} — {dm_elem_mn}의 바탕입니다. "
+        + (f"{_gp_lead}\n" if _gp_lead else "")
+        + f"바깥에서 보이는 결(천간 십성)은 연 {_ss(m.year.shishen_gan)}·월 {mon_sg}·시 "
         f"{_ss(m.hour.shishen_gan)} 쪽이고, 마음이 편한 안쪽 결(일주 지지 "
         f"십성)은 {_ss_list(m.day.shishen_zhi)}입니다. 즉 사회에서 드러나는 "
         f"모습과 혼자 있을 때의 모습이 어느 정도 다르게 보일 수 있다는 "
         f"뜻입니다.\n"
-        f"힘의 방향을 보면, "
+        # 신강 방향: 일간 기질(_gp_lead)을 받아 인과로 잇는다. 정본 밖 일간이면 기존 문장으로 폴백.
         + (
-            "스스로 끌고 가는 추진의 색이 강해 속도와 완급을 조절하는 것이 과제"
-            if m.singang == "신강"
-            else "주변·환경과 함께 갈 때 안정되는 색이라 의지처를 잘 두는 것이 강점"
-            if m.singang == "신약"
-            else "이끌기와 맞추기 사이의 균형 감각이 특징"
+            f"{_gp_mod} 여기에 색을 더하는 신살(보조 단서)은 {sal_txt}입니다.\n"
+            if _gp_mod
+            else f"힘의 방향을 보면, {_legacy_singang}입니다. 여기에 색을 더하는 "
+            f"신살(보조 단서)은 {sal_txt}입니다.\n"
         )
-        + f"입니다. 여기에 색을 더하는 신살(보조 단서)은 {sal_txt}입니다.\n"
-        f"적성의 색을 한마디로 하면, {_J(mon_sgm, '이가')} 살아나는 환경에서 강점이 잘 "
+        + f"적성의 색을 한마디로 하면, {_J(mon_sgm, '이가')} 살아나는 환경에서 강점이 잘 "
         f"쓰이는 쪽입니다. 성격은 좋고 나쁨이 아니라 쓰임의 방향이고, 같은 "
         f"기질도 상황과 노력에 따라 다르게 나타납니다. 단정으로 받지 마시고 "
         f"자기 이해의 한 단서로 두시길 권합니다."
