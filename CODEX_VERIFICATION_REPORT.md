@@ -1,104 +1,101 @@
-# CODEX_VERIFICATION_REPORT — ziwei-temperament-wiring-20260717
+# CODEX_VERIFICATION_REPORT — ilgan-personality-wiring-20260720
 
-- 검증일: 2026-07-17
-- 역할: Claude 직접 구현분 신선 Codex read-only 검증
-- 기준: HEAD/base `461a0e9ec68ef33ef9fa60283901773f5afa4aa6`
-- handoff: `HANDOFF_VALID task_id=ziwei-temperament-wiring-20260717 status=review_requested next_actor=codex`
-- 최종 판정: **CHANGES_REQUESTED**
+- 검증일: 2026-07-20
+- 역할: Claude 직접 구현분 Codex round-2 read-only 재검
+- 기준 HEAD/base: `48376056446df72c6c39c1be45f34c5259b9da4b`
+- handoff: `HANDOFF_VALID task_id=ilgan-personality-wiring-20260720 status=review_requested next_actor=codex`
+- packet SHA-256: `49698f44a5a081d67ec00f883b5e917f4eb0d225fbc0c8b150c31205bc11fb6a` 일치
+- 최종 판정: **EVIDENCE_SPLIT_PASS — 코드 블로커 0**
 
-## 1. 블로커
+## 1. round-1 B-1/B-2/B-3 해소 확인
 
-### B-1. docs/24 정본 테이블이 코드의 단일 소스로 온전히 보존되지 않음
+### B-1. 표시 상징 계약 — 해소
 
-- `docs/24-ziwei-star-temperament.md:24`의 천부 化氣는 `印·庫`인데
-  `sajugen/content/ziwei_temperament.py:49`는 `hwagi: "인"`만 저장한다. packet §3의
-  `STAR_TEMPERAMENT = 14주성 × {化氣, 핵심기질, 그늘}, docs/24 §1 표 그대로` 계약과 불일치한다.
-- `docs/24:45-48`의 사화 방향에 있는 정본 축 가운데 코드 `SIHUA_DIRECTION`(`:99-102`)은
-  화록의 `기회`, 화권의 `경쟁·강화`, 화과의 `품격`, 화기의 `결핍·장애`를 생략한다.
-  방향 문구를 짧게 바꿀 수는 있으나, 정본 의미를 어떤 규칙으로 축약해도 되는지 승인된 매핑이 없으므로
-  현재 상태를 `docs/24 §1~§3 단일 소스 정합`으로 확정할 수 없다.
+- `docs/25 §1-1`에 고객 렌더용 표시 상징 10개가 별도 승인 계약으로 고정됐다. `GAN_PERSONA.symbol`과
+  `_RENDER_CONTRACT.symbol`은 10천간 전부 이 표와 정확히 일치한다.
+- §1의 전통 대안 상징 `동량·등불·성벽·화원`은 정본에 보존하면서, 고객 문안은 style-safe 표시 상징을
+  사용하도록 근거와 렌더 표현을 분리했다. `등불`은 코드 렌더에 유입되지 않는다.
+- `test_render_contract_symbol_and_axes_frozen`이 코드 테이블과 별도로 §1-1 표시 상징을 동결한다.
 
-필요 조치: docs/24의 化氣·사화 방향을 손실 없이 보존하거나, 축약이 의도라면 운영자 승인으로 docs/packet에
-허용 매핑을 먼저 고정한 뒤 코드와 테스트를 그 계약에 맞춘다.
+### B-2. core/shadow 정본 축 및 회귀망 — 해소
 
-### B-2. 정본 정합 회귀 테스트가 B-1을 검출하지 못함
+- `myeongni_persona.py`의 10천간 core/shadow를 docs/25 §1과 전수 대조했다. round-1에서 누락했던
+  `자기과신·심미·공명정대·산만·문예·대국관·휘둘림·구속 싫어함·관찰력·자존·기지·직관·유약함 속 강함`
+  축을 포함해 §1의 의미 축이 관형형 문안에 보존됐다.
+- §1-1 오라클은 표시 상징 10개, core 필수 토큰 30개, shadow 필수 토큰 29개를 전수 검사한다.
+  특정 6간 core 일부만 보던 round-1 감지 사각이 제거됐다.
+- 戊 core는 register 금칙 `큰 그림` 대신 승인된 `넓은 시야`를 사용한다.
 
-- `tests/test_ziwei_temperament.py:39-47`은 14개 별 키와 `core`·`shadow`의 비어 있지 않음만 검사하고
-  `hwagi`의 존재·정확한 값은 단언하지 않는다. 따라서 천부 `庫` 누락이 `10 passed`로 통과한다.
-- 같은 파일 `:59-72`의 데이터 순정 검사는 `core`·`shadow`·사화·프레임만 합치며 `hwagi`는 제외한다.
-  테스트 이름은 성별 단정까지 고정한다고 적었지만 금칙 목록에 `여성` 축도 없다.
+### B-3. 신약 modifier 강약 프레임 및 중복 — 해소
 
-필요 조치: docs/24에서 승인된 14개 化氣의 정확한 기대 맵과 사화 4방향의 필수 의미 축을 테스트로 동결하고,
-모든 canon 필드를 데이터 순정 검사에 포함한다. 성별 단정 차단측도 실제로 실패하는 회귀를 추가한다.
+- `SINGANG_MODIFIER["신약"]`은 `신중하게 다듬고 조율하며 받아들이는` 발현 방향만 말한다.
+  modifier 전수에서 `강한·여린·약한·나약` 토큰은 0건이다.
+- 신약의 `약함 아님` 설명은 기존 `strength` 골격 한 곳만 소유한다. 합성 `nature`에서
+  `나약하다는 뜻이 아니라`는 정확히 1회이고 `여린 편·약한 편`은 0회다.
+- 회귀는 exact count뿐 아니라 승인 방향 존재와 modifier 강약 프레임 0을 함께 단언한다.
 
-## 2. 통과 확인
+## 2. 정합·가드·불변 경계
 
-- **사실 슬롯 불변**: `rules.py`의 `_star_one`·`_stars_full`은 HEAD 대비 변경 0. 신규
-  `_palace_temperament`는 기존 별 이름·밝기·사화 문자열 뒤에 의미 문장만 추가한다.
-- **정본 밖 별-의미 fail-closed**: 테이블 조회 실패 시 서술을 생략하고, 공궁/미등록 `가상성` 테스트가
-  빈 문자열을 단언한다. 별별 의미의 다른 생성 경로는 diff에서 발견되지 않았다.
-- **가드/GATE_KEYS/calc 완화 0**: HEAD 대비 `sajugen/calc/**`, `sajugen/input/**`,
-  `factcheck.py`, `safe_lint.py`, `style_lint.py`, `quality_lint.py`, `trace.py`,
-  `render/verify.py` diff 0. `GATE_KEYS` 23개 유지.
-- **joined 챕터 명궁 기질 무중복**: summary는 사실 슬롯·오리엔테이션만 유지하고 기질은
-  `ziwei_palaces`의 `_palace_para`가 전담한다. 합성 joined 챕터에서 명궁 core count `<= 1` 테스트 통과.
-- **밝기/사화 문형 반복 방지**: 별 이름을 seed로 한 기존 `_pick(md5)` 결정론을 사용하고,
-  동일 밝기·사화로 14주성을 렌더한 회귀에서 각각 2개 이상 프레임이 실제 선택됨을 단언한다.
-- **정적 검사**: 신규/변경 Python 3파일 Ruff `All checks passed!`, py_compile exit 0,
-  `git diff --check` exit 0.
+- **docs/25 §1-1 ↔ persona 전수 정합**: 표시 상징과 core/shadow 필수축 전수 오라클 통과.
+- **persona 문안 가드**: `GAN_PERSONA` 30개 필드 + modifier 3개 + 없는 오행 5개, 총 38개 문자열을
+  `style_lint + register_lint + raw_calc_lint + safe_lint`로 독립 스캔한 결과 `hits=0`이다. 전용 테스트도
+  10천간 × 3 modifier의 실제 lead/mod 문장을 같은 고객 가드로 검사한다.
+- **사실 슬롯 불변**: HEAD 대비 `sajugen/calc/**`, `sajugen/input/**` diff 0. `rules.py`의 일간·연월시
+  십성·일지 십성·신강·신살 사실 표현은 유지되고, 정본 성격 의미와 연결 문장만 추가·재배열됐다.
+- **가드/게이트 완화 0**: `factcheck.py`, `safe_lint.py`, `style_lint.py`, `quality_lint.py`,
+  `customer_meta_lint.py`, `trace.py`, `render/verify.py` diff 0. `GATE_KEYS`는 23개·중복 0으로 유지됐다.
+- **비단정·fail-closed**: 10천간 lead는 `경향/갈래/보곤` 톤을 사용하며, 정본 밖 일간은 빈 문자열로
+  생략한다. 정본 밖 성격 의미를 생성하는 별도 경로는 diff에서 발견되지 않았다.
+- **없는 오행 양가**: 목·화·토·금·수 전수 문구가 존재하고, 화·수는 `오히려` 갈망 축을 함께 보존한다.
 
-## 3. 테스트 증거
+## 3. 테스트·정적 검증 증거
 
 ```text
-.\.venv\Scripts\python.exe -m pytest tests/test_ziwei_temperament.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_myeongni_persona.py -q
   -> 10 passed / exit 0
 
-.\.venv\Scripts\python.exe -m pytest tests/ -q -k golden
-  -> 28 passed, 1100 deselected / exit 0
-
 .\.venv\Scripts\python.exe -m pytest tests/ -q
-  -> 1096 passed, 32 skipped / exit 0
+  -> 1108 passed, 32 skipped / exit 0 / 160.38s
 
-.\.venv\Scripts\python.exe -m pytest tests/ -q -rs
-  -> 1096 passed, 32 skipped / exit 0
-  -> 기준 4 skip: 운영자 opt-in E2E 4
-  -> 환경 추가 28 skip: Playwright subprocess skipped in Codex sandbox
+.\.venv\Scripts\python.exe -m pytest tests/ -q -k golden
+  -> 28 passed, 1112 deselected / exit 0
 
-.\.venv\Scripts\python.exe -m pytest tests/ --collect-only -q -rs
-  -> 1128 tests collected / exit 0
+.\.venv\Scripts\python.exe -m ruff check sajugen/content/myeongni_persona.py \
+  sajugen/content/rules.py sajugen/content/llm_sections.py tests/test_myeongni_persona.py
+  -> All checks passed! / exit 0
+
+.\.venv\Scripts\python.exe -m py_compile sajugen/content/myeongni_persona.py \
+  sajugen/content/rules.py sajugen/content/llm_sections.py tests/test_myeongni_persona.py
+  -> exit 0
+
+git diff --check
+  -> exit 0
 ```
 
-수집 총수 `1128 = 1124 + 4 = 1096 + 32`로 테스트 감소는 없다. 추가 28건은 공용 Playwright guard
-19건과 `test_p4.py` 9건이며 모두 동일한 Codex sandbox 사유다. 샌드박스 밖 권한으로 같은 전체 명령을
-재실행해도 `1096/32`로 동일했으므로 현 환경에서는 `1124/4` 직접 재현이 불가능하다. 환경 증거만 보면
-`EVIDENCE_SPLIT_PASS` 조건이나, B-1/B-2가 있어 전체 판정은 `CHANGES_REQUESTED`다.
+현재 환경 총수 `1108 + 32 = 1140`은 기준환경 보고 `1136 + 4 = 1140`과 정확히 같다. 차이 28건은
+`tests/playwright_guard.py`가 `CODEX_THREAD_ID` 또는 `CODEX_SANDBOX_NETWORK_DISABLED` 환경에서 의도적으로
+skip하는 Playwright subprocess 계열이다. 호출 테스트 수 역시 `test_p4` 9 + `test_render_verify` 11 +
+`test_p5` 3 + `test_p8` 3 + `test_consistency` 1 + `test_harness` 1 = 28로 일치한다. 따라서 코드 실패나
+수집 감소로 바꾸지 않고 **EVIDENCE_SPLIT_PASS**로 판정한다.
 
 ## 4. diff / git status
 
-검증 대상 구현·인계 변경:
+검증 대상은 HEAD `4837605` 위 미커밋 변경이다. 제품 변경은 `rules.py`, `llm_sections.py`, 신규
+`myeongni_persona.py`; 정본·정책은 `docs/25`, `docs/03`; 회귀는 신규 `test_myeongni_persona.py`다.
+나머지는 handoff·상태·보고 메타다. calc/input/render/가드 구현 변경은 0이다.
 
-```text
-M  docs/03-engine-validation-plan.md
-M  handoff/current/manifest.json
-M  implementation-notes.md
-M  sajugen/STATE.md
-M  sajugen/content/rules.py
-?? sajugen/content/ziwei_temperament.py
-?? tests/test_ziwei_temperament.py
-```
-
-tracked diff는 5파일 `+91/-9`, 신규 구현·테스트 2파일이다. 제품 변경은 `rules.py`와 신규 canon 모듈,
-테스트 1파일이며 calc/input/가드/render 변경은 0이다. 이 보고서 작성으로
-`?? CODEX_VERIFICATION_REPORT.md`만 추가된다. 구현 파일은 수정하지 않았다.
+Codex가 이번 round-2에서 수정한 파일은 이 `CODEX_VERIFICATION_REPORT.md` 하나뿐이다. 구현·정본·테스트·
+manifest는 수정하지 않았다.
 
 ## 5. 확인하지 못한 것 / 남은 위험
 
-- 실모델 자미 서술 품질, 실제 PDF 조판·300dpi 육안, 비용은 범위 밖이며 미검증이다.
-- 28개 Playwright 테스트는 Codex 환경에서 실행되지 않았다. 기준환경 Claude 보고의 `1124/4`를
-  동일 수집 총수와 skip 사유로만 분리 합성했으며, Codex가 pass 결과를 직접 재현한 것은 아니다.
-- B-1을 해소하기 전 이 canon 모듈을 후속 1e 프롬프트 근거로 사용하면 누락된 정본 축이 그대로 전파된다.
+- 기준환경의 원시 `1136 passed / 4 skipped` 출력은 이 Codex 환경에서 직접 재현하지 못했다. 동일 tree·동일
+  수집 총수와 예정된 28 skip 경계를 합성한 판정이다.
+- 실제 LLM 문안, 실제 PDF·300dpi 육안, 비용은 범위 밖이며 미검증이다.
+- 코드 미해결 블로커는 없다. 남은 위험은 운영자 승인 전 미커밋 상태와 환경 분리 증거뿐이다.
 
 ## 6. 다음 행동
 
-결론: B-1 정본 손실과 B-2 감지 사각만 별도 수정 라운드로 고친 뒤 재검증한다. 그 전에는 commit/push하지
-않는다. 이번 검증에서 commit·push·LLM/API·PDF 재생성·deploy는 실행하지 않았다.
+결론: round-1 B-1/B-2/B-3는 해소됐으므로 **EVIDENCE_SPLIT_PASS**로 운영자에게 넘긴다. 운영자가
+기준환경 `1136/4` 증거와 이 보고서를 합성해 commit 여부를 결정한다. 이번 검증에서 commit·push·LLM/API·
+PDF 재생성·deploy는 실행하지 않았다.

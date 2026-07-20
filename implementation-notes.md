@@ -1,5 +1,44 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CLAUDE_IMPLEMENTATION_REPORT — ilgan-personality-wiring-20260720 (1e, Claude 직접 구현)
+
+- 판정: **구현 완료 / 신선 Codex read-only 검증 요청**. base HEAD `4837605`, commit·push·LLM·PDF 없음.
+  manifest `review_requested / next_actor=codex`.
+- 배경: 명리 성격이 라벨 위주, 10천간 일간별 고유 성격 테이블 부재·다단 인과 부재. ★일간 물상 성격은 **B급**
+  (자미 化氣 A급과 다름) → 비단정 배선.
+- 구현:
+  - 신규 `content/myeongni_persona.py` = docs/25 단일 소스: `GAN_PERSONA`(10천간 상징·core·shadow)·
+    `SINGANG_MODIFIER`(신강/신약/중화 결 발현 방향)·`ELEM_LACK`(오행 결핍↔갈망 양가). 정본 밖 성격어 생성 0.
+  - `rules.py`: `_ilgan_persona_parts` 헬퍼(문형 `_pick` 3종·`_J` 조사). `character`를 다단 인과로 재배선
+    (일간 성격 lead → 신강 modifier가 '이 결'을 방향으로 → 겉/속 십성 → 신살). `strength` 없는 오행을 정본 양가로.
+  - `llm_sections.py`: `_COMPOSE_GUIDE["nature"]` 다단 인과+없는오행 양가+물상 비단정 지시. `_LAYER_WEAVE`
+    사실특정 확증으로.
+- advisor 교차점검 2건 선제 수정: (1) **신약 재서술 중복**(character modifier↔strength) → modifier는 결
+  방향만, '약함 아님' 재서술은 strength 전담(무중복 회귀 테스트). (2) core/shadow가 docs/25 §1 축 일부 생략
+  (자미 B-1 패턴) → docs/25 §1에 **코드 배선 매핑 승인**(core/shadow=축의 관형형 대표 서술) 명시 + core 보강
+  (甲 정직·乙 섬세) + core 축 앵커 테스트.
+- 검증(round-2): 전체 `pytest tests/ -q` = **1136 passed / 4 skipped / exit 0**(기준선 1126/4 +10 신규·감소 0·
+  skip 불변), golden **28**. 변경 3파일 + 신규 2파일 Ruff·py_compile·diff-check exit 0. calc/input diff 0.
+  GATE_KEYS·factcheck·render 무변경. 프롬프트(가이드·weave) 변경이 바이트 핀 테스트 미파손.
+- 신규 테스트 10(tests/test_myeongni_persona.py): 10천간 전수·**docs/25 §1-1 렌더 계약 전수 오라클(표시상징+
+  core/shadow 필수축)**·데이터 순정+비공허성·신강 modifier 분기+승인 방향·**신약 강약 프레임 0·무중복 회귀**·
+  없는오행 양가·character 다단 인과 비-no-op·**persona 가드 전수(style+register+raw_calc+safe) 격리**·비단정 톤·fail-closed.
+- **round-2 수정(Codex CHANGES_REQUESTED B-1/B-2/B-3 해소)**: (B-1) symbol이 §1 보조 상징 누락 → docs/25
+  §1-1 **코드 렌더 계약** 신설(표시 상징 1개 style-safe + §1 전통 상징 보존, 등불=style_lint라 촛불로 승인
+  매핑). (B-2) core/shadow가 §1 축 다수 생략 → core/shadow를 §1 축 손실 없이 담게 보강(자기과신·심미·공명정대·
+  문예·대국관·휘둘림·구속·관찰력·기지·직관 등) + **전수 오라클**(`test_render_contract_symbol_and_axes_frozen`이
+  docs/25 §1-1 표시상징+core/shadow 필수축을 독립 동결). (B-3) 신약 modifier "여린 편" 약함 프레임 ↔ strength
+  "나약함 아님" 충돌 → modifier에서 강약 프레임 제거(발현 방향만: 신강=주도 / 신약=조율·수용·신중 / 중화=균형),
+  회귀를 exact count → 강약 프레임 0 + 승인 방향 존재로 강화. 신규 테스트 11→10(오라클 통합).
+- **round-2 회귀 사고(근본원인 2층)**: core 축 보강 중 戊 core에 `큰 그림`을 넣었는데 이는 `register_lint`
+  하드 금칙(`big_picture`)이라, 戊 일간 차트의 consult(nature base_text 소비)가 guard-fail→폴백해 compose
+  개수 계약 테스트 19건 실패. (결함) `큰 그림`→`넓은 시야`(대국관, clean). (감지 갭) persona 격리 테스트가
+  style_lint만 돌려 register 금칙을 못 잡음 → **성격 문안이 guarded 챕터로 흐르므로** 테스트를 register/
+  raw_calc/safe까지 검사하도록 강화(`test_persona_output_passes_customer_guards`). 전 persona 정본 가드 전수 스캔=1건뿐.
+- 미검증: 실모델 서술 품질·실 PDF 육안·비용(운영자 승인 유료 재run 몫).
+- Codex 검증 포인트(round-2): docs/25 §1-1 렌더 계약↔persona 정합(표시상징·core/shadow 필수축 전수), 사실 슬롯
+  불변, 정본 밖 성격어 유입 0, 가드/게이트/calc 완화 0, 신약 강약 프레임 0·무중복, 비단정 톤.
+
 ## CLAUDE_IMPLEMENTATION_REPORT — ziwei-temperament-wiring-20260717 (Claude 직접 구현)
 
 - 판정: **구현 완료 / 신선 Codex read-only 검증 요청**(운영자가 Claude 직접 구현 승인 2026-07-17).

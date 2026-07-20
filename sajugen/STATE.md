@@ -1,5 +1,24 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-07-20 1e 명리 일간 성격 배선 Claude 구현 완료 — 이 블록 먼저 읽기) =====
+>   [진행] 말투 개편 Stage 1: ✅1a(재시도 형식교정) ✅자미 정본 배선 ✅**1e 명리 일간 성격 배선(구현 완료·Codex 검증 대기)**
+>     → ⬜1c(폴백 골격 품질) → ⬜1b(회고 검증, 보상 lint 선행) → Stage 1 완료 → 유료 재측정 → Stage 2.
+>   [1e Claude 직접 구현] `ilgan-personality-wiring-20260720`. 신규 `content/myeongni_persona.py`(docs/25 단일 소스:
+>     10천간 GAN_PERSONA + SINGANG_MODIFIER + ELEM_LACK 양가) + `rules.py` `_ilgan_persona_parts`(문형 _pick·_J) →
+>     `character` 다단 인과(일간 성격→신강이 '이 결'을 방향으로→십성 겉/속→신살)·`strength` 없는오행 양가.
+>     `llm_sections` nature 가이드 다단 인과+비단정, `_LAYER_WEAVE` 사실특정. ★일간 물상 성격 **B급→비단정**("경향·갈래").
+>   [1e 정본] `docs/25-ilgan-personality-research.md`(운영자 canon 승인 2026-07-20). 자미(A급)와 달리 물상론 통속(B/C급)이라
+>     문안 톤을 경향/참고로 눌러 배선. docs/03 결정표 행 추가. §3 십성 성격(SS_PERSONA)은 후속.
+>   [1e 검증 round-2] 전체 **1136 passed / 4 skipped / exit 0**(기준선 1126/4 +10 신규·감소 0), golden **28**, Ruff·
+>     py_compile·diff-check GREEN, calc/input·GATE_KEYS·factcheck 무변경. 신규 10테스트(전수·docs/25 §1-1 렌더 계약
+>     전수 오라클·데이터순정+비공허성·신강 modifier+승인 방향·신약 강약프레임0·무중복·양가·다단 인과 비-no-op·persona 가드 전수 격리·비단정·fail-closed).
+>   [1e advisor+Codex 수정] advisor 2건(신약 재서술 중복·core 축 생략) + Codex round-1 CHANGES_REQUESTED B-1/B-2/B-3
+>     (symbol 보조상징 누락·core/shadow 축 생략·신약 modifier 약함 프레임) 해소: docs/25 §1-1 코드 렌더 계약 신설(표시상징+
+>     필수축 전수 동결)·core/shadow §1 축 손실 없이 보강·신약 modifier 강약 프레임 제거. round-2 회귀 사고: 戊 core `큰 그림`
+>     =register 금칙(big_picture)→`넓은 시야`로 교체 + persona 격리 테스트를 register/raw_calc/safe까지 강화(감지 갭 봉합).
+>   [핸드오프] manifest `review_requested/next_actor=codex`(round-2 재검). base HEAD `4837605`, 미커밋. commit·push·LLM·PDF 0.
+>   [다음] Codex round-2 재검(docs/25 §1-1 렌더 계약↔persona 전수·사실슬롯 불변·신약 강약프레임0·비단정·기준선 비감소) → PASS·운영자 commit → 1c.
+
 > ===== 압축/새세션 재개 앵커 (2026-07-17 말투 개편 로드맵 착수 — 이 블록 먼저 읽기) =====
 >   [방향 전환] 베타 1호 드래프트(`ord_19f6a87d…`) 육안 검수 결과 톤이 "AI틱"으로 반려 → **베타 발급 보류**.
 >     발송은 톤 개선 → 운영자 승인 유료 1회 재측정 → 육안 Z=0 뒤에만. 활성 = **말투 개편 단계형 로드맵**.
