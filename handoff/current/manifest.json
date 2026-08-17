@@ -2,14 +2,14 @@
   "schema_version": 1,
   "task_id": "solar-term-axis-fix-20260817",
   "status": "planned",
-  "base_commit": "2b2abb637c5334ec116569bb4546365135ac99bf",
+  "base_commit": "ab5e4f11b66a33e144b44bf674d5cd34dd0879a9",
   "packet_path": "handoff/tasks/solar-term-axis-fix-20260817.md",
-  "packet_sha256": "ce5a7ec9da7d4b2ced5f4169ce991c4896694f4757eb847aaadac7cfd2eab51a",
+  "packet_sha256": "aeda9e14774472e0047312554c5fcdcf36b0b20711eaaf06d373d1e15a5e7dc4",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "ee9740e0a545c8b4095fa5cbf00f7ca15d60966f83024f21cac11ee87310802c",
+  "notes_sha256": "6759ad79dc5642784e4069b990641ec0d6af6d0ea272c0513334bf0ac985063e",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "1a1c1f47eb6a27cd60e51deec46f6345da141c7b6973d1e8a4d7c43f125acd8d",
-  "next_actor": "user",
-  "next_action": "명리 절입 판정 시각축 교정. 결함 2개가 상쇄 중: (A) lunar-python 절기표가 CST(UTC+8) = -60분, (B) 진태양시를 절입에 투입 = +45.9분, 합 -14분. B만 고치면 -60분으로 악화되므로 A,B 동시 수정 필수. 수정 방향 = 연주/월주/대운은 ct.utc+8h, 일주/시주는 진태양시 유지(실측 검증 완료). 영향: 랜덤 3000건에서 연주/월주 변경 0건, 대운 시작연도 0.57% 변경. 발송 이력 0건이라 소급 영향 없음(orders APPROVED 0 실측). 착수 전 운영자 결정 1건만 남음: 구현 주체. Codex 토큰 부재 시 신선 Claude Code 세션 구현 + 별도 신선 세션 read-only 검증으로 대체 가능(AGENTS.md 기본값 이탈이므로 승인·기록 필요). 별도 대기: 자미 입춘 해상도 결함(iztro 분 미전달, 최대 103분), 출생지 tz 배선.",
-  "updated_at": "2026-08-17T07:34:43.454Z"
+  "next_actor": "claude",
+  "next_action": "명리 절입 시각축 교정 — 구현 착수 가능(운영자 승인 2026-08-17, 패킷 0절). 구현=신선 Claude 세션, 검증=별도 신선 세션 read-only. 결함 2개 상쇄: lunar-python 절기표 CST(-60분) + 진태양시 투입(+45.9분) = -14분. 한쪽만 고치면 -60분으로 악화. 수정=연주/월주/대운은 ct.utc+8h, 일주/시주는 진태양시 유지. 수용기준 전부 기계측정: 기준값 5개(6절 표), eot-window width_min_max==0, 골든 22건 불변, pytest>=1136 exit 0. 대운수 0.57% 변동은 발송 0건이라 수용됨. commit/push/LLM/PDF 금지.",
+  "updated_at": "2026-08-17T07:41:07.218Z"
 }
