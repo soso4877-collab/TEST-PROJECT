@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
-"""P2 명리(사주) 풀세트 — P1 보정시각(진태양시) 기반 lunar-python EightChar.
+"""P2 명리(사주) 풀세트 — 두 시각축(절대축·국지축)을 분리한 lunar-python EightChar.
 
 사실값은 lunar-python에서만 산출(추정 금지). 절입 기준 연·월주 경계는
 Skyfield(solarterms)와 교차검증해 분 단위 불일치를 플래그한다.
 자시 정책은 P1 enum을 권위로 두고 lunar-python 시지와 다르면 충돌을 '표면화'(단정 금지).
+
+★ 불변식 — 시각축은 둘이고 산출마다 소속이 다르다 (2026-08-17 교정, docs/03 결정표):
+  - **절대축**(연주·월주·대운·세운): 절기는 태양 황경이 특정 각도가 되는 '절대 시각'이라
+    관측지 경도·균시차와 무관하다. 서울에서 나든 뉴욕에서 나든 입춘 순간은 같다.
+  - **국지축**(일주·시주·자시 정책): 시지는 그 자리에서의 태양 시각각 문제라 진태양시가 맞다.
+  이 둘을 한 축으로 뭉개면 절입 판정이 진태양시 보정량만큼 밀린다(구 결함).
 """
 
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import timedelta
 from typing import Optional
 
-from lunar_python import Solar
+from lunar_python import EightChar, Solar
 from pydantic import BaseModel, Field
 
 from ..input.time_correction import CorrectedTime
@@ -42,6 +48,74 @@ _ELEM = {  # 천간/지지 → 오행
     "子": "水",
     "亥": "水",
 }
+
+
+# lunar-python 1.4.8 의 절기표(JieQiTable)는 **중국 표준시(UTC+8)** 로 적혀 있다. 시민 KST(UTC+9)나
+# 진태양시를 그대로 넘기면 라이브러리가 절입을 60분 이르게 판정한다.
+#   실측(2026-08-17): 2000 입춘 = KST 21:40:22 / CST 20:40:22 인데
+#   Solar.fromYmdHms(2000,2,4,20,41)(=KST 20:41 로 읽힘)에서 이미 연주가 己卯→庚辰 로 넘어간다.
+# 그래서 절입에 걸리는 산출(연주·월주·대운)만 UTC+8 프레임으로 환산해 넘긴다.
+# ★ 이 상수를 지우면 다음 사람이 -60분 결함을 다시 만든다. 매직넘버로 두지 말 것.
+LUNAR_PYTHON_TERM_FRAME_UTC_OFFSET_HOURS = 8
+
+# _SplitAxisLunar 위임 규칙 — lunar-python 1.4.8 의 EightChar·Yun·DaYun·LiuNian·XiaoYun 이
+# Lunar 에 실제로 호출하는 메서드 전체를 축별로 분류한 표(라이브러리 소스 전수 스캔, 버전 고정).
+# 미분류 이름은 조용히 한쪽으로 새지 않도록 fail loud 한다(방법론 B-2 fail-closed).
+_ABSOLUTE_AXIS_PREFIXES = ("getYear", "getMonth")  # 연·월주와 그 순공/납음
+_ABSOLUTE_AXIS_NAMES = frozenset(
+    {
+        "getJieQiTable",  # 세운(입춘 기준 유년) 기준표
+        "getNextJie",  # 대운 起運 = 다음 절입까지의 거리
+        "getPrevJie",  # 대운 起運(역행) = 직전 절입까지의 거리
+        "getSolar",  # 起運 거리 계산의 출생 기준점 · 대운 시작 연도
+    }
+)
+_LOCAL_AXIS_PREFIXES = ("getDay", "getTime")  # 일주·시주(자시 정책 포함)
+
+
+class _SplitAxisLunar:
+    """연·월·절입은 절대축 Lunar 로, 일·시는 국지축 Lunar 로 위임하는 프록시.
+
+    두 개의 EightChar 에서 기둥을 골라 담지 않고 **하나의 EightChar** 를 만드는 이유:
+    십성(十神)·지세(十二運星)·명궁은 전부 '일간 기준' 파생값이라, 연·월주만 다른 인스턴스에서
+    가져오면 그 인스턴스의 일간(자시 정책·날짜 경계로 달라질 수 있다)으로 십성이 계산돼
+    일간과 어긋난 십성이 조용히 섞인다. 축을 Lunar 층에서 합치면 EightChar 가 언제나
+    국지축 일간으로 파생값을 계산하므로 이 사각이 구조적으로 닫힌다.
+    """
+
+    __slots__ = ("_absolute", "_local")
+
+    def __init__(self, absolute, local) -> None:
+        self._absolute = absolute
+        self._local = local
+
+    def __getattr__(self, name: str):
+        if name.startswith("_"):  # 슬롯·던더는 프록시 대상 아님
+            raise AttributeError(name)
+        if name in _ABSOLUTE_AXIS_NAMES or name.startswith(_ABSOLUTE_AXIS_PREFIXES):
+            return getattr(self._absolute, name)
+        if name.startswith(_LOCAL_AXIS_PREFIXES):
+            return getattr(self._local, name)
+        raise RuntimeError(
+            f"_SplitAxisLunar: 축 미분류 Lunar 메서드 '{name}' — 절대축/국지축 배정을 "
+            "먼저 결정해야 한다(조용한 축 혼입 차단)"
+        )
+
+
+def _split_axis_eight_char(ct: CorrectedTime) -> EightChar:
+    """CorrectedTime 하나에서 절대축·국지축을 함께 물린 EightChar 를 만든다."""
+    ts = ct.true_solar  # 국지축: 진태양시(경도차+균시차 보정 완료)
+    # 절대축: 출생의 절대 순간(UTC)을 lunar-python 절기표 프레임(CST)으로 환산.
+    cst = ct.utc.replace(tzinfo=None) + timedelta(
+        hours=LUNAR_PYTHON_TERM_FRAME_UTC_OFFSET_HOURS
+    )
+    local_lunar = Solar.fromYmdHms(
+        ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second if ts.second else 0
+    ).getLunar()
+    absolute_lunar = Solar.fromYmdHms(
+        cst.year, cst.month, cst.day, cst.hour, cst.minute, cst.second if cst.second else 0
+    ).getLunar()
+    return EightChar(_SplitAxisLunar(absolute_lunar, local_lunar))
 
 
 class Pillar(BaseModel):
@@ -141,15 +215,15 @@ def _pillar(ec, who: str) -> Pillar:
 
 
 def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> Myeongni:
-    ts = ct.true_solar  # 진태양시(보정 완료)
-    solar = Solar.fromYmdHms(
-        ts.year, ts.month, ts.day, ts.hour, ts.minute, ts.second if ts.second else 0
-    )
-    ec = solar.getLunar().getEightChar()
+    # 축 분리(2026-08-17): 연주·월주·대운은 절대축(UTC+8 프레임), 일주·시주는 국지축(진태양시).
+    # 근거·불변식은 모듈 도크스트링과 LUNAR_PYTHON_TERM_FRAME_UTC_OFFSET_HOURS 주석 참조.
+    ec = _split_axis_eight_char(ct)
     # 자시 정책(ZasiPolicy) 반영(T2.1/P0-1): ct.day_offset=1 (JST_2300 = 진태양시 23시부터 子시
     # → 일주 익일)이면 setSect(1) 로 일주만 익일 전환한다. lunar-python setSect(1) 은 일주만
-    # 바꾸고 시/월/연주·대운(getYun)은 보존한다(실측). day_offset 이 이미 정책값이라(JST=23시+ →1,
-    # YAJASI=조자시만 1) 이 분기가 정책을 정확히 수행 — 하드코딩 아님(calc.md·절대규칙6).
+    # 바꾸고 시/월/연주·대운(getYun)은 보존한다(실측 2026-08-17 재확인: 4케이스×남녀에서
+    # getYun 起運·대운 간지 전부 불변). 자시는 국지 시각 축의 정책이라 국지축 일간에만 걸린다.
+    # day_offset 이 이미 정책값이라(JST=23시+ →1, YAJASI=조자시만 1) 이 분기가 정책을 정확히
+    # 수행 — 하드코딩 아님(calc.md·절대규칙6).
     if ct.day_offset:
         ec.setSect(1)
 
@@ -189,7 +263,9 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
         diff = (gz_idx(daewoon[1].ganzhi) - gz_idx(daewoon[0].ganzhi)) % 10
         forward = diff == 1
 
-    # 절입 기준 월지 교차검증 (lunar-python vs Skyfield)
+    # 절입 기준 월지 교차검증 (lunar-python vs Skyfield). 축 분리 후에는 양쪽이 같은 절대축을
+    # 보므로 절입 경계에서도 일치해야 한다(교정 전에는 36/36 절입에서 불일치했다).
+    # 이 검사는 결함을 잡아낸 유일한 장치다 — 완화·삭제 금지, '통과하게 만드는' 방향만 허용.
     utc = ct.utc.replace(tzinfo=None)
     sky_branch, _, _ = solarterms.month_pillar_branch(utc)
     lunar_month_zhi = pillars["Month"].zhi

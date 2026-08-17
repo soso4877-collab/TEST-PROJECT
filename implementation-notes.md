@@ -1,5 +1,76 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CLAUDE_IMPLEMENTATION_REPORT — solar-term-axis-fix-20260817 (명리 절입 시각축 교정, Claude 직접 구현)
+
+- 판정: **구현 완료 / 별도 신선 세션 read-only 검증 요청**(운영자 승인 2026-08-17, 패킷 §0 — Codex 토큰 부재
+  예외). base HEAD `0e09a35`, 미커밋. commit·push·LLM·PDF 재생성 0. manifest `review_requested / next_actor=claude`.
+- 배경(결함 2개가 상쇄 중이었다): (A) lunar-python 1.4.8 절기표가 **CST(UTC+8)** 라 시민 KST 투입 시 −60분,
+  (B) 진태양시를 시민시각처럼 투입해 +45.9분(2월 서울) → 합계 **−14분**. B만 고치면 −60분으로 악화된다.
+- 구현(`sajugen/calc/myeongni.py` 1파일):
+  - `LUNAR_PYTHON_TERM_FRAME_UTC_OFFSET_HOURS = 8` 명명 상수 + 근거 주석(매직넘버 금지, 패킷 §5-1).
+  - **`_SplitAxisLunar` 프록시** — 연·월·절입(`getYear*`·`getMonth*`·`getJieQiTable`·`getPrevJie`·`getNextJie`·
+    `getSolar`)은 절대축 Lunar(=`ct.utc + 8h`), 일·시(`getDay*`·`getTime*`)는 국지축 Lunar(=`ct.true_solar`)로
+    위임. 미분류 이름은 `RuntimeError`(fail-closed). `EightChar(_SplitAxisLunar(...))` **한 개**를 만들고
+    `build()`의 나머지 코드는 그대로 둔다.
+  - ★ **패킷 §5-1 골격(두 EightChar 에서 기둥을 골라 담기)을 그대로 쓰지 않은 이유**: 십성·지세·명궁은 전부
+    '일간 기준' 파생값이라, 연·월주만 다른 인스턴스에서 가져오면 **그 인스턴스의 일간**으로 십성이 계산된다.
+    자시 정책(day_offset)·날짜 경계에서 두 축의 일간이 갈리므로(실측 2000-06-15 23:33 → 국지 乙 / 절대 甲)
+    연주 십성이 正官↔七杀, 월주 正印↔偏印, 지세 冠带↔衰 로 조용히 뒤바뀐다(23시대 출생 ≈ 4%).
+    Lunar 층에서 축을 합치면 EightChar 가 언제나 국지축 일간으로 파생값을 계산해 이 사각이 구조적으로 닫힌다.
+  - 자시 `setSect(1)` 는 그대로 유지(국지축 일간에만 작용). **실측 재확인**: 4케이스×남녀 8건에서
+    setSect 유무가 `getYun` 起運·대운 간지를 바꾸지 않음(기존 주석의 전제 검증).
+  - 부수: 기존 Ruff 부채 `F401 datetime.timezone`(미사용 import)이 `timedelta` 교체로 해소됨.
+- 검증(전부 기계 측정, 무LLM·무PDF·무과금):
+  - 전체 `./.venv/Scripts/python.exe -m pytest tests/ -q` = **1227 passed / 4 skipped / exit 0**(200.69s).
+    기준선 1136/4 + 신규 91 = 1227 정확 일치, 기존 감소 0, skip 불변.
+  - golden `-k golden` = **28 passed / exit 0**. 골든 격자 21건의 연·월주·대운수 변경 **0건**(사전 실측으로
+    §8 stop_condition 미발동 확인 후 착수).
+  - `handoff/evidence/20260817-postteller-chart-survey/eot-window-measure.py` →
+    `width_min_max = 0`, `width_min_mean = 0.0`, `terms_with_window = 0` (36개 절입 전수. 교정 전 최대 41+·평균 27.7).
+  - 신규 `tests/test_solar_term_axis.py` **91 passed**. 교정 전 코드 대조 = **21 failed / 70 passed**
+    (그중 12건은 순수 거동 RED, 9건은 신규 상수·헬퍼 부재로 인한 AttributeError — 정직 분리 보고).
+  - Ruff `All checks passed!` · py_compile exit 0 · `git diff --check` exit 0.
+- 영향 범위 **재실측**(재현 조건: `random.Random(20260817)`, N=3,000, 1950-01-01~2020-01-01 균등, 성별 50%):
+  연주 0건 · 월주 **2건(0.067%)** · 일주 0 · 시주 0 ·
+  **대운수 21건(0.700%)**. 패킷 §2-5 `fix-impact.json` 은 `N=3000 / daewoon_start_changed=17`(0.57%)이고
+  **표본 추출 조건이 기록돼 있지 않아 동일 표본 재현은 불가**하다. 두 값 차이는 Poisson σ≈4.1 안(21 = 17+1σ) —
+  §8 의 "0.57% 를 크게 벗어남"에 해당하지 않는다고 판단하되 **수치는 숨기지 않고 보고**한다. 월주 2건은
+  경계 폭 이론치(연 0.063%)와 일치하며, 축 교정이 의도한 바로 그 구간이다.
+  `data/orders.sqlite` APPROVED 0 · 발송 0(패킷 §10-2 운영자 실측)이라 소급 영향은 없다.
+- **파생 결과(운영자 인지 필요) — 명리↔자미 불일치 창은 넓어지지 않고 '이동'했다**:
+  `crosscheck.bazi_consistent=False` → `pipeline.calc_consistent=False` → `order_flow` **CALC_MISMATCH 주문 차단**
+  (절대규칙 7). 자미(iztro)는 이번 패킷 forbidden 이라 교정 대상이 아니므로, 명리만 정확해지면 경계에서 둘이
+  갈린다. **같은 스크립트로 교정 전/후를 재측정**: 3개 절입 ±40분(243분) 중 불일치 = **교정 전 47분 → 교정 후 48분**
+  (총 폭 사실상 불변). 위치만 실제 절입에 맞게 이동했다(예: 2000 입춘 −13..+5분 → +1..+5분).
+  즉 차단 부담이 새로 생긴 게 아니라, **fail-closed 가 이제 올바른 지점에서 자미 결함을 표면화**한다.
+- 축 혼합 지점 확인: `shinsal_mod.gongmang(년주 ganzhi=절대축, 일주 ganzhi=국지축)` 은 lunar-python API 가 아니라
+  **보고된 기둥 간지로 자체 산술**하므로(docs/03 line 24 결정) 리포트에 표시되는 기둥과 자기정합적이다.
+  `pytest -k "shinsal or gongmang or advanced or p2"` = **34 passed / exit 0**.
+- 사각 인접 탐색(방법론 A-4 — **둘 다 allowed_files 밖이라 수정하지 않고 측정만**):
+  - `sajugen/calc/partner.py:154-160`(궁합 상대 명식)은 **같은 −14분 결함이 그대로 남아 있다**. 경계 5케이스 중
+    **2건 오답**(2000-02-04 21:39 → 庚辰 戊寅, 정답 己卯 丁丑 / 2000-06-05 17:58 → 庚辰 壬午, 정답 庚辰 辛巳).
+    ⚠ 이번 교정으로 **본인(교정됨)과 상대(미교정)가 서로 다른 축**을 쓰게 됐다 — 같은 생년월일시라도 경계에서
+    결과가 갈린다(발생률 ≈ 0.06%). **후속 패킷 1순위 후보.**
+  - `sajugen/calc/three_pillar.py:163-167`은 시민 KST 정오를 투입해 −60분 프레임이지만, `ensure_unambiguous_civil_date`
+    가드가 절입 포함일을 먼저 차단하므로 실제 오차로 이어지지 않는다. 실측: 2000년 366일 중 **가드 차단 12일 /
+    검사 354일 / 월지 불일치 0일**. 결함 아님(구조적으로 닫혀 있음) — 다만 프레임이 우연히 안전한 것이므로 후속
+    패킷에서 축을 명시하는 편이 낫다.
+- 미검증·미수행(정직 보고):
+  - 자미두수 입춘 해상도 결함(iztro 분 미수용, 최대 103분) — 패킷 §11 범위 밖, 별도 패킷.
+  - 대운수 관례(포스텔러 대비 항상 +1) — 패킷 §5-3·§10-3, 이번에 바꾸지 않음.
+  - `docs/16` 품질사고 등재는 allowed_files 밖이라 하지 않았다(패킷 §10-4 운영자 결정 대기).
+  - 실 PDF·실모델·육안 검수·hrun 0.
+- 경계·절차: 수정 = `sajugen/calc/myeongni.py`·`tests/test_solar_term_axis.py`(신규)·`docs/03` 1행.
+  추가로 패킷 §6 실행 명령이 요구한 `handoff/evidence/.../eot-window.json`(추적 파일, allowed_files 밖)이
+  재생성돼 갱신됐다 — 증거 산출물이며 제품 코드 아님. `tests/test_p1.py`는 허용됐으나 변경 불요로 무수정.
+- **handoff 정합**: 착수 시 `handoff.mjs validate` = `HANDOFF_VALID`(packet/notes/review SHA·base ancestor 전부 정합).
+  주의 — `Get-FileHash`(원시 바이트)로 notes SHA 를 대조하면 manifest 값과 달라 보이는데, `manifest-lib.sha256File`
+  이 git 과 같은 기준으로 **CRLF→LF 정규화 후 해싱**하기 때문이다(2026-07-26 실측 주석). 원시 해시로 인계 SHA 를
+  대조하지 말 것. `handoff.mjs`는 repo root 가 아니라 `C:\Users\pc\.ai-harness\handoff.mjs` 에 있다.
+- 검증 세션 확인 포인트: ① §6 표 5행 ② `width_min_max==0` ③ 골든 28·전체 1227/4 ④ 교차검증 완화·삭제 0
+  (`month_branch_crosscheck_ok`·`year_branch_crosscheck_ok` 로직 무변경, 통과하게 만든 방향) ⑤ 십성이
+  국지축 일간 기준인지 ⑥ 경계 밖 비회귀(축 분리 no-op) ⑦ 프록시 축 배정표가 lunar-python 실제 호출 전수를 덮는지.
+
 ## CLAUDE_IMPLEMENTATION_REPORT — ilgan-personality-wiring-20260720 (1e, Claude 직접 구현)
 
 - 판정: **구현 완료 / 신선 Codex read-only 검증 요청**. base HEAD `4837605`, commit·push·LLM·PDF 없음.

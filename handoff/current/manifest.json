@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task_id": "solar-term-axis-fix-20260817",
-  "status": "planned",
-  "base_commit": "ab5e4f11b66a33e144b44bf674d5cd34dd0879a9",
+  "status": "verified",
+  "base_commit": "0e09a3592450a00a1cc82f12ba3afe8793280112",
   "packet_path": "handoff/tasks/solar-term-axis-fix-20260817.md",
   "packet_sha256": "aeda9e14774472e0047312554c5fcdcf36b0b20711eaaf06d373d1e15a5e7dc4",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "6759ad79dc5642784e4069b990641ec0d6af6d0ea272c0513334bf0ac985063e",
+  "notes_sha256": "11b3daf0f0b4601df8bccda160da2c3b0c9001f2a6bdcf42642f9cad0be5ea61",
   "review_path": "REVIEW-FEEDBACK.md",
-  "review_sha256": "1a1c1f47eb6a27cd60e51deec46f6345da141c7b6973d1e8a4d7c43f125acd8d",
-  "next_actor": "claude",
-  "next_action": "명리 절입 시각축 교정 — 구현 착수 가능(운영자 승인 2026-08-17, 패킷 0절). 구현=신선 Claude 세션, 검증=별도 신선 세션 read-only. 결함 2개 상쇄: lunar-python 절기표 CST(-60분) + 진태양시 투입(+45.9분) = -14분. 한쪽만 고치면 -60분으로 악화. 수정=연주/월주/대운은 ct.utc+8h, 일주/시주는 진태양시 유지. 수용기준 전부 기계측정: 기준값 5개(6절 표), eot-window width_min_max==0, 골든 22건 불변, pytest>=1136 exit 0. 대운수 0.57% 변동은 발송 0건이라 수용됨. commit/push/LLM/PDF 금지.",
-  "updated_at": "2026-08-17T07:41:07.218Z"
+  "review_sha256": "4853c3c1f75b20566ecdab5cd52e29da8f1412bf038dc27fa9fb29b964c7f962",
+  "next_actor": "user",
+  "next_action": "교차리뷰 PASS(CODE_PASS) — 블로커 0. 리뷰어 재실행: 전체 1227 passed/4 skipped/exit 0, 기준선 1136/4(감소 0), 신규 91/91, golden 22(-k golden 28), width_min_max=0(36절입 전수), Ruff·py_compile exit 0, 교차검증 완화 0. F-3 docs/16 등재 해소(QI-2026-08-17-01 등재). 운영자 승인으로 구현+리뷰기록+docs/16 커밋 완료(push 없음). 남은 이월 2건 = REVIEW-FEEDBACK.md 2026-08-17 항목(F-1 대운 start_year 0.53~0.83% 이동 → 회귀 핀+앵커 유파 판단, F-2 partner.py 결함 잔존+docstring 거짓화 → 후속 패킷 1순위).",
+  "updated_at": "2026-08-17T09:40:47.181Z"
 }
