@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task_id": "ilgan-personality-wiring-20260720",
+  "status": "verified",
+  "base_commit": "48376056446df72c6c39c1be45f34c5259b9da4b",
+  "packet_path": "handoff/tasks/ilgan-personality-wiring-20260720.md",
+  "packet_sha256": "49698f44a5a081d67ec00f883b5e917f4eb0d225fbc0c8b150c31205bc11fb6a",
+  "notes_path": "implementation-notes.md",
+  "notes_sha256": "ee9740e0a545c8b4095fa5cbf00f7ca15d60966f83024f21cac11ee87310802c",
+  "review_path": "REVIEW-FEEDBACK.md",
+  "review_sha256": "1a1c1f47eb6a27cd60e51deec46f6345da141c7b6973d1e8a4d7c43f125acd8d",
+  "next_actor": "user",
+  "next_action": "1e 명리 일간 성격 배선 Codex round-2 EVIDENCE_SPLIT_PASS(B-1/B-2/B-3 해소·블로커 0). 운영자 commit 완료. 다음 = 1c(폴백 골격 품질·템플릿티 제거) → 1b(회고 검증, 보상 lint 선행) → Stage 1 완료 → 유료 1회 재측정.",
+  "updated_at": "2026-07-20T05:42:25.949Z"
+}

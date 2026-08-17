@@ -1,0 +1,15 @@
+{
+ "n": 100,
+ "true_solar_match_sec_max": 20.3,
+ "bazi_ok": 100,
+ "bazi_ng": 0,
+ "day_vs_kasi_ok": 100,
+ "day_vs_kasi_ng": 0,
+ "roll_cases": 3,
+ "dw_floor": 99,
+ "dw_round": 1,
+ "dw_other": 0,
+ "dw_start_year_ok": 100,
+ "dw_start_year_ng": 0,
+ "ng": []
+}

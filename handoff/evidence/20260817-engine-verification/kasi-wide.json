@@ -1,0 +1,14 @@
+{
+ "rows": 55152,
+ "date_range": [
+  "19000101",
+  "20501231"
+ ],
+ "iljin_match_vs_JDN_oracle": 55152,
+ "iljin_mismatch": 0,
+ "iljin_missing_or_unparsed": 0,
+ "iljin_mismatch_samples": [],
+ "secha_missing": 0,
+ "wolgeon_missing": 1637,
+ "wolgeon_lunar_month_hypothesis": "53515/53515"
+}

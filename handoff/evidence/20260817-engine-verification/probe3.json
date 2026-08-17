@@ -1,0 +1,234 @@
+{
+ "A_late_zi_probe": [
+  {
+   "time_index": 0,
+   "lunar": "一九七五年腊月廿九",
+   "class": "火六局",
+   "ziwei_at": "사",
+   "soul": "명궁"
+  },
+  {
+   "time_index": 12,
+   "lunar": "一九七五年腊月廿九",
+   "class": "火六局",
+   "ziwei_at": "오",
+   "soul": "명궁"
+  },
+  {
+   "time_index": "0 (익일 1976-01-30)",
+   "lunar": "一九七五年腊月三十",
+   "class": "火六局",
+   "ziwei_at": "오",
+   "soul": "명궁"
+  }
+ ],
+ "B_lunar_divergence": {
+  "range": [
+   "1950-01-01",
+   "2020-12-31"
+  ],
+  "step_days": 7,
+  "compared": 3705,
+  "same": 3564,
+  "diff": 141,
+  "unparsed": 0,
+  "diff_rate_pct": 3.806,
+  "samples": [
+   {
+    "solar": "1950-03-19",
+    "iztro": [
+     2,
+     2,
+     false
+    ],
+    "kasi": [
+     2,
+     1,
+     false
+    ]
+   },
+   {
+    "solar": "1950-03-26",
+    "iztro": [
+     2,
+     9,
+     false
+    ],
+    "kasi": [
+     2,
+     8,
+     false
+    ]
+   },
+   {
+    "solar": "1950-04-02",
+    "iztro": [
+     2,
+     16,
+     false
+    ],
+    "kasi": [
+     2,
+     15,
+     false
+    ]
+   },
+   {
+    "solar": "1950-04-09",
+    "iztro": [
+     2,
+     23,
+     false
+    ],
+    "kasi": [
+     2,
+     22,
+     false
+    ]
+   },
+   {
+    "solar": "1950-04-16",
+    "iztro": [
+     2,
+     30,
+     false
+    ],
+    "kasi": [
+     2,
+     29,
+     false
+    ]
+   },
+   {
+    "solar": "1950-06-18",
+    "iztro": [
+     5,
+     4,
+     false
+    ],
+    "kasi": [
+     5,
+     3,
+     false
+    ]
+   },
+   {
+    "solar": "1950-06-25",
+    "iztro": [
+     5,
+     11,
+     false
+    ],
+    "kasi": [
+     5,
+     10,
+     false
+    ]
+   },
+   {
+    "solar": "1950-07-02",
+    "iztro": [
+     5,
+     18,
+     false
+    ],
+    "kasi": [
+     5,
+     17,
+     false
+    ]
+   },
+   {
+    "solar": "1950-07-09",
+    "iztro": [
+     5,
+     25,
+     false
+    ],
+    "kasi": [
+     5,
+     24,
+     false
+    ]
+   },
+   {
+    "solar": "1952-08-24",
+    "iztro": [
+     7,
+     5,
+     false
+    ],
+    "kasi": [
+     7,
+     4,
+     false
+    ]
+   },
+   {
+    "solar": "1952-08-31",
+    "iztro": [
+     7,
+     12,
+     false
+    ],
+    "kasi": [
+     7,
+     11,
+     false
+    ]
+   },
+   {
+    "solar": "1952-09-07",
+    "iztro": [
+     7,
+     19,
+     false
+    ],
+    "kasi": [
+     7,
+     18,
+     false
+    ]
+   },
+   {
+    "solar": "1952-09-14",
+    "iztro": [
+     7,
+     26,
+     false
+    ],
+    "kasi": [
+     7,
+     25,
+     false
+    ]
+   },
+   {
+    "solar": "1954-02-07",
+    "iztro": [
+     1,
+     5,
+     false
+    ],
+    "kasi": [
+     1,
+     4,
+     false
+    ]
+   },
+   {
+    "solar": "1954-02-14",
+    "iztro": [
+     1,
+     12,
+     false
+    ],
+    "kasi": [
+     1,
+     11,
+     false
+    ]
+   }
+  ]
+ }
+}

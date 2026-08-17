@@ -1,0 +1,75 @@
+{
+ "summary": {
+  "years": 8,
+  "myeongni_abs_err_max": 14.0,
+  "myeongni_abs_err_mean": 13.1,
+  "ziwei_abs_err_max": 103.0,
+  "ziwei_abs_err_mean": 55.5
+ },
+ "rows": [
+  {
+   "year": 1985,
+   "ipchun_kst": "1985-02-04 06:11:48.041382",
+   "myeongni_flip": "1985-02-04 05:58:48.041382",
+   "ziwei_flip": "1985-02-04 07:47:48.041382",
+   "myeongni_err_min": -13.0,
+   "ziwei_err_min": 96.0
+  },
+  {
+   "year": 1990,
+   "ipchun_kst": "1990-02-04 11:13:59.602661",
+   "myeongni_flip": "1990-02-04 11:00:59.602661",
+   "ziwei_flip": "1990-02-04 11:46:59.602661",
+   "myeongni_err_min": -13.0,
+   "ziwei_err_min": 33.0
+  },
+  {
+   "year": 1995,
+   "ipchun_kst": "1995-02-04 16:12:50.114136",
+   "myeongni_flip": "1995-02-04 15:59:50.114136",
+   "ziwei_flip": "1995-02-04 17:46:50.114136",
+   "myeongni_err_min": -13.0,
+   "ziwei_err_min": 94.0
+  },
+  {
+   "year": 2000,
+   "ipchun_kst": "2000-02-04 21:40:22.732545",
+   "myeongni_flip": "2000-02-04 21:27:22.732545",
+   "ziwei_flip": "2000-02-04 21:46:22.732545",
+   "myeongni_err_min": -13.0,
+   "ziwei_err_min": 6.0
+  },
+  {
+   "year": 2005,
+   "ipchun_kst": "2005-02-04 02:43:02.803346",
+   "myeongni_flip": "2005-02-04 02:29:02.803346",
+   "ziwei_flip": "2005-02-04 03:46:02.803346",
+   "myeongni_err_min": -14.0,
+   "ziwei_err_min": 63.0
+  },
+  {
+   "year": 2010,
+   "ipchun_kst": "2010-02-04 07:47:50.919800",
+   "myeongni_flip": "2010-02-04 07:34:50.919800",
+   "ziwei_flip": "2010-02-04 07:46:50.919800",
+   "myeongni_err_min": -13.0,
+   "ziwei_err_min": -1.0
+  },
+  {
+   "year": 2015,
+   "ipchun_kst": "2015-02-04 12:58:28.401489",
+   "myeongni_flip": "2015-02-04 12:45:28.401489",
+   "ziwei_flip": "2015-02-04 13:46:28.401489",
+   "myeongni_err_min": -13.0,
+   "ziwei_err_min": 48.0
+  },
+  {
+   "year": 2020,
+   "ipchun_kst": "2020-02-04 18:03:19.813843",
+   "myeongni_flip": "2020-02-04 17:50:19.813843",
+   "ziwei_flip": "2020-02-04 19:46:19.813843",
+   "myeongni_err_min": -13.0,
+   "ziwei_err_min": 103.0
+  }
+ ]
+}

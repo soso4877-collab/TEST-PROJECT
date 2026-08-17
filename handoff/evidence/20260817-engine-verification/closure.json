@@ -1,0 +1,19 @@
+{
+ "third_party_top_level": [
+  "annotated_types",
+  "certifi",
+  "cython_runtime",
+  "iztro_py",
+  "jplephem",
+  "lunar_python",
+  "numpy",
+  "pydantic",
+  "pydantic_core",
+  "sgp4",
+  "skyfield",
+  "typing_extensions",
+  "typing_inspection",
+  "tzdata",
+  "yaml"
+ ]
+}

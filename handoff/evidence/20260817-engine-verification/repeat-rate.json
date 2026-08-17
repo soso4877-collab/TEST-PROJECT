@@ -1,0 +1,111 @@
+{
+ "people": 30,
+ "total_unique_sentences": 2788,
+ "sentences_shared_by_half_or_more": 160,
+ "avg_boilerplate_ratio_pct": 48.8,
+ "avg_sentences_per_doc": 304.1,
+ "per_section": {
+  "appendix_terms": {
+   "docs": 30,
+   "unique_sentences": 23,
+   "boilerplate_sentences": 23,
+   "avg_boilerplate_ratio_pct": 100.0
+  },
+  "closing": {
+   "docs": 30,
+   "unique_sentences": 107,
+   "boilerplate_sentences": 8,
+   "avg_boilerplate_ratio_pct": 47.1
+  },
+  "colophon": {
+   "docs": 30,
+   "unique_sentences": 13,
+   "boilerplate_sentences": 4,
+   "avg_boilerplate_ratio_pct": 80.0
+  },
+  "consult": {
+   "docs": 30,
+   "unique_sentences": 124,
+   "boilerplate_sentences": 11,
+   "avg_boilerplate_ratio_pct": 52.4
+  },
+  "cover": {
+   "docs": 30,
+   "unique_sentences": 30,
+   "boilerplate_sentences": 0,
+   "avg_boilerplate_ratio_pct": 0.0
+  },
+  "flow": {
+   "docs": 30,
+   "unique_sentences": 354,
+   "boilerplate_sentences": 23,
+   "avg_boilerplate_ratio_pct": 60.6
+  },
+  "frame": {
+   "docs": 30,
+   "unique_sentences": 141,
+   "boilerplate_sentences": 14,
+   "avg_boilerplate_ratio_pct": 60.9
+  },
+  "health": {
+   "docs": 30,
+   "unique_sentences": 101,
+   "boilerplate_sentences": 5,
+   "avg_boilerplate_ratio_pct": 38.3
+  },
+  "intro": {
+   "docs": 30,
+   "unique_sentences": 191,
+   "boilerplate_sentences": 6,
+   "avg_boilerplate_ratio_pct": 35.3
+  },
+  "love": {
+   "docs": 30,
+   "unique_sentences": 231,
+   "boilerplate_sentences": 3,
+   "avg_boilerplate_ratio_pct": 19.1
+  },
+  "nature": {
+   "docs": 30,
+   "unique_sentences": 394,
+   "boilerplate_sentences": 12,
+   "avg_boilerplate_ratio_pct": 33.8
+  },
+  "together": {
+   "docs": 30,
+   "unique_sentences": 78,
+   "boilerplate_sentences": 9,
+   "avg_boilerplate_ratio_pct": 74.7
+  },
+  "wonguk": {
+   "docs": 30,
+   "unique_sentences": 222,
+   "boilerplate_sentences": 5,
+   "avg_boilerplate_ratio_pct": 25.6
+  },
+  "work": {
+   "docs": 30,
+   "unique_sentences": 373,
+   "boilerplate_sentences": 4,
+   "avg_boilerplate_ratio_pct": 14.4
+  },
+  "work_job": {
+   "docs": 30,
+   "unique_sentences": 283,
+   "boilerplate_sentences": 2,
+   "avg_boilerplate_ratio_pct": 11.4
+  },
+  "work_wealth": {
+   "docs": 30,
+   "unique_sentences": 113,
+   "boilerplate_sentences": 2,
+   "avg_boilerplate_ratio_pct": 19.9
+  },
+  "ziwei": {
+   "docs": 30,
+   "unique_sentences": 594,
+   "boilerplate_sentences": 27,
+   "avg_boilerplate_ratio_pct": 40.9
+  }
+ }
+}

@@ -1,0 +1,67 @@
+{
+ "n": 100,
+ "true_solar_date_eq_civil_date": 97,
+ "true_solar_date_ne_civil_date": 3,
+ "date_ne_samples": [
+  {
+   "in": "1984-10-10 00:09",
+   "true_solar": "1984-10-09 23:49:45"
+  },
+  {
+   "in": "1930-11-22 00:09",
+   "true_solar": "1930-11-21 23:51:21"
+  },
+  {
+   "in": "1928-03-25 00:24",
+   "true_solar": "1928-03-24 23:45:51"
+  }
+ ],
+ "day_vs_kasi_ok": 97,
+ "day_vs_kasi_roll_ok": 0,
+ "day_vs_kasi_ng": 3,
+ "bazi_vs_oracle_ok": 97,
+ "bazi_vs_oracle_ng": 3,
+ "daewoon_count_floor_match": 99,
+ "daewoon_count_round_match": 1,
+ "daewoon_count_other": 0,
+ "daewoon_start_year_match": 58,
+ "daewoon_start_year_ng": 42,
+ "ng": [
+  {
+   "k": "day-roll",
+   "in": "1984-10-10 00:09",
+   "engine": "丁丑",
+   "kasi_next": "戊寅"
+  },
+  {
+   "k": "bazi",
+   "in": "1984-10-10 00:09",
+   "engine": "甲子 甲戌 丁丑 庚子",
+   "oracle": "甲子 甲戌 戊寅 壬子"
+  },
+  {
+   "k": "day-roll",
+   "in": "1930-11-22 00:09",
+   "engine": "丙子",
+   "kasi_next": "丁丑"
+  },
+  {
+   "k": "bazi",
+   "in": "1930-11-22 00:09",
+   "engine": "庚午 丁亥 丙子 戊子",
+   "oracle": "庚午 丁亥 丁丑 庚子"
+  },
+  {
+   "k": "day-roll",
+   "in": "1928-03-25 00:24",
+   "engine": "甲子",
+   "kasi_next": "乙丑"
+  },
+  {
+   "k": "bazi",
+   "in": "1928-03-25 00:24",
+   "engine": "戊辰 乙卯 甲子 甲子",
+   "oracle": "戊辰 乙卯 乙丑 丙子"
+  }
+ ]
+}

@@ -1,0 +1,426 @@
+{
+ "generated_for": "postteller-chart-survey",
+ "engine_head": "444420d",
+ "note": "우리 엔진 답은 브라우저 조회 전에 동결했다(순환 참조 방지).",
+ "zasi_policy": "JST_2300",
+ "cases": [
+  {
+   "id": "A1",
+   "label": "자시 경계 직전",
+   "why": "일주 전환 직전 1분 — 조자시설이면 여기서 아직 당일",
+   "input": {
+    "date": "2000/06/15",
+    "time": "23:32",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 壬午 甲辰 乙亥",
+    "year": "庚辰",
+    "month": "壬午",
+    "day": "甲辰",
+    "hour": "乙亥",
+    "day_master": "甲",
+    "daewoon_count": 7,
+    "daewoon_forward": true,
+    "singang": "중화",
+    "singang_score": 0,
+    "gongmang": {
+     "day": [
+      "寅",
+      "卯"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "상관격(傷官格)",
+    "yongshin_eokbu": "중화에 가까워 단정이 어려움",
+    "true_solar": "2000-06-15 22:59:22",
+    "eot_minutes": -32.63
+   }
+  },
+  {
+   "id": "A2",
+   "label": "자시 경계 직후",
+   "why": "일주 전환 직후 1분 — 조자시설이면 여기서 익일로 전환",
+   "input": {
+    "date": "2000/06/15",
+    "time": "23:33",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 壬午 乙巳 丙子",
+    "year": "庚辰",
+    "month": "壬午",
+    "day": "乙巳",
+    "hour": "丙子",
+    "day_master": "乙",
+    "daewoon_count": 7,
+    "daewoon_forward": true,
+    "singang": "신약",
+    "singang_score": -2,
+    "gongmang": {
+     "day": [
+      "寅",
+      "卯"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "식신격(食神格)",
+    "yongshin_eokbu": "수(水)",
+    "true_solar": "2000-06-15 23:00:22",
+    "eot_minutes": -32.63
+   }
+  },
+  {
+   "id": "B1",
+   "label": "절입(망종) 직전",
+   "why": "월주 전환 직전 1분 — 절기 시각 정밀도 대조",
+   "input": {
+    "date": "2000/06/05",
+    "time": "17:29",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 辛巳 甲午 壬申",
+    "year": "庚辰",
+    "month": "辛巳",
+    "day": "甲午",
+    "hour": "壬申",
+    "day_master": "甲",
+    "daewoon_count": 0,
+    "daewoon_forward": true,
+    "singang": "신약",
+    "singang_score": -6,
+    "gongmang": {
+     "day": [
+      "辰",
+      "巳"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "식신격(食神格)",
+    "yongshin_eokbu": "수(水)",
+    "true_solar": "2000-06-05 16:58:25",
+    "eot_minutes": -30.58
+   }
+  },
+  {
+   "id": "B2",
+   "label": "절입(망종) 직후",
+   "why": "월주 전환 직후 1분",
+   "input": {
+    "date": "2000/06/05",
+    "time": "17:30",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 壬午 甲午 壬申",
+    "year": "庚辰",
+    "month": "壬午",
+    "day": "甲午",
+    "hour": "壬申",
+    "day_master": "甲",
+    "daewoon_count": 10,
+    "daewoon_forward": true,
+    "singang": "신약",
+    "singang_score": -2,
+    "gongmang": {
+     "day": [
+      "辰",
+      "巳"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "상관격(傷官格)",
+    "yongshin_eokbu": "수(水)",
+    "true_solar": "2000-06-05 16:59:25",
+    "eot_minutes": -30.58
+   }
+  },
+  {
+   "id": "C1",
+   "label": "입춘 연경계 직전",
+   "why": "연주 전환 직전 1분 — 연 기준이 입춘인지 대조",
+   "input": {
+    "date": "2000/02/04",
+    "time": "21:26",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "己卯 丁丑 壬辰 庚戌",
+    "year": "己卯",
+    "month": "丁丑",
+    "day": "壬辰",
+    "hour": "庚戌",
+    "day_master": "壬",
+    "daewoon_count": 9,
+    "daewoon_forward": false,
+    "singang": "신약",
+    "singang_score": -6,
+    "gongmang": {
+     "day": [
+      "午",
+      "未"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "정관격(正官格)",
+    "yongshin_eokbu": "금(金)",
+    "true_solar": "2000-02-04 20:40:03",
+    "eot_minutes": -45.94
+   }
+  },
+  {
+   "id": "C2",
+   "label": "입춘 연경계 직후",
+   "why": "연주 전환 직후 1분",
+   "input": {
+    "date": "2000/02/04",
+    "time": "21:27",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 戊寅 壬辰 庚戌",
+    "year": "庚辰",
+    "month": "戊寅",
+    "day": "壬辰",
+    "hour": "庚戌",
+    "day_master": "壬",
+    "daewoon_count": 9,
+    "daewoon_forward": true,
+    "singang": "신약",
+    "singang_score": -4,
+    "gongmang": {
+     "day": [
+      "午",
+      "未"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "식신격(食神格)",
+    "yongshin_eokbu": "금(金)",
+    "true_solar": "2000-02-04 20:41:03",
+    "eot_minutes": -45.94
+   }
+  },
+  {
+   "id": "D1",
+   "label": "대운 방향 양년 남",
+   "why": "양년(庚辰) 남 = 순행 기대",
+   "input": {
+    "date": "2000/09/09",
+    "time": "10:20",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 乙酉 庚午 辛巳",
+    "year": "庚辰",
+    "month": "乙酉",
+    "day": "庚午",
+    "hour": "辛巳",
+    "day_master": "庚",
+    "daewoon_count": 9,
+    "daewoon_forward": true,
+    "singang": "신강",
+    "singang_score": 2,
+    "gongmang": {
+     "day": [
+      "戌",
+      "亥"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "양인격(羊刃格)",
+    "yongshin_eokbu": "목(木)",
+    "true_solar": "2000-09-09 09:50:34",
+    "eot_minutes": -29.43
+   }
+  },
+  {
+   "id": "D2",
+   "label": "대운 방향 양년 여",
+   "why": "양년 여 = 역행 기대(같은 생일, 성별만 다름)",
+   "input": {
+    "date": "2000/09/09",
+    "time": "10:20",
+    "gender": "여자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 乙酉 庚午 辛巳",
+    "year": "庚辰",
+    "month": "乙酉",
+    "day": "庚午",
+    "hour": "辛巳",
+    "day_master": "庚",
+    "daewoon_count": 0,
+    "daewoon_forward": false,
+    "singang": "신강",
+    "singang_score": 2,
+    "gongmang": {
+     "day": [
+      "戌",
+      "亥"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "양인격(羊刃格)",
+    "yongshin_eokbu": "목(木)",
+    "true_solar": "2000-09-09 09:50:34",
+    "eot_minutes": -29.43
+   }
+  },
+  {
+   "id": "E1",
+   "label": "국내 경도 서울",
+   "why": "서울 좌표 기준 시지",
+   "input": {
+    "date": "2000/03/10",
+    "time": "09:35",
+    "gender": "남자",
+    "city": "서울",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 己卯 丁卯 甲辰",
+    "year": "庚辰",
+    "month": "己卯",
+    "day": "丁卯",
+    "hour": "甲辰",
+    "day_master": "丁",
+    "daewoon_count": 8,
+    "daewoon_forward": true,
+    "singang": "중화",
+    "singang_score": 0,
+    "gongmang": {
+     "day": [
+      "戌",
+      "亥"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "편인격(偏印格)",
+    "yongshin_eokbu": "중화에 가까워 단정이 어려움",
+    "true_solar": "2000-03-10 08:52:35",
+    "eot_minutes": -42.41
+   }
+  },
+  {
+   "id": "E2",
+   "label": "국내 경도 울릉도",
+   "why": "동일 시민시각·울릉도 좌표 — 시지가 갈리는지",
+   "input": {
+    "date": "2000/03/10",
+    "time": "09:35",
+    "gender": "남자",
+    "city": "울릉도",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚辰 己卯 丁卯 乙巳",
+    "year": "庚辰",
+    "month": "己卯",
+    "day": "丁卯",
+    "hour": "乙巳",
+    "day_master": "丁",
+    "daewoon_count": 8,
+    "daewoon_forward": true,
+    "singang": "신강",
+    "singang_score": 2,
+    "gongmang": {
+     "day": [
+      "戌",
+      "亥"
+     ],
+     "year": [
+      "申",
+      "酉"
+     ]
+    },
+    "geukguk": "편인격(偏印格)",
+    "yongshin_eokbu": "금(金)",
+    "true_solar": "2000-03-10 09:08:18",
+    "eot_minutes": -26.7
+   }
+  },
+  {
+   "id": "F1",
+   "label": "해외 뉴욕",
+   "why": "패킷 2-3 대조 케이스 — 현행 엔진은 11시간 오차가 나는 자리",
+   "input": {
+    "date": "1990/05/20",
+    "time": "14:30",
+    "gender": "남자",
+    "city": "뉴욕",
+    "calendar": "양력"
+   },
+   "ours": {
+    "saju": "庚午 辛巳 丙戌 戊子",
+    "year": "庚午",
+    "month": "辛巳",
+    "day": "丙戌",
+    "hour": "戊子",
+    "day_master": "丙",
+    "daewoon_count": 5,
+    "daewoon_forward": true,
+    "singang": "신약",
+    "singang_score": -2,
+    "gongmang": {
+     "day": [
+      "午",
+      "未"
+     ],
+     "year": [
+      "戌",
+      "亥"
+     ]
+    },
+    "geukguk": "건록격(建祿格)",
+    "yongshin_eokbu": "목(木)",
+    "true_solar": "1990-05-21 00:37:31",
+    "eot_minutes": 607.53
+   }
+  }
+ ]
+}

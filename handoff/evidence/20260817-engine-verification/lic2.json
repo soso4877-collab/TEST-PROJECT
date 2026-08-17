@@ -1,0 +1,96 @@
+[
+ {
+  "name": "numpy",
+  "ver": "2.4.5",
+  "license": "",
+  "classifier": []
+ },
+ {
+  "name": "jplephem",
+  "ver": "2.24",
+  "license": "MIT",
+  "classifier": []
+ },
+ {
+  "name": "sgp4",
+  "ver": "2.25",
+  "license": "MIT",
+  "classifier": [
+   "MIT License"
+  ]
+ },
+ {
+  "name": "certifi",
+  "ver": "2026.4.22",
+  "license": "MPL-2.0",
+  "classifier": [
+   "Mozilla Public License 2.0 (MPL 2.0)"
+  ]
+ },
+ {
+  "name": "annotated-types",
+  "ver": "0.7.0",
+  "license": "",
+  "classifier": [
+   "MIT License"
+  ]
+ },
+ {
+  "name": "pydantic-core",
+  "ver": "2.46.4",
+  "license": "",
+  "classifier": []
+ },
+ {
+  "name": "typing-extensions",
+  "ver": "4.15.0",
+  "license": "",
+  "classifier": []
+ },
+ {
+  "name": "typing-inspection",
+  "ver": "0.4.2",
+  "license": "",
+  "classifier": []
+ },
+ {
+  "name": "tzdata",
+  "ver": "2026.2",
+  "license": "Apache-2.0",
+  "classifier": []
+ },
+ {
+  "name": "pyyaml",
+  "ver": "6.0.3",
+  "license": "MIT",
+  "classifier": [
+   "MIT License"
+  ]
+ },
+ {
+  "name": "pydantic",
+  "ver": "2.13.4",
+  "license": "",
+  "classifier": []
+ },
+ {
+  "name": "lunar-python",
+  "ver": "1.4.8",
+  "license": "MIT",
+  "classifier": []
+ },
+ {
+  "name": "iztro-py",
+  "ver": "0.3.5",
+  "license": "",
+  "classifier": []
+ },
+ {
+  "name": "skyfield",
+  "ver": "1.54",
+  "license": "MIT",
+  "classifier": [
+   "MIT License"
+  ]
+ }
+]

@@ -1,0 +1,124 @@
+[
+ {
+  "name": "lunar-python",
+  "version": "1.4.8",
+  "License": "MIT",
+  "classifiers": [],
+  "home": "https://github.com/6tail/lunar-python"
+ },
+ {
+  "name": "iztro-py",
+  "version": "0.3.5",
+  "License": "",
+  "classifiers": [],
+  "home": "Homepage, https://github.com/spyfree/iztro-py"
+ },
+ {
+  "name": "skyfield",
+  "version": "1.54",
+  "License": "MIT",
+  "classifiers": [
+   "License :: OSI Approved :: MIT License"
+  ],
+  "home": "http://github.com/brandon-rhodes/python-skyfield/"
+ },
+ {
+  "name": "pymupdf",
+  "version": "1.27.2.3",
+  "License": "Dual Licensed - GNU AFFERO GPL 3.0 or Artifex Commercial License",
+  "classifiers": [],
+  "home": "Documentation, https://pymupdf.readthedocs.io/"
+ },
+ {
+  "name": "playwright",
+  "version": "1.59.0",
+  "License": "",
+  "classifiers": [],
+  "home": "homepage, https://github.com/Microsoft/playwright-python"
+ },
+ {
+  "name": "fastapi",
+  "version": "0.136.1",
+  "License": "",
+  "classifiers": [],
+  "home": "Homepage, https://github.com/fastapi/fastapi"
+ },
+ {
+  "name": "starlette",
+  "version": "1.0.0",
+  "License": "",
+  "classifiers": [],
+  "home": "Homepage, https://github.com/Kludex/starlette"
+ },
+ {
+  "name": "uvicorn",
+  "version": "0.47.0",
+  "License": "",
+  "classifiers": [],
+  "home": "Changelog, https://uvicorn.dev/release-notes"
+ },
+ {
+  "name": "pydantic",
+  "version": "2.13.4",
+  "License": "",
+  "classifiers": [],
+  "home": "Homepage, https://github.com/pydantic/pydantic"
+ },
+ {
+  "name": "instructor",
+  "version": "1.15.1",
+  "License": "MIT",
+  "classifiers": [],
+  "home": "repository, https://github.com/instructor-ai/instructor"
+ },
+ {
+  "name": "anthropic",
+  "version": "0.102.0",
+  "License": "MIT",
+  "classifiers": [
+   "License :: OSI Approved :: MIT License"
+  ],
+  "home": "Homepage, https://github.com/anthropics/anthropic-sdk-python"
+ },
+ {
+  "name": "httpx",
+  "version": "0.28.1",
+  "License": "BSD-3-Clause",
+  "classifiers": [
+   "License :: OSI Approved :: BSD License"
+  ],
+  "home": "Changelog, https://github.com/encode/httpx/blob/master/CHANGELOG.md"
+ },
+ {
+  "name": "python-dotenv",
+  "version": "1.2.2",
+  "License": "BSD-3-Clause",
+  "classifiers": [],
+  "home": "Source, https://github.com/theskumar/python-dotenv"
+ },
+ {
+  "name": "typer",
+  "version": "0.25.1",
+  "License": "",
+  "classifiers": [],
+  "home": "Homepage, https://github.com/fastapi/typer"
+ },
+ {
+  "name": "pyyaml",
+  "version": "6.0.3",
+  "License": "MIT",
+  "classifiers": [
+   "License :: OSI Approved :: MIT License"
+  ],
+  "home": "https://pyyaml.org/"
+ },
+ {
+  "name": "jinja2",
+  "version": "3.1.6",
+  "License": "",
+  "classifiers": [
+   "License :: OSI Approved :: BSD License"
+  ],
+  "home": "Changes, https://jinja.palletsprojects.com/changes/"
+ }
+]
