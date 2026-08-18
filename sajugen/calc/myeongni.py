@@ -102,8 +102,13 @@ class _SplitAxisLunar:
         )
 
 
-def _split_axis_eight_char(ct: CorrectedTime) -> EightChar:
-    """CorrectedTime 하나에서 절대축·국지축을 함께 물린 EightChar 를 만든다."""
+def split_axis_eight_char(ct: CorrectedTime) -> EightChar:
+    """CorrectedTime 하나에서 절대축·국지축을 함께 물린 EightChar 를 만든다.
+
+    공개 함수인 이유: 상대 명식(`calc/partner.py`)도 **같은 축**을 써야 하는데, 거기서
+    `ct.utc + 8h` 를 다시 계산하면 축 불변식이 두 곳에 복제된다(방법론 B-1). 축 프레임 상수와
+    분류표는 이 모듈에만 두고, 다른 소비처는 이 함수만 호출한다.
+    """
     ts = ct.true_solar  # 국지축: 진태양시(경도차+균시차 보정 완료)
     # 절대축: 출생의 절대 순간(UTC)을 lunar-python 절기표 프레임(CST)으로 환산.
     cst = ct.utc.replace(tzinfo=None) + timedelta(
@@ -217,7 +222,7 @@ def _pillar(ec, who: str) -> Pillar:
 def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> Myeongni:
     # 축 분리(2026-08-17): 연주·월주·대운은 절대축(UTC+8 프레임), 일주·시주는 국지축(진태양시).
     # 근거·불변식은 모듈 도크스트링과 LUNAR_PYTHON_TERM_FRAME_UTC_OFFSET_HOURS 주석 참조.
-    ec = _split_axis_eight_char(ct)
+    ec = split_axis_eight_char(ct)
     # 자시 정책(ZasiPolicy) 반영(T2.1/P0-1): ct.day_offset=1 (JST_2300 = 진태양시 23시부터 子시
     # → 일주 익일)이면 setSect(1) 로 일주만 익일 전환한다. lunar-python setSect(1) 은 일주만
     # 바꾸고 시/월/연주·대운(getYun)은 보존한다(실측 2026-08-17 재확인: 4케이스×남녀에서

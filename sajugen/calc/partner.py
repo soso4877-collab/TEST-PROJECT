@@ -9,11 +9,11 @@
 
 from __future__ import annotations
 
-from lunar_python import Solar
 from lunar_python.util import LunarUtil
 from pydantic import BaseModel, Field
 
 from ..input import time_correction as tc
+from .myeongni import split_axis_eight_char
 
 _ELEM = {
     "甲": "木",
@@ -147,14 +147,16 @@ def partner_pillars(
     my_elements: dict[str, int],
     my_yongshin: str = "",
 ) -> PartnerFacts:
-    """상대 명식 계산 + 본인과의 관계 사실. calc/myeongni.build 와 동일 경로
-    (진태양시 보정 → lunar-python EightChar), 자시정책 동일(JST_2300)."""
+    """상대 명식 계산 + 본인과의 관계 사실. calc/myeongni.build 와 **같은 헬퍼**로 축을 만든다.
+
+    시각축(2026-08-17 교정, docs/03 결정표): 연주·월주 = 절대축(lunar-python 절기표 프레임 CST),
+    일주·시주·자시정책 = 국지축(진태양시). 자시정책 기본 JST_2300 고정(policy 인자 없음),
+    대운은 성별 미상으로 산출하지 않는다.
+    축 프레임 상수·분류표는 `calc/myeongni` 단일 소스이며 여기서 재계산하지 않는다.
+    """
     hour_known = hour is not None
     ct = tc.correct(year, month, day, hour if hour_known else 12, minute if hour_known else 0)
-    ts = ct.true_solar
-    ec = (
-        Solar.fromYmdHms(ts.year, ts.month, ts.day, ts.hour, ts.minute, 0).getLunar().getEightChar()
-    )
+    ec = split_axis_eight_char(ct)
     # 자시 정책 반영(T2.1/P0-1, myeongni 와 동일): day_offset=1 이면 일주만 익일 전환.
     if ct.day_offset:
         ec.setSect(1)
