@@ -1,6 +1,31 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-08-17 명리 절입 시각축 교정 Claude 구현 완료 — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-08-17 상대 명식 시각축 교정 Claude 구현 완료 — 이 블록 먼저 읽기) =====
+>   [활성] `partner-axis-fix-20260817` **교차리뷰 CODE_PASS(2026-08-18) · 운영자 checkpoint 커밋 단계**.
+>     base HEAD `fae34f7`. LLM·PDF 0, push 0. 선행 패킷 이월 **F-2 단독** 범위(운영자 승인 2026-08-17).
+>   [발주 이력] 이 후속 패킷은 **미발주** 상태였다(handoff/tasks 에 없었고 manifest 는 완료된 선행 태스크를 가리켰다)
+>     → 신규 작성 `handoff/tasks/partner-axis-fix-20260817.md`, base=fae34f7. 운영자 확인 2건 응답: 범위 F-2 단독 / myeongni 헬퍼 공개.
+>   [결함] `calc/partner.py` 가 진태양시 단일축이라 상대 연·월주가 −14분 이르게 전환(경계 5건 중 2건 오답).
+>     `fae34f7` 이후 **본인=교정축 / 상대=미교정축** — 궁합 리포트 한 편 안에서 축이 갈리는 상태였다.
+>   [수정] 2파일. myeongni `_split_axis_eight_char` → **공개 `split_axis_eight_char`**(로직·상수·분류표 무변경, 호출부 1행),
+>     partner 는 `Solar` 직접 호출·`ct.true_solar` 제거 후 그 헬퍼 호출 + `setSect(1)` 유지 + docstring 을 축 분리 사실로 교정.
+>     `ct.utc+8h` 복제 0 — 축 불변식은 myeongni 단일 소스(방법론 B-1).
+>   [검증] 전체 **1255 passed / 4 skipped / exit 0**(2026-08-18 재실행 204.7s. 기준선 1227/4 + 신규 28, 감소 0, skip 불변),
+>     golden `-k golden` **28**(1231 deselected), 관계 4파일 묶음 **74 passed / 0 skipped**(기준선 불변), Ruff·py_compile exit 0.
+>     **교정 전 신규테스트 RED 6 / 20 passed** 는 **rev1 시점(20건 구성) 측정치**이며 rev2 28건 기준 재측정이 아니다
+>     (되돌려야 재측정 가능). 검출력 독립 확인은 REVIEW-FEEDBACK 2026-08-18 §3 legacy 대조 4행이 대신한다.
+>   [감지 구멍 — 근본원인 2층] partner 에는 교차검증 플래그가 없어(myeongni 의 36/36 False 가 partner 엔 부재)
+>     같은 결함이 탐지 신호 없이 잔존했다 → 재발방지 = 본인↔상대 축 일치 불변식 상시 회귀(신규 테스트).
+>     `PartnerFacts` 플래그 신설은 문안·factcheck 파급으로 이번 범위 밖.
+>   [인접 사각 해소] 시각 미상(정오 대입) × 절입 경계 교집합 — 1960~2030 절입 **1704건 전수에서 18건** 판정 갈림.
+>     대표 2건 회귀 고정: 1986-02-04(立春 12:07:41, 교정 전 丙寅 庚寅 → 정답 乙丑 己丑 — 연주까지) · 2011-04-05(淸明 12:11:58).
+>   [이월] **F-1 대운 start_year 앵커**(0.53~0.83% 이동) 미해결 — 유파 판단+docs/03 변경 필요, 정책 결정 전 회귀 핀은
+>     change-detector 라 별도 패킷. `three_pillar.py` −60분 프레임 실오차 0은 **선행 세션 측정 승계**(이번 재측정 아님).
+>   [운영자 판단 필요] `docs/16` QI-2026-08-17-01 의 이월 목록이 아직 F-1·F-2 둘 — F-2 해소 반영은 allowed_files 밖이라 미조치.
+>   [다음] 별도 신선 세션 read-only 검증(경계 5행·축 일치·74 불변·golden 28·1255/4·헬퍼 복제 0) **완료 = CODE_PASS**
+>     (2026-08-18, REVIEW-FEEDBACK 최상단 정본. 비블로커 소견 2) → 운영자 checkpoint 커밋 → F-1 패킷.
+
+> ===== 압축/새세션 재개 앵커 (2026-08-17 명리 절입 시각축 교정 Claude 구현 완료 · 커밋 fae34f7) =====
 >   [활성] `solar-term-axis-fix-20260817` **구현 완료 · 별도 신선 세션 read-only 검증 대기**.
 >     base HEAD `0e09a35`, 미커밋. commit·push·LLM·PDF 0. manifest `review_requested / next_actor=claude`.
 >   [결함] 상쇄된 두 결함 — (A) lunar-python 절기표가 CST(UTC+8)라 시민 KST 투입 시 −60분,

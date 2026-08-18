@@ -1,5 +1,69 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CLAUDE_IMPLEMENTATION_REPORT — partner-axis-fix-20260817 (상대 명식 시각축 교정, Claude 직접 구현)
+
+- 판정: **구현 완료 / 별도 신선 세션 read-only 검증 요청**. base HEAD `fae34f7`, 미커밋.
+  commit·push·LLM·PDF 재생성 0. 범위 = 선행 패킷 이월 **F-2 단독**(운영자 승인 2026-08-17).
+- **발주 상태 실측(사용자 질문에 대한 답)**: partner 후속 패킷은 "낡은" 게 아니라 **미발주**였다.
+  `handoff/tasks/` 에 파일 없음, manifest 는 완료된 `solar-term-axis-fix-20260817`(status=verified,
+  next_actor=user, base=`0e09a35`, head=`fae34f7`)을 그대로 가리켰다 → 신규 패킷 작성 후 착수.
+- 운영자 확인 2건 응답: (1) 범위 **F-2 단독**(F-1 은 유파 판단 필요 → 별도 패킷), (2) 구현 방식
+  **myeongni 헬퍼 공개**(calc/axis.py 신설 미채택 — diff 확대·골든 회귀 위험).
+- 배경: `partner.py:154-157` 이 `ct.true_solar` 단일축이라 상대 연·월주가 −14분 이르게 전환
+  (선행 리뷰의 legacy 프로브와 동일 구성, 경계 5건 중 **2건 오답**). `fae34f7` 이후 **본인=교정축 /
+  상대=미교정축** — 궁합 리포트 한 편 안에서 축이 갈리는 상태였다. docstring "myeongni.build 와 동일
+  경로(진태양시 보정 → lunar-python EightChar)"도 그 커밋으로 거짓이 됐다.
+- 구현(제품 2파일):
+  - `calc/myeongni.py`: `_split_axis_eight_char` → **공개 `split_axis_eight_char`**(도크스트링에 "왜 공개인가
+    = 축 불변식 단일 소스" 명시) + 내부 호출부 1행. **로직·상수·`_SplitAxisLunar` 분류표 무변경**,
+    `_SplitAxisLunar` 는 비공개 유지.
+  - `calc/partner.py`: `from lunar_python import Solar` 와 `ts = ct.true_solar` 제거 → `split_axis_eight_char(ct)`
+    호출. `if ct.day_offset: ec.setSect(1)` 유지(프록시가 `getDay*`/`getTime*` 를 국지축으로 라우팅하므로
+    자시 정책은 국지축에서 그대로 작동). docstring 을 축 분리 사실로 교정(연·월=절대축 / 일·시·자시=국지축,
+    policy 인자 없음·대운 미산출, 축 상수는 myeongni 단일 소스).
+  - **`ct.utc + 8h` 재계산·상수 복제 0** (방법론 B-1 불변식 단일화). `gunghap.py` 호출부 무변경.
+- 검증(전부 기계 측정, 무LLM·무PDF·무과금):
+  - **교정 전 RED 먼저 측정** — 신규 `tests/test_partner_axis.py` = **6 failed / 20 passed**
+    (경계 21:39·17:58 2행 + 본인↔상대 축일치 같은 2행 + 절대프레임 오라클 + docstring 정합). 검출력 실증.
+    **이 RED 수치는 rev1 시점(20건 구성) 측정치이며 rev2(시각 미상×절입 2행 추가) 28건 기준 재측정이 아니다.**
+    교정 전으로 되돌려야 재측정 가능하고 아무도 되돌리지 않았다 — 검출력의 독립 확인은
+    `REVIEW-FEEDBACK.md` 2026-08-18 §3 legacy 대조(판별 4행)가 대신한다.
+  - 교정 후 신규 = **28 passed / exit 0**(rev2 2행 포함).
+  - 전체 `./.venv/Scripts/python.exe -m pytest tests/ -q` = **1255 passed / 4 skipped / exit 0**
+    (2026-08-18 커밋 세션 재실행 204.69s. rev1 시점 1253 은 rev2 2행 추가 전 측정치).
+    기준선 1227/4 + 신규 28 = 1255 정확 일치, 기존 감소 0, skip 불변.
+  - golden `-k golden` = **28 passed**(1231 deselected, exit 0).
+  - 관계 4파일 묶음(`test_partner.py`·`test_gunghap.py`·`test_raw_term_sweep.py`·`test_couple_language.py`)
+    = **74 passed / 0 skipped** — `REVIEW-FEEDBACK.md:1515` 기준선과 동일(경계 밖 케이스 이동 0).
+  - Ruff `All checks passed!`(변경 3파일) · `py_compile` exit 0.
+- 신규 테스트 구성(패킷 §6 4~11): 경계 5행 KASI 기준 대조 / 부분수정(−60분) 차단 앵커 20:41 /
+  본인↔상대 축 일치 5행 + 독립 오라클(비-no-op 전제 자체 단언) / partner 경로 전용 스윕 10표본 +
+  시각 미상 경로 `RuntimeError` 0 / **시각 미상 × 절입 경계 교집합 2행** / 자시 정책 일주 전환
+  (`乙巳`, day_offset==1 전제 단언) / 시각 미상 3주 계약 / docstring 정합.
+- **인접 사각 추가 발견·해소(작업 규율 4)**: 시각 미상은 12:00 KST 를 대입하므로 절입이 12:00 직후인
+  날(교정 전 진태양시 ~11:14 투입 ↔ 교정 후 11:00 CST)에는 판정이 갈린다. 1960~2030 절입 **1704건
+  전수 스캔에서 18건**이 갈렸다(scratchpad 프로브, 제품 코드 무변경). 대표 2건을 회귀로 고정:
+  `1986-02-04`(立春 12:07:41 KST — 교정 전 `丙寅 庚寅` → 정답 `乙丑 己丑`, **연주까지** 갈림),
+  `2011-04-05`(淸明 12:11:58 — 교정 전 `辛卯 壬辰` → 정답 `辛卯 辛卯`). 기대값 근거는 절입 시각이
+  12:00 보다 뒤라 정오 출생이 절입 '전'이라는 물리적 사실이며, 절입 시각 출처는 Skyfield(`solarterms`).
+- 근본원인 2층: `partner.py` 에는 교차검증 플래그가 **없어서**(myeongni 의 36/36 False 신호가 partner 엔
+  부재) 같은 결함이 탐지 신호 없이 잔존했다. 재발방지 = 본인↔상대 축 일치 불변식을 상시 회귀로 고정.
+  `PartnerFacts` 에 교차검증 필드 신설은 문안·factcheck 파급이라 이번 범위 밖(패킷 §9).
+- 문서: `docs/03` 결정표에 "절입 판정 시각축(상대 명식·궁합)" 행 추가. `STATE.md` 재개 앵커 갱신.
+- 미검증·이월(정직 보고): **F-1 대운 start_year 앵커 미해결**(유파 판단+docs/03 변경 필요. 정책 결정 전
+  회귀 핀은 change-detector) / `three_pillar.py` −60분 프레임 "실오차 0"은 **선행 세션 측정치 승계**이며
+  이번 세션 재측정 아님(절대규칙 19) / 자미 입춘 해상도 결함 무관 / 실 PDF·실모델·육안 검수·`hrun` 0건
+  (패킷 요구 아님) / 기발급 리포트 소급 영향은 선행 패킷의 `APPROVED 0·발송 0` 확인을 승계(재측정 안 함) /
+  **partner 의 영향률 수치는 산출하지 않았다** — 교정 전 partner 구성이 교정 전 myeongni 와 동일하므로
+  선행 3,000건 측정(연주 0 · 월주 0.067%)은 **구성상 전이**될 뿐 이번에 실행한 측정이 아니다.
+- **`docs/16` 정합 미조치(운영자 판단 필요)**: `QI-2026-08-17-01` 이 이월로 **F-1·F-2 둘**을 적고 있는데
+  F-2 는 이 작업으로 해소됐다. `docs/16` 은 이 패킷 allowed_files 밖이라 수정하지 않았다.
+- 절차 이탈 기록: 이 패킷은 **작성 세션 == 구현 세션**이다(선행 패킷 §0 의 "작성 세션이 구현하지 않는다"와
+  다름 — 운영자가 같은 세션에 "패킷 갱신 → 구현 시작"을 지시). **자기검증 금지는 유지**하며 검증은 별도
+  신선 세션 read-only 로 남긴다. 수용 기준을 전부 기계 측정치로 둬 리뷰어 판단 의존도를 낮췄다.
+
+---
+
 ## CLAUDE_IMPLEMENTATION_REPORT — solar-term-axis-fix-20260817 (명리 절입 시각축 교정, Claude 직접 구현)
 
 - 판정: **구현 완료 / 별도 신선 세션 read-only 검증 요청**(운영자 승인 2026-08-17, 패킷 §0 — Codex 토큰 부재

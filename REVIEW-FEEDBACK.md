@@ -1,3 +1,115 @@
+# 교차 리뷰 — 2026-08-18 (상대 명식 시각축 교정, 리뷰어: Claude 신선 세션 read-only)
+
+대상: `partner-axis-fix-20260817` 구현(base=HEAD `fae34f7` 위 미커밋) · 구현자: **Claude(패킷 작성 세션)**
+(운영자 승인 예외 2026-08-17, 패킷 §0 — Codex 토큰 부재). 검증자는 구현 세션과 분리된 별도 신선 세션이며
+운영자가 이 세션을 read-only 로 명시 지정했다. 리뷰 중 제품 코드·테스트·`docs/**`·STATE·구현노트 수정 **0**
+(경계 스냅샷 SHA 전수 대조로 실증, 아래 §6). 프로브는 전부 세션 scratchpad(`PYTHONPATH` 주입)에서 실행.
+**구현 세션 보고 수치를 인용하지 않고 리뷰어가 재실행·재도출한 값만 기재한다.**
+
+## 최종 판정: **승인(CODE_PASS)** — 미해결 블로커 0, 기록 소견 2(비블로커)
+
+패킷 §7 `done_when` 11항 전부 리뷰어 재실행 GREEN. §8 `stop_conditions` 미발동.
+판정값은 `verified / next_actor=user` — 이 패킷 §0 은 검증자를 "별도 신선 Claude 세션" **단독**으로 지정하고
+Codex 확인 단계를 두지 않으므로 2026-07-13 교정(Codex 단계 존재 시 `review_requested/codex`)은 적용되지 않는다.
+
+### 1. 인계 무결성
+
+| 검사 | 결과 |
+|---|---|
+| `node handoff.mjs validate --repo C:\Users\pc\test-project` | `HANDOFF_VALID task_id=partner-axis-fix-20260817 status=review_requested next_actor=claude` / exit 0 |
+| HEAD ↔ manifest `base_commit` | `fae34f78900c73f33f39757e8ec3a0aeaa892355` 동일, `merge-base --is-ancestor` exit 0 |
+| 더티·untracked 집합 | 선언된 8파일과 정확히 일치(초과 0) |
+| forbidden_files diff | `gunghap.py`·`content/**`·`render/**`·`three_pillar.py`·`ziwei.py`·`crosscheck.py`·`solarterms.py`·`input/**` = **0줄** |
+
+### 2. 수용 기준 재실행 (전부 이 세션 실측, `./.venv/Scripts/python.exe`)
+
+| 항목 | 패킷 기준 | 리뷰어 실측 |
+|---|---|---|
+| `pytest tests/ -q` | exit 0 · passed ≥ 1227 · skipped == 4 | **1255 passed / 4 skipped / exit 0** (199.21s) |
+| `pytest tests/ -q -k golden` | 28 | **28 passed** (1231 deselected) |
+| 관계 4파일 묶음 | 74 / 0 | **74 passed / 0 skipped** |
+| `tests/test_partner_axis.py` | 신규 GREEN | **28 passed / exit 0** |
+| `ruff check`(변경 3파일) | exit 0 | `All checks passed!` / exit 0 |
+| `py_compile`(변경 3파일) | exit 0 | exit 0 |
+
+변경 Python 수집은 `git diff --name-only` ∪ `git ls-files --others --exclude-standard` 합집합으로
+untracked 신규 테스트까지 포함해 Ruff·py_compile 을 돌렸다(2026-07-12 운영자 교정 ①).
+
+### 3. 독립 오라클 — 구현자 수치 승계 없이 리뷰어가 재도출
+
+- **rev2 절입 2건 재계산**(저장소 Skyfield `solarterms.solar_term_time`):
+  `1986 立春 = 1986-02-04 12:07:41 KST` · `2011 淸明 = 2011-04-05 12:11:58 KST` — 둘 다 12:00 **이후**.
+  따라서 정오 대입 출생은 절입 '전'이고 직전 연·월주가 정답이라는 기대값 근거가 물리적으로 성립한다.
+- **검출력 실측**(구 코드 경로를 scratchpad 에서 재현해 대조): 경계 5행 + rev2 2행 = 7행에서
+  제품 값 **7/7 기대값 일치**, 구 경로(진태양시 단일축)는 **4행에서 갈림** —
+  `2000-02-04 21:39`(己卯丁丑 ↔ 庚辰戊寅) · `2000-06-05 17:58`(庚辰辛巳 ↔ 庚辰壬午) ·
+  `1986-02-04`(乙丑己丑 ↔ 丙寅庚寅, 연주까지) · `2011-04-05`(辛卯辛卯 ↔ 辛卯壬辰).
+  나머지 3행은 상쇄로 구 경로도 통과 → 패킷 §6-5 의 "부분수정 차단 앵커" 논리가 실측으로 확인된다.
+- **인접 사각 "18건" 재측정**: 1960~2030 의 24절기 **1704건 전수 스캔 → 18건**(구현자 주장과 일치).
+  고정된 대표 2건이 그 집합 안에 있고, 연주까지 갈리는 유일한 건이 `1986-02-04` 임도 확인.
+- **프록시 축 오배정 위험 소스 확인**: partner 가 `ec` 에 거는 호출은 `getYear/getMonth/getDay/getTime`
+  + `setSect` 뿐이며(`partner.py:158-172`), `getSolar`·`getJieQiTable`·`getPrevJie`·`getNextJie` 에 닿지 않는다.
+  → myeongni 용으로 옳은 분류가 partner 에서 조용히 어긋날 경로 없음(테스트 7 의 전제가 소스로 성립).
+- **불변식 단일 소스**: `ct.utc + 8h`·`LUNAR_PYTHON_TERM_FRAME_UTC_OFFSET_HOURS` 복제 **0**,
+  `split_axis_eight_char` 참조처 전수 grep = myeongni 정의 1 + myeongni 호출 1 + partner import/호출 2.
+
+### 4. 소견 ①(비블로커) — 증거 기록 자체의 문서-코드 불일치
+
+`implementation-notes.md:26-30` 과 `sajugen/STATE.md:13,24` 는 **1253 passed / 신규 26 / 교정 전 RED 6-of-20**
+으로 적혀 있으나 실측은 **1255 / 28** 이다(manifest `next_action` 만 1255/28 로 정확). rev1 시점 측정치가
+rev2(시각 미상×절입 2행) 추가 후 갱신되지 않은 것으로, **같은 노트의 §35-38 은 이미 28건 구성을 열거**하고
+있어 한 파일 안에서 어긋난다. 완료 주장의 근거 기록(작업규율 2)이 이 태스크가 고치려던 결함
+(방법론 A-5 문서-코드 정합)과 같은 형태로 어긋난 셈이다. 패킷 헤더도 `rev: 1` 인데 §6-11 은 "(rev 2 추가)".
+실측치가 주장치보다 나은 방향(기존 감소 0)이라 판정에는 영향이 없다.
+
+**리뷰어는 이 수치를 고쳐 쓰지 않았다** — 구현자 증거 기록을 리뷰어가 덮으면 "불일치가 검증에 넘어왔다"는
+절차 신호가 지워진다. 교정은 운영자 판단 또는 다음 구현 세션의 일이며, 정본 수치는 위 §2 표가 보유한다.
+
+### 5. 소견 ②(비블로커, 운영자 판단 필요) — 상대 경로 시각 미상 단정
+
+이번 diff 의 결함이 **아니다**(교정은 값을 더 정확하게 만든다). 다만 교정으로 드러난 제품 갭을 기록한다.
+
+**핵심 문장**: 고객 가시 문안이 시각 없이는 정해지지 않는 날의 연·월주를 사실로 단정하며, 고지는 시주만 면책한다.
+
+- `hour=None` 은 실경로 도달 가능하다 — `input/partner.py:28`(`hour: int | None = None`) →
+  `content/builder.py:277,281`. 고객 사연에 날짜만 있고 시각이 없으면 발생한다.
+- `calc/partner.py:158` 이 정오(12:00)를 대입하고, 그 연·월주가 `content/rules.py:2146-2153` 에서
+  "○○년 ○○월 ○○일생" 으로 근거 슬롯에 들어간다. `hour_note`(2142-2144)는 **시주 제외만** 고지한다.
+- 위 §3 의 18일에 태어난 상대는 시각에 따라 연·월주가 갈리는데 하나로 단정된다. 절대규칙 8 이 **본인**에게
+  요구하는 `NEEDS_INFO_TIME_BOUNDARY` 등가 가드가 partner 경로에는 없다(`.claude/rules/calc.md` 동일 취지).
+- 부차: 신규 테스트 11 이 그 가정값을 회귀로 고정해 패킷 §10-1("정책 미결값 동결 = change-detector") 과
+  긴장이 있다. 다만 현행 계약(시각 미상 → 정오)이 명시돼 있는 한 계약 테스트로 방어 가능하므로 부차로 둔다.
+- **미측정**: 기발급 리포트가 이 18일에 걸렸는지(`store/orders` 미조회) / 절대규칙 8 을 상대에게 확장할지
+  (유파·정책 판단이라 리뷰어 결론 대상 아님). → 별도 패킷 + 운영자 결정 사항.
+
+### 6. read-only 실증 · 미검증 고지
+
+- **경계 스냅샷 SHA 전수 대조**: 허용 4파일(`REVIEW-FEEDBACK.md`·`STATE.md`·`implementation-notes.md`·
+  `manifest.json`)을 제외한 dirty+untracked 5파일의 SHA-256 을 리뷰 시작·종료에 동적 수집해 대조 —
+  `docs/03-…`·`handoff/tasks/partner-axis-fix-20260817.md`·`calc/myeongni.py`·`calc/partner.py`·
+  `tests/test_partner_axis.py` **5/5 동일**. 이 세션은 제품·테스트·문서를 바꾸지 않았다.
+- **교정 전 RED 6/20 은 재측정 불가**(제품 코드 되돌리기 필요 = read-only 위반). 구현자 보고이며
+  **rev2 이전 수치**다. 다만 RED-first 가 증명하려던 것(검출력)은 §3 의 legacy 프로브로 판별 4행 전부
+  리뷰어가 독립 확인했다.
+- 실 PDF·실모델·`hrun`·육안 검수 **0건**(패킷 요구 아님). LLM/API 호출 0. commit·push 0.
+- `three_pillar.py` −60분 프레임 "실오차 0" 은 선행 세션 측정치이며 이번 세션 재측정 아님(구현자 고지 승계).
+- `docs/16` QI-2026-08-17-01 이월 목록이 아직 F-1·F-2 둘 — F-2 해소 반영은 allowed_files 밖이라 미조치(운영자 판단).
+
+### 7. 실행한 검증 명령
+
+```
+node C:\Users\pc\.ai-harness\handoff.mjs validate --repo C:\Users\pc\test-project   # HANDOFF_VALID / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q                                       # 1255 passed / 4 skipped / exit 0
+./.venv/Scripts/python.exe -m pytest tests/ -q -k golden                             # 28 passed
+./.venv/Scripts/python.exe -m pytest tests/test_partner.py tests/test_gunghap.py tests/test_raw_term_sweep.py tests/test_couple_language.py -q   # 74 passed / 0 skipped
+./.venv/Scripts/python.exe -m pytest tests/test_partner_axis.py -q                   # 28 passed
+./.venv/Scripts/python.exe -m ruff check sajugen/calc/partner.py sajugen/calc/myeongni.py tests/test_partner_axis.py   # All checks passed!
+./.venv/Scripts/python.exe -m py_compile (동일 3파일)                                 # exit 0
+# scratchpad 프로브 3종(PYTHONPATH 주입, repo 무기록): 절입 재도출 / legacy 대조 7행 / 1704건 전수 스윕
+```
+
+---
+
 # 교차 리뷰 — 2026-08-17 (명리 절입 시각축 교정, 리뷰어: Claude 신선 세션 read-only)
 
 대상: `solar-term-axis-fix-20260817` 구현(base=HEAD `0e09a35` 위 미커밋) · 구현자: **Claude 신선 세션**

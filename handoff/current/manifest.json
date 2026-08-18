@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "solar-term-axis-fix-20260817",
+  "task_id": "partner-axis-fix-20260817",
   "status": "verified",
-  "base_commit": "0e09a3592450a00a1cc82f12ba3afe8793280112",
-  "packet_path": "handoff/tasks/solar-term-axis-fix-20260817.md",
-  "packet_sha256": "aeda9e14774472e0047312554c5fcdcf36b0b20711eaaf06d373d1e15a5e7dc4",
+  "base_commit": "fae34f78900c73f33f39757e8ec3a0aeaa892355",
+  "packet_path": "handoff/tasks/partner-axis-fix-20260817.md",
+  "packet_sha256": "6aab61c7e07e39f0c1f0e9504c56fcfc2dccd286e5c5cf81fe9024ba68e4be75",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "11b3daf0f0b4601df8bccda160da2c3b0c9001f2a6bdcf42642f9cad0be5ea61",
+  "notes_sha256": "25ae1568668e40318dc7f251a8718bc3ae523008eac927497dbb8abddc48786b",
   "review_path": "REVIEW-FEEDBACK.md",
-  "review_sha256": "4853c3c1f75b20566ecdab5cd52e29da8f1412bf038dc27fa9fb29b964c7f962",
+  "review_sha256": "0bbf279968ee094e270a6c234e2ed58e7c4aa93422b3222e16ae8399387414cc",
   "next_actor": "user",
-  "next_action": "교차리뷰 PASS(CODE_PASS) — 블로커 0. 리뷰어 재실행: 전체 1227 passed/4 skipped/exit 0, 기준선 1136/4(감소 0), 신규 91/91, golden 22(-k golden 28), width_min_max=0(36절입 전수), Ruff·py_compile exit 0, 교차검증 완화 0. F-3 docs/16 등재 해소(QI-2026-08-17-01 등재). 운영자 승인으로 구현+리뷰기록+docs/16 커밋 완료(push 없음). 남은 이월 2건 = REVIEW-FEEDBACK.md 2026-08-17 항목(F-1 대운 start_year 0.53~0.83% 이동 → 회귀 핀+앵커 유파 판단, F-2 partner.py 결함 잔존+docstring 거짓화 → 후속 패킷 1순위).",
-  "updated_at": "2026-08-17T09:40:47.181Z"
+  "next_action": "교차리뷰 CODE_PASS(2026-08-18, REVIEW-FEEDBACK 최상단 정본) 후 운영자 checkpoint 커밋 세션. 소견① 증거 수치 교정 완료(notes·STATE 1253/26 → 실측 1255/28, 패킷 rev2). 재실행 1255 passed/4 skipped/exit 0. 다음 = fix(partner)·docs(handoff) 2커밋 후 manifest done 여부 결정. 이월 = F-1 대운 start_year 앵커(유파 판단 필요) · 소견② 상대 시각미상 정오대입이 절입 18일의 연·월주를 단정(NEEDS_INFO_TIME_BOUNDARY 등가 가드 부재), 둘 다 별도 패킷.",
+  "updated_at": "2026-08-18T14:03:18.673Z"
 }
