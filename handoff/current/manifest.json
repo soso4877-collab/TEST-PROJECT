@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "partner-axis-fix-20260817",
-  "status": "verified",
-  "base_commit": "f357ebaa832970804e4d9e5b5125d1513ece59c2",
-  "packet_path": "handoff/tasks/partner-axis-fix-20260817.md",
-  "packet_sha256": "6aab61c7e07e39f0c1f0e9504c56fcfc2dccd286e5c5cf81fe9024ba68e4be75",
+  "task_id": "partner-unknown-time-boundary-20260818",
+  "status": "planned",
+  "base_commit": "c9a5a1fd0150e79291745b3568d3c0179c2619f7",
+  "packet_path": "handoff/tasks/partner-unknown-time-boundary-20260818.md",
+  "packet_sha256": "2ccc0986a69e73cbc5c426dcb2fe91466f6f4d1edca1d32bf6a7283c3fcb6c4a",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "25ae1568668e40318dc7f251a8718bc3ae523008eac927497dbb8abddc48786b",
   "review_path": "REVIEW-FEEDBACK.md",
-  "review_sha256": "0bbf279968ee094e270a6c234e2ed58e7c4aa93422b3222e16ae8399387414cc",
-  "next_actor": "user",
-  "next_action": "운영자 checkpoint 커밋 완료 — 제품 1151483(fix/partner) · 문서 f357eba(docs/handoff). push 0(지시 대기), LLM·PDF 0. 교차리뷰 CODE_PASS 정본 = REVIEW-FEEDBACK.md 최상단 2026-08-18. 소견① 증거 수치 교정 완료(1255 passed/4 skipped/exit 0, golden 28/1231, 신규 28, 패킷 rev2). docs/16 QI-2026-08-17-01 이월 목록 갱신(F-2 해소·F-1 미해결). 다음 = F-1 대운 start_year 앵커 패킷(유파 판단 선행) · 소견② 상대 시각미상 정오대입이 절입 18일의 연·월주를 단정(NEEDS_INFO_TIME_BOUNDARY 등가 가드 부재) 패킷. 둘 다 운영자 발주 대기.",
-  "updated_at": "2026-08-18T14:13:38.089Z"
+  "review_sha256": "8180d0ca67ba04019e46aee8e79050f64df7f14b7eeb08b10e54b6511a1d6c4f",
+  "next_actor": "claude",
+  "next_action": "구현 대기(rev2). 구현자=신선 Claude 세션(설계 세션 아님), 검증=또 다른 신선 세션 read-only. 지시문 정본은 packet 하나. 범위: calc/partner.py 에 ym_time_dependent(술어=ensure_unambiguous_civil_date 재사용·복제 금지) -> rules.py 문안에서 연·월주 제거+고지 확장 -> builder.py partner_gz 축소 -> complements 일주 기준 축소 + 규칙 8-1 문구 그대로 삽입. 테스트 §7 1~9 양방 + 전체 exit 0 / passed>=1255 / skipped==4 / golden 28 / test_partner_axis.py 무변경. 18일 목록 사용 금지(852일 술어가 정본). commit·push·LLM·PDF 0.",
+  "updated_at": "2026-08-18T15:10:06.843Z"
 }
