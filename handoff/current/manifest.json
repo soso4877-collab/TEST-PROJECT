@@ -2,7 +2,7 @@
   "schema_version": 1,
   "task_id": "partner-axis-fix-20260817",
   "status": "verified",
-  "base_commit": "fae34f78900c73f33f39757e8ec3a0aeaa892355",
+  "base_commit": "f357ebaa832970804e4d9e5b5125d1513ece59c2",
   "packet_path": "handoff/tasks/partner-axis-fix-20260817.md",
   "packet_sha256": "6aab61c7e07e39f0c1f0e9504c56fcfc2dccd286e5c5cf81fe9024ba68e4be75",
   "notes_path": "implementation-notes.md",
@@ -10,6 +10,6 @@
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "0bbf279968ee094e270a6c234e2ed58e7c4aa93422b3222e16ae8399387414cc",
   "next_actor": "user",
-  "next_action": "교차리뷰 CODE_PASS(2026-08-18, REVIEW-FEEDBACK 최상단 정본) 후 운영자 checkpoint 커밋 세션. 소견① 증거 수치 교정 완료(notes·STATE 1253/26 → 실측 1255/28, 패킷 rev2). 재실행 1255 passed/4 skipped/exit 0. 다음 = fix(partner)·docs(handoff) 2커밋 후 manifest done 여부 결정. 이월 = F-1 대운 start_year 앵커(유파 판단 필요) · 소견② 상대 시각미상 정오대입이 절입 18일의 연·월주를 단정(NEEDS_INFO_TIME_BOUNDARY 등가 가드 부재), 둘 다 별도 패킷.",
-  "updated_at": "2026-08-18T14:03:18.673Z"
+  "next_action": "운영자 checkpoint 커밋 완료 — 제품 1151483(fix/partner) · 문서 f357eba(docs/handoff). push 0(지시 대기), LLM·PDF 0. 교차리뷰 CODE_PASS 정본 = REVIEW-FEEDBACK.md 최상단 2026-08-18. 소견① 증거 수치 교정 완료(1255 passed/4 skipped/exit 0, golden 28/1231, 신규 28, 패킷 rev2). docs/16 QI-2026-08-17-01 이월 목록 갱신(F-2 해소·F-1 미해결). 다음 = F-1 대운 start_year 앵커 패킷(유파 판단 선행) · 소견② 상대 시각미상 정오대입이 절입 18일의 연·월주를 단정(NEEDS_INFO_TIME_BOUNDARY 등가 가드 부재) 패킷. 둘 다 운영자 발주 대기.",
+  "updated_at": "2026-08-18T14:13:38.089Z"
 }
