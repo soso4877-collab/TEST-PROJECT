@@ -2,14 +2,14 @@
   "schema_version": 1,
   "task_id": "partner-unknown-time-boundary-20260818",
   "status": "verified",
-  "base_commit": "c280a9841f56989d4b23f696e9dda605b4eef7a1",
+  "base_commit": "3d35c212cdd148db2c5c404d5d7efe99424ee82e",
   "packet_path": "handoff/tasks/partner-unknown-time-boundary-20260818.md",
   "packet_sha256": "2ccc0986a69e73cbc5c426dcb2fe91466f6f4d1edca1d32bf6a7283c3fcb6c4a",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "5762518df4aa447f162de307fcf07aa2a54de766b22d1ed47f7d809c865d5814",
+  "notes_sha256": "8b7d8d752135e265654faed9d3ccbabd4eaa6bb936e6d809998e97b26d2262e5",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "c6ed41f8387ce0245121e2eee82c48d28e0e5de91eb3ca776e39d690c8154d56",
   "next_actor": "user",
-  "next_action": "checkpoint commit 결정",
-  "updated_at": "2026-08-19T01:56:33.016Z"
+  "next_action": "checkpoint 커밋 완료 — 19a0862(제품 3 + 신규 테스트 1 + 정책 문서 4, 절대규칙 20 동반) / 3d35c21(인계 기록 4) / 이 회차(커밋 SHA 기록 + 리뷰 소견 N-2 경로 수 10→11 교정). push 0(운영자 지시 대기). 커밋 세션 재확인: pytest 1266 passed / 4 skipped / exit 0. 운영자 결정 대기: manifest 를 status=done / next_actor=none 으로 닫을지(handoff/archive 불변 사본 생성, 1회) vs 다음 패킷(F-1 대운 start_year 앵커 / N-1 rules.py:2147 getattr → 직접 접근 정리)으로 넘길지. N-1 은 제품 코드 변경이라 별도 회차.",
+  "updated_at": "2026-08-19T02:30:32.724Z"
 }

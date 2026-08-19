@@ -106,11 +106,15 @@
   (5) `PartnerFacts.note` 는 소비처 0이라 경계일 문구 불완전이 출력에 닿지 않는다 — 이번엔 두었다.
 - 일주는 억제하지 않았다(패킷 §2-6·§6-6). 시각 미상이면 일주도 진태양시 보정으로 23:32 KST 이후 출생에서
   갈리지만(약 1.9%, 상시) 절대규칙 8이 본인에 대해 이미 수용한 계약이다.
-- forbidden_files 수정 **0**. 최종 `git status --porcelain` 전문(10경로, 전부 allowed_files 안):
+- forbidden_files 수정 **0**. 최종 `git status --porcelain` 전문(**11경로**, 전부 allowed_files 안 —
+  2026-08-19 커밋 세션 교정. 최초 기재 "10경로"는 `M handoff/current/manifest.json` 1건 누락이었고,
+  누락분이 allowed_files 안(`handoff.mjs write` 산출물)이라 "forbidden 등장 0" 결론 자체는 유효했다.
+  리뷰 소견 N-2 — 리뷰 시점에 고치면 이미 스냅샷된 notes 해시와 `HASH_MISMATCH` 가 나므로
+  `handoff.mjs write` 를 도는 이 회차에 동반 교정한다):
   `M .claude/rules/00-immutable.md` · `M .claude/rules/calc.md` · `M docs/03-engine-validation-plan.md` ·
-  `M docs/16-quality-incident-ledger.md` · `M implementation-notes.md` · `M sajugen/STATE.md` ·
-  `M sajugen/calc/partner.py` · `M sajugen/content/builder.py` · `M sajugen/content/rules.py` ·
-  `?? tests/test_partner_unknown_time.py`.
+  `M docs/16-quality-incident-ledger.md` · `M handoff/current/manifest.json` · `M implementation-notes.md` ·
+  `M sajugen/STATE.md` · `M sajugen/calc/partner.py` · `M sajugen/content/builder.py` ·
+  `M sajugen/content/rules.py` · `?? tests/test_partner_unknown_time.py`.
   `tests/test_partner_axis.py`·`calc/myeongni.py`·`calc/three_pillar.py`·`calc/solarterms.py`·`crosscheck.py`·
   `order_flow.py`·`app.py`·`cli.py`·`gunghap.py`·`render/**`·`input/partner.py`·`test_golden_sweep.py`·
   `data/**` 는 이 목록에 **부재**한다.
