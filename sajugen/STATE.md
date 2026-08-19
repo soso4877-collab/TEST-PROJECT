@@ -1,11 +1,15 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-08-19 시각 미상 경계 **교차리뷰 CODE_PASS · checkpoint 커밋 완료** — 이 블록 먼저 읽기) =====
->   [활성] `partner-unknown-time-boundary-20260818` **rev2 · 교차리뷰 CODE_PASS(2026-08-19), 운영자 checkpoint 커밋 완료 · push 0(지시 대기)**.
->     base `c280a98` 위 커밋 3건 — 제품+테스트+정책문서 `19a0862` / 인계 기록 `3d35c21` /
->     커밋 SHA 기록 + N-2 경로 수 교정 = **이 앵커를 담은 커밋 자신**(자기 SHA는 기재 불가 — 해시 스냅샷
->     순서상 write 가 커밋보다 앞선다. `git log --oneline -3` 로 확인). manifest `status=verified / next_actor=user`.
->     커밋 세션 재확인: 전체 **1266 passed / 4 skipped / exit 0**(201.82s), `handoff.mjs validate` exit 0.
+> ===== 압축/새세션 재개 앵커 (2026-08-19 시각 미상 경계 **CODE_PASS · 커밋 완료 · 태스크 마감(done)** — 이 블록 먼저 읽기) =====
+>   [마감] `partner-unknown-time-boundary-20260818` **rev2 · 교차리뷰 CODE_PASS(2026-08-19) · checkpoint 커밋 완료 ·
+>     manifest `status=done / next_actor=none`**(운영자 결정 2026-08-19). `handoff/archive/partner-unknown-time-boundary-20260818.json`
+>     불변 사본 생성됨. **push 0** — 운영자 지시 대기(`origin/main` 대비 21커밋 앞섬).
+>     base `c280a98` 위 커밋 4건 — 제품+테스트+정책문서 `19a0862` / 인계 기록 `3d35c21` /
+>     커밋 SHA 기록 + N-2 교정 `c7e9c78` / 마감(archive) = 이 앵커를 담은 커밋 자신
+>     (자기 SHA는 기재 불가 — 해시 스냅샷 순서상 write 가 커밋보다 앞선다. `git log --oneline -5` 로 확인).
+>     커밋 세션 재확인(HEAD `c7e9c78` 트리): 전체 **1266 passed / 4 skipped / exit 0**(200.51s), `git status --porcelain` 무출력,
+>     `handoff.mjs validate` exit 0. 제품 diff 는 리뷰가 본 것과 동일(`c280a98..HEAD` = partner.py 24 / builder.py 11 / rules.py 16 줄).
+>   [다음 세션] **활성 패킷 없음.** 새 패킷을 발주해야 착수 가능하다 — 후보는 아래 [이월] 참조.
 >   [교차리뷰 — 신선 세션 read-only, 리뷰 전문 = `REVIEW-FEEDBACK.md` 최상단] **블로커 0 / 비블로커 5**.
 >     리뷰어 재실행(구현자 수치 미승계): 전체 **1266 passed / 4 skipped / exit 0**(187.09s), golden **28**,
 >     `test_partner_axis.py` **28 + git diff 0줄**, 관계 4파일 **74**(skip 0), 신규 **11**, ruff `All checks passed!`,
@@ -47,8 +51,9 @@
 >   [비블로커 처리] **N-2 해소**(이 회차에서 implementation-notes 경로 수 10 → 11 교정, `handoff.mjs write` 동반).
 >     **N-1 미해결**(`rules.py:2147` getattr → 직접 접근으로 좁히기 — 제품 코드 변경이라 별도 회차).
 >     N-3·N-4·N-5 는 기록 유지(출력 무영향 / 범위 밖 기지 잔여).
->   [다음] **운영자 결정 대기** — manifest 를 `status=done / next_actor=none` 으로 닫을지(→ `handoff/archive` 에
->     불변 사본 생성, 한 번만), 아니면 다음 패킷(F-1 대운 start_year 앵커 / N-1 정리 회차)으로 넘길지.
+>   [이월 — 다음 패킷 후보] **N-1** `rules.py:2147` getattr → 직접 접근(제품 코드 변경, 소규모) ·
+>     **F-1** 대운 start_year 앵커(유파 판단 + `docs/03` 변경 필요 — 패킷 설계부터) ·
+>     **N-5** factcheck 일상어 동형 예외 / 다인 allow-set 공유(구조 변경, 운영자 판단).
 
 > ===== 압축/새세션 재개 앵커 (2026-08-17 상대 명식 시각축 교정 Claude 구현 완료) =====
 >   [활성] `partner-axis-fix-20260817` **교차리뷰 CODE_PASS(2026-08-18) · 운영자 checkpoint 커밋 완료**.
