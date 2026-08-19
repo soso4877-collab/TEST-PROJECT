@@ -1,3 +1,199 @@
+# 교차 리뷰 — 2026-08-19 (상대 시각 미상 x 절입 경계, 리뷰어: Claude 신선 세션 read-only)
+
+대상: `partner-unknown-time-boundary-20260818` rev2 구현(base=HEAD `c280a98` 위 미커밋) · 구현자 **Claude(구현 세션)**.
+검증자는 구현 세션과 분리된 read-only 신선 세션이다. 리뷰 중 제품 코드·테스트·`docs/**`·`.claude/rules/**`·패킷
+수정 **0**(경계 스냅샷 SHA-256 전수 대조로 실증, 아래 §7). 프로브는 전부 세션 scratchpad에서 `PYTHONPATH` 주입 +
+`./.venv/Scripts/python.exe` 로 실행했고 repo 안에 임시 파일을 만들지 않았다.
+**구현자 보고 수치는 인용하지 않는다 — 아래는 전부 리뷰어가 재실행·재도출한 값이다.**
+
+## 최종 판정: **승인(CODE_PASS)** — 블로커 0, 비블로커 소견 5
+
+판정값 = `verified / next_actor=user`. 이 패킷은 §0 에서 검증자를 신선 Claude 세션 **단독**으로 지정하고
+Codex 확인 단계를 두지 않으므로 PASS 뒤 다음 행위자는 운영자다.
+
+### 1. 인계 무결성
+
+| 검사 | 결과 |
+|---|---|
+| `node handoff.mjs validate --repo C:\Users\pc\test-project` | `HANDOFF_VALID task_id=partner-unknown-time-boundary-20260818 status=review_requested next_actor=claude` / exit 0 |
+| `git log --oneline -1` | `c280a98` |
+| manifest `base_commit` ↔ HEAD | `c280a9841f56989d4b23f696e9dda605b4eef7a1` 동일, `git merge-base --is-ancestor` exit 0 |
+| `git status --short --untracked-files=all` | dirty 10 + untracked 1 = **11경로**, 전부 패킷 `allowed_files` 안. forbidden 등장 0 |
+
+### 2. 재실행 결과 (전부 `./.venv/Scripts/python.exe`)
+
+| 명령 | 출력 | exit |
+|---|---|---|
+| `-m pytest tests/ -q` | `1266 passed, 4 skipped in 187.09s` | 0 |
+| `-m pytest tests/ -q -k golden` | `28 passed, 1242 deselected in 39.90s` | 0 |
+| `-m pytest tests/test_partner_axis.py -q` | `28 passed in 6.80s` | 0 |
+| `git diff -- tests/test_partner_axis.py` | 출력 **0줄**(계약 테스트 무변경 확인) | — |
+| `-m pytest tests/test_partner.py tests/test_gunghap.py tests/test_raw_term_sweep.py tests/test_couple_language.py -q` | `74 passed in 19.67s` (skip 0) | 0 |
+| `-m pytest tests/test_partner_unknown_time.py -q` | `11 passed in 11.69s` | 0 |
+| `-m ruff check <변경 py 4>` | `All checks passed!` | 0 |
+| `-m py_compile <변경 py 4>` | 무출력 | 0 |
+
+변경 py 수집 = `git diff --name-only` ∪ `git ls-files --others --exclude-standard` 의 `*.py`
+= `sajugen/calc/partner.py` · `sajugen/content/builder.py` · `sajugen/content/rules.py` ·
+`tests/test_partner_unknown_time.py` (4건).
+합성 테스트 산출물 외 **PDF 생성 0**. commit·push·LLM 호출·고객 PDF 재생성 **0**.
+
+### 3. 독립 오라클 — 술어가 "재사용"인가가 아니라 "옳은가" (이번 리뷰의 최고 신뢰 증거)
+
+패킷·테스트는 `ensure_unambiguous_civil_date` 재사용을 표본 5건으로 대조한다. 그것은 **복제 0** 을 볼 뿐
+술어의 정답성은 못 본다. 리뷰어는 별도 오라클을 세워 대조했다 — 각 날짜에 대해 실제로 `partner_pillars`
+를 **하루 전 시각에 돌려 연·월주가 갈리는지** 직접 관측하고, 그 결과를 플래그와 비교했다.
+
+- 스윕 = 1990-01-01 ~ 1991-12-31 (730일), 정시 해상도 24시각 → `flag=True` **24일**(= 연 12.0일,
+  패킷의 노출 폭 주장과 일치), 겉보기 mismatch 3건.
+- 그 3건(`1990-01-05`·`1991-07-07`·`1991-12-07`)을 5분·1분 해상도로 재관측한 결과 **전부 실제로 갈렸다**
+  (예: `1991-12-07` 은 분단위에서 `己亥`↔`庚子`). 즉 mismatch 는 리뷰어 오라클의 해상도 artifact 이고
+  **참 mismatch 0/730**.
+- 결론: `ym_time_dependent` == "연·월주가 신고 민간일 안에서 시각에 따라 갈린다" 가 **정확히 일치**한다.
+  과탐(불필요 억제)·미탐(누출) 양쪽 0.
+
+### 4. 독립 판정 항목 (패킷 §7 / 운영자 지정 9항)
+
+**1) 이중 방어가 각각 따로 걸리는가 — PASS.** 경계일 상대 `1986-02-04`(`乙丑`년 `己丑`월 `己卯`일,
+`flag=True`) 한 건으로 두 계층을 분리 관측했다.
+- (a) `rules.partner_block` 출력: `乙丑`/`을축` `False`, `己丑`/`기축` `False`, `기묘` `True`(일주는 유지).
+- (b) `builder.build_report` 실경로 `allow_tokens`: `乙丑`·`己丑` 가 `ganzhi`·`ganzhi_ko` **양쪽에서 부재**,
+  `己卯`/`기묘` 는 존재. `partner_present=True` · `guard.clean=True`.
+- (b2) 축소가 실제 차단으로 이어지는지: `check_with_allow("그분은 을축년 기축월생이에요.")` → **2 violations**,
+  `check_with_allow("그분의 명식은 乙丑 己丑 입니다.")` → **2 violations**, 억제 안 한 일주
+  `"그분은 기묘일주예요."` → **0**(과차단 없음).
+- 배선 폭 확인: `partner_gz` 는 `builder.py:391`(룰 텍스트)·`547`(LLM 후보)·`663`(재시도)·`697`(최종)·
+  `766`(직렬화 `allow_tokens`) 다섯 소비처 전부에 흐른다 — 한 경로만 막고 다른 경로가 새는 구조가 아니다.
+
+**2) `content/rules.py:2147` `getattr(pf, "ym_time_dependent", False)` 판정 → 비블로커 소견 N-1.**
+`partner_block` 호출자를 전수 수집했다: `sajugen/content/builder.py:290` · `tests/test_partner.py:271,291` ·
+`tests/test_raw_term_sweep.py:83` · `tests/test_partner_unknown_time.py:64,70,87,100,255`. **전부 진짜
+`PartnerFacts`** 다(테스트 2곳은 `calc_partner.PartnerFacts(...)` 직접 생성). `SimpleNamespace`·테스트 더블
+등 duck-typing 호출자 **0건**. 따라서 이것은 의도된 duck-typing이 아니라 도달 불가 기본값이며, 방법론 B-2
+(조용한 no-op 금지) 기준으로 직접 접근(`pf.ym_time_dependent`)으로 좁힐 항목이다. **리뷰어는 고치지 않았다.**
+- 같은 플래그를 `builder.py:296` 은 직접 접근으로 읽는다. 두 읽기의 실패 모드를 `builder.py:263-311` 제어
+  흐름으로 확인한 결과는 이렇다(가정적 필드 부재 객체 기준):
+  `blocks.append(rules.partner_block(...))` 가 **먼저** 실행되므로 rules 는 `getattr → False` 로 조용히
+  **억제 없이 문안을 내고 그 문자열이 이미 `blocks` 에 들어간다**. 그 **다음 줄**에서 `pf.ym_time_dependent`
+  가 `AttributeError` → 상대별 `except Exception`(`builder.py:298`, `[partner-skip-one]` stderr)로 잡히고
+  루프가 계속된다. 이 except 는 `blocks` 를 비우지 않고, `partner_text = "\n\n".join(blocks)`(307행)는 그
+  뒤에 돈다 — 바깥 except(`builder.py:309`, `partner_text/partner_gz/partner_spans` 초기화)는 루프 밖 예외
+  전용이다. 따라서 "그 상대를 통째로 skip" 이 아니라 **부분 기록**이다: 연·월주가 든 문안은 남고, 그 상대의
+  allow-set 기여만 **일주까지 포함해 통째로 누락**된다.
+- 결과적으로 이 가정 경로는 조용하지는 않다 — 문안에는 있고 allow-set 에는 없으니 `builder.py:391`
+  `factcheck.check(rt, saju, partner_gz)` 가 **자기 룰 텍스트를 위반으로 잡는다**(시끄러운 실패). 즉 "고객에게
+  조용히 새는" 형태는 아니다. 그래도 억제 판정 자체가 관대한 쪽(fail-open)이 하필 고객 가시 가드라는 비대칭은
+  남으므로 직접 접근으로 좁히는 편이 낫다.
+- 블로커로 올리지 않는 근거: `PartnerFacts` 가 이 필드를 기본 `False` 로 선언하고 있고 duck-typing 호출자가
+  0이라, **현재 트리에서 fail-open 이 발화하는 실경로가 없다**. 잠재 구조 결함이지 현행 누출이 아니다.
+
+**3) 절대규칙 8-1 문구 대조 — PASS(완전 일치).** `.claude/rules/00-immutable.md` 의 8-1 블록과 패킷 §6-5
+확정 초안(`> 8-1.` 인용 블록)을 프로그램으로 추출해 공백 정규화 후 문자열 비교 → **동일(`MATCH: True`)**.
+운영자 확정 문구의 임의 윤문 **0**. `calc.md` 1줄·`docs/03` 결정표 1행도 "비단정 원칙만 확장 / 차단·
+`three_pillar_provenance`·후보 축약은 비확장" 경계를 유지한다(§6-5 요구 충족).
+
+**4) 양방(작업 규율 3) — PASS. 과잉 억제 0.**
+- 비경계일 + 시각 미상(`1999-01-18`): `flag=False`, 문안에 `무인`·`을축`·`경오일주` **전부 존재**, 절기 고지
+  **부재**, allow-set 에 `戊寅`·`무인`·`乙丑`·`庚午` **전부 존재**(문안·allow-set 양 계층 모두 비억제 확인).
+- 경계일 + 시각 **기지**(`2011-04-05 07:00`): `flag=False`, 문안에 `신묘` **존재**, 절기 고지·"시주는 제외"
+  **모두 부재**. 시각을 알면 억제하지 않는다.
+- 파생 축소도 양방: `complements_elems_ko` 는 경계일에만 일주 기준으로 좁아지고 비경계일엔 그대로다.
+
+**5) 테스트 함정 2건 — 둘 다 지켜졌다(소스+프로브 확인).**
+- (a) 결함 주입 간지 `乙丑`(을축)·`己丑`(기축) 은 `factcheck.py:31` 일상어 동형 집합
+  `{계신, 임신, 기사, 무사, 병사, 정사, 기미}` **밖**이다. 그래서 `check_with_allow` 의 한글 분기가 `continue`
+  로 빠지지 않고 실제로 발화한다(위 §4-1 b2 의 2 violations 가 그 실증).
+- (b) `2011-04-05` 의 `辛卯`·`庚寅` 는 리뷰어 프로브 결과 본인 명식(1989-01-02) 허용 집합에 **둘 다 존재**
+  (`辛卯 in own allow-set = True`, `庚寅 = True`). 신규 테스트는 이 둘을 allow-set 부재 단언에 쓰지 않았고
+  T5·T6·T8 은 전부 `1986-02-04` 를 쓴다(소스 확인). 함정 회피 성공.
+
+**6) 한글·한자 양쪽 차단 — PASS(설계 세션 주장 인용 없이 소스 직독).**
+`factcheck.py:111` `"ganzhi_ko": {k for k in (_gz_ko(g) for g in gz) if k}` — 한글 집합이 `gz` 에서 **파생**
+되므로 `extra_ganzhi`(=`partner_gz`) 축소가 두 표기를 동시에 줄인다. `check_with_allow` 는 (1) `_GANZHI_RX`
+한자 분기와 (1b) `_GANZHI_KO_RX` 한글 분기를 **둘 다** 돌린다. 프로브 실측도 `乙丑`/`을축`, `己丑`/`기축` 이
+`ganzhi`·`ganzhi_ko` 양쪽에서 부재임을 확인했다(§4-1 b).
+
+**7) 신규 테스트의 판별력 — 조건부 PASS.**
+- "교정 전 RED 7 / 4 passed"는 제품 되돌리기가 필요해 read-only 로 **재측정 불가**다 → **구현자 보고로 분류**
+  하며 리뷰어가 승계하지 않는다.
+- 대신 no-op 여부를 소스로 확인했다: 억제 케이스와 비억제 케이스가 **서로 다른 값**을 단언하고(T1 부재 ↔ T2
+  존재 ↔ T3 존재), 전제가 깨지면 자기 신고하는 구조다(T5 `assert "의 명식" in consult.rule_text` +
+  `partner_present is True`, T8 `count("의 명식") >= 2`). T4·T5 는 양성 대조(일주 유지)를 함께 단언해 과차단도
+  잡는다.
+- **양성 대조 교란 제거(리뷰어 추가 검증).** `r.allow_tokens` 는 본인+상대 **합집합**이라 `"己卯" in gz` 같은
+  멤버십만으로는 "상대 기여분"을 증명하지 못한다(§4-5 b 가 보여주듯 이 앵커 명식은 실제로 겹침이 흔하다).
+  집합 차 `delta = allow_tokens(본인+상대) - allowed_tokens(본인 단독)` 로 재판정한 결과:
+  - `_CONCERN_ONE`: `delta = {己卯}` — 양성 대조 `己卯` 가 **정확히 상대 기여분**이고 그것 하나뿐이다.
+  - `_CONCERN_TWO`: `delta = {丙寅, 己卯, 甲寅, 癸酉}` — T8 이 단언하는 `癸酉`·`甲寅`·`丙寅`·`己卯` **전부**
+    `in_base=False` → 네 양성 대조 모두 no-op 아님.
+  - `乙丑`·`己丑` 는 본인 단독 집합에도 **부재**라(`in_base=False`) 부재 단언이 "엉뚱한 명식 덕분에 통과"
+    하는 구조가 아니다. 한글 계층도 동일(`기묘`·`을축`·`기축` 전부 `base_ko` 부재).
+  → 테스트 도크스트링의 "겹치지 않는 날짜만 골랐다"는 구현자 주장을 리뷰어가 **실측으로 확인**했다.
+
+**8) 인접 경로 무영향 — PASS(소스+프로브).**
+- `sajugen/gunghap.py:177` `person_facts` 는 `if h is None or mi is None: raise ValueError
+  ("GUNGHAP_UNKNOWN_TIME_UNSUPPORTED: ...")` 로 fail-closed 한다(소스 직독 + 프로브에서 실제 raise 확인).
+  `pair_facts`(`gunghap.py:204`)는 `person_facts` 산출 dict 만 받으므로(호출자 전수: `gunghap.py:332` ←
+  `gunghap.py:978`) 궁합 경로에는 `hour=None` 이 도달할 수 없다. 경계일 참가자(`1986-02-04 10:00`)로 실행한
+  `pair_facts(...).ym_time_dependent` = **False**. 플래그 발화 불가 확인.
+- `PartnerFacts` 생성 지점 전수: 제품 `calc/partner.py:234` 1곳 + 테스트 `test_gunghap.py:343,374` ·
+  `test_partner.py:280` · `test_raw_term_sweep.py:71`. 신규 필드가 **기본값 있는 선언**이라 kwargs 생성
+  4곳 전부 무영향(관계 4파일 74 passed 로 실증).
+- 오행 축소가 `matches_my_yongshin` 을 건드리지 않는 것도 확인(일간 기준이라 무관, T7 대조 테스트 존재).
+
+**9) 기록 정합 — 사실 확인 완료, 미수정(N-2).** `implementation-notes.md:109` 는 `git status --porcelain`
+전문을 "**10경로**"로 적고 10개를 나열하는데 실제는 **11경로**이고 누락분은 `M handoff/current/manifest.json`
+이다(구현자 자진 신고와 일치). "forbidden 등장 0" 이라는 **결론 자체는 유효**하다 — 누락된 1건이 allowed_files
+안(`handoff.mjs write` 산출물)이기 때문이다. `handoff.mjs write` 가 이미 notes 해시를 스냅샷했으므로 지금
+고치면 `HASH_MISMATCH` 가 난다 → **리뷰어는 수정하지 않았다.** 다음 write 를 도는 회차에 함께 교정할 항목.
+
+### 5. 비블로커 소견 (기록 전용 — 리뷰어가 고치지 않음)
+
+| # | 위치 | 내용 | 권고 |
+|---|---|---|---|
+| N-1 | `sajugen/content/rules.py:2147` | `getattr(pf, "ym_time_dependent", False)` — duck-typing 호출자 **0건**인데 기본값이 있어 고객 가시 억제 가드가 fail-open. 같은 플래그를 읽는 `builder.py:296` 은 직접 접근이라 비대칭(§4-2 에 제어 흐름 실확인: 필드 부재 시 문안은 억제 없이 남고 그 상대의 allow-set 기여만 통째 누락 → `builder.py:391` factcheck 가 자기 룰 텍스트를 잡는 시끄러운 실패) | `pf.ym_time_dependent` 직접 접근으로 좁힘. `PartnerFacts` 가 기본 False 를 선언하고 duck-typing 호출자가 0이라 **현행 트리에서 발화 실경로 0** → 별도 회차 처리 가능 |
+| N-2 | `implementation-notes.md:109` | git status 전문 "10경로" ≠ 실제 11경로(`M handoff/current/manifest.json` 누락). 결론("forbidden 0")은 유효 | 다음 `handoff.mjs write` 회차에 동반 교정 |
+| N-3 | `sajugen/content/rules.py:2153-2156` | `ym_dep=True` 일 때도 `pillars` 문자열이 계산만 되고 쓰이지 않는다(사문). 연·월주 **누출은 없다**(`head` 가 `pillars` 를 참조하지 않음) | cosmetic. 정리하면 "억제 시 연·월 문자열을 만들지도 않는다"가 코드로 자명해짐 |
+| N-4 | `sajugen/calc/partner.py:135-138` | `PartnerFacts.note` 문안이 경계일에 불완전("시간 미상으로 시주 제외"만 언급, 연·월주 비단정 미반영). 소비처 **0건**(리뷰어 전수 grep 재확인 — 유일한 `.note` 히트는 `test_integrated_order_flow.py:384` 의 무관한 객체) → 출력 무영향 | 패킷 §12-5 기록과 일치. 소비처가 생기는 시점에 갱신 |
+| N-5 | 구조(패킷 §12-3·§12-4) | (a) factcheck 일상어 동형 예외 7개에 걸리는 간지는 allow-set 축소가 무효 (b) 다인 allow-set 은 주문·토큰 단위라 A 의 억제 간지가 B 의 실간지와 겹치면 허용 | 둘 다 이 패킷 범위 밖 기지 잔여. 운영자 판단 이월 |
+
+### 6. 확인하지 않은 것 / 남은 위험
+
+- **실 PDF·실모델·`hrun`·육안 검수 0건.** 이 리뷰는 유닛·통합 테스트와 파이썬 프로브까지다. 합성 테스트
+  산출물 외 **PDF 생성 0**, LLM 호출 0. `use_llm=False` 경로만 봤으므로 "LLM 이 억제 간지를 되살렸을 때
+  factcheck 가 잡는다"는 **allow-set 대조로만** 증명됐고 실모델 라운드트립으로는 미검증이다(단, 차단 지점이
+  `builder.py:547·663·697` 로 배선돼 있음은 소스로 확인).
+- **"교정 전 RED 7 / 4 passed"는 리뷰어 재측정 불가** → 구현자 보고 그대로 분류. 다만 §4-7 의 no-op 소거와
+  delta 검증이 판별력을 독립적으로 뒷받침한다.
+- 자유문 파서(`input/partner.py`)의 날짜 감지 정확도는 이 패킷·리뷰 범위 밖(별건).
+- 노출 폭 "연 12.0일"은 리뷰어 스윕(1990~1991 에서 24일/2년)으로 **재현**했으나, 패킷의 "임의 시각 오단정
+  확률 ≈0.82%"는 [추정] 표기 그대로 두고 재검증하지 않았다.
+
+### 7. 경계 스냅샷 (리뷰어 무수정 실증)
+
+허용 4파일(`REVIEW-FEEDBACK.md`·`sajugen/STATE.md`·`implementation-notes.md`·`handoff/current/manifest.json`)
+을 뺀 **8경로**의 SHA-256 을 리뷰 시작 시 수집해 scratchpad 에 저장하고 종료 직전 재수집·전수 대조했다.
+대상이 이미 dirty 라 `git status` 목록만으로는 리뷰어 변경을 탐지할 수 없기 때문이다.
+
+대상 8경로: `.claude/rules/00-immutable.md` · `.claude/rules/calc.md` · `docs/03-engine-validation-plan.md` ·
+`docs/16-quality-incident-ledger.md` · `sajugen/calc/partner.py` · `sajugen/content/builder.py` ·
+`sajugen/content/rules.py` · `tests/test_partner_unknown_time.py`.
+
+리뷰 중간(프로브·재실행 종료 시점) 대조에서 이미 8/8 동일이었다. 최종 대조는 §8.
+
+### 8. 종료 시각 재대조 (실행 완료분)
+
+`handoff.mjs write` → `validate` 를 마친 뒤 8경로를 재수집해 시작 스냅샷과 `Compare-Object` 로 대조했다.
+**결과: 차이 0 — `BOUNDARY_OK 8/8 identical`. 리뷰어의 forbidden 경로 수정 0.**
+
+이 회차에서 리뷰어가 실제로 건드린 파일은 `REVIEW-FEEDBACK.md`(본 항목 추가) · `sajugen/STATE.md`(재개 앵커
+갱신) · `handoff/current/manifest.json`(`handoff.mjs write` 산출) **3건**뿐이다. `implementation-notes.md` 는
+허용 4파일에 들어 있으나 §4-9 사유(구현자 write 가 이미 해시를 스냅샷 → 지금 고치면 `HASH_MISMATCH`)로
+**의도적 무수정**이며, manifest 의 `notes_sha256` 이 세션 시작값 `5762518d…` 그대로인 것으로 확인된다.
+`packet_sha256` 도 `2ccc0986…` 로 불변 — 패킷 무수정.
+
+---
+
 # 교차 리뷰 — 2026-08-18 (상대 명식 시각축 교정, 리뷰어: Claude 신선 세션 read-only)
 
 대상: `partner-axis-fix-20260817` 구현(base=HEAD `fae34f7` 위 미커밋) · 구현자: **Claude(패킷 작성 세션)**

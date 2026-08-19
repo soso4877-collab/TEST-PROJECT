@@ -1,20 +1,46 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-08-19 시각 미상 경계 패킷 발주 — 이 블록 먼저 읽기) =====
->   [활성] `partner-unknown-time-boundary-20260818` **rev2 · 발주 완료, 구현 대기**.
->     manifest `status=planned / next_actor=claude`, base `c9a5a1f`. 지시문 정본 = `handoff/tasks/partner-unknown-time-boundary-20260818.md`.
->   [역할 3단 분리 — 운영자 승인 2026-08-19] 설계=이 세션(완료) / 구현=**별도 신선 Claude 세션** / 검증=**또 다른 신선 세션 read-only**.
->     Codex 토큰 부재로 Claude 구현 예외(선행 2건과 동일 조건). Codex 상시 금지(PDF·LLM·commit·push·배포)는 Claude 구현에도 동일 적용.
->   [결함] 사연 파싱 상대가 시각 미상이면 `calc/partner.py:157-158` 이 정오를 대입하고, 그 연·월주가
->     `content/rules.py:2146-2153` 에서 "OO년 OO월 OO일생"으로 **단정**된다. `hour_note` 는 시주만 면책.
->     본인은 같은 상황에서 `NEEDS_INFO_TIME_BOUNDARY` 차단(`order_flow.py:598-603`), 구조화 상대 입력은 시각 필수(`:577-578`) — 사연 파싱 상대만 예외.
->   [노출 폭 실측] 경계일 **852일/1960~2030 = 연 12.0일 = 3.29%**, 경계일 시간대의 24.9% 어긋남, 오단정 확률 ≈0.82% [추정].
->     **"18일"은 폐기** — 그건 축 교정이 정오 판정을 뒤집은 날이다(위 2026-08-17 앵커 정정 참조).
->   [운영자 결정 3건] (나)비단정+(다)고지 흡수 / 절대규칙 8-1 = **비단정 원칙만 확장**(차단·provenance·후보 축약 비확장) / 파생 오행 일주 기준 축소.
->     접수 차단(가-1)·인물 생략(가-2)은 **미채택**.
->   [소급 영향] `orders_total=5`, 상대 감지 0건, 최종 발급·DELIVERED 0회 = 피해 0건. 확인 불가 = 삭제 3주문(PII 파기)·store 우회 직접 렌더.
->   [설계 세션 경계] 제품 코드·테스트 수정 **0**. 프로브는 scratchpad(`PYTHONPATH` + `-m`)에서만. commit 1건(문서)·push 0·LLM 0·PDF 0.
->   [다음] 신선 구현 세션이 패킷 §6 구현 + §7 양방 테스트 → 또 다른 신선 세션 read-only 교차리뷰 → 운영자 checkpoint.
+> ===== 압축/새세션 재개 앵커 (2026-08-19 시각 미상 경계 **교차리뷰 CODE_PASS · 운영자 checkpoint 대기** — 이 블록 먼저 읽기) =====
+>   [활성] `partner-unknown-time-boundary-20260818` **rev2 · 교차리뷰 CODE_PASS(2026-08-19), 운영자 checkpoint 커밋 대기**.
+>     base HEAD `c280a98`, **미커밋**. manifest `status=verified / next_actor=user`.
+>   [교차리뷰 — 신선 세션 read-only, 리뷰 전문 = `REVIEW-FEEDBACK.md` 최상단] **블로커 0 / 비블로커 5**.
+>     리뷰어 재실행(구현자 수치 미승계): 전체 **1266 passed / 4 skipped / exit 0**(187.09s), golden **28**,
+>     `test_partner_axis.py` **28 + git diff 0줄**, 관계 4파일 **74**(skip 0), 신규 **11**, ruff `All checks passed!`,
+>     `py_compile` exit 0. 경계 스냅샷 8경로 SHA-256 **8/8 동일**(리뷰어 수정 0). PDF·LLM·commit·push **0**.
+>   [리뷰 핵심 증거] (1) 이중 방어 **각각 따로** 실측 — 경계일 `1986-02-04` 에서 `乙丑`·`己丑` 가 `partner_block`
+>     문안과 `allow_tokens` 의 `ganzhi`·`ganzhi_ko` **양쪽 부재**, 결함 주입 시 각 2 violations, 일주 `己卯` 는 0.
+>     (2) **독립 오라클** — 하루 24시각(필요 시 분단위) 실산출로 "연·월주가 갈리는가"를 직접 관측해 플래그와 대조,
+>     1990~1991 730일에서 **참 mismatch 0**, `flag=True` 24일 = 연 12.0일(패킷 노출 폭 재현).
+>     (3) 양성 대조 교란 제거 — `allow_tokens` 는 본인+상대 합집합이라 멤버십으론 불충분해 집합 차 `delta` 로 재판정,
+>     `_CONCERN_ONE` `delta={己卯}` / `_CONCERN_TWO` `delta={丙寅,己卯,甲寅,癸酉}` → 테스트 양성 대조 no-op 0.
+>     (4) 절대규칙 8-1 ↔ 패킷 §6-5 확정 문구 **문자열 완전 일치**(임의 윤문 0).
+>   [비블로커 5 — 다음 회차 처리] N-1 `rules.py:2147` `getattr(pf,"ym_time_dependent",False)` 는 duck-typing 호출자
+>     **0건**인데 기본값이 있어 고객 가시 억제 가드가 fail-open(같은 플래그를 `builder.py:296` 은 직접 접근 = 비대칭)
+>     → 직접 접근으로 좁힐 것. N-2 `implementation-notes.md:109` "10경로"≠실제 11(`manifest.json` 누락, 결론은 유효,
+>     HASH_MISMATCH 회피로 미수정). N-3 `pillars` 사문(누출 없음). N-4 `PartnerFacts.note` 소비처 0 재확인.
+>     N-5 factcheck 일상어 동형 예외·다인 allow-set 공유(범위 밖 기지 잔여).
+>     지시문 정본 = `handoff/tasks/partner-unknown-time-boundary-20260818.md`, 구현 보고 = `implementation-notes.md` 최상단.
+>   [역할 3단 분리 — 운영자 승인 2026-08-19] 설계(완료) / 구현=**이 세션(완료)** / 검증=**또 다른 신선 세션 read-only**.
+>     구현 세션은 자기 결과를 검증하지 않는다. Codex 상시 금지(PDF·LLM·commit·push·배포)는 Claude 구현에도 동일 적용 — 전부 **0**.
+>   [결함] 사연 파싱 상대가 시각 미상이면 `calc/partner.py` 가 정오를 대입하고 그 연·월주가 `partner_block` 에서
+>     "OO년 OO월 OO일생"으로 **단정**됐다. 본인은 같은 상황에서 `NEEDS_INFO_TIME_BOUNDARY` 차단 — 사연 파싱 상대만 예외였다.
+>   [수정] 제품 3파일. `PartnerFacts.ym_time_dependent`(기본 False, `hour is None` 일 때만 판정) →
+>     `rules.partner_block` 연·월주 제외 + 고지를 기존 `hour_note` 에 흡수 → **`builder.py` `partner_gz` 축소(실제 방어)** →
+>     `complements_elems_ko` 만 일주 기준 축소(`matches_my_yongshin` 무변경).
+>     판정 술어는 `three_pillar.ensure_unambiguous_civil_date` **재사용**(모듈 상단 import, 순환 없음). **복제 0**.
+>     이 함수는 bool 술어가 아니라 fail-closed 함수라 `NeedsInfoTimeBoundary` **하나만** 좁게 잡아 True 로 매핑한다.
+>   [검증] 전체 **1266 passed / 4 skipped / exit 0**(188.0s. 기준선 1255 + 신규 11, 감소 0, skip 불변),
+>     golden `-k golden` **28**, `test_partner_axis.py` **28 무변경**, 관계 4파일 **74**(기준선 불변),
+>     Ruff `All checks passed!`·`py_compile` exit 0. **교정 전 신규테스트 RED 7 failed / 4 passed**(검출력 실증 — 패킷 요구 1·5·6·7 포함).
+>   [테스트 함정 2건 — 다음 사람이 반드시 알 것] (1) 결함 주입 간지는 `factcheck.py:31` 일상어 동형 집합
+>     (계신·임신·기사·무사·병사·정사·기미) **밖**에서 골라야 한다. (2) `2011-04-05` 의 `辛卯`·`庚寅` 는 본인(1989-01-02)
+>     대운·세운에 **이미 있어** allow-set 부재 단언에 못 쓴다 → T5·T6·T8 은 `1986-02-04` 사용. 둘 다 어기면 조용히 GREEN 이 된다.
+>   [문서] 절대규칙 **8-1** 신설(패킷 §6-5 확정 문구 그대로) · `calc.md` 1줄 · `docs/03` 결정표 1행 · `docs/16` **QI-2026-08-19-01**.
+>   [잔여 미결 — 운영자 확인] (a) factcheck 일상어 동형 예외에 걸리는 간지는 allow-set 축소가 무효(패킷 §12-3),
+>     (b) 다인 allow-set 공유 — A 의 억제 간지가 B 의 실제 간지와 겹치면 허용(§12-4). 둘 다 구조 변경이라 이번 범위 밖.
+>   [미검증] 실 PDF·실모델·`hrun`·육안 검수 0건(합성 테스트 산출물 외 PDF 생성 0). 소급 영향 0건은 설계 세션 실측 승계.
+>   [다음] **운영자 checkpoint 커밋 결정**(교차리뷰 완료 — 재리뷰 불필요). 커밋 시 제품 3 + 문서 4 + 신규 테스트 1
+>     = 8경로가 한 논리 단위(계산 수정 + 테스트 + 골든 동반, 절대규칙 20 충족). 비블로커 N-1·N-2 는 별도 회차.
 
 > ===== 압축/새세션 재개 앵커 (2026-08-17 상대 명식 시각축 교정 Claude 구현 완료) =====
 >   [활성] `partner-axis-fix-20260817` **교차리뷰 CODE_PASS(2026-08-18) · 운영자 checkpoint 커밋 완료**.

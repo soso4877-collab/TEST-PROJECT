@@ -1,5 +1,120 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CLAUDE_IMPLEMENTATION_REPORT — partner-unknown-time-boundary-20260818 (시각 미상 x 절입 경계 비단정, Claude 직접 구현)
+
+- 판정: **구현 완료 / 별도 신선 세션 read-only 교차리뷰 요청**. base HEAD `c280a98`, 미커밋.
+  commit·push·LLM(Anthropic API 포함)·PDF 재생성 **0**. 지시문 정본 = 패킷 rev2 §3~§9.
+- 역할: 설계 세션(패킷 작성) ≠ 이 구현 세션 ≠ 검증 세션. 운영자 승인 2026-08-19(§0, Codex 토큰 부재).
+  이 세션은 **자기 결과를 검증하지 않는다** — 아래 수치는 검증 세션이 재실행할 증거다.
+- 착수 전 전제 3건 실측 일치: `handoff.mjs validate` = `HANDOFF_VALID task_id=partner-unknown-time-boundary-20260818
+  status=planned next_actor=claude` exit 0 / `git log --oneline -2` 최상단 `c280a98` / `git status --porcelain` 무출력(clean).
+  manifest `base_commit=c9a5a1f` 는 HEAD 의 조상(정상).
+
+### 구현 (제품 3파일 + 문서 4파일 + 신규 테스트 1파일)
+
+- `sajugen/calc/partner.py`
+  - `PartnerFacts.ym_time_dependent: bool = False` 신설. **기본 False** 라 합성 `PartnerFacts` 를 직접 만드는
+    기존 테스트(`test_partner.py:280`·`test_raw_term_sweep.py:71`·`test_gunghap.py:343,374`)가 그대로 통과한다.
+  - `partner_pillars` 에서 **`hour is None` 일 때만** 판정. 술어는 `from .three_pillar import
+    NeedsInfoTimeBoundary, ensure_unambiguous_civil_date` **모듈 상단 재사용**이다.
+    **순환 import 없음** — `three_pillar` 는 `myeongni`·`kasi`·`solarterms`·`advanced`·`shinsal`·`config` 를 import 하고
+    그중 어느 것도 `partner` 를 import 하지 않는다(지연 import 불필요, 전체 스위트 exit 0 으로 확인).
+  - **이 함수는 bool 술어가 아니다** — 정상이면 `None` 을 반환하고 경계면 raise 하는 fail-closed 함수라,
+    `except NeedsInfoTimeBoundary` **하나만** 좁게 잡아 True 로 매핑했다(다른 예외는 삼키지 않는다).
+    월건 비교 로직 **복제 0**(방법론 B-1) — `three_pillar.py` 는 읽기만 하고 수정하지 않았다.
+  - 연·월주 **필드 값 자체는 그대로 담는다**(억제는 표시·허용 두 소비처에서만).
+  - `complements_elems_ko` 만 일주(간+지) 기준으로 축소(`elem_pillars` 분기 1줄).
+    `matches_my_yongshin` 은 **무변경** — 이미 일간 오행만 쓴다.
+  - 모듈·함수 docstring 에 8-1 계약 추가. 기존 축 서술("절대축"·"국지축")은 그대로 유지
+    (`test_partner_axis.py:257` docstring 정합 테스트가 계속 GREEN).
+- `sajugen/content/rules.py` (`partner_block`, 2142행 부근)
+  - `ym_time_dependent` 가 True 면 `pillars` 문장을 쓰지 않고 `head = f"{who}은(는) {day_ko}일주"` 로 일주 중심 서술.
+    일주 띠(`d_animal`) 절과 나머지 관계 문장은 현행 유지.
+  - 고지는 **기존 `hour_note` 에 이어붙였다**(별도 문단 신설 없음): " 이 날은 절기가 바뀌는 날이라 태어난
+    시간에 따라 연주와 월주가 갈려, 확정할 수 있는 일주를 중심으로 봤다."
+    AI·도구·자동화 언급 0(절대규칙 18), `client_tone_lint.loanword_lint == []` 단언으로 고정.
+- `sajugen/content/builder.py:292-294` — **실제 방어 배선**. `pf.ym_time_dependent` 면 `gz_all` 에
+  `(pf.day, pf.hour)` 만 합친다. 문안에서만 빼고 allow-set 에 남기면 LLM 이 되살려도 factcheck 가
+  통과시킨다. `factcheck.py:111` 의 `ganzhi_ko` 가 `gz` 에서 파생되므로 이 축소는 한자·한글 표기를 동시에 막는다.
+- 문서: `.claude/rules/00-immutable.md` 8-1(**패킷 §6-5 확정 문구 그대로**, 임의 수정 0) /
+  `.claude/rules/calc.md` 1줄 / `docs/03` §1 결정표 1행 / `docs/16` **QI-2026-08-19-01** 신설.
+- `sajugen/STATE.md` 재개 앵커 갱신. **18건 프레임 교정은 `c280a98` 에서 이미 끝나 있어 재수정하지 않았다**
+  (STATE.md:39-42 확인 — 패킷 done_when 의 해당 항목은 선행 커밋으로 충족).
+
+### 검증 (전부 이 세션 실행 출력. 무LLM·무PDF 재생성·무커밋)
+
+- **교정 전 RED 먼저 측정(검출력 실증)**: `pytest tests/test_partner_unknown_time.py -q` = **7 failed / 4 passed**.
+  RED 목록 = 차단방향(T1) · 플래그 경계표(T4) · 술어 단일소스 대조 · allow-set 부재(T5) · 결함주입 차단(T6) ·
+  파생 축소(T7) · 다인 allow-set(T8). 패킷이 요구한 1·5·6·7 전부 포함.
+  통과 4건 = 비경계일 유지(T2) · 시각 기지 무억제(T3) · `matches_my_yongshin` 불변 · PII 0(T9) — 전부 **과탐 감지 방향**이라
+  교정 전에도 GREEN 인 것이 정상이다.
+- 교정 후 신규 = **11 passed / exit 0**.
+- `pytest tests/test_partner_axis.py -q` = **28 passed**(파일 무변경 — `git diff --name-only` 에 부재).
+- 관계 4파일 묶음(`test_partner.py test_gunghap.py test_raw_term_sweep.py test_couple_language.py`)
+  = **74 passed** — `REVIEW-FEEDBACK.md:1515` 기준선과 동일(감소 0). 이 4파일은 **수정하지 않았다**.
+- 전체 `pytest tests/ -q` = **1266 passed / 4 skipped / exit 0**.
+  기준선 1255 + 신규 11 = 1266 정확 일치, 기존 감소 0, skip 불변.
+  **두 번 실행했다** — 제품 수정 직후(187.99s)와 **문서 4파일 편집을 포함한 최종 tree**(191.64s). 둘 다 1266/4/exit 0.
+  문서를 읽는 테스트가 실재하기 때문이다: `tests/test_ai_harness_contract.py` 가 `.claude/rules/00-immutable.md`·
+  `calc.md`·`docs/16` 을 읽고 문자열을 단언한다(단독 실행 **25 passed**). 최종 tree 를 본 적 없는 수치를 보고하지 않는다.
+- `pytest tests/ -q -k golden` = **28 passed / 1242 deselected**(골든 값 불변).
+- `ruff check` (변경 py 4파일 = `git diff --name-only` ∪ `git ls-files --others --exclude-standard`)
+  = **All checks passed!** / `py_compile` 같은 4파일 **exit 0**.
+
+### 테스트 설계에서 의도적으로 고른 것 (검증 세션이 확인할 지점)
+
+- **결함 주입 간지는 `乙丑`(을축)·`己丑`(기축)** — `factcheck.py:31` 일상어 동형 집합
+  (계신·임신·기사·무사·병사·정사·기미) **밖**이다. 안에서 골랐다면 allow-set 축소가 무효인 채 GREEN 이 됐다.
+- **상대 간지가 본인 명식 허용 집합과 겹치지 않는 날짜만** 골랐다. 실측으로 `2011-04-05` 의 `辛卯`·`庚寅` 는
+  본인(1989-01-02) 대운·세운에 **이미 있어** allow-set 단언에 못 쓴다 → T5·T6·T8 은 `1986-02-04`(`乙丑`/`己丑`/`己卯`)를 쓴다.
+  겹치는 날짜로 짰다면 부재 단언이 조용히 무의미해졌다.
+- T5·T8 은 부재 단언 앞에 **fail-closed 전제**를 둔다(`"의 명식" in rule_text`, `partner_present is True`,
+  `count("의 명식") >= 2`). 파서가 날짜를 놓치면 상대 블록이 아예 없어 부재 단언이 공허하게 통과한다.
+- T6 에는 **양성 대조**(`"그분은 기묘일주예요."` 위반 0)를 함께 둬 과차단을 감지한다.
+- T7 은 `1990-06-06`(경계일, `庚午`/`壬午`/`壬寅`)에 합성 `my_elements` 로 부족 오행을 火·水로 두어
+  교정 전 `['화','수']` → 교정 후 `['수']` 를 단언한다. 비경계일 대조행으로 상시 축소(과탐)도 막는다.
+  `_BOUNDARY_A/B` 는 연·월·일주 오행 집합이 같아 이 축소를 드러내지 못해 별 날짜를 골랐다.
+- T8 쌍은 간지가 겹치지 않는 A=`1986-02-04`(경계) / B=`1993-02-14`(비경계, `癸酉`/`甲寅`/`丙寅`)다.
+  겹치는 경우는 토큰 수준 허용이라 원리적으로 분리 불가 — 패킷 §12-4 잔여로 남긴다.
+- PII 0: 입력 날짜·라벨("합성상대")·이름 전부 합성. 실고객 데이터 접근 0.
+
+### 상속하지 않고 이 세션이 직접 확인한 전제 3건 (방법론 A-5 — 팬텀 파트너 형상 회피)
+
+- **`pf.year`·`pf.month` 소비처는 정확히 2곳**이라는 패킷 §6-1 주장을 직접 검증했다.
+  `grep -rn "\.year\.ganzhi|\.month\.ganzhi|model_dump" sajugen/` 전수 — PartnerFacts 를 읽는 곳은
+  `content/rules.py:2156`(표시)와 `content/builder.py:292`(allow-set) **둘뿐**이다.
+  나머지 히트(`gunghap.py:190`·`engine.py:122`·`factcheck.py:73`·`pipeline.py:194`·`rules.py:1022,1265`)는 전부
+  `Myeongni`(본인 명식) 객체이며 PartnerFacts 가 아니다. 따라서 억제를 두 소비처에만 걸어도 누수 경로가 없다.
+- **`gunghap` 경로는 이 플래그가 발화할 수 없다.** `gunghap.pair_facts`(`gunghap.py:208`)가 `b["birth"]` 의 시각을
+  그대로 넘기지만, `person_facts`(`gunghap.py:175-180`)가 `h is None or mi is None` 에서
+  `GUNGHAP_UNKNOWN_TIME_UNSUPPORTED` 로 **fail-closed** 한다 → `hour=None` 이 도달 불가 →
+  `ym_time_dependent` 상시 False, 궁합 문안 무영향. `gunghap.py` 는 forbidden 이라 수정도 불필요하다.
+- **`PartnerFacts.note` 소비처 0** 도 재확인했다(§12-5 주장 상속 아님). `grep -rn "\.note\b" sajugen/ --include=*.py`
+  유일 히트는 `cli.py:164` 의 `nd.note`(정규화 결과 객체, 다른 타입)다. 경계일에 note 문구가 불완전해지지만
+  출력에 닿지 않으므로 이번엔 두었다 — 소비처가 생기면 그때 갱신 대상이다.
+
+### 미검증·잔여 (정직 보고)
+
+- **실 PDF·실모델·`hrun`·육안 검수 0건.** 전체 스위트에 합성 렌더 테스트가 있어 PDF/HTML 산출물은 생기지만
+  **합성 테스트 산출물 외 PDF 생성 0**이고 고객 PDF·실상품 재생성·API 호출은 **0**이다.
+- **관계 4파일 74 의 "교정 전" 값은 이 세션이 재측정하지 않았다** — 선행 리뷰 기준선(REVIEW-FEEDBACK:1515)과의
+  대조다. 근거는 그 4파일을 수정하지 않았다는 `git diff --name-only` 이며, 되돌려 재측정하지는 않았다.
+- **소급 영향은 설계 세션 실측(`orders_total=5`·상대 감지 0·발급 0)의 승계**이며 이번 세션 재조회가 아니다.
+- 패킷 §12 미결 2건은 **그대로 미결**이다(이 패킷이 고치지 않는 기존 구조):
+  (3) factcheck 일상어 동형 예외 — 억제 대상이 `임신`·`기사`·`정사`·`기미` 면 allow-set 축소가 무효.
+  (4) 다인 allow-set 공유 — 상대 A 의 억제 간지가 상대 B 의 실제 간지와 겹치면 허용된다.
+  (5) `PartnerFacts.note` 는 소비처 0이라 경계일 문구 불완전이 출력에 닿지 않는다 — 이번엔 두었다.
+- 일주는 억제하지 않았다(패킷 §2-6·§6-6). 시각 미상이면 일주도 진태양시 보정으로 23:32 KST 이후 출생에서
+  갈리지만(약 1.9%, 상시) 절대규칙 8이 본인에 대해 이미 수용한 계약이다.
+- forbidden_files 수정 **0**. 최종 `git status --porcelain` 전문(10경로, 전부 allowed_files 안):
+  `M .claude/rules/00-immutable.md` · `M .claude/rules/calc.md` · `M docs/03-engine-validation-plan.md` ·
+  `M docs/16-quality-incident-ledger.md` · `M implementation-notes.md` · `M sajugen/STATE.md` ·
+  `M sajugen/calc/partner.py` · `M sajugen/content/builder.py` · `M sajugen/content/rules.py` ·
+  `?? tests/test_partner_unknown_time.py`.
+  `tests/test_partner_axis.py`·`calc/myeongni.py`·`calc/three_pillar.py`·`calc/solarterms.py`·`crosscheck.py`·
+  `order_flow.py`·`app.py`·`cli.py`·`gunghap.py`·`render/**`·`input/partner.py`·`test_golden_sweep.py`·
+  `data/**` 는 이 목록에 **부재**한다.
+
 ## CLAUDE_IMPLEMENTATION_REPORT — partner-axis-fix-20260817 (상대 명식 시각축 교정, Claude 직접 구현)
 
 - 판정: **구현 완료 / 별도 신선 세션 read-only 검증 요청**. base HEAD `fae34f7`, 미커밋.
