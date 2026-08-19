@@ -289,9 +289,14 @@ def build_report(
                     blocks.append(
                         rules.partner_block(pf, saju, label=label, lunar_input=lunar_note)
                     )
-                    gz_all |= {
-                        p.ganzhi for p in (pf.year, pf.month, pf.day, pf.hour) if p is not None
-                    }
+                    # 절대규칙 8-1: 연·월주가 비단정이면 허용 토큰에서도 뺀다. 문안에서만
+                    # 빼고 allow-set 에 남기면 LLM 이 되살려도 factcheck 가 통과시킨다.
+                    _allow_pillars = (
+                        (pf.day, pf.hour)
+                        if pf.ym_time_dependent
+                        else (pf.year, pf.month, pf.day, pf.hour)
+                    )
+                    gz_all |= {p.ganzhi for p in _allow_pillars if p is not None}
                 except Exception as e:
                     import sys
 

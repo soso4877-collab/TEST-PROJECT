@@ -4,6 +4,8 @@
 신청 고민에 적힌 상대 생년월일로 연·월·일주를 계산하고, 본인 명식과의 관계
 (십성·천간합·일지 합충·반합·부족 오행 보완)를 사실 슬롯으로 산출한다.
 시각 미상(질문에 사실상 없음) = 정오로 계산하되 시주는 결과에서 제외(절대규칙 8 정신).
+시각 미상 + 신고 날짜 안 월건 전환 = `ym_time_dependent` 로 표시하고 연·월주를 확정 사실로
+쓰지 않는다(절대규칙 8-1). 판정은 `three_pillar.ensure_unambiguous_civil_date` 재사용.
 성별 미상이라 대운은 계산하지 않는다(양남음녀 방향 결정 불가).
 """
 
@@ -14,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from ..input import time_correction as tc
 from .myeongni import split_axis_eight_char
+from .three_pillar import NeedsInfoTimeBoundary, ensure_unambiguous_civil_date
 
 _ELEM = {
     "甲": "木",
@@ -111,6 +114,9 @@ class PartnerFacts(BaseModel):
     """상대방 명식 사실 슬롯 — LLM에는 파생값만 전달(생년월일 원본 비전달, 절대규칙 17)."""
 
     hour_known: bool = False
+    # 시각 미상 + 신고 날짜 안에서 월건 전환 = 연·월주가 시각에 따라 갈린다(절대규칙 8-1).
+    # True 면 표시 계층과 factcheck 허용 토큰 양쪽에서 연·월주를 뺀다(필드 값 자체는 담는다).
+    ym_time_dependent: bool = False
     year: PartnerPillar
     month: PartnerPillar
     day: PartnerPillar
@@ -153,8 +159,19 @@ def partner_pillars(
     일주·시주·자시정책 = 국지축(진태양시). 자시정책 기본 JST_2300 고정(policy 인자 없음),
     대운은 성별 미상으로 산출하지 않는다.
     축 프레임 상수·분류표는 `calc/myeongni` 단일 소스이며 여기서 재계산하지 않는다.
+    시각 미상이고 신고 날짜 안에서 월건이 바뀌면 `ym_time_dependent=True` 로 표시한다
+    (절대규칙 8-1 — 판정 술어는 `three_pillar.ensure_unambiguous_civil_date` 단일 소스).
     """
     hour_known = hour is not None
+    # 시각 미상일 때만 판정한다(시각을 알면 연·월주는 확정 사실이다). 판정 술어는 본인 경로가
+    # 쓰는 three_pillar 단일 소스를 재사용한다 — 월건 비교를 여기 복제하면 불변식이 2곳이 된다.
+    # 이 함수는 술어가 아니라 fail-closed 함수라, 예외를 True 로 매핑해서 플래그를 얻는다.
+    ym_time_dependent = False
+    if not hour_known:
+        try:
+            ensure_unambiguous_civil_date(year, month, day)
+        except NeedsInfoTimeBoundary:
+            ym_time_dependent = True
     ct = tc.correct(year, month, day, hour if hour_known else 12, minute if hour_known else 0)
     ec = split_axis_eight_char(ct)
     # 자시 정책 반영(T2.1/P0-1, myeongni 와 동일): day_offset=1 이면 일주만 익일 전환.
@@ -198,9 +215,11 @@ def partner_pillars(
                 banhap = elem_ko
                 break
 
-    # 상대 명식(시 미상이면 3주)이 품은 오행 — 나의 부족 오행(0~최소치) 보완 여부
+    # 상대 명식(시 미상이면 3주)이 품은 오행 — 나의 부족 오행(0~최소치) 보완 여부.
+    # 연·월주가 비단정이면 그 오행을 근거로 쓸 수 없으므로 일주(간+지)만으로 산출한다.
+    elem_pillars = (pd,) if ym_time_dependent else (py, pm, pd) + ((ph,) if ph else ())
     partner_elems: set[str] = set()
-    for p in (py, pm, pd) + ((ph,) if ph else ()):
+    for p in elem_pillars:
         partner_elems.add(_ELEM[p.gan])
         partner_elems.add(_ELEM[p.zhi])
     weak = [e for e, n in my_elements.items() if n == 0]
@@ -214,6 +233,7 @@ def partner_pillars(
 
     return PartnerFacts(
         hour_known=hour_known,
+        ym_time_dependent=ym_time_dependent,
         year=py,
         month=pm,
         day=pd,

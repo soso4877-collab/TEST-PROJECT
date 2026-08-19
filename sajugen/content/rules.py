@@ -2142,17 +2142,25 @@ def partner_block(pf, saju, label: str = "", lunar_input: bool = False) -> str:
     hour_note = (
         "" if pf.hour_known else " 태어난 시간은 미상이라 시주는 제외, 대운도 산출하지 않았다."
     )
+    # 절대규칙 8-1: 시각 미상 + 신고 날짜 안 월건 전환이면 연·월주를 확정 사실로 쓰지 않는다.
+    # 고지는 별도 문단을 만들지 않고 기존 시각 미상 고지에 흡수한다.
+    ym_dep = bool(getattr(pf, "ym_time_dependent", False))
+    if ym_dep:
+        hour_note += (
+            " 이 날은 절기가 바뀌는 날이라 태어난 시간에 따라 연주와 월주가 갈려,"
+            " 확정할 수 있는 일주를 중심으로 봤다."
+        )
     lunar_note = " 신청 글의 음력 생일을 양력으로 바꿔 계산했다." if lunar_input else ""
+    day_ko = _gz_ko(pf.day.ganzhi)
     pillars = (
-        f"{_gz_ko(pf.year.ganzhi)}년 {_gz_ko(pf.month.ganzhi)}월 {_gz_ko(pf.day.ganzhi)}일"
+        f"{_gz_ko(pf.year.ganzhi)}년 {_gz_ko(pf.month.ganzhi)}월 {day_ko}일"
         + (f" {_gz_ko(pf.hour.ganzhi)}시" if pf.hour_known and pf.hour else "")
     )
+    head = f"{who}은(는) {day_ko}일주" if ym_dep else f"{who}은(는) {pillars}생, 곧 {day_ko}일주"
     lines = [
         f"[{who}의 명식 — 신청 글에 적힌 생년월일 기준.{lunar_note}{hour_note} "
         f"아래는 본인이 아니라 '{who}'의 사실이다]",
-        f"{who}은(는) {pillars}생, 곧 {_gz_ko(pf.day.ganzhi)}일주"
-        + (f", 일주로 보면 {d_animal}의 기운" if d_animal else "")
-        + ".",
+        head + (f", 일주로 보면 {d_animal}의 기운" if d_animal else "") + ".",
         f"{who}의 일간은 {_GAN_KO.get(pf.day.gan, pf.day.gan)}, 오행으로 {pf.day_gan_elem_ko}.",
         f"본인 일간 {my_dm_ko}({my_dm_elem}) 기준으로 {who}의 일간 "
         f"{_J(pf.day_gan_elem_ko, '은는')} {_ss(pf.shishen_to_me)}에 해당한다.",
