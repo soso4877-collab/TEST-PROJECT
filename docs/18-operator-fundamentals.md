@@ -53,8 +53,10 @@
 - 최소권한: 키에 필요한 권한만. 입력 검증은 서버(신뢰 가능한) 측에서.
 - 출처: https://owasp.org/www-project-secure-coding-practices-quick-reference-guide/ ,
   https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html
-- sajugen: block-env-commit.js·pre-commit-security.js 훅이 이중 차단 중. ANTHROPIC_API_KEY·
-  KASI_API_KEY 로테이션 시 .env 만 갱신하면 된다(코드 무수정). /admin 은 무인증이므로 서버는
+- sajugen: 저장소 공용 `.githooks/pre-commit`은 `git config core.hooksPath .githooks`로 1회 배선한 뒤
+  스테이징된 민감 경로와 고신뢰 비밀 형태의 추가 라인을 차단한다. 과거에 적힌 2종은 다른 프로젝트의
+  Claude Code 훅이었고 sajugen Git 훅이 아니었다. 이 훅은 `--no-verify`로 우회 가능하며 기존 이력은 검사하지 않는다.
+  ANTHROPIC_API_KEY·KASI_API_KEY 로테이션 시 .env 만 갱신하면 된다(코드 무수정). /admin 은 무인증이므로 서버는
   반드시 `--host 127.0.0.1` 로만 기동(0.0.0.0 금지).
 
 ## 7. 의존성

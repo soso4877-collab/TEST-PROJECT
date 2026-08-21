@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# 스테이징된 경로와 추가 라인만 검사한다. 작업 트리·커밋 메시지는 읽지 않는다.
+BLOCK_MARKER="COMMIT_SECRET_GUARD_BLOCKED"
+blocked=0
+
+if ! staged_paths=$(git -c core.quotepath=false diff --cached --name-only --diff-filter=ACMR --)
+then
+  echo "COMMIT_SECRET_GUARD_ERROR: cannot read staged paths" >&2
+  exit 2
+fi
+
+while IFS= read -r staged_path
+do
+  [ -n "$staged_path" ] || continue
+
+  # 예제 파일만 명시적으로 허용하고, 나머지 고위험 경로는 강제 추가도 차단한다.
+  case "$staged_path" in
+    .env.example|*/.env.example)
+      ;;
+    .env|*/.env|.env.*|*/.env.*|.auth/*|*/.auth/*|*.pem|*.key|id_rsa*|*/id_rsa*)
+      echo "$BLOCK_MARKER: staged path: $staged_path" >&2
+      blocked=1
+      ;;
+  esac
+done <<EOF
+$staged_paths
+EOF
+
+if ! staged_diff=$(git diff --cached --no-ext-diff --unified=0 --diff-filter=ACMR --)
+then
+  echo "COMMIT_SECRET_GUARD_ERROR: cannot read staged diff" >&2
+  exit 2
+fi
+
+# diff 메타데이터를 제외한 추가 라인에서 고신뢰 비밀 형태 2종만 찾는다.
+if printf '%s\n' "$staged_diff" \
+  | sed -n '/^+++ /d; /^+/p' \
+  | grep -Eq '^\+.*-----BEGIN ([A-Z0-9]+ )*PRIVATE KEY-----|^\+.*sk-ant-[A-Za-z0-9_-]{20,}'
+then
+  echo "$BLOCK_MARKER: staged content matches a private credential pattern" >&2
+  blocked=1
+fi
+
+exit "$blocked"

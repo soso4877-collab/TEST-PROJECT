@@ -1,5 +1,61 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — commit-secret-guard-20260822 (커밋 비밀정보 가드)
+
+- 판정: **BLOCKED_ENV**. 훅·테스트·문서 정정은 구현됐지만 현재 실행 환경이 `.git/config`를 읽기 전용으로
+  제한해 필수 로컬 배선 1건을 영속화하지 못했다. commit·push·PDF 재생성·LLM/API 호출·배포는 모두 0.
+- 활성 지시문: `handoff.mjs validate` →
+  `HANDOFF_VALID task_id=commit-secret-guard-20260822 status=planned next_actor=codex` / exit 0.
+  패킷 SHA-256 `ddb5e275417acd5d190dedebce3b2b5c7d8b3423da41581ccdb703c532ad62a2` 일치.
+  현재 HEAD `b7229aa0a2c3668aad9f3471782b688bcb6ee4c0`; 패킷 원기준 `570dee7`은 HEAD의 조상(exit 0).
+
+### 구현
+
+- `.githooks/pre-commit`: POSIX sh 저장소 공용 훅 신설. `git diff --cached --name-only`의 스테이징 경로와
+  `git diff --cached --unified=0`의 추가 라인만 검사한다. 경로는 `.env`·`.env.*`(`.env.example` 허용)·
+  `.auth/` 하위·`*.pem`·`*.key`·`id_rsa*`, 내용은 PEM 개인키 블록 헤더와 길이 조건을 둔 `sk-ant-` 형태만
+  차단한다. 커밋 메시지·작업 트리·삭제 라인·범용 `key=`·엔트로피 추정은 검사하지 않는다.
+- `tests/test_commit_guard.py`: 정상 1 + 차단 3 + 실제 배선 1 + 오탐 회귀 2 = 7건. throwaway 저장소는
+  `tempfile.TemporaryDirectory`로 시스템 임시 디렉터리에만 만들고 자동 정리한다. 합성 비밀 형태는 테스트
+  런타임 결합으로 만들며 실제 키·고객 데이터는 0.
+- 문서 4곳(`CLAUDE.md`, `AGENTS.md`, `docs/18-operator-fundamentals.md`, `.env.example`)을 실제 1종 훅,
+  1회 배선 명령, `--no-verify` 우회·기존 이력 미검사 한계로 정정했다. 과거 2종은 다른 프로젝트의
+  Claude Code 훅이었다는 사실을 운영 문서에 명시했다.
+
+### 검증과 출력
+
+- **교정 전 RED**: `./.venv/Scripts/python.exe -m pytest tests/test_commit_guard.py -q` →
+  `1 failed, 6 errors in 0.50s` / exit 1. 훅 파일 부재가 6건, `core.hooksPath` 부재가 1건을 검출했다.
+  실패 스택의 throwaway 경로는 `C:/Users/pc/AppData/Local/Temp/sajugen-commit-guard-*`로 저장소 밖임을 확인했다.
+- 구현 후 신규 전체: 같은 명령 → `1 failed, 6 passed in 3.57s` / exit 1. 정상·차단 3종·오탐 2종은 GREEN,
+  실패는 `test_repository_core_hooks_path_is_wired` 하나다.
+- 로컬 배선 시도: `git config --local core.hooksPath .githooks` →
+  `error: could not lock config file .git/config: Permission denied` / exit 255. 테스트를 skip·완화하지 않았다.
+- **훅 수동 실증**:
+  `./.venv/Scripts/python.exe -m pytest tests/test_commit_guard.py::test_staged_pem_private_key_header_is_blocked -q -s`
+  → `COMMIT_SECRET_GUARD_BLOCKED: staged content matches a private credential pattern` + `1 passed in 0.85s` / exit 0.
+- `sh -n .githooks/pre-commit` → 무출력 / exit 0.
+- 기존 테스트만 같은 환경에서:
+  `./.venv/Scripts/python.exe -m pytest tests/ -q --ignore=tests/test_commit_guard.py` →
+  **1238 passed / 32 skipped / exit 0**. 기준환경 `1266 passed / 4 skipped`와 수집 총수 1270이 동일해
+  환경 종속 28건이 pass→skip된 차이이며 기존 테스트 감소 0.
+- 전체: `./.venv/Scripts/python.exe -m pytest tests/ -q` →
+  **1244 passed / 32 skipped / 1 failed / exit 1**. 기존 1238에 신규 기능 GREEN 6건이 정확히 증가했고,
+  신규 배선 1건만 실패했다. 배선 후 기준환경 기대값은 1273 passed / 4 skipped다(미실측).
+- Ruff 전체: `./.venv/Scripts/python.exe -m ruff check tests` → 기존 범위 밖
+  `tests/test_p2.py:10 F401` 1건으로 exit 1. 신규 파일 단독은 `All checks passed!` / exit 0.
+- `git diff --check` → exit 0(LF→CRLF 안내만). 최종 `git status --short --untracked-files=all`은
+  수정 6 + 신규 2 = **8경로**, 전부 패킷 allowed_files 안이다.
+
+### 미검증·남은 조치
+
+- **미검증**: 이 저장소의 영속 `core.hooksPath=.githooks`, 그 상태의 신규 7/7 GREEN 및 전체 exit 0.
+  현재 권한으로 `.git/config`를 수정할 수 없어 확정 불가하다.
+- 운영자가 저장소에서 `git config core.hooksPath .githooks`를 1회 실행한 뒤
+  `./.venv/Scripts/python.exe -m pytest tests/test_commit_guard.py -q`와 전체 pytest를 재실행해야 한다.
+- Linux·CI·기존 Git 이력 secret scan은 패킷 범위 밖이며 미검증. `--no-verify` 우회 가능성은 의도된 잔여다.
+- 허용 파일 밖 수정 0. 저장소 안 임시 스크립트·테스트 저장소 0. 실제 키·고객 PII 0.
+
 ## CLAUDE_IMPLEMENTATION_REPORT — partner-unknown-time-boundary-20260818 (시각 미상 x 절입 경계 비단정, Claude 직접 구현)
 
 - 판정: **구현 완료 / 별도 신선 세션 read-only 교차리뷰 요청**. base HEAD `c280a98`, 미커밋.

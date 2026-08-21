@@ -1,6 +1,6 @@
 # AGENTS.md — sajugen 공유 진실원 (모든 에이전트 공통: Codex·Claude·Cursor)
 
-> 이 문서는 **컨텍스트 제공용**이다. 실제 강제는 코드(`scripts/hpreflight.py`·`scripts/hrun.py`의 검사와 exit code, `sajugen/render/verify.py` 게이트, pytest)와 git hook이 한다. 문서는 강제력이 없다 — 그래서 아래 "Programmatic checks"를 반드시 실행해 증거로 말한다.
+> 이 문서는 **컨텍스트 제공용**이다. 실제 강제층은 코드(`scripts/hpreflight.py`·`scripts/hrun.py`의 검사와 exit code, `sajugen/render/verify.py` 게이트, pytest), `.gitignore`, 로컬 배선된 `.githooks/pre-commit`이다. 훅은 `git config core.hooksPath .githooks` 실행 후 동작하고 `--no-verify`로 우회 가능하다. 문서는 강제력이 없다 — 그래서 아래 "Programmatic checks"를 반드시 실행해 증거로 말한다.
 > Claude Code 는 `CLAUDE.md` 첫 줄의 `@AGENTS.md` import 로 이 문서를 함께 로드한다. 여기 있는 내용은 CLAUDE.md 에 중복 기재하지 않는다(단일 소스).
 
 ## 프로젝트 성격 (절대 망각 금지 — 모든 신규 작업은 착수 전 이 6개조와의 정합부터 확인)

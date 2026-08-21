@@ -1,5 +1,19 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== 압축/새세션 재개 앵커 (2026-08-22 커밋 비밀정보 가드 **BLOCKED_ENV** — 이 블록 먼저 읽기) =====
+>   [활성] `commit-secret-guard-20260822`, HEAD `b7229aa`, 구현 파일 8경로 미커밋. commit·push·PDF·LLM·배포 0.
+>   [구현] `.githooks/pre-commit`(스테이징 경로 + 추가 라인만, 고신뢰 2종) · 신규 양방 테스트 7건 ·
+>     문서 4곳 실제 구성 정정 · 본 STATE/구현 보고. 오탐 회귀 2건과 기능 차단 3건 포함.
+>   [검증] 교정 전 RED `1 failed + 6 errors`; 구현 후 기능 **6 passed**, 배선 1 failed.
+>     훅 실증 `COMMIT_SECRET_GUARD_BLOCKED…` + 단독 1 passed. 기존 테스트 **1238 passed / 32 skipped / exit 0**,
+>     전체 **1244 passed / 32 skipped / 1 failed / exit 1**. 기준환경 대비 28건 pass→skip 환경차(총수 1270 동일),
+>     기존 감소 0. `sh -n` exit 0, 신규 Ruff GREEN. 전체 Ruff는 기존 `test_p2.py:10 F401`로 exit 1.
+>   [차단 원인] `git config --local core.hooksPath .githooks`가 `.git/config` 읽기 전용으로
+>     `Permission denied` / exit 255. 테스트를 완화·skip하지 않았으므로 판정은 **BLOCKED_ENV**다.
+>   [다음 행동] 운영자가 이 저장소에서 `git config core.hooksPath .githooks` 1회 실행 →
+>     신규 7/7 및 전체 pytest exit 0 재검증 → Claude 신선 세션 교차리뷰 → checkpoint 결정.
+>   [정본] `handoff/tasks/commit-secret-guard-20260822.md` SHA-256 `ddb5e275…b3423`.
+
 > ===== 압축/새세션 재개 앵커 (2026-08-19 시각 미상 경계 **CODE_PASS · 커밋 완료 · 태스크 마감(done)** — 이 블록 먼저 읽기) =====
 >   [마감] `partner-unknown-time-boundary-20260818` **rev2 · 교차리뷰 CODE_PASS(2026-08-19) · checkpoint 커밋 완료 ·
 >     manifest `status=done / next_actor=none`**(운영자 결정 2026-08-19). `handoff/archive/partner-unknown-time-boundary-20260818.json`

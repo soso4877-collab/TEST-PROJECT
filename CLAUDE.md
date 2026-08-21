@@ -51,5 +51,6 @@
 - 푸시 시점: 어시스턴트(claude)는 사용자 지시가 있을 때만 push(절대 자동 push 금지).
   운영자는 유실 방어를 위해 매 작업 세션/Phase 종료 시 feat를 push 권장. main을 전진시킨 회차엔 main도 push.
 - 커밋 안전: `.env`·`data/`(KASI)·`sajugen/tools/`(288MB)·`render/out/`·`tmp/`·`synthetic-tmp/`·`*.content.json` 은 .gitignore로 격리됨.
-  커밋 훅(block-env-commit.js·pre-commit-security.js)이 비밀정보 커밋을 이중 차단.
+  저장소 공용 `.githooks/pre-commit`은 `git config core.hooksPath .githooks`로 1회 배선한 뒤
+  스테이징된 민감 경로와 고신뢰 비밀 형태의 추가 라인을 차단한다. `--no-verify`로 우회 가능하며 기존 이력은 검사하지 않는다.
 - 원격: `origin` = github.com/soso4877-collab/TEST-PROJECT (단일 운영자).
