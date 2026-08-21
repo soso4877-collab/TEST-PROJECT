@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "partner-unknown-time-boundary-20260818",
-  "status": "done",
-  "base_commit": "c7e9c78b77dd1bb36a2f051bb3bc2c952ffb8825",
-  "packet_path": "handoff/tasks/partner-unknown-time-boundary-20260818.md",
-  "packet_sha256": "2ccc0986a69e73cbc5c426dcb2fe91466f6f4d1edca1d32bf6a7283c3fcb6c4a",
+  "task_id": "ephemeris-path-portability-20260821",
+  "status": "planned",
+  "base_commit": "b8216022656af20067c5644e3c5497ccd6dc7a0c",
+  "packet_path": "handoff/tasks/ephemeris-path-portability-20260821.md",
+  "packet_sha256": "cc70516bc5655e37cb1ce853e9f6ef7d86fb3c44bd7cfc6d346dac8bcf475679",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "8b7d8d752135e265654faed9d3ccbabd4eaa6bb936e6d809998e97b26d2262e5",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "c6ed41f8387ce0245121e2eee82c48d28e0e5de91eb3ca776e39d690c8154d56",
-  "next_actor": "none",
-  "next_action": "태스크 마감. checkpoint 커밋 3건 완료 — 19a0862(제품 3 + 신규 테스트 1 + 정책 문서 4) / 3d35c21(인계 기록 4) / c7e9c78(커밋 SHA 기록 + 리뷰 소견 N-2 교정). HEAD 재확인: pytest 1266 passed / 4 skipped / exit 0, 트리 clean. push 0(운영자 지시 대기, origin/main 대비 21커밋 앞섬). 이월: N-1(rules.py:2147 getattr → 직접 접근, 제품 코드 변경 회차) · F-1(대운 start_year 앵커, 유파 판단 + docs/03 변경 필요) · N-5(factcheck 일상어 동형 예외 / 다인 allow-set 공유, 구조 변경). 다음 패킷은 새 세션에서 발주한다.",
-  "updated_at": "2026-08-19T02:47:27.086Z"
+  "next_actor": "codex",
+  "next_action": "천체력 경로 하드코딩 제거. sajugen/paths.py 신설로 EPHEMERIS_DIR 단일 소스화 후 solarterms.py:18 · time_correction.py:22 의 절대경로 리터럴 제거 + Loader 호출 전 존재 확인 fail-closed. 양방 테스트(tests/test_path_portability.py 신규) — 정상 통과 4건 + 결함 차단 2건(git ls-files 한정 절대경로 스캔 · 천체력 부재 시 명확한 예외). calc/input 변경이라 골든 28 포함 전체 pytest 필수(기준선 1266 passed / 4 skipped). commit·push·LLM·PDF 금지.",
+  "updated_at": "2026-08-21T11:50:19.304Z"
 }
