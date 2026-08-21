@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "task_id": "commit-secret-guard-20260822",
-  "status": "planned",
-  "base_commit": "570dee70f235abcf4718e5077fd67568d323a9bf",
+  "status": "verified",
+  "base_commit": "e86f956ef6c9dc01f59abcb7a8a50c00567d7da7",
   "packet_path": "handoff/tasks/commit-secret-guard-20260822.md",
   "packet_sha256": "ddb5e275417acd5d190dedebce3b2b5c7d8b3423da41581ccdb703c532ad62a2",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "8b7d8d752135e265654faed9d3ccbabd4eaa6bb936e6d809998e97b26d2262e5",
+  "notes_sha256": "ea10f0fb9dd3e3fd66991f024f7256182d17db1ec1dae148879526c87c12ea00",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "c6ed41f8387ce0245121e2eee82c48d28e0e5de91eb3ca776e39d690c8154d56",
-  "next_actor": "codex",
-  "next_action": "커밋 비밀정보 가드 실재화 + 문서 정정 4곳. .githooks/pre-commit(POSIX sh) 신설 + core.hooksPath 배선, 검사는 스테이징된 경로·내용만(고신뢰 2종: PEM 개인키 블록, sk-ant- 형태). 양방 테스트 tests/test_commit_guard.py — 정상 1 + 차단 3 + 배선 1 + 오탐회귀 2. 전체 pytest 필수(기준선 1266/4). 저장소 밖 설정 무수정. commit/push/LLM/PDF 금지. [대기열] ephemeris-path-portability-20260821 패킷은 미발주 상태로 보존 — 이 태스크 뒤 재활성.",
-  "updated_at": "2026-08-21T15:41:35.831Z"
+  "next_actor": "user",
+  "next_action": "교차리뷰 CODE_PASS. 커밋 e86f956(8파일 +291). 재실측: 신규 7 passed, 전체 1273 passed / 4 skipped / exit 0(기준선 1266/4, 감소 0). 구현환경 1244/32/1 은 샌드박스 skip 차이 — 수집 총수 1277 동일로 해소. 배선 core.hooksPath=.githooks 는 리뷰 세션이 실행(비커밋, 새 클론마다 1회 필요). 훅 실행 실증 완료(대조군 exit 1 vs 강제실패 exit 9). 잔재 .githooks/pre-rebase 무해화 — 운영자 삭제 필요. 다음: 모델 별칭 · 자동승인 · AGENTS.md 갱신 · ephemeris 패킷 재활성.",
+  "updated_at": "2026-08-21T16:25:34.938Z"
 }
