@@ -3,9 +3,9 @@
 - **task_id**: `ephemeris-path-portability-20260821`
 - **owner**: **Codex 구현자** (AGENTS.md 기본 사이클. 토큰 부재 시 운영자 승인 후 Claude 신선 세션 대체 — §0)
 - **next_reviewer**: **Claude Code 교차리뷰** (read-only, 구현 세션과 분리)
-- **base_commit**: `b821602` (현재 HEAD, tree clean, branch `codex/gunghap-relationship-quality`)
+- **base_commit**: `6e6adca` (현재 HEAD, branch `codex/gunghap-relationship-quality`)
 - **근거 문서**: `docs/26-engine-eval-2026-08-20.md` §4-1·§5 / 이 패킷 §2 의 2026-08-21 설계 세션 실측
-- **rev**: 1
+- **rev**: 2 (2026-08-22 — base_commit 갱신, §6 기준선 1266→1273 정정, 환경차 판정 규칙 명문화)
 
 ---
 
@@ -159,8 +159,14 @@ harness/profiles/local/**  (비열람)
 ```
 ./.venv/Scripts/python.exe -m pytest tests/ -q
 ```
-- 통과 기준: **exit 0**, passed 수 **감소 0**(직전 기준선 = 1266 passed / 4 skipped),
-  신규 테스트만큼 증가. 골든 `-k golden` **28** GREEN.
+- 통과 기준: **exit 0**, 그 환경 안에서 passed 수 **감소 0** + 신규 테스트만큼 증가.
+  골든 `-k golden` **28** GREEN.
+- **기준선(2026-08-22 갱신) = `1273 passed / 4 skipped / exit 0`, 수집 총수 1277.**
+  옛 수치 1266 은 폐기됐다.
+- **환경차 판정 규칙(AGENTS.md §10)**: 다른 환경의 raw passed 수를 직접 비교하지 마라.
+  직전 태스크에서 구현환경은 `1244 passed / 32 skipped`, 기준환경은 `1273 passed / 4 skipped` 였고
+  **수집 총수 1277 이 같아** 샌드박스 skip 차이로 확정됐다(판정 `CODE_PASS`). 같은 형태면
+  `EVIDENCE_SPLIT_PASS` 로 보고하되, **수집 총수와 skip 사유를 함께 제시**해야 성립한다.
 - `calc/`·`input/` 변경이므로 골든 전수 동반은 **필수**다(절대규칙 20, calc.md).
 
 ```
@@ -169,6 +175,10 @@ git status --short
 ./.venv/Scripts/python.exe -m ruff check sajugen tests
 ./.venv/Scripts/python.exe -m py_compile sajugen/paths.py sajugen/calc/solarterms.py sajugen/input/time_correction.py
 ```
+
+- **`git status --short` 기대값**: 발주 시점 작업 트리는 이 패킷 파일(rev2 정정) 외에는 clean 이다.
+  선행 태스크의 훅 실증 잔재 `.githooks/pre-rebase` 는 **2026-08-22 운영자가 제거 완료**했다.
+  그 외에 나타나는 변경은 전부 이 태스크의 산물이어야 한다.
 
 추가 증거 1건 — **이식성 실증**:
 CWD 를 저장소 밖으로 바꾼 뒤 `-c "import sajugen.calc.solarterms, sajugen.input.time_correction"`

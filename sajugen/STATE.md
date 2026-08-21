@@ -1,10 +1,51 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-08-22 도구·설정 정비 세션 — **이 블록 먼저 읽기. 아래 BLOCKED_ENV 블록은 해소됨**) =====
->   [활성] manifest = `ephemeris-path-portability-20260821` / `planned` / `next_actor=codex`.
->     패킷 `handoff/tasks/ephemeris-path-portability-20260821.md` SHA `cc70516b…`. 미발주 상태다.
->   [★ 기준선 갱신] pytest 기준선이 **1266 passed / 4 skipped → `1273 passed / 4 skipped / exit 0`** 으로 바뀌었다.
->     ephemeris 패킷 §7 에는 옛 수치가 적혀 있으니 그대로 쓰지 마라.
+> ===== 압축/새세션 재개 앵커 (2026-08-22 천체력 경로 이식성 **교차리뷰 CODE_PASS · 운영자 checkpoint 대기**) =====
+>   [판정] `ephemeris-path-portability-20260821` rev2 = **CODE_PASS, 블로커 0 / 비블로커 1**.
+>     정본 = `REVIEW-FEEDBACK.md` 최상단 2026-08-22 절. manifest `verified / next_actor=user`.
+>     구현자 = Codex(플러그인 잡 `task-mt36xy03-t4ynl2`), 검증자 = Claude read-only(패킷 작성자이자
+>     발주자이나 **구현자가 아님** — AGENTS.md 기본 사이클 그대로).
+>   [리뷰어 재실측 — 구현자 수치 미승계] 착수 전 HEAD `6e6adca` 기준선 **1273 passed / 4 skipped**(246.18s)
+>     → 구현 후 전체 **1279 passed / 4 skipped / exit 0**(235.63s, +6·감소 0·skip 불변),
+>     골든 **28 passed / 1255 deselected**, 신규 **6 passed**, 변경 4파일 Ruff `All checks passed!`.
+>     ★ **새 기준선 = 1279 passed / 4 skipped**(감소 = 회귀).
+>   [핵심 증거 3건] (1) 스캔 테스트 비-no-op — 같은 정규식을 `git show HEAD:<file>` 에 적용해
+>     `solarterms.py`·`time_correction.py` 각 **HEAD hits=1 / worktree hits=0** 실측.
+>     (2) pathspec 함정 회피 — `git ls-files -- "sajugen/*.py"` **73파일**, 두 대상 포함 · gitignore 된
+>     `_poc.py` 제외. (3) fail-closed 실측 — `Loader` 를 호출 시 터지는 함수로 치환하고 없는 경로로
+>     import → `Loader` **미도달** + 기대 전체 경로를 담은 `FileNotFoundError`. 조용한 32MB 다운로드 0.
+>   [단일 소스] 값 비교가 아니라 **동일 객체 단언**(`solarterms.EPHEMERIS_DIR is paths.EPHEMERIS_DIR`)이라
+>     상수 재복제가 들어오면 즉시 RED. `paths.py` 는 표준 라이브러리만 쓴다(계산 레이어 ↛ yaml 의존).
+>   [비블로커 1] 존재 확인 4줄이 두 모듈에 **복제**돼 있다(경로 상수는 단일화됐으나 검사 로직은 아님,
+>     방법론 B-1 잔여). 소비처가 3번째로 늘 때 `paths.py` 헬퍼로 정리할 것.
+>   [미검증 — 정직 분리] **Linux·macOS 실제 실행 0.** 검증된 것은 추적 파일 절대경로 리터럴 0 +
+>     저장소 밖 CWD Windows import 성공뿐이다. 새 클론·컨테이너 provisioning 도 미검증.
+>     ★ **타 OS 에서 가장 먼저 볼 한 줄** = `Loader(EPHEMERIS_DIR)` 가 `str` 이 아니라 `Path` 를 받는다는 점
+>     (`solarterms.py`·`time_correction.py` 동일). Windows Skyfield 에서는 실측 OK 지만 패킷 §3-1 이
+>     "Loader 가 Path 를 거부하면 str() 로" 라고 실측 조건부로 남긴 지점이다. `docs/26` §5 이식 때 1순위 확인.
+>     전체 Ruff 는 기존 부채 3건(`temporal_lint.py:11`·`insight.py:152`·`test_p2.py:10`)으로 exit 1이며
+>     변경 4파일 신규 위반 0(리뷰어가 파일 분리 실행으로 독립 확인).
+>   [다음] **운영자 checkpoint commit 결정.** `calc/`·`input/` 변경이라 절대규칙 20 에 따라 제품+테스트+
+>     기록을 한 논리 단위로 묶는다. push 는 별도 지시 시에만. 이후 `docs/26` §5 웹앱 이식 검토 가능.
+>   [아래는 구현 시점 기록 — 판정은 위 블록이 정본]
+>   [활성] `ephemeris-path-portability-20260821` rev2, base/HEAD `6e6adca`, Codex 구현 완료.
+>     commit·push·deploy·PDF 재생성·LLM/API 호출 0.
+>   [수정] `sajugen/paths.py`에 패키지 상대 `Path` 상수 3개를 단일 소스로 신설. `solarterms.py`와
+>     `time_correction.py`의 로컬 절대경로를 제거하고, 둘 다 Loader 전에 BSP 존재를 검사해 기대 경로가
+>     든 `FileNotFoundError`로 fail-closed. 신규 테스트 정상 4 + 결함 차단 2.
+>   [RED] 스캔 단독 **1 failed / exit 1**, 두 하드코딩 위치 검출. 신규 전체 교정 전 **5 failed / 1 passed**.
+>   [검증] 신규 **6 passed** · 골든 **28 passed** · 전체 **1251 passed / 32 skipped / exit 0**.
+>     총수 1283 = 기준 1277 + 신규 6. 추가 28 skip은 Codex 샌드박스 Playwright(19+9), 공통 4는
+>     운영자 opt-in E2E. 저장소 밖 CWD import·py_compile·diff-check·변경파일 Ruff exit 0.
+>   [잔여] 전체 Ruff는 기존 범위 밖 F401/F541/F401 3건으로 exit 1. 기준환경 1279/4와 Linux·macOS는
+>     미실측. 상세 증거는 `implementation-notes.md` 최상단 CODEX_IMPLEMENTATION_REPORT.
+>   [다음] Claude Code 교차리뷰 → 운영자 checkpoint. F-1·N-1·N-5 이월은 본 태스크 밖이며 그대로 유지.
+
+> ===== 압축/새세션 재개 앵커 (2026-08-22 도구·설정 정비 세션 — **위 천체력 구현 완료 앵커로 대체됨**) =====
+>   [당시 활성] manifest = `ephemeris-path-portability-20260821` / `planned` / `next_actor=codex`.
+>     당시 패킷 SHA `cc70516b…`는 rev1이었고, 이후 rev2 SHA `c0df6493…`로 발주·구현됐다.
+>   [당시 기준선 갱신] pytest 기준선이 **1266 passed / 4 skipped → `1273 passed / 4 skipped / exit 0`** 으로 바뀌었다.
+>     rev1의 옛 수치는 rev2에서 정정됐으며, 현재 결과는 위 최신 앵커를 따른다.
 >   [완료 — commit-secret-guard-20260822] 아래 BLOCKED_ENV 블록의 차단은 **해소됐다.**
 >     교차리뷰 세션이 `git config core.hooksPath .githooks` 를 실행 → 신규 **7 passed**, 전체 **1273/4/exit 0**.
 >     구현환경 1244/32/1 은 샌드박스 skip 차이(수집 총수 1277 동일)로 확정. 판정 **CODE_PASS**,

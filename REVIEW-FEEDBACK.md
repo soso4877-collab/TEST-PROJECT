@@ -1,3 +1,138 @@
+# 교차 리뷰 — 2026-08-22 (천체력 경로 이식성, 리뷰어: Claude read-only)
+
+대상: `ephemeris-path-portability-20260821` rev2 구현(base/HEAD `6e6adca` 위 미커밋) · 구현자 **Codex**
+(잡 `task-mt36xy03-t4ynl2`, 플러그인 경유 `--background --write --fresh --effort high`).
+
+**독립성 근거**: 리뷰어는 패킷 작성자이자 발주자이고 **구현자가 아니다**. AGENTS.md 기본 사이클
+(Codex 구현 → Claude 교차리뷰)에 정확히 해당한다. 아래 수치는 전부 리뷰어가 이 환경에서 재실행한
+값이며 **구현자 보고를 승계하지 않았다**. 리뷰 중 제품 코드·테스트·패킷 수정 **0**(§6 경계 대조).
+
+## 최종 판정: **승인(CODE_PASS)** — 블로커 0, 비블로커 소견 1
+
+판정값 = `verified / next_actor=user`. 패킷 §0 이 검증자를 Claude 교차리뷰 **단독**으로 지정하고
+Codex 재확인 단계를 두지 않으므로(AGENTS.md "Claude PASS 뒤 Codex를 다시 확인자로 보내지 않는다")
+다음 행위자는 운영자다.
+
+### 1. 인계 무결성
+
+| 검사 | 결과 |
+|---|---|
+| `git rev-parse --short HEAD` | `6e6adca` — manifest `base_commit` 과 동일 |
+| `git merge-base --is-ancestor <base> HEAD` | exit **0** |
+| 패킷 실측 SHA-256 | `c0df6493…` — manifest `packet_sha256` 과 일치(발주 시점 고정본 그대로) |
+| `git status --short --untracked-files=all` | dirty 6 + untracked 2 = **8경로**, 전부 `allowed_files` 안. forbidden 등장 **0** |
+| `handoff.mjs validate` | 리뷰 시점 `HASH_MISMATCH` / exit 3 — **결함 아님**. 구현자가 발주 후 `implementation-notes.md` 를 갱신했고 write 스냅샷이 그보다 앞선다(기지 패턴). 리뷰 기록을 마친 뒤 재write 로 해소한다. |
+
+`handoff/current/manifest.json` 의 diff 는 **리뷰어 자신의 rev2 재고정**(base_commit·packet_sha256·
+next_action)이다. 구현자는 forbidden 인 manifest 를 건드리지 않았다 — diff 전문 대조로 확인.
+
+### 2. 재실행 결과 (전부 `./.venv/Scripts/python.exe`)
+
+| 명령 | 출력 | exit |
+|---|---|---|
+| `-m pytest tests/ -q` | `1279 passed, 4 skipped in 235.63s` | 0 |
+| `-m pytest tests/ -q -k golden` | `28 passed, 1255 deselected in 46.82s` | 0 |
+| `-m pytest tests/test_path_portability.py -q` | `6 passed in 3.99s` | 0 |
+| `-m ruff check <변경 4파일>` | `All checks passed!` | 0 |
+| `-m ruff check sajugen tests` | 기존 부채 3건 | 1 |
+
+**기준선 정합**: 착수 전 리뷰어가 HEAD `6e6adca` 에서 직접 측정한 기준선 `1273 passed / 4 skipped`
+(246.18s) 대비 **+6 = 1279, 기존 감소 0, skip 불변**. 수집 총수 1283 = 1279+4 로 구현환경(1251+32)과
+동일 — 패킷 §6 환경차 규칙대로 raw passed 직접 비교가 아니라 총수로 정합을 확인했다.
+
+**골든 28 검증의 함정 1건(구현자 자진 보고, 리뷰어 재확인)**: 신규 테스트 함수명에 `golden` 이 들어가
+`-k golden` 선택 집합이 29 로 부풀었던 것을 구현자가 발견해 함수명만 교정했다. 리뷰어 실측
+`28 passed / 1255 deselected`(합 1283)로 골든 집합이 오염되지 않았음을 확인.
+
+### 3. 결함 차단이 no-op 이 아님을 실증 (작업 규율 3)
+
+이 패킷의 최대 위험은 스캔 테스트가 **조용히 GREEN** 이 되는 것이었다(패킷 §5 주의). 세 겹으로 확인:
+
+| 증거 | 결과 |
+|---|---|
+| 테스트 내부 양성 대조(`test_path_portability.py:81-83`) | `C:\`·`/Users/`·`/home/` 3종을 정규식이 실제로 매치 |
+| 리뷰어 독립 대조 — 같은 정규식을 `git show HEAD:<file>` 에 적용 | `solarterms.py` **HEAD hits=1 / worktree hits=0**, `time_correction.py` **HEAD hits=1 / worktree hits=0** |
+| 구현자 교정 전 실행 | 스캔 단독 `1 failed / exit 1`, 신규 전체 `5 failed / 1 passed` |
+
+즉 정규식은 교정 전 리터럴을 잡고 교정 후에는 안 잡는다. **백슬래시 이스케이프 no-op 아님.**
+
+**pathspec 함정도 회피됨**: `git ls-files -- "sajugen/*.py"` = **73파일**, `sajugen/calc/solarterms.py`·
+`sajugen/input/time_correction.py` **포함**, gitignore 된 `sajugen/_poc.py` **제외**. 패킷 §2-2 가
+경고한 "파일시스템 워크로 짜면 즉시 오탐 RED" 를 정확히 피했다.
+
+### 4. fail-closed 가드 실측 (§3-2)
+
+리뷰어 독립 프로브 — `skyfield.api.Loader` 를 호출 시 `AssertionError` 를 던지는 함수로 치환하고
+`paths.EPHEMERIS_DIR` 를 존재하지 않는 경로로 바꾼 뒤 `sajugen.calc.solarterms` import:
+
+```
+PROBE_OK FileNotFoundError: ...\nonexistent-probe\ephemeris\de440s.bsp
+```
+
+`Loader` 에 **도달하지 않고** 그 전에 기대 전체 경로를 담아 실패했다. §2-4 가 지적한 조용한 32MB
+네트워크 다운로드 경로로 새지 않는다. (콘솔 한글 깨짐은 cp949 렌더 산물이며 코드 결함이 아니다.)
+
+테스트 쪽 구조도 비-no-op 이다: 가드가 없으면 `Loader` 치환이 `AssertionError` 를 던져
+`pytest.raises(FileNotFoundError)` 가 실패한다 — 가드 부재를 실제로 검출하는 형태다.
+
+### 5. 계산 불변 · 단일 소스
+
+- 골든 28 GREEN + 신규 회귀 앵커가 `2000-01-01 12:00 KST 남` = `己卯 丙子 戊午 戊午`(calc.md 지정)와
+  `solar_term_time(2000, 315)` 마이크로초까지 고정. **경로 변경이 계산을 바꾸지 않았다**(§7 정지 조건 통과).
+- 단일 소스 실증은 값 비교가 아니라 **동일 객체 단언**(`is`)이다 —
+  `solarterms.EPHEMERIS_DIR is paths.EPHEMERIS_DIR`, `time_correction.EPHEMERIS_DIR is paths.EPHEMERIS_DIR`.
+  상수 재복제가 들어오면 즉시 RED 가 된다.
+- `sajugen/paths.py` 는 표준 라이브러리 `Path` 만 쓴다 — 계산 레이어가 설정 로더(`config.py` → `yaml`)에
+  의존하지 않는다는 §3-1 근거를 충족.
+- 환경변수 오버라이드 **미도입**(§3-3 준수). `_DE440S_MIN_YEAR`·절기 로직·`lru_cache` **무수정**.
+
+### 6. 리뷰어 경계
+
+리뷰 시작 시 허용 4파일(`REVIEW-FEEDBACK.md`·`sajugen/STATE.md`·`implementation-notes.md`·
+`handoff/current/manifest.json`)을 제외한 dirty+untracked **5경로**의 SHA-256 을 스냅샷했다:
+
+```
+C0DF64930A220AAE  handoff/tasks/ephemeris-path-portability-20260821.md
+BFEEB0A98D2DB8FD  sajugen/calc/solarterms.py
+446F517A40AE63F4  sajugen/input/time_correction.py
+3D6221F28B3C88C0  sajugen/paths.py
+4295B4E1B203AC1D  tests/test_path_portability.py
+```
+
+리뷰어의 프로브는 전부 read-only(`git show`·in-memory import 치환)이며 repo 안에 임시 파일을 만들지
+않았다. PDF 재생성·LLM/API 호출·commit·push **0**(pytest 합성 테스트 산출물 외 PDF 생성 0).
+
+### 7. 비블로커 소견 1건 — 다음 회차 후보
+
+**N-1(이 태스크): 존재 확인 4줄이 두 모듈에 그대로 복제됐다.**
+`solarterms.py` 와 `time_correction.py` 가 각각 아래를 갖는다.
+
+```python
+_ephemeris_path = EPHEMERIS_DIR / EPHEMERIS_BSP
+if not _ephemeris_path.is_file():
+    raise FileNotFoundError(f"천체력 파일을 찾을 수 없습니다: {_ephemeris_path}")
+```
+
+경로 **상수**는 단일 소스가 됐지만 **검사 로직**은 복제 상태다. 방법론 B-1("불변식이 2곳 이상에
+복제되면 파생으로 단일화")의 잔여이고, `paths.py` 는 allowed_files 안이라 헬퍼 하나로 올릴 수 있었다.
+동작·검출력에는 영향이 없어 **블로커 아님**. 소비처가 3번째로 늘어날 때 반드시 정리할 것.
+
+### 8. 미검증 (정직 분리)
+
+- **Linux·macOS 실제 실행 0.** 검증된 것은 (a) 추적 파일 절대경로 리터럴 0 (b) 저장소 밖 CWD 에서의
+  Windows import 성공뿐이다. 이식성은 **정적 근거 + Windows 실측**이며 타 OS 실행 증거가 아니다.
+- 새 클론·컨테이너에서의 실제 provisioning 미검증(자산이 git 추적 중이라는 사실만 확인).
+- 전체 Ruff GREEN 미달 — `sajugen/content/temporal_lint.py:11 F401` ·`sajugen/insight.py:152 F541` ·
+  `tests/test_p2.py:10 F401` 3건. 전부 이번 변경 밖 기존 부채이며 변경 4파일은 신규 위반 **0**
+  (리뷰어가 파일 분리 실행으로 직접 확인, 구현자 보고와 독립).
+
+### 9. 다음 행동
+
+운영자 checkpoint commit 결정. 계산 레이어(`calc/`·`input/`) 변경이므로 절대규칙 20 에 따라
+제품·테스트·기록을 한 논리 단위로 묶는다. push 는 별도 지시 시에만.
+
+---
+
 # 교차 리뷰 — 2026-08-19 (상대 시각 미상 x 절입 경계, 리뷰어: Claude 신선 세션 read-only)
 
 대상: `partner-unknown-time-boundary-20260818` rev2 구현(base=HEAD `c280a98` 위 미커밋) · 구현자 **Claude(구현 세션)**.

@@ -1,5 +1,69 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — ephemeris-path-portability-20260821
+
+- 판정: **EVIDENCE_SPLIT_PASS**. 천체력 경로 단일 소스·누락 fail-closed·신규 양방 테스트 6건을
+  구현했고, 현재 환경 전체 pytest는 **1251 passed / 32 skipped / exit 0**이다. 기준선 수집 총수
+  1277 + 신규 6 = **1283**과 정확히 일치해 기존 테스트 감소는 0이다.
+- 활성 지시문: `handoff/current/manifest.json`의 `packet_path`를 먼저 읽고 실제 SHA-256
+  `c0df64930a220aae8a9c3249451b06193296d5c5607c76cd50056e3058dd5355` 일치를 확인했다.
+  HEAD `6e6adca`, 패킷 base와 동일하고 ancestor 확인 exit 0. 발주 전부터 있던 manifest·패킷 rev2
+  워킹트리 변경은 읽기만 하고 보존했다.
+
+### 교정 전 RED
+
+- no-op 방지 단독 실행:
+  `./.venv/Scripts/python.exe -m pytest tests/test_path_portability.py::test_tracked_sajugen_python_has_no_absolute_path_literals -q`
+  → **1 failed / exit 1**. 정규식 양성 대조 Windows·macOS·Linux 3종을 먼저 통과한 뒤
+  `sajugen/calc/solarterms.py:18`, `sajugen/input/time_correction.py:22` 두 추적 파일을 실제 검출했다.
+- 신규 파일 전체 교정 전:
+  `./.venv/Scripts/python.exe -m pytest tests/test_path_portability.py -q`
+  → **5 failed / 1 passed / exit 1**. `sajugen.paths` 부재 4건, 절대경로 2곳 검출 1건이 RED였고,
+  계산값 불변 대조 1건만 GREEN이었다.
+
+### 구현
+
+- `sajugen/paths.py`: 표준 라이브러리 `Path`만 사용해 `PACKAGE_DIR`, `EPHEMERIS_DIR`,
+  `EPHEMERIS_BSP`를 단일 소스로 신설했다. 환경변수 오버라이드는 도입하지 않았다.
+- `sajugen/calc/solarterms.py`, `sajugen/input/time_correction.py`: 하드코딩 절대경로와 파일명 리터럴을
+  제거하고 같은 상수를 import한다. 두 모듈 모두 `Loader` 생성 전에 BSP `is_file()`을 검사하며,
+  누락 시 기대 전체 경로를 담은 `FileNotFoundError`로 실패한다.
+- `Loader(Path(...))` 호환 프로브 → 출력 `sajugen\\assets\\ephemeris` / exit 0. 불필요한 `str()` 변환 없이
+  `Path`를 직접 전달했다.
+- `tests/test_path_portability.py`: 정상 4 + 결함 차단 2 = 6건. 스캔 범위는
+  `git ls-files -- sajugen/*.py` 결과만 사용하고, 자산 누락 합성 시 두 소비처 모두 Loader 호출 전에
+  실패하는지 검증한다. 합성 데이터만 사용했고 고객 PII는 0이다.
+
+### 검증과 출력
+
+- 신규 양방: `./.venv/Scripts/python.exe -m pytest tests/test_path_portability.py -q`
+  → **6 passed / exit 0**.
+- 골든: `./.venv/Scripts/python.exe -m pytest tests/ -q -k golden`
+  → **28 passed / 1255 deselected / exit 0**. 최초 함수명에 `golden`이 있어 선택 집합이 29가 된 것을
+  발견해 이름만 교정하고 재실행했으며, 계산값 변경은 없었다.
+- 전체: `./.venv/Scripts/python.exe -m pytest tests/ -q`
+  → **1251 passed / 32 skipped / exit 0**, 수집 총수 **1283**.
+- skip 사유 재실행: 같은 명령에 `-rs` → 동일 **1251/32/exit 0**. 기준환경 공통 운영자 opt-in E2E
+  4건 + Codex 샌드박스 Playwright subprocess 28건(`playwright_guard.py` 19,
+  `test_p4.py` 9)이다. 기준환경 raw passed와 직접 비교하지 않고 총수+사유로 분리했다.
+- 저장소 밖 CWD(`C:\\Windows\\Temp`)에서 venv Python으로
+  `import sajugen.calc.solarterms; import sajugen.input.time_correction` → 무출력 / **exit 0**.
+- `./.venv/Scripts/python.exe -m py_compile sajugen/paths.py sajugen/calc/solarterms.py sajugen/input/time_correction.py`
+  → 무출력 / **exit 0**. `git diff --check` → LF→CRLF 안내만, **exit 0**.
+- 변경 Python 4파일 Ruff → `All checks passed!` / **exit 0**.
+- 패킷 지정 전체 Ruff `./.venv/Scripts/python.exe -m ruff check sajugen tests` → **exit 1**.
+  이번 변경 밖 기존 위반 3건(`sajugen/content/temporal_lint.py:11 F401`,
+  `sajugen/insight.py:152 F541`, `tests/test_p2.py:10 F401`)이며 허용 경계 밖이라 수정하지 않았다.
+
+### 미검증·남은 위험
+
+- 기준환경의 예상 **1279 passed / 4 skipped**는 이 Codex 환경에서 직접 재실행하지 못했다.
+  대신 동일 수집 총수 1283과 skip 사유를 실측했다.
+- Linux·macOS 실제 실행은 미검증이다. 정적 절대경로 스캔과 저장소 밖 CWD Windows import만 검증했다.
+- 전체 Ruff GREEN은 기존 범위 밖 3건 때문에 미달이며, 이번 변경 파일에서는 신규 위반 0이다.
+- 허용 파일 밖 수정 0. commit·push·deploy·PDF 재생성·LLM/API 호출 0. 다음은 Claude Code 신선 세션의
+  read-only 교차리뷰와 운영자 checkpoint다.
+
 ## CODEX_IMPLEMENTATION_REPORT — commit-secret-guard-20260822 (커밋 비밀정보 가드)
 
 - 판정: **BLOCKED_ENV**. 훅·테스트·문서 정정은 구현됐지만 현재 실행 환경이 `.git/config`를 읽기 전용으로
