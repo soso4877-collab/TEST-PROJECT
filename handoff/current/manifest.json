@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "commit-secret-guard-20260822",
-  "status": "verified",
-  "base_commit": "e86f956ef6c9dc01f59abcb7a8a50c00567d7da7",
-  "packet_path": "handoff/tasks/commit-secret-guard-20260822.md",
-  "packet_sha256": "ddb5e275417acd5d190dedebce3b2b5c7d8b3423da41581ccdb703c532ad62a2",
+  "task_id": "ephemeris-path-portability-20260821",
+  "status": "planned",
+  "base_commit": "30a083c91868cb2b843fe9ae92ceee5c3ce876fa",
+  "packet_path": "handoff/tasks/ephemeris-path-portability-20260821.md",
+  "packet_sha256": "cc70516bc5655e37cb1ce853e9f6ef7d86fb3c44bd7cfc6d346dac8bcf475679",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "ea10f0fb9dd3e3fd66991f024f7256182d17db1ec1dae148879526c87c12ea00",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "c6ed41f8387ce0245121e2eee82c48d28e0e5de91eb3ca776e39d690c8154d56",
-  "next_actor": "user",
-  "next_action": "교차리뷰 CODE_PASS. 커밋 e86f956(8파일 +291). 재실측: 신규 7 passed, 전체 1273 passed / 4 skipped / exit 0(기준선 1266/4, 감소 0). 구현환경 1244/32/1 은 샌드박스 skip 차이 — 수집 총수 1277 동일로 해소. 배선 core.hooksPath=.githooks 는 리뷰 세션이 실행(비커밋, 새 클론마다 1회 필요). 훅 실행 실증 완료(대조군 exit 1 vs 강제실패 exit 9). 잔재 .githooks/pre-rebase 무해화 — 운영자 삭제 필요. 다음: 모델 별칭 · 자동승인 · AGENTS.md 갱신 · ephemeris 패킷 재활성.",
-  "updated_at": "2026-08-21T16:25:34.938Z"
+  "next_actor": "codex",
+  "next_action": "대기열에서 재활성(선행 commit-secret-guard 는 verified 로 마감, 커밋 e86f956·c8fbd61). 천체력 절대경로 2곳(solarterms.py:18 · time_correction.py:22) 제거 — sajugen/paths.py 신설로 EPHEMERIS_DIR 단일 소스화 + Loader 호출 전 존재 확인 fail-closed. 양방 테스트 신규(정상 4 + 결함차단 2, 스캔은 git ls-files 한정). calc/input 변경이라 골든 28 포함 전체 pytest 필수. 기준선이 갱신됐다 — 현재 1273 passed / 4 skipped / exit 0. commit·push·LLM·PDF 금지.",
+  "updated_at": "2026-08-21T16:36:44.408Z"
 }
