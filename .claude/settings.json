@@ -1,4 +1,26 @@
 {
+  "permissions": {
+    "allow": [
+      "PowerShell(git status *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git log *)",
+      "PowerShell(git rev-parse *)",
+      "PowerShell(git show *)",
+      "PowerShell(git ls-files *)",
+      "PowerShell(git check-ignore *)",
+      "PowerShell(git blame *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-FileHash *)",
+      "Bash(node C:/Users/pc/.ai-harness/handoff.mjs validate *)",
+      "Bash(node ~/.ai-harness/handoff.mjs validate *)",
+      "PowerShell(node C:\\Users\\pc\\.ai-harness\\handoff.mjs validate *)",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__find"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
