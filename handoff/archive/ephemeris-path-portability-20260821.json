@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "task_id": "ephemeris-path-portability-20260821",
+  "status": "done",
+  "base_commit": "bfa1e2d1723e5044fcdb35da9683d92eda8e09f3",
+  "packet_path": "handoff/tasks/ephemeris-path-portability-20260821.md",
+  "packet_sha256": "c0df64930a220aae8a9c3249451b06193296d5c5607c76cd50056e3058dd5355",
+  "notes_path": "implementation-notes.md",
+  "notes_sha256": "f856491f475d72ac322335c75718aef498ac9e4ed6e4389d36936e6e7f44072c",
+  "review_path": "REVIEW-FEEDBACK.md",
+  "review_sha256": "c78144066cddc3b445d230d676dfa59f1a8dd417bad9b91e3e112c906fe78f65",
+  "next_actor": "none",
+  "next_action": "마감. 교차리뷰 CODE_PASS 후 운영자 checkpoint 커밋 완료 — 제품 5c11cbe(제품3+테스트1) · 기록 bfa1e2d(5파일). 새 기준선 1279 passed / 4 skipped / exit 0. push 0. 비블로커 1건(존재 확인 4줄 두 모듈 복제, B-1 잔여)은 소비처가 셋째로 늘 때 정리.",
+  "updated_at": "2026-08-21T17:43:52.157Z"
+}

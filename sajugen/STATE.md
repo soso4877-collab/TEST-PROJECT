@@ -1,6 +1,50 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-08-22 천체력 경로 이식성 **교차리뷰 CODE_PASS · 운영자 checkpoint 대기**) =====
+> ===== ★ 세션 종료 앵커 (2026-08-22 밤 — **내일 재개 시 이 블록만 읽으면 된다**) =====
+>   [한 줄] 천체력 경로 태스크는 **끝났다(커밋 완료)**. 다음 할 일은 **N-1 패킷 발주 하나**다.
+>
+>   [지금 상태]
+>     · HEAD = `bfa1e2d`, branch `codex/gunghap-relationship-quality`, **push 0**(origin 대비 앞섬).
+>     · 기준선 = **1279 passed / 4 skipped / exit 0**, 수집 총수 1283. (감소 = 회귀)
+>     · manifest = `partner-ym-flag-direct-access-20260822` / `planned` / `next_actor=codex`.
+>       직전 `ephemeris-path-portability-20260821` 은 `done` 으로 마감·archive 됨.
+>
+>   [내일 첫 명령 — 이것만 하면 재개된다]
+>     1) `node C:\Users\pc\.ai-harness\handoff.mjs validate --repo C:\Users\pc\test-project` → exit 0 확인
+>     2) manifest 가 가리키는 패킷 `handoff/tasks/partner-ym-flag-direct-access-20260822.md` 를 읽는다
+>     3) Codex 발주:
+>        `node "C:/Users/pc/.claude/plugins/cache/openai-codex/codex/1.0.6/scripts/codex-companion.mjs" task --background --write --fresh --effort high "<패킷 포인터 발주문>"`
+>        ★ 발주문 본문에 경로 리터럴·민감 문자열을 쓰지 마라 — PreToolUse 가드가 **텍스트만 보고**
+>          발주 자체를 막은 실측 이력이 있다(하루 7건). manifest → packet SHA 포인터만 넘긴다.
+>     4) 발주 후 5분 주기 감시. **생존 신호는 status 가 아니라 잡 로그 파일의 갱신 시각**이다
+>        (실측: 상태 `running` 2h30m 인데 로그는 105분 정지 = 죽은 잡). 좀비는 `--fresh` 로 우회.
+>     5) Codex 완료 → Claude 교차리뷰(리뷰어 허용 4파일 경계 준수) → 운영자 checkpoint.
+>
+>   [N-1 이 무엇인가 — 패킷에 전부 있으나 요약]
+>     `content/rules.py:2147` 의 `getattr(pf,"ym_time_dependent",False)` 가 절대규칙 8-1 억제 가드를
+>     **fail-open** 시킨다(기본값 False → 억제가 조용히 꺼짐 → 고객 문서에 상대 연·월주 단정).
+>     같은 필드를 `builder.py:296` 은 직접 접근한다(비대칭). 실측상 duck-typing 호출자 **0건**이라
+>     기본값은 사문이면서 가드만 약화시킨다. 수정은 1줄, 단 고객 가시 절대규칙 가드라 회귀 필수.
+>     인접 사각 `birth_time_mode` 3곳은 조사했고 **fail-loud 라 범위 밖**(패킷 §2-4, 조사 보고만 요구).
+>
+>   [남은 이월 — N-1 다음]
+>     · **F-1 대운 start_year 축** — 유파 1차 자료 조사 선행(저장소 근거 0건). 이월 중 가장 크다.
+>       진단 정본은 `docs/16` QI-2026-08-17-01 이월란의 2026-08-21 정정 블록이다.
+>       ★ 커밋 `27464c3`·`488093b` 의 메시지 본문은 폐기된 주장이니 `git log` 를 근거로 쓰지 마라.
+>     · **N-5** factcheck 일상어 동형 예외 / 다인 allow-set 공유 — 구조 변경 + 운영자 판단.
+>     · 상위 프레임 — `docs/26` §5 웹앱 이식(A 배치 사전계산 + B 내부 API 혼합). 선결 조건이던
+>       천체력 절대경로 제거는 **오늘 해소됐다**. 타 OS 첫 확인 지점은 `Loader` 가 `Path` 를 받는 것.
+>
+>   [운영자 결정 대기]
+>     · **push 여부** — 로컬만 앞서 있다. 유실 방어가 필요하면 feat 브랜치 push 권장.
+>     · **#2-a 자동승인 해제 · `/sandbox` Windows 가용성** — 교차검토가 auto mode 권고 철회를
+>       요구했고 수용했으므로 어시스턴트가 먼저 밀지 않는다.
+>     · **#2-c 가드 오탐 정밀화** — 오탐 7건이 근거. 사건별 차단 코드 확정 전 `deny` 완화 금지.
+>
+>   [오늘 커밋 2건] `5c11cbe` feat(calc) 제품3+테스트1 · `bfa1e2d` docs(handoff) 기록5.
+>     이 종료 앵커와 N-1 패킷 등재는 그 다음 커밋에 담긴다.
+
+> ===== 압축/새세션 재개 앵커 (2026-08-22 천체력 경로 이식성 **교차리뷰 CODE_PASS · 커밋 완료**) =====
 >   [판정] `ephemeris-path-portability-20260821` rev2 = **CODE_PASS, 블로커 0 / 비블로커 1**.
 >     정본 = `REVIEW-FEEDBACK.md` 최상단 2026-08-22 절. manifest `verified / next_actor=user`.
 >     구현자 = Codex(플러그인 잡 `task-mt36xy03-t4ynl2`), 검증자 = Claude read-only(패킷 작성자이자
