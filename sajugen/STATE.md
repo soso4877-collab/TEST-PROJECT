@@ -4,7 +4,7 @@
 >   [한 줄] 천체력 경로 태스크는 **끝났다(커밋 완료)**. 다음 할 일은 **N-1 패킷 발주 하나**다.
 >
 >   [지금 상태]
->     · HEAD = `bfa1e2d`, branch `codex/gunghap-relationship-quality`, **push 0**(origin 대비 앞섬).
+>     · HEAD = `ed9db45` 이후, branch `codex/gunghap-relationship-quality`, **push 0**(origin 대비 15커밋 앞섬).
 >     · 기준선 = **1279 passed / 4 skipped / exit 0**, 수집 총수 1283. (감소 = 회귀)
 >     · manifest = `partner-ym-flag-direct-access-20260822` / `planned` / `next_actor=codex`.
 >       직전 `ephemeris-path-portability-20260821` 은 `done` 으로 마감·archive 됨.
@@ -41,8 +41,13 @@
 >       요구했고 수용했으므로 어시스턴트가 먼저 밀지 않는다.
 >     · **#2-c 가드 오탐 정밀화** — 오탐 7건이 근거. 사건별 차단 코드 확정 전 `deny` 완화 금지.
 >
->   [오늘 커밋 2건] `5c11cbe` feat(calc) 제품3+테스트1 · `bfa1e2d` docs(handoff) 기록5.
->     이 종료 앵커와 N-1 패킷 등재는 그 다음 커밋에 담긴다.
+>   [오늘 커밋] `5c11cbe` feat(calc) 제품3+테스트1 · `bfa1e2d` docs(handoff) 기록5 ·
+>     `ed9db45` chore(handoff) 마감(done)+archive+N-1 패킷 등재+이 종료 앵커.
+>
+>   [★ 사주 도메인이 여기 다 있는지 — 2026-08-22 확인] 이월 3건이 이 앵커 안에 전부 들어 있다:
+>     **N-1**(위 [N-1 이 무엇인가] — 현재 활성 패킷) · **F-1**·**N-5**(위 [남은 이월]) ·
+>     상위 프레임 `docs/26` §5. 도구·설정 작업에 묻히지 않게 한 블록에 모았다.
+>     (2026-08-21 에 도구 항목만 적고 사주 이월을 빠뜨려 운영자가 지적한 이력이 있다 — 커밋 6e6adca.)
 
 > ===== 압축/새세션 재개 앵커 (2026-08-22 천체력 경로 이식성 **교차리뷰 CODE_PASS · 커밋 완료**) =====
 >   [판정] `ephemeris-path-portability-20260821` rev2 = **CODE_PASS, 블로커 0 / 비블로커 1**.
