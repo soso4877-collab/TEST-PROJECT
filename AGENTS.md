@@ -54,6 +54,19 @@
 - 기본 사이클은 `Claude 설계 → Codex 구현 → Claude 교차리뷰 → 사용자 checkpoint` 한 번이다. Claude PASS 뒤 Codex를 다시 확인자로 보내지 않는다. 예외는 Claude 직접 구현·미해결 의견 충돌·릴리스급 별도 감사·운영자 명시 지시뿐이다.
 - Playwright 실렌더처럼 환경 종속 검증은 패킷이 지정한 증거 소유자만 실행한다. 다른 환경의 예정된 skip은 코드 실패가 아니며 동일 tree SHA·수집 총수·skip 사유로 분리 증거를 합성한다.
 
+### 호출 경로 — 플러그인 경유 (2026-08-22 신설)
+공식 `codex-plugin-cc` 가 설치돼 있다. **Codex 를 Claude Code 세션 안에서 직접 호출할 수 있고, 별도 세션·복사 붙여넣기가 필요 없다.** 별도 Codex 프로세스라 컨텍스트가 실제로 분리되므로 "구현자 ≠ 검증자" 독립성은 이 경로에서도 성립한다.
+- `/codex:review` = 읽기 전용 리뷰. `/codex:adversarial-review` = 설계 결정에 반론을 거는 리뷰. **둘 다 diff 대상**(working-tree·branch·`--base`)이라 저장소 밖 감사나 자유 형식 조사에는 맞지 않는다.
+- `/codex:rescue` = 자유 형식 조사·구현 위임. `--model`·`--effort`(none~xhigh; **max·ultra 는 이 경로에서 선택 불가**)·`--write`(파일 수정 허용)를 받는다.
+- **여전히 수동인 것**: TASK_PACKET 발주 자체다. 플러그인은 manifest·SHA 프로토콜을 모른다. 패킷은 Claude 가 쓰고 manifest 에 고정한 뒤, 플러그인 호출문은 **패킷을 가리키는 포인터**여야 한다(세부를 발주문에 재기술하지 않는다).
+
+### 플러그인 운영 함정 (2026-08-22 실측)
+1. Codex 호출은 **반드시 `--background`**. 전경은 10분 상한에 잘리고, 잘려도 Codex 작업은 계속 돌아 기록만 남는다.
+2. **상태 표시 `running` 을 믿지 마라.** 생존 신호는 잡 로그 파일의 **갱신 시각**이다. 실측 사례 — 프로세스가 죽은 뒤에도 상태는 41분간 `running` 이었고 로그는 35분간 정지해 있었다.
+3. 죽은 잡은 `cancel` 이 PID 부재로 실패해 기록이 `running` 으로 남는다. 다음 발주는 `--fresh` 로 우회한다.
+4. Codex 샌드박스는 `.git/config` 쓰기를 막는다. `core.hooksPath` 같은 로컬 배선은 `BLOCKED_ENV` 로 올라오며 운영자나 리뷰 세션이 실행한다.
+5. **발주문 본문에 민감 경로나 파괴적 명령 문자열이 있으면 PreToolUse 가드가 발주 자체를 차단한다**(2026-08-22 하루 7건, 전부 오탐 — 실행이 아니라 텍스트 언급이었다). 발주문은 패킷을 가리키고 세부는 패킷 파일에 둔다.
+
 ## Phase 0 containment — handoff source of truth
 - 고객 납품·품질 사고 대응은 역할을 분리한다: Claude는 Plan Architect와 Semantic Reviewer, Codex는 승인된 TASK_PACKET 구현자다. Claude가 직접 구현한 예외 태스크만 신선 Codex 세션이 검증한다.
 - 구현의 source of truth는 `handoff/templates/task_packet.json` 형식의 TASK_PACKET(또는 승인된 로드맵 문서, 예: `handoff/audit-followup-roadmap.md`)이다. 구현 보고와 검증 보고는 분리하고, 세션 전환은 `handoff/templates/context_snapshot.md` 형식을 따른다.
