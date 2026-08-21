@@ -1,6 +1,40 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
-> ===== 압축/새세션 재개 앵커 (2026-08-22 커밋 비밀정보 가드 **BLOCKED_ENV** — 이 블록 먼저 읽기) =====
+> ===== 압축/새세션 재개 앵커 (2026-08-22 도구·설정 정비 세션 — **이 블록 먼저 읽기. 아래 BLOCKED_ENV 블록은 해소됨**) =====
+>   [활성] manifest = `ephemeris-path-portability-20260821` / `planned` / `next_actor=codex`.
+>     패킷 `handoff/tasks/ephemeris-path-portability-20260821.md` SHA `cc70516b…`. 미발주 상태다.
+>   [★ 기준선 갱신] pytest 기준선이 **1266 passed / 4 skipped → `1273 passed / 4 skipped / exit 0`** 으로 바뀌었다.
+>     ephemeris 패킷 §7 에는 옛 수치가 적혀 있으니 그대로 쓰지 마라.
+>   [완료 — commit-secret-guard-20260822] 아래 BLOCKED_ENV 블록의 차단은 **해소됐다.**
+>     교차리뷰 세션이 `git config core.hooksPath .githooks` 를 실행 → 신규 **7 passed**, 전체 **1273/4/exit 0**.
+>     구현환경 1244/32/1 은 샌드박스 skip 차이(수집 총수 1277 동일)로 확정. 판정 **CODE_PASS**,
+>     커밋 `e86f956`(제품 8경로) · `c8fbd61`(manifest verified). 훅 실행은 대조군(`git hook run` 부재 시 exit 1)과
+>     강제실패 훅(exit 9)으로 실증했다. **`core.hooksPath` 는 `.git/config` 라 비커밋 — 새 클론마다 1회 재실행 필요**
+>     (누락 시 `test_repository_core_hooks_path_is_wired` 가 검출).
+>   [도구·설정 변경 — 저장소 밖, 커밋 없음]
+>     · **Codex 플러그인 `codex-plugin-cc` 설치 완료.** 세션 안에서 Codex 호출 가능(복사 붙여넣기 불필요).
+>       호출 경로·운영 함정 5건은 `AGENTS.md` "호출 경로/플러그인 운영 함정" 절에 등재(커밋 `30a083c`).
+>     · 전역 `model`: `claude-fable-5[1m]`(핀) → **`opus[1m]`(별칭)**. 세대 교체 자동 추종.
+>       상위 티어는 필요할 때 세션 한정 `/model fable` 로 꺼내 쓴다(운영자 방침).
+>     · 프로젝트 `.claude/settings.json` 에 PowerShell 읽기전용 allowlist 18개 추가(커밋 `b7229aa`).
+>   [★ 실측 — 가드 오탐 7건] `security-guard.mjs` 와 `deny` 규칙이 **명령문에 문자열이 있다는 이유만으로** 7회 차단했다.
+>     전부 실행이 아니라 텍스트 언급이었고, 그중 하나는 작업 발주를, 하나는 커밋 메시지를 막았다.
+>     교차검토 지시: **원인(사건별 차단 코드) 확정 전에는 `deny` 를 완화하지 마라.**
+>   [★ 공식 확인] 권한 규칙 평가 순서는 **deny → ask → allow** 이고 `allow` 는 `deny` 를 이기지 못한다.
+>     **자동승인(auto mode)을 켜도 `deny` 는 유지된다** → 삭제 오탐은 auto mode 로 풀리지 않는다.
+>     출처 `code.claude.com/docs/en/permissions`.
+>   [잔재] `.githooks/pre-rebase` — 훅 실행 실증용 임시 파일. `exit 0` 무해화 완료, untracked.
+>     deny 규칙상 어시스턴트가 삭제 불가 → 운영자가 `rm` 으로 제거.
+>   [남은 항목]
+>     · **#2-a 자동승인 해제 · `/sandbox` Windows 가용성 확인** — 운영자 판단. 교차검토가 auto mode 권고 철회를
+>       요구했고 수용했으므로 어시스턴트가 먼저 밀지 않는다. 대가는 분류기 미검출률 17%.
+>     · **#2-c 가드 오탐 정밀화** — 위 7건이 근거. 원인 확정 전 보류.
+>     · **F-1 대운 축** — 유파 1차 자료 조사 선행(저장소에 근거 0건). `docs/03` 신규 행 등재 보류.
+>       상세는 `docs/16` QI-2026-08-17-01 이월란 2026-08-21 정정 블록(정본).
+>     · **ephemeris 패킷 발주** — manifest 에 이미 활성.
+>   [push] 0 — 운영자 지시 대기.
+
+> ===== 압축/새세션 재개 앵커 (2026-08-22 커밋 비밀정보 가드 **BLOCKED_ENV → 위 블록에서 해소됨**) =====
 >   [활성] `commit-secret-guard-20260822`, HEAD `b7229aa`, 구현 파일 8경로 미커밋. commit·push·PDF·LLM·배포 0.
 >   [구현] `.githooks/pre-commit`(스테이징 경로 + 추가 라인만, 고신뢰 2종) · 신규 양방 테스트 7건 ·
 >     문서 4곳 실제 구성 정정 · 본 STATE/구현 보고. 오탐 회귀 2건과 기능 차단 3건 포함.
