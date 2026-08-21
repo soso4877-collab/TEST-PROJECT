@@ -13,10 +13,17 @@ from functools import lru_cache
 
 from skyfield.api import Loader
 
+from sajugen.paths import EPHEMERIS_BSP, EPHEMERIS_DIR
+
 _log = logging.getLogger(__name__)
 
-_loader = Loader(r"C:\Users\pc\test-project\sajugen\assets\ephemeris")
-_eph = _loader("de440s.bsp")
+# Loader의 누락 파일 자동 다운로드 전에 패키지 자산을 확인해 명확히 실패시킨다.
+_ephemeris_path = EPHEMERIS_DIR / EPHEMERIS_BSP
+if not _ephemeris_path.is_file():
+    raise FileNotFoundError(f"천체력 파일을 찾을 수 없습니다: {_ephemeris_path}")
+
+_loader = Loader(EPHEMERIS_DIR)
+_eph = _loader(EPHEMERIS_BSP)
 _ts = _loader.timescale()
 _earth, _sun = _eph["earth"], _eph["sun"]
 
