@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "guard-false-positive-triage-20260822",
+  "task_id": "brainhealth-evidence-audit-optin-gap-20260822",
   "status": "planned",
-  "base_commit": "ca0479c68161bd8f4b61667237d636efc8164624",
-  "packet_path": "handoff/tasks/guard-false-positive-triage-20260822.md",
-  "packet_sha256": "e8c07204cbbdb7987ee8330ca31ff6a8931340e2e054f898245804a3ee176287",
+  "base_commit": "07e8ca99d1bd20afca7c9f0722b2402a19713b90",
+  "packet_path": "handoff/tasks/brainhealth-evidence-audit-optin-gap-20260822.md",
+  "packet_sha256": "17a293978e617f9ef9ced4303dc93f181100bc706f42dfd5040a5ff0212a1a1b",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "f856491f475d72ac322335c75718aef498ac9e4ed6e4389d36936e6e7f44072c",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "c78144066cddc3b445d230d676dfa59f1a8dd417bad9b91e3e112c906fe78f65",
-  "next_actor": "claude",
-  "next_action": "운영자 지시(2026-08-22): 도구 마찰을 먼저 걷어낸다 — 본 작업에 곱해지므로 N-1보다 앞선다. 1단계 = 원인 확정만, 완화 금지. 오탐 7건 각각의 실제 차단 코드를 evaluateRequest 합성 프로브로 확정하고 양성 대조(진짜 위험 케이스 계속 차단)를 함께 낸다. 소스 가설: Edit/Write 는 대상 경로만 보는데 shell 은 command 전체를 봐서 따옴표 안 인자 텍스트가 경로로 오인된다(security-guard.mjs 68-75행). 대상이 저장소 밖 전역 훅이라 경계 결정 필요. N-1 패킷은 대기열 보존.",
-  "updated_at": "2026-08-21T18:13:51.290Z"
+  "next_actor": "codex",
+  "next_action": "감사기 옵트인 구멍 수정. brain-health.ps1 의 근거 감사가 [공식확인] 리터럴 태그를 단 절만 평가해(113행) 태그 없는 노트는 영구 면제된다. 실측: 정본 88건 중 URL 16, URL-무인용 6, 태그 보유 13(=75건 면제). 이미 grade 확정을 통과한 누출 1건 확인(컨텍스트-엔지니어링-삭감기준). 수정은 URL 기준 신규 검사 + warning 레벨(exit 0 유지), 기존 검사 완화 금지. 자체테스트 하네스에 양방 추가, 교정 전 RED 실증 의무. 대상이 vault 라 접근성 확인 후 착수. commit/push 금지.",
+  "updated_at": "2026-08-21T18:36:11.527Z"
 }
