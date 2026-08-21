@@ -44,6 +44,20 @@
 >   [오늘 커밋] `5c11cbe` feat(calc) 제품3+테스트1 · `bfa1e2d` docs(handoff) 기록5 ·
 >     `ed9db45` chore(handoff) 마감(done)+archive+N-1 패킷 등재+이 종료 앵커.
 >
+>   [★ 마감 검증 — 2026-08-22 종료 직전 실측. 다음 세션은 이걸 기준선으로 삼는다]
+>     · `pytest tests/ -q` → **1279 passed / 4 skipped / exit 0**(227.87s). 세션 중 측정치와 동일.
+>     · ruff 변경 4파일 `All checks passed!` exit 0. 전체 ruff exit 1 은 **기존 부채 3건**
+>       (`content/temporal_lint.py:11 F401` · `insight.py:152 F541` · `tests/test_p2.py:10 F401`)
+>       뿐이며 이번 변경 파일 신규 위반 0. **이 exit 1 을 회귀로 오독하지 마라.**
+>     · `py_compile` exit 0, `git diff --check` exit 0, `git status --untracked-files=all` 무출력.
+>     · **handoff 무결성**: `handoff.mjs validate` → `HANDOFF_VALID … status=planned next_actor=codex`,
+>       exit **0**. `HASH_MISMATCH` 없음. validate 만 믿지 않고 CRLF→LF 정규화 SHA-256 을 독립
+>       재계산해 packet·notes·review **3/3 MATCH** 확인. `base_commit` ancestor exit 0.
+>     · [기지 사항] 세션 중 한때 `HASH_MISMATCH` 가 났던 것은 구현자(Codex)가 발주 후
+>       `implementation-notes.md` 를 갱신해 write 스냅샷보다 뒤섰기 때문이다. 재동결로 해소됐다.
+>       **이 패턴은 앞으로도 반복된다 — 발주 후 notes 가 바뀌면 재동결 전까지 validate 는 exit 3 이다.**
+>     · **유실 방어**: 이 회차부터 feat 브랜치를 origin 에 push 했다(운영자 승인). main 전진은 별건.
+>
 >   [★ 사주 도메인이 여기 다 있는지 — 2026-08-22 확인] 이월 3건이 이 앵커 안에 전부 들어 있다:
 >     **N-1**(위 [N-1 이 무엇인가] — 현재 활성 패킷) · **F-1**·**N-5**(위 [남은 이월]) ·
 >     상위 프레임 `docs/26` §5. 도구·설정 작업에 묻히지 않게 한 블록에 모았다.

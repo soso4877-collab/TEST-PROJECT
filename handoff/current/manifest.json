@@ -2,7 +2,7 @@
   "schema_version": 1,
   "task_id": "partner-ym-flag-direct-access-20260822",
   "status": "planned",
-  "base_commit": "bfa1e2d1723e5044fcdb35da9683d92eda8e09f3",
+  "base_commit": "bfef1a69781c9699fc6164eca59995ddd21cc240",
   "packet_path": "handoff/tasks/partner-ym-flag-direct-access-20260822.md",
   "packet_sha256": "b778f115f08f02608f4c4c4ebfbc4d861a319115a06f3386e67efd2b3ee8e005",
   "notes_path": "implementation-notes.md",
@@ -10,6 +10,6 @@
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "c78144066cddc3b445d230d676dfa59f1a8dd417bad9b91e3e112c906fe78f65",
   "next_actor": "codex",
-  "next_action": "N-1 발주 대기. rules.py:2147 의 getattr 기본값이 절대규칙 8-1 억제 가드를 fail-open 시킨다(기본 False → 억제가 조용히 꺼짐). builder.py:296 은 같은 필드를 직접 접근 = 비대칭. duck-typing 호출자 0건 실측이라 기본값은 사문. 수정 1줄 + 양방 테스트(교정 전 RED 실증 의무, delattr 함정 주의). 기준선 1279 passed / 4 skipped, 총수 1283. calc/input 무변경 증명 필요. commit/push/LLM/PDF 금지.",
-  "updated_at": "2026-08-21T17:44:21.444Z"
+  "next_action": "N-1 발주 대기. rules.py:2147 getattr 기본값이 절대규칙 8-1 억제 가드를 fail-open 시킨다(기본 False → 억제가 조용히 꺼짐). builder.py:296 은 직접 접근 = 비대칭. duck-typing 호출자 0건 실측이라 기본값은 사문. 수정 1줄 + 양방 테스트(교정 전 RED 실증 의무, delattr 함정 주의). 마감 검증 2026-08-22: 1279 passed / 4 skipped / exit 0, 총수 1283, 해시 3/3 MATCH, validate exit 0. calc/input 무변경 증명 필요. commit/push/LLM/PDF 금지.",
+  "updated_at": "2026-08-21T17:56:27.632Z"
 }
