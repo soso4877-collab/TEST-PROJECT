@@ -2,14 +2,14 @@
   "schema_version": 1,
   "task_id": "daewoon-qiyun-axis-20260823",
   "status": "planned",
-  "base_commit": "981756465895755c8aba227c427e96e29272e260",
+  "base_commit": "efb5b7137a06c35826151b5f6450dfb51611c59e",
   "packet_path": "handoff/tasks/daewoon-qiyun-axis-20260823.md",
-  "packet_sha256": "2b2db2a3fbd7cd39641cb7e89f7a9e0b43f7a41078f62875c90d835b3a94fb38",
+  "packet_sha256": "3b07bf6089b09487ae3f14280776db9b387949ee815729b93332a527815e9dea",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "5d6ca9f863d044368233116e0a29e43aae041ea96fb2785c00a467603ba143e4",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "bbcb90c8b91f0765580956b1ddbfadebc03a16b110ff3c1fda16a43651812097",
   "next_actor": "codex",
-  "next_action": "rev2: rev1 정지선 2% 는 예측 오차(docs/27 부록 D). 운영자 재확정 C' 유지, 정지선 5%. rev1 워킹트리 구현 보존하고 중단했던 검증만 완료 — 1994 격자, 전체 pytest(기준선 1280/4), 지정 3파일 묶음, ruff, 변동률 최종치. 보고서 최상단 갱신. commit/push 금지.",
-  "updated_at": "2026-08-22T16:16:55.582Z"
+  "next_action": "rev3: 리뷰어 재검산에서 子時 날짜 귀속 결함(블로커) — 23시=子 로 두면 날짜도 자시 정책대로 익일로 넘겨야 함(출생·절입 양쪽, 정책 함수 1개 재사용). rev1 워킹트리 compute_qiyun 날짜 규칙 수정 + 손계산 앵커 4건 재계산(8/1993, 7/1992 x3) + 23시대 양방 테스트(§5 9-rev3) + 교정 전 RED. 이후 1994 격자·전체 pytest(기준 1280/4)·ruff 완료. 정지선 5%. commit/push 금지.",
+  "updated_at": "2026-08-22T16:22:45.223Z"
 }
