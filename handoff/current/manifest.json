@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "daewoon-grid-optin-20260823",
-  "status": "done",
-  "base_commit": "cda93d580e12806b5efdb97229e294c578faac88",
-  "packet_path": "handoff/tasks/daewoon-grid-optin-20260823.md",
-  "packet_sha256": "79fcd9f44a4880a51d7ad637e0fbb04fd3640e1e71f95ec57715b711b13054f2",
+  "task_id": "birth-time-mode-direct-access-20260823",
+  "status": "planned",
+  "base_commit": "ca36e9f1d84850bde1c9a5498a966f43482791e2",
+  "packet_path": "handoff/tasks/birth-time-mode-direct-access-20260823.md",
+  "packet_sha256": "3561a1e7e9099292d05459dffcdb88e9ce1db7ead274f08d669506a3db1c8f64",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "2929f98fba2c26abafee00af06e4fc42a824a50c529ee50ecd6558b32f4d8840",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "09cc569e02666fb29ad593202ec80d40ef040a0f4bb92084b3883b175dabc41b",
-  "next_actor": "none",
-  "next_action": "마감. 교차리뷰 CODE_PASS 후 checkpoint cda93d5. 새 기준선 1293 passed / 14 skipped / exit 0 (격자 10 skip 포함), 수집 1307. 남은 이월: N-5, builder.py:120 follow-up fail-open, vault brain-health.ps1 운영자 commit, origin push.",
-  "updated_at": "2026-08-22T23:01:16.382Z"
+  "next_actor": "codex",
+  "next_action": "birth_time_mode getattr 기본값 5곳(builder 120/208, integrated 497, factcheck 68, rules 1241)을 명시 전달/직접 접근으로. personal_identity_spec 키워드 필수화 + 호출자 5곳 배선(follow-up 은 store/orders 정본 규칙 재사용, 복제 금지). 양방 테스트 + 교정 전 RED 3종. 주문 경로 회귀(test_orders·final_render_gate) 필수. 기준선 1293/14. commit/push 금지.",
+  "updated_at": "2026-08-22T23:11:41.574Z"
 }
