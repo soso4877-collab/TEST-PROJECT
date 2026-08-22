@@ -2144,7 +2144,7 @@ def partner_block(pf, saju, label: str = "", lunar_input: bool = False) -> str:
     )
     # 절대규칙 8-1: 시각 미상 + 신고 날짜 안 월건 전환이면 연·월주를 확정 사실로 쓰지 않는다.
     # 고지는 별도 문단을 만들지 않고 기존 시각 미상 고지에 흡수한다.
-    ym_dep = bool(getattr(pf, "ym_time_dependent", False))
+    ym_dep = bool(pf.ym_time_dependent)
     if ym_dep:
         hour_note += (
             " 이 날은 절기가 바뀌는 날이라 태어난 시간에 따라 연주와 월주가 갈려,"

@@ -24,6 +24,9 @@ PII: 입력 날짜·라벨·이름은 전부 합성이다. 실명·실고객 생
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -113,6 +116,16 @@ def test_ym_time_dependent_flag_boundary_table():
     assert _facts(_BOUNDARY_B).ym_time_dependent is True
     assert _facts(_BOUNDARY_A, hour=7).ym_time_dependent is False
     assert _facts(_PLAIN).ym_time_dependent is False
+
+
+def test_partner_block_requires_ym_time_dependent_flag():
+    """고객 가시 억제 플래그가 없는 객체는 기본값으로 통과시키지 않는다."""
+    attrs = vars(_facts(_PLAIN)).copy()
+    attrs.pop("ym_time_dependent")
+    missing_flag = SimpleNamespace(**attrs)
+
+    with pytest.raises(AttributeError, match="ym_time_dependent"):
+        rules.partner_block(missing_flag, _SAJU, label="합성상대")
 
 
 def test_predicate_is_reused_not_reimplemented():
