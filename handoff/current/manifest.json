@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "partner-ym-flag-direct-access-20260822",
-  "status": "done",
-  "base_commit": "537898ce4e38b7e52e441d332dc512aad8454bf7",
-  "packet_path": "handoff/tasks/partner-ym-flag-direct-access-20260822.md",
-  "packet_sha256": "43614488e53b710d3517c477acaba38827896aded5abf64d3f88bb09f7caed63",
+  "task_id": "daewoon-qiyun-axis-20260823",
+  "status": "planned",
+  "base_commit": "33f1e0c427d1b095fa04ccf976c1411345ae3197",
+  "packet_path": "handoff/tasks/daewoon-qiyun-axis-20260823.md",
+  "packet_sha256": "41f99b94e49a43b381cad6f5f27dd6e380f9bd505715db8f43fd52fb561ebd93",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "b79c35e98307985119c2ada26c09480a3bad891b1d898791a66583d5cb01f3b4",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "bbcb90c8b91f0765580956b1ddbfadebc03a16b110ff3c1fda16a43651812097",
-  "next_actor": "none",
-  "next_action": "마감. 교차리뷰 CODE_PASS 후 운영자 checkpoint — 제품 537898c(rules.py 1줄 + 테스트), 기록 chore(handoff). 새 기준선 1280 passed / 4 skipped / exit 0, 수집 1284. push 0. 후속 후보: builder.py:120 follow-up 경로 birth_time_mode fail-open(패킷 §2-4 오판) 별도 패킷. 다음 이월 F-1 대운 start_year 축.",
-  "updated_at": "2026-08-22T14:32:16.514Z"
+  "next_actor": "codex",
+  "next_action": "F-1: 대운 起運 산출을 lunar-python 流派1(CST 시진 버킷)에서 회수해 docs/03 확정 축(거리=절대축 Skyfield, 시진 버킷=시주와 같은 국지축 hour_branch, 앵커=시민 KST, 折除 내림)으로 자체 계산. 세운/월운 현재 대운 선택도 우리 start_year 로. 양방 앵커 4건 三命通會 손계산 + 교정 전 RED + 골든 22 GREEN + 변동률 보고. calc 변경이라 전체 GREEN 필수. commit/push 금지.",
+  "updated_at": "2026-08-22T15:04:59.354Z"
 }
