@@ -2,14 +2,14 @@
   "schema_version": 1,
   "task_id": "daewoon-qiyun-axis-20260823",
   "status": "planned",
-  "base_commit": "33f1e0c427d1b095fa04ccf976c1411345ae3197",
+  "base_commit": "981756465895755c8aba227c427e96e29272e260",
   "packet_path": "handoff/tasks/daewoon-qiyun-axis-20260823.md",
-  "packet_sha256": "41f99b94e49a43b381cad6f5f27dd6e380f9bd505715db8f43fd52fb561ebd93",
+  "packet_sha256": "2b2db2a3fbd7cd39641cb7e89f7a9e0b43f7a41078f62875c90d835b3a94fb38",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "b79c35e98307985119c2ada26c09480a3bad891b1d898791a66583d5cb01f3b4",
+  "notes_sha256": "5d6ca9f863d044368233116e0a29e43aae041ea96fb2785c00a467603ba143e4",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "bbcb90c8b91f0765580956b1ddbfadebc03a16b110ff3c1fda16a43651812097",
   "next_actor": "codex",
-  "next_action": "F-1: 대운 起運 산출을 lunar-python 流派1(CST 시진 버킷)에서 회수해 docs/03 확정 축(거리=절대축 Skyfield, 시진 버킷=시주와 같은 국지축 hour_branch, 앵커=시민 KST, 折除 내림)으로 자체 계산. 세운/월운 현재 대운 선택도 우리 start_year 로. 양방 앵커 4건 三命通會 손계산 + 교정 전 RED + 골든 22 GREEN + 변동률 보고. calc 변경이라 전체 GREEN 필수. commit/push 금지.",
-  "updated_at": "2026-08-22T15:04:59.354Z"
+  "next_action": "rev2: rev1 정지선 2% 는 예측 오차(docs/27 부록 D). 운영자 재확정 C' 유지, 정지선 5%. rev1 워킹트리 구현 보존하고 중단했던 검증만 완료 — 1994 격자, 전체 pytest(기준선 1280/4), 지정 3파일 묶음, ruff, 변동률 최종치. 보고서 최상단 갱신. commit/push 금지.",
+  "updated_at": "2026-08-22T16:16:55.582Z"
 }

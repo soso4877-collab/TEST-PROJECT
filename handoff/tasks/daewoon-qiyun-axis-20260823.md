@@ -5,7 +5,10 @@
 - **next_reviewer**: **Claude Code 교차리뷰** (read-only, 구현 세션과 분리)
 - **base_commit**: manifest `base_commit` 참조 (docs/03·docs/27·research-ledger 등재 커밋)
 - **근거**: `docs/16` QI-2026-08-17-01 이월 **F-1** → 조사 `docs/27` → 운영자 O1 확정(2026-08-23) → `docs/03` 「대운 起運 산출 축」 행
-- **rev**: 1
+- **rev**: 2 (2026-08-23 — rev1 의 §7 정지선 "변동 2% 초과" 는 docs/27 §2 프로브 C(출생 끝점만 진태양시) 에서 나온 **예측 오차**였다.
+  §3-1 설계(두 끝점을 같은 국지 시계로)의 실제 변동률은 docs/27 부록 D 프로브 C′ **3.56%**, Codex rev1 격자 실측 **3.45%**(22,896건)로
+  서로 일치한다. 운영자 재확정(2026-08-23): **C′ 유지**. rev2 = §7 정지선만 **5%** 로 정정, §2-2 예측치 정정. 구현·테스트는 rev1 워킹트리
+  그대로 보존하고 **중단했던 검증(1994 격자·전체 pytest·ruff)만 이어서 완료**한다.)
 
 ---
 
@@ -136,11 +139,11 @@ implementation-notes.md / sajugen/STATE.md
 ./.venv/Scripts/python.exe -m ruff check sajugen/calc/myeongni.py sajugen/calc/advanced.py sajugen/input/time_correction.py tests/test_daewoon_qiyun_axis.py
 ```
 - 기준선(2026-08-22) = **1280 passed / 4 skipped / exit 0**, 수집 1284. 환경차 규칙(AGENTS.md §10): 구현환경은 Playwright skip 28 더 많음.
-- 추가 보고: 격자 전수에서 교정 전후 `start_year` 가 바뀐 건수·비율(docs/27 예측 0.5% 내외). **크게 벗어나면 정지 보고**.
+- 추가 보고: 격자 전수에서 교정 전후 `start_year` 가 바뀐 건수·비율. (rev2) 예측치 = **3.5% 내외**(docs/27 부록 D C′). 5% 초과 시 정지.
 
 ## 7. 정지 조건
 - `_NAMED` 대운수 스냅샷이 바뀜 / 양방 앵커 손계산과 구현이 불일치 / `month_branch_crosscheck_ok` 실패 발생 / allowed 밖 수정 필요 /
-  교정 전후 `start_year` 변동이 2% 초과 → 모두 **정지 후 실측 보고**.
+  교정 전후 `start_year` 변동이 **5%** 초과(rev2 정정; rev1 의 2% 는 예측 오차) → 모두 **정지 후 실측 보고**.
 
 ## 8. 산출물
 `CODEX_IMPLEMENTATION_REPORT`(`implementation-notes.md` 최상단): 명령+출력, RED 실증, 변동 건수표, 손계산 4건, 미검증 분리. 커밋 금지.
