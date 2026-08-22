@@ -1,3 +1,23 @@
+# 교차 리뷰 — 2026-08-23 (起運 격자 테스트 옵트인 분리 rev4, 리뷰어: Claude read-only)
+
+대상: `daewoon-grid-optin-20260823`(base/HEAD `bcf33b7` 위 미커밋, tests 1파일) · 구현자 Codex(잡 `task-mt4ynps9-y8l8wk`, effort medium).
+리뷰어 재실행 수치만 기록. 리뷰 중 수정 0.
+
+## 최종 판정: **승인(CODE_PASS)** — 블로커 0, 소견 0. 판정값 `verified / next_actor=user`.
+
+| 검사 | 결과 |
+|---|---|
+| diff | `import os` + 격자 함수 **1개**에만 `skipif(os.environ.get("SAJUGEN_QIYUN_GRID_SWEEP") != "1", reason=…)` — 저장소 관행(`test_integrated_render_e2e.py:24`) 동일 패턴. 본문·격자 정의·단언 무수정, 파일 `pytestmark` 없음 |
+| 기본 `pytest tests/test_daewoon_qiyun_axis.py -q -rs` | **13 passed / 10 skipped**, 6.22s, 사유 10건 출력 |
+| 옵트인 `SAJUGEN_QIYUN_GRID_SWEEP=1 … -k=1994` | **1 passed / 22 deselected**, 201s — 데코레이터 실제 해제 |
+| 전체 `pytest tests/ -q` | **1293 passed / 14 skipped / exit 0, 180s**(직전 1303/4, 1413s → 격자 10건 pass→skip, 소요 −20.5분). 수집 1307 불변 |
+| ruff / base 조상 | `All checks passed!` / `bcf33b7` ancestor exit 0 |
+
+기록: Codex 샌드박스에서 `-k "1985"` 따옴표가 그대로 전달돼 exit 4 → `-k=1985` 로 교정(환경 함정, 코드 무관).
+새 기준선 = **1293 passed / 14 skipped**(격자 10 skip 포함). 격자 전수는 `calc/` 변경 시 옵트인으로 돌린다(calc.md 에 한 줄 추가 권장 — 별건).
+
+---
+
 # 교차 리뷰 — 2026-08-23 (F-1 대운 起運 축 이관, 리뷰어: Claude read-only)
 
 대상: `daewoon-qiyun-axis-20260823` rev3 구현(base/HEAD `2433805` 위 미커밋) · 구현자 **Codex**(rev1 잡 `task-mt4ifjqa-cq2at9`

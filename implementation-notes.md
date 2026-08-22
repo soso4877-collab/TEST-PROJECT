@@ -1,3 +1,54 @@
+# CODEX_IMPLEMENTATION_REPORT — daewoon-grid-optin-20260823
+
+- 판정: **EVIDENCE_SPLIT_PASS**. 起運 10개년 격자 함수 하나만
+  `SAJUGEN_QIYUN_GRID_SWEEP=1` 환경변수 옵트인으로 분리했다. 제품 코드·격자 정의·함수 본문·
+  단언은 수정하지 않았다.
+- 인계: `node C:/Users/pc/.ai-harness/handoff.mjs validate --repo C:/Users/pc/test-project`
+  → `HANDOFF_VALID task_id=daewoon-grid-optin-20260823 status=planned next_actor=codex`, exit 0.
+  packet SHA-256 `79fcd9f44a4880a51d7ad637e0fbb04fd3640e1e71f95ec57715b711b13054f2`가
+  manifest와 일치했다.
+
+## 구현
+
+- `tests/test_daewoon_qiyun_axis.py`: 저장소 기존 `pytest.mark.skipif` 관행에 맞춰 `os`를 import하고,
+  `test_grid_before_after_change_rate_and_ganzhi_invariants` 함수 하나에만 데코레이터를 추가했다.
+- 기본값은 10개 연도를 사유와 함께 skip하며,
+  `SAJUGEN_QIYUN_GRID_SWEEP=1`일 때 기존 격자와 모든 불변 단언을 그대로 실행한다.
+- 제품 코드 변경 0, 단언 완화 0, 파일 전체 `pytestmark` 사용 0이다.
+
+## 수용 검증
+
+- 기본 방향:
+  `.venv\Scripts\python.exe -m pytest tests\test_daewoon_qiyun_axis.py -q -rs`
+  → **13 passed / 10 skipped / exit 0 / 6.07s**. 10건 모두
+  `起運 격자 25,440건(약 20분)은 SAJUGEN_QIYUN_GRID_SWEEP=1 로 옵트인` 사유가 출력됐다.
+- 옵트인 방향:
+  `set SAJUGEN_QIYUN_GRID_SWEEP=1&& .venv\Scripts\python.exe -m pytest tests\test_daewoon_qiyun_axis.py -q -k=1985`
+  → **1 passed / 22 deselected / exit 0 / 202.85s(3분 22초)**. 데코레이터가 실제 해제되고
+  기존 1985년 격자 단언이 통과했다. 최초 `-k "1985"` 호출은 실행 도구가 따옴표를 pytest에
+  그대로 전달해 표현식 파싱 오류(exit 4, 테스트 0건)가 났으며, 선택 의미가 같은 `-k=1985`로
+  교정해 통과했다.
+- 전체:
+  `.venv\Scripts\python.exe -m pytest tests\ -q`
+  → **1265 passed / 42 skipped / exit 0 / 142.42s(2분 22초)**. 패킷에 명시된 이 구현환경의
+  Playwright 추가 skip 28건을 분리하면 기준환경 예상치 **1293 passed / 14 skipped**와 일치하며,
+  수집 총수 1307은 불변이다. 직전 동일 Codex 환경 **1275/32, 1314.07s** 대비 격자 10건만
+  pass→skip으로 이동했고 소요는 **1171.65s(19분 31.65초) 감소**, 5분 제한을 충족했다.
+- Ruff:
+  `.venv\Scripts\python.exe -m ruff check tests\test_daewoon_qiyun_axis.py`
+  → `All checks passed!` / exit 0.
+- `git diff --check` → exit 0(CRLF 안내만).
+
+## 미검증·남은 위험·다음 행동
+
+- 기준환경의 `1293/14`는 이 환경에서 직접 실행하지 못했다. 동일 총수와 패킷이 지정한 Playwright
+  28건 환경 차이로 분리했으며, 실행된 테스트 실패는 0이다.
+- 변경은 `tests/test_daewoon_qiyun_axis.py`와 이 보고서뿐이다. `sajugen/STATE.md`는 수정하지 않았다.
+- commit·push·deploy·PDF 재생성·LLM/API 호출은 모두 0이다. 다음은 Claude Code의 read-only
+  교차리뷰다.
+
+---
+
 # CODEX_IMPLEMENTATION_REPORT — daewoon-qiyun-axis-20260823 (rev3 최종)
 
 - 판정: **EVIDENCE_SPLIT_PASS**. rev1 구현을 보존한 채 子時 날짜 귀속을 교정했고, 손계산 앵커·

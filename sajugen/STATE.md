@@ -1,5 +1,14 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== ★ 최신 앵커 (2026-08-23 — rev4 격자 옵트인 교차리뷰 **CODE_PASS**, 운영자 checkpoint 대기) =====
+>   [한 줄] F-1 제품 커밋 `3a0754c` 마감 후, 격자 테스트 10건을 `SAJUGEN_QIYUN_GRID_SWEEP=1` 옵트인으로 분리(tests 1파일, 미커밋).
+>   [증거] 리뷰어 재실행 전체 **1293 passed / 14 skipped / exit 0, 180s**(23.5분→3분). 기본 13/10 skip, 옵트인 1건 passed. ruff 0.
+>   [운영자 할 일] 커밋 `test(calc): 起運 격자 전수 테스트를 옵트인으로 분리` + 기록 커밋 → manifest done·archive. push 는 지시 시에만
+>     (origin 대비 2일치 커밋 누적 — 유실 방어 차원에서 feat push 권장).
+>   [새 기준선] **1293 passed / 14 skipped**, 수집 1307. `calc/` 변경 시 격자 전수는 옵트인으로 별도 실행(약 20분).
+>   [다음 이월] N-5 factcheck 일상어 동형 예외 / builder.py:120 follow-up birth_time_mode fail-open / vault brain-health.ps1 운영자 commit.
+>
+
 > ===== ★ 최신 앵커 (2026-08-23 — F-1 起運 축 이관 교차리뷰 **CODE_PASS**, 운영자 checkpoint 대기) =====
 >   [한 줄] F-1(대운 start_year 축)은 조사(docs/27) → 운영자 O1·C′ 확정(docs/03 起運 행) → Codex 구현 rev1~3 → Claude 교차리뷰
 >   CODE_PASS 까지 왔다. 제품 3파일 + 테스트 2파일이 **미커밋 워킹트리**에 있다.
