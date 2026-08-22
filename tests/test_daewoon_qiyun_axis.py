@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """대운 起運 축 이관 회귀 — docs/03 O1 결정의 독립 앵커와 구조 검증."""
 
+import os
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 from functools import lru_cache
@@ -221,6 +222,10 @@ def _axis_year_stats(grid_year):
   return stats
 
 
+@pytest.mark.skipif(
+  os.environ.get("SAJUGEN_QIYUN_GRID_SWEEP") != "1",
+  reason="起運 격자 25,440건(약 20분)은 SAJUGEN_QIYUN_GRID_SWEEP=1 로 옵트인",
+)
 @pytest.mark.parametrize("grid_year", range(1985, 1995))
 def test_grid_before_after_change_rate_and_ganzhi_invariants(grid_year):
   """연도별 분할 전수에서 방향·간지 불변을 검증하고 전체 합산용 수치를 출력한다."""
