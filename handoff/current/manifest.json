@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "daewoon-qiyun-axis-20260823",
-  "status": "done",
-  "base_commit": "3a0754c42cfb7dd675447f8bbb1ee64c3963814a",
-  "packet_path": "handoff/tasks/daewoon-qiyun-axis-20260823.md",
-  "packet_sha256": "3b07bf6089b09487ae3f14280776db9b387949ee815729b93332a527815e9dea",
+  "task_id": "daewoon-grid-optin-20260823",
+  "status": "planned",
+  "base_commit": "97d9dd1e2739b81adb93d0063992039fc7739b7b",
+  "packet_path": "handoff/tasks/daewoon-grid-optin-20260823.md",
+  "packet_sha256": "79fcd9f44a4880a51d7ad637e0fbb04fd3640e1e71f95ec57715b711b13054f2",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "2bc54ec32f9414e3fffcbe059579ed9e25dee4f622c61a03d0541c9e26269af8",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "336ccb1d100371eefdcf0b457fc3537ccac2ce6931490c5dfbf91677ccf7e92f",
-  "next_actor": "none",
-  "next_action": "마감. 교차리뷰 CODE_PASS 후 운영자 checkpoint(a) — 제품 3a0754c(calc 3 + tests 2), 기록 chore(handoff). 새 기준선 1303 passed / 4 skipped / exit 0, 수집 1307. 후속 rev4 = 격자 테스트 옵트인 분리(별도 패킷 daewoon-grid-optin-20260823). push 0.",
-  "updated_at": "2026-08-22T22:38:27.702Z"
+  "next_actor": "codex",
+  "next_action": "rev4 후속: test_daewoon_qiyun_axis 격자 10건을 SAJUGEN_QIYUN_GRID_SWEEP=1 옵트인(skipif, 저장소 관행 재사용)으로 분리. tests 1파일만, 제품 무수정, 단언 완화 금지. 기본 스위트 1293/14 exit 0 예상, 5분 이내. commit/push 금지.",
+  "updated_at": "2026-08-22T22:39:34.476Z"
 }
