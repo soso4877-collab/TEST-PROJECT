@@ -1,5 +1,77 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — partner-ym-flag-direct-access-20260822
+
+- 판정: **EVIDENCE_SPLIT_PASS**. 절대규칙 8-1 고객 가시 억제 플래그의 기본값 fail-open을 직접 접근으로
+  닫았고, 교정 전 RED와 기존 양방 회귀를 포함한 전체 테스트를 통과했다. commit·push·deploy·PDF 재생성·
+  LLM/API 호출은 모두 0이다.
+- 인계 무결성: `node C:/Users/pc/.ai-harness/handoff.mjs validate --repo C:/Users/pc/test-project` →
+  `HANDOFF_VALID task_id=partner-ym-flag-direct-access-20260822 status=planned next_actor=codex`, exit 0.
+  manifest 계약의 LF 정규화 기준 packet SHA-256
+  `43614488e53b710d3517c477acaba38827896aded5abf64d3f88bb09f7caed63` 일치. HEAD
+  `1326fb70ff3e8067c4b37fdbf6f9152049344a9e`, base `3a2650599685e7f7a149df2a0fd31e478ff364d4`는
+  HEAD의 조상(exit 0)이다.
+
+### 구현과 교정 전 RED
+
+- `sajugen/content/rules.py`: `bool(getattr(pf, "ym_time_dependent", False))`를
+  `bool(pf.ym_time_dependent)`로 교체했다. 주변 주석·문안·분기·시그니처는 수정하지 않았다.
+- `tests/test_partner_unknown_time.py`: 실제 `PartnerFacts`의 나머지 필드는 유지하고 해당 플래그만 없는
+  합성 `SimpleNamespace`를 만들어 `AttributeError`와 속성명을 단언했다. 합성 데이터만 사용했고 PII는 0이다.
+- 교정 전 단독 실행:
+  `./.venv/Scripts/python.exe -m pytest tests/test_partner_unknown_time.py::test_partner_block_requires_ym_time_dependent_flag -q`
+  → `Failed: DID NOT RAISE <class 'AttributeError'>`, **1 failed / exit 1**. 기본값이 결함 객체를 조용히
+  통과시키던 경로를 실제로 검출했다.
+- 정상 방향의 기존 단언은 수정하지 않았다. `ym_time_dependent=True` 경계일은 연·월주 억제,
+  `False` 비경계일은 비억제, 시각 기지 경계일은 비억제를 계속 검증한다.
+
+### 검증 결과
+
+- 수정 후 해당 파일:
+  `./.venv/Scripts/python.exe -m pytest tests/test_partner_unknown_time.py -q`
+  → **12 passed / exit 0**.
+- 관계 3파일 묶음:
+  `./.venv/Scripts/python.exe -m pytest tests/test_partner_unknown_time.py tests/test_partner.py tests/test_couple_language.py -q`
+  → **39 passed / exit 0**.
+- 전체:
+  `./.venv/Scripts/python.exe -m pytest tests/ -q`
+  → **1252 passed / 32 skipped / exit 0**, 수집 총수 **1284**. 직전 동일 구현환경 1251/32에서 신규
+  1건만 증가했고, 기준환경 총수 1283에서도 신규 1건만 증가해 기존 passed 감소는 0이다.
+- skip 사유 확인을 위한 전체 `-rs` 재실행도 **1252 passed / 32 skipped / exit 0**. Playwright subprocess
+  샌드박스 제한 28건(`playwright_guard.py` 19 + `test_p4.py` 9), 운영자 opt-in E2E 4건이다.
+- 변경 파일 Ruff:
+  `./.venv/Scripts/python.exe -m ruff check sajugen/content/rules.py tests/test_partner_unknown_time.py`
+  → `All checks passed!` / exit 0.
+- 전체 Ruff는 exit 1. 패킷에 명시된 기존 범위 밖 3건만 동일하게 재현됐다:
+  `sajugen/content/temporal_lint.py:11 F401`, `sajugen/insight.py:152 F541`,
+  `tests/test_p2.py:10 F401`. 변경 파일 신규 위반은 0이다.
+- `./.venv/Scripts/python.exe -m py_compile sajugen/content/rules.py` → 무출력 / exit 0.
+  `git diff --check` → CRLF 안내만 / exit 0.
+- `git status --short --untracked-files=all -- sajugen/calc sajugen/input` → 경고 외 경로 출력 0.
+  `calc/`·`input/` 변경은 없다.
+
+### §5-3 인접 `birth_time_mode` 3곳 조사 — 수정 0
+
+| 지점 | 필드 없는 호출자 / 기본값 발동 가능성 | 발동 시 실패 모드 |
+|---|---|---|
+| `content/builder.py:120` | **있음.** `order_flow.py:188-190` follow-up 저장 렌더가 `myeongni`만 든 `SimpleNamespace`를 실제 전달 | 기본 `None`이 known 분기를 골라 정상 진행하므로 **fail-open(조용한 known 가정)**. 직접 접근으로 바꾸면 현 제품 follow-up 경로가 깨진다 |
+| `content/builder.py:208` | 제품 호출부 `pipeline.py:104`·`integrated.py:707`은 `SajuResult`/`ThreePillarSajuResult`를 넘기고 모드도 명시해, 필드 없는 제품 호출자는 확인되지 않음 | 필드가 없고 인자도 생략된 가정 경로는 `normalize_mode(None)`이 known을 반환하므로 **fail-open 가능**. 이후 객체 형태에 따라 `.myeongni`에서 fail-loud할 수 있음 |
+| `integrated.py:497` | 제품 빌드·저장 재렌더 report에는 필드가 있고, 주문 최종 렌더는 모드 인자를 명시. 다만 `test_integrated_modules.py:755`·`test_integrated_order_flow.py:586`의 직접 합성 호출자는 필드·인자 모두 없음 | 기본 `None`이 known으로 정규화돼 **fail-open**하며 테스트는 정상 진행 |
+
+- 판단: 세 지점은 일괄 직접 접근 대상이 아니다. 특히 `builder.py:120`에는 실제 fieldless 제품 호출자가 있어,
+  계약을 좁히려면 follow-up 저장 메타 배선과 레거시·테스트 호환을 함께 다루는 **별도 TASK_PACKET**이 필요하다.
+
+### 미검증·남은 위험·다음 행동
+
+- 기준환경의 예상 **1280 passed / 4 skipped**는 이 Codex 환경에서 직접 실행하지 못했다. 대신 같은 수집
+  총수 1284와 skip 사유를 직접 확인해 환경 분리 증거를 충족했다.
+- 실 PDF·`hrun`·육안 검수·실모델 왕복은 패킷 금지/비요구로 실행하지 않았다.
+- 현재 변경은 `sajugen/content/rules.py`, `tests/test_partner_unknown_time.py`, 이 보고서와
+  `sajugen/STATE.md`뿐이며 모두 allowed_files 안이다. 다음은 Claude Code 신선 세션의 read-only 교차리뷰와
+  운영자 checkpoint다.
+- manifest는 forbidden이라 수정하지 않았다. 따라서 이 필수 보고서 작성 뒤에는 기존 `notes_sha256`가
+  의도대로 낡아 있으며, 다음 인계 검증 전 리뷰어의 handoff 재동결이 필요하다.
+
 ## CODEX_IMPLEMENTATION_REPORT — brainhealth-evidence-audit-optin-gap-20260822 (rev2, 리뷰어 전사)
 
 > 전사 주의: Codex rev2 잡(`task-mt45gfl5-3uxg0b`, cwd=AI-Brain)은 sajugen 에 쓸 수 없어 result 본문으로

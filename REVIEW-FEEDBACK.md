@@ -1,3 +1,40 @@
+# 교차 리뷰 — 2026-08-22 (N-1 상대 연·월주 억제 플래그 직접 접근, 리뷰어: Claude read-only)
+
+대상: `partner-ym-flag-direct-access-20260822` rev1 구현(base `3a26505`, HEAD `1326fb7` 위 미커밋) · 구현자 **Codex**
+(잡 `task-mt46baqe-reo9m4`, `--background --write --fresh --effort high`). 리뷰어는 패킷 작성자·발주자이고 구현자가
+아니다. 아래 수치는 전부 리뷰어가 이 환경에서 재실행한 값이다. 리뷰 중 제품 코드·테스트 수정 **0**.
+
+## 최종 판정: **승인(CODE_PASS)** — 블로커 0, 비블로커 소견 2(둘 다 패킷 측 오차/후속 후보)
+
+판정값 = `verified / next_actor=user`. 다음 행위자는 운영자(checkpoint 커밋).
+
+### 1. 증거 (리뷰어 재실행)
+
+| 검사 | 결과 |
+|---|---|
+| `git merge-base --is-ancestor 3a26505 HEAD` | exit **0** |
+| `git status --short` | dirty 4 = `rules.py`·`test_partner_unknown_time.py`·`implementation-notes.md`·`STATE.md` — 전부 allowed_files, forbidden 0 |
+| `git diff --stat` | `rules.py` **1줄**(2147: `getattr(pf,"ym_time_dependent",False)` → `pf.ym_time_dependent`, `bool()` 유지), 테스트 +13 |
+| 기존 단언 | 무수정 — diff 는 import 2줄 + 신규 테스트 1개 추가뿐 |
+| 신규 테스트 | 실제 `PartnerFacts` 의 `vars()` 에서 플래그만 pop 한 `SimpleNamespace` → 패킷 §5 dataclass 기본값 함정을 정확히 회피. `pytest.raises(AttributeError, match="ym_time_dependent")` |
+| `./.venv/Scripts/python.exe -m pytest tests/ -q` | **1280 passed / 4 skipped / exit 0** (206s). 기준선 1279/4 + 신규 1, 감소 0. Codex 환경 1252/32 는 Playwright skip 차이, 수집 총수 1284 동일 |
+| `ruff check` 변경 2파일 | `All checks passed!` exit 0 |
+| 교정 전 RED | Codex 보고 `DID NOT RAISE` 1 failed / exit 1. 리뷰어 미재현 — 단 `getattr(..., False)` 는 구조상 AttributeError 를 낼 수 없으므로 교정 전 실패는 필연. **미검증으로 분리** |
+| `calc/`·`input/` 변경 | 0 (골든 회귀 의무 비해당) |
+
+### 2. 비블로커 소견
+
+1. **패킷 §2-4 판단 오류 (리뷰어 오차, Codex 가 바로잡음)** — 패킷은 `builder.py:120` 을 "기본값 발동 시 `.myeongni` 로
+   fail-loud" 라 했으나, Codex 조사대로 `order_flow.py:188-190` follow-up 렌더가 `birth_time_mode` 없는
+   `SimpleNamespace(myeongni=...)` 를 **실제로 넘긴다**(리뷰어 직접 확인). 기본값 `None` → myeongni 분기 → 정상 진행 =
+   **fail-open**. 현 영향은 낮다(follow-up 은 저장된 `day_master` 만 쓰고 일주는 시각 불변이라 결과가 같다). 그러나
+   "명시 배선 없는 기본값" 패턴이 제품 경로에 하나 더 있다는 사실은 기록한다. 이번 범위 밖(무수정)이므로 결함 아님.
+   → **후속 패킷 후보**: follow-up 저장 메타에 `birth_time_mode` 를 배선하고 `builder.py:120/208`·`integrated.py:497`
+   을 직접 접근으로 좁히기(테스트 합성 호출자 2곳 동반 수정).
+2. Codex 가 `STATE.md` 에 앵커를 추가했다(allowed). 리뷰어가 마감 시 그 위에 최종 앵커를 덧쓴다.
+
+---
+
 # 교차 리뷰 — 2026-08-22 (brain-health 근거 감사 옵트인 구멍, 리뷰어: Claude read-only)
 
 대상: `brainhealth-evidence-audit-optin-gap-20260822` rev2 구현(vault `C:\Users\pc\AI-Brain\_scripts\brain-health.ps1`

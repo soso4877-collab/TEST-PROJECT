@@ -1,5 +1,33 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== ★ 최신 앵커 (2026-08-22 — N-1 교차리뷰 **CODE_PASS**, 운영자 checkpoint 대기) =====
+>   [판정] 리뷰어(Claude) 재실행 **1280 passed / 4 skipped / exit 0**(기준선 1279 + 신규 1, 감소 0). ruff 0.
+>     diff = `rules.py` 1줄 + 테스트 1건(기존 단언 무수정). manifest `verified / next_actor=user`.
+>   [마감] 운영자 승인으로 제품 커밋 `537898c`(rules.py 1줄 + 테스트) + 기록 커밋 `chore(handoff)` 완료.
+>     manifest `done / next_actor=none`, archive 됨. push 0(지시 시에만).
+>   [새 기준선] **1280 passed / 4 skipped / exit 0**, 수집 총수 1284. (감소 = 회귀)
+>   [후속 후보] `builder.py:120` 은 패킷이 fail-loud 라 했으나 실제 fail-open(`order_flow.py:188` follow-up 이
+>     `birth_time_mode` 없는 객체를 넘김, 영향 낮음). follow-up 메타 배선 + 3곳 직접 접근 = 별도 패킷.
+>   [그 다음 이월] F-1 대운 start_year 축(유파 1차 자료 조사 선행).
+>
+> ===== (Codex 기록) 현재 앵커 (2026-08-22 — N-1 Codex 구현 완료, 교차리뷰 대기) =====
+>   [판정] `partner-ym-flag-direct-access-20260822` = **EVIDENCE_SPLIT_PASS**, 미커밋.
+>     manifest는 `planned / next_actor=codex` 그대로이며 Codex는 manifest를 수정하지 않았다.
+>   [구현] `content/rules.py:2147`의 `getattr(..., False)`를 `pf.ym_time_dependent` 직접 접근으로 교체.
+>     플래그 부재 합성 객체가 `AttributeError`를 내는 회귀 1건 추가. 기존 True 억제 / False 비억제 /
+>     시각 기지 비억제 단언은 무수정 GREEN.
+>   [RED] 신규 단독 교정 전 `Failed: DID NOT RAISE`, **1 failed / exit 1**.
+>   [검증] 신규 파일 **12 passed**, 관계 3파일 **39 passed**, 전체 **1252 passed / 32 skipped / exit 0**,
+>     수집 총수 **1284**. 직전 구현환경 1251/32 + 신규 1과 정확히 일치. 32 skip은 Playwright 샌드박스
+>     28 + 운영자 opt-in E2E 4. 변경파일 Ruff·py_compile·diff-check exit 0, calc/input 변경 0.
+>   [인접 조사] `birth_time_mode` 3곳 수정 0. `builder.py:120`은 follow-up 제품 경로의 fieldless
+>     `SimpleNamespace`가 실제 기본값을 사용한다. `builder.py:208`은 필드 없는 제품 호출자 0,
+>     `integrated.py:497`은 제품 호출은 필드/명시 인자를 갖지만 fieldless 합성 테스트 호출자 2곳 존재.
+>     일괄 직접 접근은 부적합하며 계약을 좁히려면 별도 패킷 필요.
+>   [미검증] 기준환경 예상 1280/4, 실 PDF·hrun·육안·실모델은 미실행(패킷 금지/비요구).
+>   [다음] Claude Code 신선 세션 read-only 교차리뷰 → 운영자 checkpoint. commit·push 금지 유지.
+>     구현 보고서 작성으로 manifest의 기존 notes SHA는 낡았으며, 다음 validate 전 리뷰어가 재동결한다.
+>
 > ===== ★ 현재 앵커 (2026-08-22 저녁 — 아래 "N-1" 앵커보다 **이 블록이 최신**) =====
 >   [한 줄] 감사기 옵트인 구멍 태스크 `brainhealth-evidence-audit-optin-gap-20260822` 는 Codex 구현(rev2,
 >   cwd=AI-Brain) + Claude 교차리뷰 **CODE_PASS** + 운영자 결정(11절 기준선 수용·커밋 승인)까지 **마감**됐다.
