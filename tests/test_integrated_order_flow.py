@@ -583,7 +583,7 @@ def test_integrated_render_passes_product_and_coverage_to_verify(monkeypatch):
 
     monkeypatch.setattr(integrated.render_verify, "verify", fake_verify)
     _path, verify, _attempts = integrated._render_integrated(
-        SimpleNamespace(sections=[]),
+        SimpleNamespace(sections=[], birth_time_mode="known"),
         names=["DOC_A"],
         ref_year=2026,
         situation="합성 맥락",

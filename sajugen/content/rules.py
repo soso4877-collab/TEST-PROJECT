@@ -26,6 +26,7 @@ from datetime import timedelta, timezone
 
 from .. import modules as integrated_modules
 from . import myeongni_persona as _mp
+from . import unknown_time_policy
 from . import ziwei_temperament as _zt
 
 # --- 표시 매핑 (계산 아님: lunar-python/iztro-py 한자 산출물을 한국어 표시로 치환) ---
@@ -1238,7 +1239,7 @@ def build_all(
     work_modules: tuple[str, ...] | list[str] | None = None,
     birth_time_mode: str | None = None,
 ) -> dict[str, str]:
-    if birth_time_mode == "three_pillar" or getattr(saju, "birth_time_mode", None) == "three_pillar":
+    if unknown_time_policy.is_three_pillar_mode(birth_time_mode or saju.birth_time_mode):
         if ref_year is None:
             ref_year = int(getattr(saju, "ref_year", 0) or 0)
         return _build_three_pillar_all(

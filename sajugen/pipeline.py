@@ -116,7 +116,7 @@ def generate(
         ref_date=horoscope_date,
     )
     # 개인 일간 role 게이트(H1.5.3) — 결정론 일간만 정답. 이름 정책은 개인 미적용(단일 호명).
-    _id_spec = builder.personal_identity_spec(saju, name)
+    _id_spec = builder.personal_identity_spec(saju, name, birth_time_mode=mode)
 
     # 저밀도 단독 실패 시 무과금 재렌더 재시도(2026-07-04 — integrated 검증 패턴 이식).
     # compose 는 이미 끝난 상태라 레이아웃 변형(폰트 14.5→13.8pt)은 API 0. 저밀도 '단독'

@@ -185,9 +185,17 @@ def _render_followup_pdf(
     if not day_master:
         raise ValueError("stored day master is required for followup PDF")
     name = str(render_context.get("name") or "").strip() or None
+    birth_time_mode = unknown_time_policy.normalize_mode(render_context["birth_time_mode"])
+    identity_source = SimpleNamespace(day_master=day_master)
+    identity_saju = (
+        SimpleNamespace(three_pillar=identity_source)
+        if unknown_time_policy.is_three_pillar_mode(birth_time_mode)
+        else SimpleNamespace(myeongni=identity_source)
+    )
     identity = builder.personal_identity_spec(
-        SimpleNamespace(myeongni=SimpleNamespace(day_master=day_master)),
+        identity_saju,
         name,
+        birth_time_mode=birth_time_mode,
     )
     if not identity[0] or not identity[1]:
         raise ValueError("stored day master is unsupported for followup PDF")
@@ -1573,7 +1581,11 @@ def final_render_fn(report: UnifiedReport) -> str:
             horoscope_date=horoscope or None,
             birth_time_mode=birth_time_mode.value,
         )
-        identity = builder.personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
+        identity = builder.personal_identity_spec(
+            saju,
+            name,
+            birth_time_mode=birth_time_mode.value,
+        )  # 일간 role 가드(H1.5.3)
         names = [name] if name else None
     except Exception as e:
         # 스펙 재계산 실패 시 게이트를 우회하지 않는다 — 최종 발급 차단(재현 불가는 발급 금지).

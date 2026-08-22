@@ -494,7 +494,7 @@ def _render_integrated(
     bp = dict(cfg.brand(brand))
     bp["cover_title"] = f"{bp['seal']} 통합 사주와 관계 풀이"
     birth_time_mode = unknown_time_policy.normalize_mode(
-        birth_time_mode or getattr(report, "birth_time_mode", None)
+        birth_time_mode or report.birth_time_mode
     )
     if birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE:
         fake_saju = SimpleNamespace(

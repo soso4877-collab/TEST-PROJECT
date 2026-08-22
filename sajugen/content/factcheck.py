@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import re
 
+from . import unknown_time_policy
+
 _GAN = set("甲乙丙丁戊己庚辛壬癸")
 _ZHI = set("子丑寅卯辰巳午未申酉戌亥")
 _GANZHI_RX = re.compile(r"[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]")
@@ -65,7 +67,7 @@ def allowed_tokens(saju, extra_ganzhi: frozenset[str] = frozenset()) -> dict:
     extra_ganzhi: 이 주문에서 추가 계산된 실재 간지(예: 상대방 명식, 한자) —
     content.md 규칙대로 계산 데이터 추가와 동시에만 확장한다.
     """
-    three_pillar_mode = getattr(saju, "birth_time_mode", None) == "three_pillar"
+    three_pillar_mode = unknown_time_policy.is_three_pillar_mode(saju.birth_time_mode)
     m = saju.three_pillar if three_pillar_mode else saju.myeongni
     # 삼주에서는 시주·불안정 대운을 허용 토큰에 넣지 않는다. 이 집합은 LLM 후보와
     # 관리자 편집 재검증이 함께 쓰므로, 한 번이라도 넣으면 뒤 단계에서 출처를 복원할

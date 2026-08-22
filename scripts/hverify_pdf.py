@@ -118,7 +118,11 @@ def _build_specs(profile: dict) -> dict:
             "ref_year": ref,
             "names": [name],
             "name_full": None,
-            "identity": builder.personal_identity_spec(saju, name),
+            "identity": builder.personal_identity_spec(
+                saju,
+                name,
+                birth_time_mode=birth_time_mode,
+            ),
             "singang": None,
             "product": profile.get("product"),
             "premium": bool(profile.get("premium", False)),

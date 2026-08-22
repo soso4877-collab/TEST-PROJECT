@@ -752,7 +752,7 @@ def test_render_bridge_forwards_selected_modules_and_premerge_coverage(monkeypat
     monkeypatch.setattr(integrated.render_verify, "verify", fake_verify)
     module_sections = _module_sections_for(["love"])
     integrated._render_integrated(
-        SimpleNamespace(sections=[]),
+        SimpleNamespace(sections=[], birth_time_mode="known"),
         names=["DOC_A"],
         ref_year=2026,
         situation="합성 맥락",

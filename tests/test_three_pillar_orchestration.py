@@ -95,7 +95,11 @@ def test_pipeline_forwards_three_pillar_mode_and_provenance(monkeypatch) -> None
 
     monkeypatch.setattr(pipeline.engine, "build", fake_engine)
     monkeypatch.setattr(pipeline.builder, "build_report", fake_builder)
-    monkeypatch.setattr(pipeline.builder, "personal_identity_spec", lambda *_args: None)
+    monkeypatch.setattr(
+        pipeline.builder,
+        "personal_identity_spec",
+        lambda *_args, **_kwargs: None,
+    )
     monkeypatch.setattr(pipeline.render_pdf, "render_pdf", fake_render)
     monkeypatch.setattr(pipeline.render_verify, "verify", fake_verify)
     monkeypatch.setattr(

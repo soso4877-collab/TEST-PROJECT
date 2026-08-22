@@ -109,17 +109,14 @@ _strip_artifacts = postprocess.strip_artifacts
 _hanja_clean = postprocess.hanja_clean
 
 
-def personal_identity_spec(saju, name: str | None) -> tuple:
+def personal_identity_spec(saju, name: str | None, *, birth_time_mode) -> tuple:
     """개인 일간 role 가드/게이트용 (expected_gans, expected_terms, subject_specs). H1.5.3.
 
     expected = 결정론 일간(saju.myeongni.day_master) 하나뿐. 본문이 다른 천간을 '일간/중심 글자/
     자기 자신'으로 서술하면 위반(예 '일간 계수' — 실제 임수).
     """
-    m = (
-        saju.three_pillar
-        if getattr(saju, "birth_time_mode", None) == "three_pillar"
-        else saju.myeongni
-    )
+    mode = unknown_time_policy.normalize_mode(birth_time_mode)
+    m = saju.three_pillar if unknown_time_policy.is_three_pillar_mode(mode) else saju.myeongni
     gan = rules._GAN_KO.get(m.day_master, "")
     term = client_tone_lint.gan_to_term(gan)
     aliases = [
@@ -205,7 +202,7 @@ def build_report(
     birth_time_mode: str | None = None,
 ) -> Report23:
     birth_time_mode = unknown_time_policy.normalize_mode(
-        birth_time_mode or getattr(saju, "birth_time_mode", None),
+        birth_time_mode or saju.birth_time_mode,
         unknown_time=unknown_time,
     )
     unknown_time = birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
@@ -360,7 +357,11 @@ def build_report(
     # 카운트만으로는 발송 리포트에서 안 보였던 관측 갭(QI-2026-07-05-03).
     polished_ids: list[str] = []
     fallback_ids: list[str] = []
-    _id_spec = personal_identity_spec(saju, name)  # 일간 role 가드(H1.5.3)
+    _id_spec = personal_identity_spec(
+        saju,
+        name,
+        birth_time_mode=birth_time_mode,
+    )  # 일간 role 가드(H1.5.3)
 
     # 목차(toc): 보이는 챕터 제목을 나열(노동착시·호기심격차·책 권위, docs/13). 빌더가 생성.
     # 리드는 문서 진행/섹션 예고 메타("…다음 순서로 이어집니다")가 아니라 중립 헤딩만 둔다

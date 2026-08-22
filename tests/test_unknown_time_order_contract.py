@@ -723,7 +723,7 @@ def test_three_pillar_final_render_forwards_mode_and_provenance_without_clock(
     monkeypatch.setattr(
         order_flow.builder,
         "personal_identity_spec",
-        lambda _saju, _name: ({"甲"}, {"갑목"}, [([], "갑목")]),
+        lambda *_args, **_kwargs: ({"甲"}, {"갑목"}, [([], "갑목")]),
     )
 
     def fake_render(*args, **kwargs):
