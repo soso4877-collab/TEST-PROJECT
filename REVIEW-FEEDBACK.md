@@ -1,3 +1,56 @@
+# 교차 리뷰 — 2026-08-23 (F-1 대운 起運 축 이관, 리뷰어: Claude read-only)
+
+대상: `daewoon-qiyun-axis-20260823` rev3 구현(base/HEAD `2433805` 위 미커밋) · 구현자 **Codex**(rev1 잡 `task-mt4ifjqa-cq2at9`
+→ rev3 잡 `task-mt4l7gm7-mzbwvo`, `gpt-5.6-sol` effort xhigh). 리뷰어는 패킷 작성자·발주자이고 구현자가 아니다. 아래 수치는 전부
+리뷰어가 이 환경에서 재실행한 값이다. 리뷰 중 제품 코드·테스트 수정 **0**(docs/27 부록 E 기록만).
+
+## 최종 판정: **승인(CODE_PASS)** — 블로커 0, 운영자 결정 1(격자 테스트 옵트인 분리 시점)
+
+판정값 = `verified / next_actor=user`.
+
+### 0. 경과 (리뷰어 개입 2회 — 모두 기록)
+- rev1 → Codex 가 §7 정지선(2%)에 걸려 정지. 리뷰어 프로브로 정지선이 **예측 오차**임을 확인, 운영자 C′ 재확정 → rev2(정지선 5%).
+- rev2 재개 중 리뷰어 독립 재검산으로 **子時 날짜 귀속 결함**(23시=子 인데 날짜를 익일로 안 넘겨 1日=4개월 과소) 발견 → rev3 정정.
+  이 결함은 리뷰어의 프로브 C′(3.56%)에도 들어 있었고, 교정 후 순수 축 효과는 **0.92%** 다(docs/27 부록 E). rev1 앵커 4건 중 3건의
+  RED 는 이 결함 때문에 "우연히 lunar 옛 값과 같은" 기대값을 틀린 것으로 잡고 있었다 — rev3 에서 23시대 전용 양방으로 대체됐다.
+
+### 1. 증거 (리뷰어 재실행)
+
+| 검사 | 결과 |
+|---|---|
+| `git merge-base --is-ancestor 2433805 HEAD` | exit 0 |
+| `git status --short` | dirty 5 + untracked 1 = 제품 3(`calc/myeongni.py`·`calc/advanced.py`·`input/time_correction.py`) + 테스트 2 + notes. forbidden 0 |
+| `./.venv/Scripts/python.exe -m pytest tests/ -q --durations=5` | **1303 passed / 4 skipped / exit 0**, 1413s. 기준선 1280 + 신규 23, 감소 0. Codex 1275/32 는 Playwright skip 28 차이, 총수 1307 동일 |
+| 손계산 앵커 4건 독립 재검산 | `solarterms`·`apparent_solar_datetime` 만으로 日·時辰 折除를 다시 계산: `24日8辰→8年2月20日`(8/1993), `21日7辰→7年2月10日`(7/1992), `21日6辰→7年2月0日`(7/1992), `21日7辰`(7/1992) — 구현 `engine.build` 출력과 **전부 일치** |
+| 23시대 양방 독립 확인 | 1990-07-10 진태양시 22:22 亥(day_offset 0) vs 23:21 子(day_offset 1): 손계산 `28日3辰` vs `28日2辰`(날짜 +1 과 時辰 +1 이 상쇄) — 물리 간격과 정합, 구현 9/1999 동일 |
+| `ruff check` 변경 5파일 | `All checks passed!` exit 0 |
+| 격자 변동률 | Codex 25,440건 234건 **0.92%**(정지선 5% 미발동). 리뷰어 프로브 A↔C′(rev1) 3.56% 는 날짜 귀속 오류 포함값 — 부록 E 정정 |
+| 교정 전 RED | Codex 보고(rev1→rev3 테스트만 교체 시 11 failed / exit 1). 리뷰어 미재현 — 단 앵커 기대값이 rev1 출력과 다름은 위 표로 확인 |
+
+### 2. diff 판독
+- `compute_qiyun`: 절입 선택(순행=출생 UTC 초과 첫 12節 / 역행=`month_pillar_branch` 직전 節) → 절입을 같은 경도 진태양시로 환산 →
+  時辰 idx(출생=`ct.hour_branch`, 절입=동일 공식) → 日 은 **명리 날짜**(출생 `ct.day_offset`, 절입 `zasi_day_offset`, 정책 함수 1개) →
+  借位 → 折除 내림 → 시민 KST 앵커 `nextYear/nextMonth/next`. docs/03 행과 1:1 대응. 23시=亥 특례 없음.
+- `current_daewoon` 은 `advanced` 로 **이동**(myeongni 가 위임) — 복제 아님(B-1 OK). `seun_worun(yun, ref_year, daewoon)`: 현재 대운은
+  우리 `start_year`, 세운은 현재 대운 10년 구간과 ref−1..+3 교집합, 간지는 lunar 연·월 간지 조회(起運 무관). 격자 전수에서 세운·월운
+  간지 변동 0, 연도 집합 변동 117건(=起運 이동의 정당한 귀결).
+- `zasi_day_offset` 공개 + `correct()` 가 재사용 → 정책 분기 단일화(B-1). `apparent_solar_datetime` 공개 경계, `correct()` 동작 불변.
+- `test_golden_sweep.py:221` 기존 `0..2` 단언 유지 + `{0,1}` 추가(완화 0). `_NAMED` 7건 불변(docs/27 예측 적중).
+- 상대 명식·`content/`·`render/`·축 분류표 무수정. `month_branch_crosscheck_ok` 격자 전수 True.
+
+### 3. 운영자 결정 1 — 격자 테스트 옵트인 분리(비블로커, 단 방치 불가)
+`test_grid_before_after_change_rate_and_ganzhi_invariants[1985..1994]` 10건이 각 ~200초 = 전체 스위트 **3.5분 → 23.5분**. 구조 불변식
+(방향·간지 변동 0)은 가치가 있으나 Skyfield 25,440회 보정을 매 실행마다 치르는 것은 테스트 피라미드(B-4)·측정 후 최적화(B-5) 위반이다.
+권고: 환경변수 옵트인(`SAJUGEN_GRID_SWEEP=1` 류) + 기본 skip(사유 명시), 앵커·양방·세운 정합은 상시 유지. tests 1파일 변경이라
+**소형 rev4(Codex)** 또는 운영자 승인 시 리뷰어 직접 처리. 제품 정확성과 무관하므로 **제품 커밋을 막지는 않는다**.
+- (a) 제품+테스트 지금 커밋 → rev4 후속 / (b) rev4 먼저 → 한 번에 커밋. 리뷰어 권장 **(a)**: 정확성 교정을 먼저 기준선에 올린다.
+
+### 4. 비블로커 기록
+- Codex rev2 재개 잡(`--resume-last`)은 1초 만에 `failed` 였고 로그엔 "Queued" 만 남았다 — 감시가 state.json 을 함께 보도록 바꿨다(메모리 기록).
+- 테스트 파일이 2칸 들여쓰기(저장소 Python 은 4칸). ruff 무위반이라 스타일 소견만.
+
+---
+
 # 교차 리뷰 — 2026-08-22 (N-1 상대 연·월주 억제 플래그 직접 접근, 리뷰어: Claude read-only)
 
 대상: `partner-ym-flag-direct-access-20260822` rev1 구현(base `3a26505`, HEAD `1326fb7` 위 미커밋) · 구현자 **Codex**

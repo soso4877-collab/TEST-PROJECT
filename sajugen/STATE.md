@@ -1,5 +1,17 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== ★ 최신 앵커 (2026-08-23 — F-1 起運 축 이관 교차리뷰 **CODE_PASS**, 운영자 checkpoint 대기) =====
+>   [한 줄] F-1(대운 start_year 축)은 조사(docs/27) → 운영자 O1·C′ 확정(docs/03 起運 행) → Codex 구현 rev1~3 → Claude 교차리뷰
+>   CODE_PASS 까지 왔다. 제품 3파일 + 테스트 2파일이 **미커밋 워킹트리**에 있다.
+>   [증거] 리뷰어 재실행 **1303 passed / 4 skipped / exit 0**(기준선 1280 + 신규 23). 손계산 앵커 4건 독립 재검산 일치. ruff 0.
+>     격자 25,440건 start_year 변동 0.92%(정지선 5%). `_NAMED` 7건·골든 22건 불변.
+>   [리뷰어 개입] rev1 정지선 2% = 예측 오차(rev2) / rev1·프로브 C′ 의 子時 날짜 귀속 결함 발견 → rev3 정정(부록 E). 순수 축 효과 0.92%.
+>   [운영자 결정] (a 권장) 제품+테스트 지금 커밋 `fix(calc): 대운 起運 산출을 docs/03 축으로 자체 계산` → 이어서 rev4(격자 테스트
+>     옵트인 분리, tests 1파일) / (b) rev4 먼저. 격자 10건이 스위트를 3.5분→23.5분으로 늘리므로 rev4 는 방치 불가.
+>   [새 기준선(커밋 시)] 1303 passed / 4 skipped, 수집 1307. rev4 후엔 기본 스위트에서 격자 10건 skip → 1293/14 예상.
+>   [그 다음 이월] N-5 factcheck 일상어 동형 예외 / builder.py:120 follow-up birth_time_mode fail-open 후속 패킷.
+>
+
 > ===== ★ 최신 앵커 (2026-08-22 — N-1 교차리뷰 **CODE_PASS**, 운영자 checkpoint 대기) =====
 >   [판정] 리뷰어(Claude) 재실행 **1280 passed / 4 skipped / exit 0**(기준선 1279 + 신규 1, 감소 0). ruff 0.
 >     diff = `rules.py` 1줄 + 테스트 1건(기존 단언 무수정). manifest `verified / next_actor=user`.
