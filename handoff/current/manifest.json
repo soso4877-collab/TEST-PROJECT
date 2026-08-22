@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "brainhealth-evidence-audit-optin-gap-20260822",
-  "status": "done",
-  "base_commit": "3fda70cc8b1c46367000195c638a5f5c8432b782",
-  "packet_path": "handoff/tasks/brainhealth-evidence-audit-optin-gap-20260822.md",
-  "packet_sha256": "a071536afa14779a60c4aa284659f319c9ae3018f5b817a0bd8682855d781996",
+  "task_id": "partner-ym-flag-direct-access-20260822",
+  "status": "planned",
+  "base_commit": "3a2650599685e7f7a149df2a0fd31e478ff364d4",
+  "packet_path": "handoff/tasks/partner-ym-flag-direct-access-20260822.md",
+  "packet_sha256": "43614488e53b710d3517c477acaba38827896aded5abf64d3f88bb09f7caed63",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "c5f15da804bced0f6e91316d5597c6b53e66d8ccda5b0755ec4f80c20acec702",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "c0624f341e52c2e80d71b3a85e5cd26d115d80c050e36416ad00d63c5218bd93",
-  "next_actor": "none",
-  "next_action": "마감. Codex rev2 구현(cwd=AI-Brain) + Claude 교차리뷰 CODE_PASS + 운영자 11절 기준선 수용(rev3). vault brain-health.ps1 수정본(신규 warning external_url_without_quote_or_tag, 주석 11절 교정)은 vault 워킹트리 미커밋 — 운영자 commit 대기. 적발 11절 인용 보강은 별도 작업.",
-  "updated_at": "2026-08-22T09:23:54.511Z"
+  "next_actor": "codex",
+  "next_action": "N-1: content/rules.py:2147 getattr(pf,'ym_time_dependent',False) fail-open 제거 -> 직접 접근(builder.py:296 과 대칭). 절대규칙 8-1 고객 가시 억제 가드라 양방 회귀 동반(플래그 True 억제 / False 비억제 / 속성 부재 fail-loud). 인접 birth_time_mode 3곳은 조사 보고만. 전체 pytest GREEN(기준선 1279 passed / 4 skipped). commit/push 금지.",
+  "updated_at": "2026-08-22T09:25:52.479Z"
 }

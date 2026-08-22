@@ -3,7 +3,7 @@
 - **task_id**: `partner-ym-flag-direct-access-20260822`
 - **owner**: **Codex 구현자** (AGENTS.md 기본 사이클)
 - **next_reviewer**: **Claude Code 교차리뷰** (read-only, 구현 세션과 분리)
-- **base_commit**: `bfa1e2d` (현재 HEAD, tree clean, branch `codex/gunghap-relationship-quality`)
+- **base_commit**: `3a26505` (현재 HEAD, tree clean, branch `codex/gunghap-relationship-quality`; rev1 작성 시점은 `bfa1e2d`, 그 사이 커밋은 handoff 기록·천체력 경로 태스크뿐이라 `content/rules.py:2147` 결함 문장은 실측 동일)
 - **근거**: `partner-unknown-time-boundary-20260818` 교차리뷰 비블로커 **N-1**
   (`REVIEW-FEEDBACK.md` 2026-08-19 절 / `sajugen/STATE.md` 122-123행)
 - **rev**: 1
