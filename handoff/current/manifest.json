@@ -2,14 +2,14 @@
   "schema_version": 1,
   "task_id": "birth-time-mode-direct-access-20260823",
   "status": "planned",
-  "base_commit": "ca36e9f1d84850bde1c9a5498a966f43482791e2",
+  "base_commit": "a3944a752ba23e177236d9ceb083883a641c73c2",
   "packet_path": "handoff/tasks/birth-time-mode-direct-access-20260823.md",
-  "packet_sha256": "3561a1e7e9099292d05459dffcdb88e9ce1db7ead274f08d669506a3db1c8f64",
+  "packet_sha256": "9da8f15626ed5279f841c926db75a98476a1ff95d429f9933ee7e5afdbdb21bf",
   "notes_path": "implementation-notes.md",
-  "notes_sha256": "2929f98fba2c26abafee00af06e4fc42a824a50c529ee50ecd6558b32f4d8840",
+  "notes_sha256": "5c16532e8d6a04b2d7184885d1910f1a7268dd8eaf65b3a813ffd41602eb5562",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "09cc569e02666fb29ad593202ec80d40ef040a0f4bb92084b3883b175dabc41b",
   "next_actor": "codex",
-  "next_action": "birth_time_mode getattr 기본값 5곳(builder 120/208, integrated 497, factcheck 68, rules 1241)을 명시 전달/직접 접근으로. personal_identity_spec 키워드 필수화 + 호출자 5곳 배선(follow-up 은 store/orders 정본 규칙 재사용, 복제 금지). 양방 테스트 + 교정 전 RED 3종. 주문 경로 회귀(test_orders·final_render_gate) 필수. 기준선 1293/14. commit/push 금지.",
-  "updated_at": "2026-08-22T23:11:41.574Z"
+  "next_action": "rev2: rev1 BLOCKED_CONTRACT(설계자 누락) — test_three_pillar_orchestration.py:98, test_unknown_time_order_contract.py:726 의 personal_identity_spec monkeypatch 람다를 allowed 에 추가(시그니처만 *args/**kwargs, 반환값·단언 무수정). 나머지 rev1 동일: getattr 5곳 제거, 키워드 필수, 호출자 배선, RED 3종, 주문 경로 회귀, 기준선 1293/14. commit/push 금지.",
+  "updated_at": "2026-08-22T23:31:33.589Z"
 }

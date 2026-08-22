@@ -1,3 +1,42 @@
+# CODEX_IMPLEMENTATION_REPORT — birth-time-mode-direct-access-20260823
+
+- 판정: **BLOCKED_CONTRACT / HANDOFF_INVALID**. required-keyword 배선을 적용하면 필수 GREEN 대상 두 파일의
+  기존 monkeypatch 시그니처도 함께 고쳐야 하지만, 두 파일은 TASK_PACKET의 `allowed_files`에
+  없고 나머지는 forbidden으로 명시돼 있어 제품 코드 수정 전에 정지했다.
+- 인계: `node C:/Users/pc/.ai-harness/handoff.mjs validate --repo C:/Users/pc/test-project`
+  → `HANDOFF_VALID task_id=birth-time-mode-direct-access-20260823 status=planned next_actor=codex`,
+  exit 0. packet SHA-256
+  `3561a1e7e9099292d05459dffcdb88e9ce1db7ead274f08d669506a3db1c8f64`가 manifest와
+  일치했고 HEAD는 `a3944a752ba23e177236d9ceb083883a641c73c2`다.
+
+## 계약 충돌 실측
+
+- `tests/test_three_pillar_orchestration.py:98`은 `personal_identity_spec`을
+  `lambda *_args`로 대체한다. `pipeline.py:119`에서 필수 `birth_time_mode=mode`를 배선하면
+  이 대역 함수가 keyword argument를 받을 수 없다.
+- `tests/test_unknown_time_order_contract.py:725-726`은 같은 함수를
+  `lambda _saju, _name`으로 대체한다. `order_flow.py:1576`의 필수 키워드 배선과 호환되지 않는다.
+- 두 파일은 packet §5의 필수 회귀 대상이지만 §4 `allowed_files`에는 없다. 제품 코드에서
+  mock을 감지하거나 키워드를 생략하는 우회는 required-keyword 및 명시 배선 수용 기준을 깨므로
+  적용하지 않았다.
+- 정지 보고 뒤 작업트리의 packet에 두 파일을 허용하는 rev2 변경이 새로 나타났지만, manifest는
+  기존 rev1 SHA를 가리킨 상태다. validator 재실행 결과는
+  `HANDOFF_INVALID code=HASH_MISMATCH` / exit 3이므로 rev2를 활성 지시로 채택하지 않았다.
+
+## 실행 증거와 미검증
+
+- 변경 전 두 충돌 노드:
+  `.venv\Scripts\python.exe -m pytest tests/test_three_pillar_orchestration.py::test_pipeline_forwards_three_pillar_mode_and_provenance tests/test_unknown_time_order_contract.py::test_three_pillar_final_render_forwards_mode_and_provenance_without_clock -q`
+  → **2 passed / exit 0 / 1.15s**.
+- 교정 전 RED 3종, 제품 구현, 양방 GREEN, 주문 경로 묶음, 전체 pytest, Ruff는 계약 정지선
+  때문에 실행하지 않았다. 제품·테스트 변경은 0이며 이 blocker 보고서만 추가했다.
+- commit·push·deploy·PDF 재생성·LLM/API 호출은 모두 0이다.
+- 재개 조건: 현재 rev2 packet SHA를 manifest에 원자적으로 고정하고 handoff validator가 다시
+  `HANDOFF_VALID`를 반환해야 한다. 그 뒤 두 대역 함수를 `**_kwargs` 수용으로 좁게 교정하고
+  기존 계획 전체를 수행할 수 있다.
+
+---
+
 # CODEX_IMPLEMENTATION_REPORT — daewoon-grid-optin-20260823
 
 - 판정: **EVIDENCE_SPLIT_PASS**. 起運 10개년 격자 함수 하나만

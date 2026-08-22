@@ -6,7 +6,10 @@
 - **근거**: `REVIEW-FEEDBACK.md` 2026-08-22 N-1 리뷰 §2-1 — 패킷이 "fail-loud"라 했던 `builder.py:120` 이 실제로는 **fail-open**
   (`order_flow.py:188-190` follow-up 렌더가 `birth_time_mode` 없는 `SimpleNamespace` 를 넘김). 방법론 A-5(파라미터=소비처 배선까지 한 단위)·
   B-2(조용한 기본값 금지). N-1(`ym_time_dependent`)과 같은 계열의 두 번째 사례.
-- **rev**: 1
+- **rev**: 2 (2026-08-23 — rev1 Codex `BLOCKED_CONTRACT`: `tests/test_three_pillar_orchestration.py:98`·`tests/test_unknown_time_order_contract.py:726`
+  이 `personal_identity_spec` 을 **키워드를 못 받는 람다**(`lambda *_args: None` / `lambda _saju, _name: …`)로 monkeypatch 하고 있어 §3-1 키워드
+  배선 시 `unexpected keyword argument` 가 확정적. 설계자 누락. rev2 = 이 두 파일을 allowed 에 추가(람다 시그니처를 `*args, **kwargs`
+  수용형으로 바꾸는 **픽스처만**, 반환값·단언 무수정). 나머지 동일.)
 
 ## 0. 역할·금지
 Codex 상시 금지(PDF 재생성·LLM 호출·git commit·push·배포) 유지. 검색 시 ignored 글롭 필수
@@ -38,6 +41,7 @@ content/rules.py:1241     … or getattr(saju, "birth_time_mode", None) == "thre
 | `tests/test_final_render_gate.py:87`, `tests/test_delivery_quality.py:726` | `engine.build` 를 `SimpleNamespace(myeongni=…)` 로 대체 | 테스트 합성. 호출자(`order_flow.py:1576`)가 모드를 명시 전달하면 픽스처 수정 불요 |
 | `tests/test_integrated_modules.py:755`, `tests/test_integrated_order_flow.py:586` | `_render_integrated(SimpleNamespace(sections=[]), …)` 모드 kwarg 없음 | 테스트 합성. 직접 접근으로 바꾸면 **RED** → 픽스처에 `birth_time_mode="known"` 명시 추가 |
 | `scripts/hverify_pdf.py:121` | 실제 `SajuResult` | 정본 객체. 명시 전달로 통일 |
+| `tests/test_three_pillar_orchestration.py:98`, `tests/test_unknown_time_order_contract.py:726` (rev2) | `personal_identity_spec` 자체를 키워드 불수용 람다로 대체 | 테스트 합성. 람다를 `lambda *a, **k: …` 로 — 반환값 동일 |
 
 ### 2-3. 영향 평가
 follow-up 은 저장된 `day_master` 만 쓰고 일간은 시각 불변이라 **현재 출력 영향 0**. 이 패킷은 계약 정리(조용한 기본값 제거)이지 결과
@@ -70,6 +74,7 @@ sajugen/integrated.py(497행 부근만) · sajugen/pipeline.py(119행만) · saj
 scripts/hverify_pdf.py(121행만)
 tests/test_birth_time_mode_direct_access.py(신설) · tests/test_integrated_modules.py · tests/test_integrated_order_flow.py
 tests/test_final_render_gate.py · tests/test_delivery_quality.py(픽스처만, 단언 무수정)
+tests/test_three_pillar_orchestration.py(98행 람다만) · tests/test_unknown_time_order_contract.py(726행 람다만)   ← rev2 추가
 implementation-notes.md · sajugen/STATE.md
 ```
 그 외 전부 forbidden(특히 `sajugen/calc/**`·`render/**`·`store/**`·`docs/**`·manifest). 경계 밖 필요 시 `BLOCKED_CONTRACT`.
