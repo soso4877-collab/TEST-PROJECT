@@ -1,5 +1,14 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== ★ 최신 앵커 (2026-08-23 — `birth_time_mode` getattr 기본값 제거 교차리뷰 **CODE_PASS** → 마감) =====
+>   [한 줄] 조용한 기본값 계열 2번째(N-1 `ym_time_dependent` 다음) — `getattr(…,"birth_time_mode",None)` 5곳 제거, `personal_identity_spec`
+>   키워드 필수 + 호출자 5곳 명시 배선. follow-up 은 `report_birth_time_mode(parent)` 정본 규칙으로 키 항상 구성.
+>   [증거] 리뷰어 재실행 **1299 passed / 14 skipped / exit 0**(기준선 1293 + 신규 6). 주문경로 묶음 188 passed. ruff 0.
+>   [새 기준선] **1299 passed / 14 skipped**, 수집 1313.
+>   [후속 소견] `render/pdf.py:98` 같은 계열 getattr 1곳 잔존(render 는 게이트 비악화 조건) → 소형 패킷 후보.
+>   [남은 이월] N-5 factcheck 일상어 동형 예외 / 위 render/pdf.py:98 / 모델 운영 정책 정본 개정은 **다른 세션** 담당.
+>
+
 > ===== ★ 최신 앵커 (2026-08-23 — rev4 격자 옵트인 교차리뷰 **CODE_PASS**, 운영자 checkpoint 대기) =====
 >   [한 줄] F-1 제품 커밋 `3a0754c` 마감 후, 격자 테스트 10건을 `SAJUGEN_QIYUN_GRID_SWEEP=1` 옵트인으로 분리(tests 1파일, 미커밋).
 >   [증거] 리뷰어 재실행 전체 **1293 passed / 14 skipped / exit 0, 180s**(23.5분→3분). 기본 13/10 skip, 옵트인 1건 passed. ruff 0.

@@ -1,39 +1,68 @@
-# CODEX_IMPLEMENTATION_REPORT — birth-time-mode-direct-access-20260823
+# CODEX_IMPLEMENTATION_REPORT — birth-time-mode-direct-access-20260823 (rev2)
 
-- 판정: **BLOCKED_CONTRACT / HANDOFF_INVALID**. required-keyword 배선을 적용하면 필수 GREEN 대상 두 파일의
-  기존 monkeypatch 시그니처도 함께 고쳐야 하지만, 두 파일은 TASK_PACKET의 `allowed_files`에
-  없고 나머지는 forbidden으로 명시돼 있어 제품 코드 수정 전에 정지했다.
+- 판정: **EVIDENCE_SPLIT_PASS**. `birth_time_mode` 객체 속성 부재를 `known`으로 바꾸던
+  `getattr` 5곳을 제거하고, `personal_identity_spec`에 키워드 필수 계약과 호출자 5곳의
+  명시 배선을 적용했다. 제품 문안·계산·게이트 완화는 0이다.
 - 인계: `node C:/Users/pc/.ai-harness/handoff.mjs validate --repo C:/Users/pc/test-project`
   → `HANDOFF_VALID task_id=birth-time-mode-direct-access-20260823 status=planned next_actor=codex`,
-  exit 0. packet SHA-256
-  `3561a1e7e9099292d05459dffcdb88e9ce1db7ead274f08d669506a3db1c8f64`가 manifest와
-  일치했고 HEAD는 `a3944a752ba23e177236d9ceb083883a641c73c2`다.
+  exit 0. rev2 packet SHA-256
+  `9da8f15626ed5279f841c926db75a98476a1ff95d429f9933ee7e5afdbdb21bf`가 manifest와
+  일치했고 HEAD는 `5079bc4d765f2bb2099a565d7547441427bb521c`다.
 
-## 계약 충돌 실측
+## 구현과 호출자 배선
 
-- `tests/test_three_pillar_orchestration.py:98`은 `personal_identity_spec`을
-  `lambda *_args`로 대체한다. `pipeline.py:119`에서 필수 `birth_time_mode=mode`를 배선하면
-  이 대역 함수가 keyword argument를 받을 수 없다.
-- `tests/test_unknown_time_order_contract.py:725-726`은 같은 함수를
-  `lambda _saju, _name`으로 대체한다. `order_flow.py:1576`의 필수 키워드 배선과 호환되지 않는다.
-- 두 파일은 packet §5의 필수 회귀 대상이지만 §4 `allowed_files`에는 없다. 제품 코드에서
-  mock을 감지하거나 키워드를 생략하는 우회는 required-keyword 및 명시 배선 수용 기준을 깨므로
-  적용하지 않았다.
-- 정지 보고 뒤 작업트리의 packet에 두 파일을 허용하는 rev2 변경이 새로 나타났지만, manifest는
-  기존 rev1 SHA를 가리킨 상태다. validator 재실행 결과는
-  `HANDOFF_INVALID code=HASH_MISMATCH` / exit 3이므로 rev2를 활성 지시로 채택하지 않았다.
+| 호출자 | 명시 전달 | 근거 |
+|---|---|---|
+| `sajugen/content/builder.py` | 지역 정규화값 `birth_time_mode` | 빌드 본체와 identity 게이트가 같은 모드 사용 |
+| `sajugen/pipeline.py` | `mode` | 입력 정규화 결과를 직접 전달 |
+| `sajugen/order_flow.py` 최종 발급 | `birth_time_mode.value` | `report_birth_time_mode(report)` 정본 결과 재사용 |
+| `sajugen/order_flow.py` follow-up | `render_context["birth_time_mode"]` 정규화값 | 생산자가 `report_birth_time_mode(parent).value`를 넣는 기존 `store/orders` 규칙 재사용, 새 기본값 없음 |
+| `scripts/hverify_pdf.py` | 프로파일 정규화값 `birth_time_mode` | 엔진 호출과 identity 게이트가 같은 모드 사용 |
 
-## 실행 증거와 미검증
+- `personal_identity_spec(saju, name, *, birth_time_mode)`는 `normalize_mode` 후 모드에 맞는
+  `saju.three_pillar` 또는 `saju.myeongni`를 직접 읽는다.
+- `builder.build_report`, `integrated._render_integrated`, `factcheck.allowed_tokens`,
+  `rules.build_all`도 정본 속성을 직접 읽으며 관련 `getattr(...birth_time_mode...)` 잔존은 0건이다.
+- 통합 렌더 합성 객체 2곳에 `birth_time_mode="known"`을 명시했다. rev2 허용 테스트의
+  monkeypatch 람다 2곳은 반환값·단언을 건드리지 않고 `**kwargs` 수용 시그니처만 바꿨다.
+- 신규 양방 테스트 6건은 필수 키워드/속성 부재 차단 4건과 실제 `engine.build`의 known·three-pillar
+  결과를 사용한 `personal_identity_spec`·`allowed_tokens`·`build_all` 속성 동치 2건이다.
 
-- 변경 전 두 충돌 노드:
-  `.venv\Scripts\python.exe -m pytest tests/test_three_pillar_orchestration.py::test_pipeline_forwards_three_pillar_mode_and_provenance tests/test_unknown_time_order_contract.py::test_three_pillar_final_render_forwards_mode_and_provenance_without_clock -q`
-  → **2 passed / exit 0 / 1.15s**.
-- 교정 전 RED 3종, 제품 구현, 양방 GREEN, 주문 경로 묶음, 전체 pytest, Ruff는 계약 정지선
-  때문에 실행하지 않았다. 제품·테스트 변경은 0이며 이 blocker 보고서만 추가했다.
-- commit·push·deploy·PDF 재생성·LLM/API 호출은 모두 0이다.
-- 재개 조건: 현재 rev2 packet SHA를 manifest에 원자적으로 고정하고 handoff validator가 다시
-  `HANDOFF_VALID`를 반환해야 한다. 그 뒤 두 대역 함수를 `**_kwargs` 수용으로 좁게 교정하고
-  기존 계획 전체를 수행할 수 있다.
+## 교정 전 RED 3종
+
+제품 코드 수정 전 신규 테스트 3건만 실행:
+`.venv\Scripts\python.exe -m pytest tests\test_birth_time_mode_direct_access.py -q`
+→ **3 failed / exit 1 / 0.98s**.
+
+1. 모드 kwarg 누락: `Failed: DID NOT RAISE TypeError`.
+2. `three_pillar` 없는 객체에 명시 모드 전달: 기존 함수가 kwarg를 받지 못해
+   `TypeError: unexpected keyword argument 'birth_time_mode'`.
+3. 모드 kwarg·속성 없는 `_render_integrated`: `Failed: DID NOT RAISE AttributeError`.
+
+## 검증
+
+- 신규 테스트: `.venv\Scripts\python.exe -m pytest tests\test_birth_time_mode_direct_access.py -q`
+  → **6 passed / exit 0 / 3.95s**.
+- 주문·최종 발급·삼주 계약 묶음:
+  `.venv\Scripts\python.exe -m pytest tests\test_orders.py tests\test_final_render_gate.py tests\test_unknown_time_order_contract.py tests\test_three_pillar_orchestration.py tests\test_birth_time_mode_direct_access.py -q`
+  → **84 passed / exit 0 / 6.64s**.
+- 통합·delivery·follow-up 묶음:
+  `.venv\Scripts\python.exe -m pytest tests\test_integrated_modules.py tests\test_integrated_order_flow.py tests\test_delivery_quality.py tests\test_followup_flow.py -q`
+  → **104 passed / exit 0 / 9.74s**.
+- 전체: `.venv\Scripts\python.exe -m pytest tests\ -q`
+  → **1271 passed / 42 skipped / exit 0 / 140.19s**. 패킷이 지정한 이 환경의 Playwright
+  추가 skip 28건을 분리하면 기준환경 환산 **1299 passed / 14 skipped**다. 기준선
+  1293/14에 신규 6건만 증가했고 수집 총수도 **1307 → 1313**으로 정확히 일치한다.
+- Ruff: `.venv\Scripts\python.exe -m ruff check <변경 Python 파일 전부>`
+  → `All checks passed!` / exit 0.
+- `git diff --check` → exit 0(CRLF 안내만). 허용 파일 밖 수정 0.
+
+## 미검증·남은 위험
+
+- 기준환경의 `1299/14`는 이 샌드박스에서 직접 실행하지 못했다. 동일 수집 총수와 패킷에 명시된
+  Playwright 28건 pass↔skip 환경 차이로 분리했으며 실행된 테스트 실패는 0이다.
+- `sajugen/STATE.md`는 수정하지 않았다. 사용자 금지에 따라 PDF 재생성·LLM/API 호출·
+  git commit·push·deploy는 모두 0이다. 다음은 Claude Code의 read-only 교차리뷰다.
 
 ---
 

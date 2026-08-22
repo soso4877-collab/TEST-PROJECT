@@ -1,3 +1,42 @@
+# 교차 리뷰 — 2026-08-23 (`birth_time_mode` getattr 기본값 제거, 리뷰어: Claude read-only)
+
+대상: `birth-time-mode-direct-access-20260823` rev2 구현(base/HEAD `5079bc4` 위 미커밋) · 구현자 Codex(rev1 잡 `task-mt4zt0ss-rcbtiv`
+BLOCKED_CONTRACT → rev2 잡 `task-mt50ikhr-xcvp5n`, effort high). 리뷰어 재실행 수치만 기록. 리뷰 중 수정 0.
+
+## 최종 판정: **승인(CODE_PASS)** — 블로커 0, 비블로커 소견 1. 판정값 `verified / next_actor=user`.
+
+### 0. 경과
+rev1 은 리뷰어(설계자) 누락 — `personal_identity_spec` 을 키워드 불수용 람다로 monkeypatch 하는 테스트 2파일이 allowed 밖이라 Codex 가
+정당히 정지. rev2 로 픽스처 시그니처만 허용.
+
+### 1. 증거 (리뷰어 재실행)
+| 검사 | 결과 |
+|---|---|
+| `git merge-base --is-ancestor 5079bc4 HEAD` | exit 0 |
+| `git status` | 제품 6(`builder`·`factcheck`·`rules`·`integrated`·`order_flow`·`pipeline`) + `scripts/hverify_pdf.py` + 테스트 4 수정 + 신규 1 + notes. forbidden 0 |
+| `pytest tests/ -q` | **1299 passed / 14 skipped / exit 0**, 187s. 기준선 1293 + 신규 6, 감소 0. Codex 1271/42 는 Playwright skip 28 차이, 수집 1313 동일 |
+| 주문경로·통합·follow-up·신규 9파일 묶음 | **188 passed / exit 0** (`test_orders`·`test_final_render_gate` 포함 — AGENTS 계약 8) |
+| `ruff check` 변경 12파일 | `All checks passed!` |
+| 잔존 `getattr(…, "birth_time_mode")` (sajugen/**) | **1곳** `render/pdf.py:98` — 패킷 forbidden(`render/**`) 범위 밖, 소견 ① |
+| 교정 전 RED | Codex 보고 3 failed / exit 1(DID NOT RAISE ×2, unexpected kwarg ×1). 리뷰어 미재현 — 단 diff 구조상 필연 |
+
+### 2. diff 판독
+- `personal_identity_spec(saju, name, *, birth_time_mode)` 키워드 필수 + `normalize_mode`/`is_three_pillar_mode` 재사용, 객체 getattr 0.
+- 호출자 5곳 명시 배선 확인: `builder.py:360`(지역 정규화값), `pipeline.py:119`(`mode`), `order_flow.py:1584`(`birth_time_mode.value`),
+  `order_flow.py:188`(`render_context["birth_time_mode"]` — 이 키는 렌더 시점에 `report_birth_time_mode(parent)` 로 **항상 구성**됨
+  `order_flow.py:1014-1020`, 레거시 KeyError 위험 없음, 새 조용한 기본값 0), `scripts/hverify_pdf.py:121`.
+- follow-up 은 모드에 따라 `three_pillar`/`myeongni` 네임스페이스를 골라 넘김 — 삼주 follow-up 에서도 `.myeongni` 로 후퇴하지 않음.
+- `builder:205`·`integrated:497`·`factcheck:70`·`rules:1242` 직접 접근. 픽스처: `SimpleNamespace(sections=[], birth_time_mode="known")` 2곳,
+  람다 `*_args, **_kwargs` 2곳 — 반환값·단언 무수정.
+- 신규 테스트 6건: 차단 4(TypeError·AttributeError ×3) + 정본 `engine.build` known/three_pillar 결과로 identity·allowed_tokens·build_all
+  속성 동치 2(교정 전 값 스냅샷 아님). 2칸 들여쓰기(스타일 소견, ruff 무위반).
+
+### 3. 비블로커 소견
+① `render/pdf.py:98` `birth_time_mode or getattr(report, "birth_time_mode", None)` — 같은 계열 잔존. `render/**` 는 게이트 비악화 + 양방
+  회귀 조건이라 별도 소형 패킷 후보(Report23 는 필드 기본 "known" 이라 직접 접근 안전).
+
+---
+
 # 교차 리뷰 — 2026-08-23 (起運 격자 테스트 옵트인 분리 rev4, 리뷰어: Claude read-only)
 
 대상: `daewoon-grid-optin-20260823`(base/HEAD `bcf33b7` 위 미커밋, tests 1파일) · 구현자 Codex(잡 `task-mt4ynps9-y8l8wk`, effort medium).
