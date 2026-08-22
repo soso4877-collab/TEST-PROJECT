@@ -10,6 +10,11 @@
 
 from __future__ import annotations
 
+from functools import lru_cache
+
+from lunar_python import Lunar, Solar
+from lunar_python.util import LunarUtil
+
 _ELEM = {
     "甲": "木",
     "乙": "木",
@@ -116,47 +121,62 @@ def eokbu(pillars: dict, day_master: str) -> dict:
     }
 
 
-def seun_worun(yun, ref_year: int | None):
-    """현재(ref_year) 대운 구간의 세운(년·간지)과 그해 월운(월·간지).
+def current_daewoon(daewoon: list, ref_year: int | None):
+    """start_year가 기준 연도 이하인 마지막 대운을 단일 규칙으로 고른다."""
+    if not ref_year or not daewoon:
+        return None
+    cur = None
+    for item in daewoon:
+        if item.start_year <= ref_year:
+            cur = item
+        else:
+            break
+    return cur
 
-    lunar-python DaYun.getLiuNian / LiuNian.getLiuYue 출력만 노출(추정 없음).
-    """
+
+@lru_cache(maxsize=None)
+def _seun_ganzhi(year: int) -> str:
+    """起運과 무관한 연간지를 연도별 결정값으로 캐시한다."""
+    return Lunar.fromYmd(year, 6, 1).getYearInGanZhiExact()
+
+
+@lru_cache(maxsize=None)
+def _worun_ganzhi(ref_year: int) -> tuple[tuple[str, str], ...]:
+    """절기월 중앙에서 조회한 寅~丑 12월 간지를 기준 연도별로 캐시한다."""
+    month_points = [(ref_year, month, 15) for month in range(2, 13)]
+    month_points.append((ref_year + 1, 1, 15))
+    rows = []
+    for index, (year, month, day) in enumerate(month_points, start=1):
+        lunar = Solar.fromYmd(year, month, day).getLunar()
+        rows.append((LunarUtil.MONTH[index], lunar.getMonthInGanZhiExact()))
+    return tuple(rows)
+
+
+def seun_worun(yun, ref_year: int | None, daewoon: list):
+    """우리 start_year로 고른 현재 대운의 세운·월운 간지를 lunar 달력에서 조회한다."""
     seun: list[tuple[int, str]] = []
     worun: list[tuple[str, str]] = []
-    if yun is None or not ref_year:
+    if yun is None or not ref_year or not daewoon:
         return seun, worun
-    try:
-        dy = yun.getDaYun()
-    except Exception:
-        return seun, worun
-    cur = None
-    for d in dy:
-        try:
-            if d.getStartYear() <= ref_year <= d.getEndYear():
-                cur = d
-                break
-        except Exception:
-            continue
+    cur = current_daewoon(daewoon, ref_year)
     if cur is None:
         return seun, worun
-    try:
-        ln = cur.getLiuNian()
-    except Exception:
+
+    # 대운 경계에서 ref± 범위가 이웃 대운으로 새지 않게 현재 구간과 교집합만 노출한다.
+    cur_index = daewoon.index(cur)
+    if cur_index + 1 < len(daewoon):
+        end_year = daewoon[cur_index + 1].start_year - 1
+    else:
+        end_year = cur.start_year + 9
+    year_start = max(ref_year - 1, cur.start_year)
+    year_end = min(ref_year + 3, end_year)
+    if year_start > year_end:
         return seun, worun
-    y_obj = None
-    for x in ln:
-        try:
-            yy = x.getYear()
-        except Exception:
-            continue
-        if ref_year - 1 <= yy <= ref_year + 3:
-            seun.append((yy, x.getGanZhi()))
-        if yy == ref_year:
-            y_obj = x
-    if y_obj is not None:
-        try:
-            for m in y_obj.getLiuYue():
-                worun.append((m.getMonthInChinese(), m.getGanZhi()))
-        except Exception:
-            pass
+
+    # 연간지는 起運과 무관한 달력값이다. 입춘에서 멀리 떨어진 음력 6월 1일로 연간지를 조회한다.
+    for year in range(year_start, year_end + 1):
+        seun.append((year, _seun_ganzhi(year)))
+
+    # 월운 12개는 寅월(正月)부터 丑월(臘月)까지 각 절기월 중앙의 간지를 조회한다.
+    worun.extend(_worun_ganzhi(ref_year))
     return seun, worun

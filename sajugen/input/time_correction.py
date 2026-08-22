@@ -47,6 +47,26 @@ class ZasiPolicy(enum.Enum):
     )
 
 
+def zasi_day_offset(true_solar: datetime, *, policy: ZasiPolicy) -> int:
+    """자시 정책에 따라 진태양시 순간의 명리 날짜 오프셋을 반환한다.
+
+    출생 시각과 起運 절입 시각이 같은 날짜 귀속 규칙을 쓰도록 공개한 단일 정책
+    함수다. JST_2300은 23시대부터 익일, YAJASI_SPLIT은 00시대만 익일로 본다.
+
+    Args:
+        true_solar: 판정할 진태양시 datetime.
+        policy: 적용할 자시 날짜 전환 정책.
+
+    Returns:
+        당일이면 0, 명리 날짜가 익일이면 1.
+    """
+    if policy is ZasiPolicy.JST_2300:
+        return int(true_solar.hour >= 23)
+    if policy is ZasiPolicy.YAJASI_SPLIT:
+        return int(0 <= true_solar.hour < 1)
+    raise ValueError(f"지원하지 않는 자시 정책입니다: {policy!r}")
+
+
 @dataclass(frozen=True)
 class CorrectedTime:
     civil_local: datetime  # 입력(시민 시각, naive 가정 → Asia/Seoul 부여)
@@ -83,6 +103,32 @@ def _apparent_solar_dt(utc_dt: datetime, lon: float, lat: float, civil_naive: da
     return cand
 
 
+def apparent_solar_datetime(
+    utc_dt: datetime,
+    *,
+    longitude: float = SEOUL_LON,
+    latitude: float = SEOUL_LAT,
+    civil_local: datetime | None = None,
+) -> datetime:
+    """UTC 순간을 지정 경도의 진태양시 datetime으로 환산한다.
+
+    `correct()`와 절입 시각 소비처가 같은 Skyfield 변환을 공유하는 공개 경계다.
+    `civil_local`이 주어지면 기존 입력 시계의 날짜를 그대로 쓰고, 생략하면 IANA
+    `Asia/Seoul`로 UTC 순간의 시민 날짜를 복원한다.
+    """
+    if utc_dt.tzinfo is None:
+        utc_naive = utc_dt
+        utc_aware = utc_dt.replace(tzinfo=ZoneInfo("UTC"))
+    else:
+        utc_aware = utc_dt.astimezone(ZoneInfo("UTC"))
+        utc_naive = utc_aware.replace(tzinfo=None)
+    if civil_local is None:
+        civil_naive = utc_aware.astimezone(_KST).replace(tzinfo=None)
+    else:
+        civil_naive = civil_local.replace(tzinfo=None)
+    return _apparent_solar_dt(utc_naive, longitude, latitude, civil_naive)
+
+
 def correct(
     year: int,
     month: int,
@@ -98,7 +144,12 @@ def correct(
     utc = civil.astimezone(ZoneInfo("UTC"))
     civil_naive = civil.replace(tzinfo=None)
 
-    true_solar = _apparent_solar_dt(utc.replace(tzinfo=None), longitude, latitude, civil_naive)
+    true_solar = apparent_solar_datetime(
+        utc.replace(tzinfo=None),
+        longitude=longitude,
+        latitude=latitude,
+        civil_local=civil_naive,
+    )
     # 시민시각 대비 총 보정량(분): 진태양시 - 시민시각(동일 '벽시계' 비교 위해 KST 분해)
     eot_minutes = round((true_solar - civil_naive).total_seconds() / 60.0, 2)
 
@@ -107,13 +158,8 @@ def correct(
     idx = int(((h + 1) % 24) // 2)  # 23→0(子),1→1(丑)...
     hour_branch = _BRANCHES[idx]
 
-    day_offset = 0
-    if policy is ZasiPolicy.JST_2300:
-        if true_solar.hour >= 23:
-            day_offset = 1  # 23시 이후 子시 → 일주 다음날
-    elif policy is ZasiPolicy.YAJASI_SPLIT:
-        if 0 <= true_solar.hour < 1:
-            day_offset = 1  # 조자시(00~01)만 다음날, 야자시(23~24)는 당일
+    # 출생과 起運 절입이 동일한 자시 날짜 정책을 쓰도록 단일 함수에서 계산한다.
+    day_offset = zasi_day_offset(true_solar, policy=policy)
 
     return CorrectedTime(
         civil_local=civil_naive,

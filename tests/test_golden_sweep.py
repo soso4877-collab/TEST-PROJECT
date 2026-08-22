@@ -25,6 +25,7 @@ import pytest  # noqa: E402
 from lunar_python.util import LunarUtil  # noqa: E402
 
 from sajugen.calc import engine, shinsal as ss  # noqa: E402
+from sajugen.input import time_correction as tc  # noqa: E402
 
 
 def _pil(gz):
@@ -213,12 +214,14 @@ def test_daewoon_structure_invariants():
     for c, r in _grid_built():
         m = r.myeongni
         dw = m.daewoon
+        ct = tc.correct(c[0], c[1], c[2], c[3], 0)
         assert dw[0].start_age == m.daewoon_count, (c, dw[0].start_age, m.daewoon_count)
         for i, d in enumerate(dw):
             assert d.start_age == m.daewoon_count + 10 * i, (c, i)
             assert d.end_age == d.start_age + 9, (c, i)
             assert d.start_year == dw[0].start_year + 10 * i, (c, i)
             assert 0 <= (d.start_year - c[0]) - d.start_age <= 2, (c, i)
+            assert (d.start_year - ct.civil_local.year) - d.start_age in {0, 1}, (c, i)
 
 
 def _shinsal_allowed(name, day_master):

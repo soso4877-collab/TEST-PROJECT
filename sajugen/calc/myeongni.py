@@ -6,21 +6,22 @@ Skyfield(solarterms)와 교차검증해 분 단위 불일치를 플래그한다.
 자시 정책은 P1 enum을 권위로 두고 lunar-python 시지와 다르면 충돌을 '표면화'(단정 금지).
 
 ★ 불변식 — 시각축은 둘이고 산출마다 소속이 다르다 (2026-08-17 교정, docs/03 결정표):
-  - **절대축**(연주·월주·대운·세운): 절기는 태양 황경이 특정 각도가 되는 '절대 시각'이라
-    관측지 경도·균시차와 무관하다. 서울에서 나든 뉴욕에서 나든 입춘 순간은 같다.
+  - **절대축**(연주·월주·대운 간지열·起運 거리·세운): 절기는 태양 황경이 특정 각도가 되는
+    '절대 시각'이라 관측지 경도·균시차와 무관하다. 起運의 時辰 버킷만 시주와 같은 국지축이다.
   - **국지축**(일주·시주·자시 정책): 시지는 그 자리에서의 태양 시각각 문제라 진태양시가 맞다.
   이 둘을 한 축으로 뭉개면 절입 판정이 진태양시 보정량만큼 밀린다(구 결함).
 """
 
 from __future__ import annotations
 
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 from lunar_python import EightChar, Solar
 from pydantic import BaseModel, Field
 
-from ..input.time_correction import CorrectedTime
+from ..input.time_correction import CorrectedTime, apparent_solar_datetime, zasi_day_offset
 from ..config import myeongni_shinsal
 from . import advanced, shinsal as shinsal_mod, solarterms
 
@@ -141,6 +142,20 @@ class DaYunItem(BaseModel):
     ganzhi: str
 
 
+@dataclass(frozen=True)
+class QiyunResult:
+    """docs/03 O1 축으로 자체 산출한 起運 기간과 시민시 앵커."""
+
+    years: int
+    months: int
+    days: int
+    start_date: date
+    jie_name: str
+    jie_utc: datetime
+    hour_diff: int
+    day_diff: int
+
+
 class ShinsalHit(BaseModel):
     name: str  # 신살 한국어명
     pillar: str  # year|month|day|hour
@@ -194,15 +209,80 @@ def current_daewoon(m: "Myeongni", ref_year: int | None) -> Optional[DaYunItem]:
     리포트의 모든 챕터가 '현재 대운'을 이 단일 값으로만 서술하도록 단일 사실원을 제공한다
     (대운 모순 = 정미/병오 혼서 실사고 2026-06-14 근원 수정).
     """
-    if not ref_year or not m.daewoon:
-        return None
-    cur: Optional[DaYunItem] = None
-    for d in m.daewoon:
-        if d.start_year <= ref_year:
-            cur = d
-        else:
-            break
-    return cur
+    return advanced.current_daewoon(m.daewoon, ref_year)
+
+
+_QIYUN_BRANCHES = "子丑寅卯辰巳午未申酉戌亥"
+
+
+def compute_qiyun(ct: CorrectedTime, *, forward: bool) -> QiyunResult:
+    """고전 折除를 docs/03 O1 시각축으로 계산한다.
+
+    절입 선택은 출생 UTC와 Skyfield 절입 UTC를 비교하고, 日·時辰은 두 순간을 같은
+    경도의 진태양시로 표현해 센다. 출생 時辰은 시주와 동일한 `ct.hour_branch`를 써서
+    lunar-python 流派1의 CST 버킷·23시=亥 특례를 배제한다. 3日=1歲,
+    1日=4個月, 1時辰=10日이며 모든 나머지는 내림한다.
+    """
+    utc = ct.utc.replace(tzinfo=None)
+    if forward:
+        candidates = sorted(
+            (solarterms.solar_term_time(year, longitude), longitude)
+            for year in (utc.year - 1, utc.year, utc.year + 1)
+            for longitude in solarterms.TWELVE_JIE
+        )
+        jie_utc, jie_longitude = next(row for row in candidates if row[0] > utc)
+        jie_name = solarterms.TERMS[jie_longitude]
+    else:
+        _month_branch, jie_name, jie_utc = solarterms.month_pillar_branch(utc)
+
+    # 절입도 출생과 같은 경도·진태양시 시계로 옮겨 日과 時辰의 자리올림을 한 축에서 센다.
+    jie_true_solar = apparent_solar_datetime(jie_utc, longitude=ct.longitude)
+    birth_myeongni_date = ct.true_solar.date() + timedelta(days=ct.day_offset)
+    jie_myeongni_date = jie_true_solar.date() + timedelta(
+        days=zasi_day_offset(jie_true_solar, policy=ct.policy)
+    )
+    birth_hour_index = _QIYUN_BRANCHES.index(ct.hour_branch)
+    jie_hour = jie_true_solar.hour + jie_true_solar.minute / 60.0
+    jie_hour_index = int(((jie_hour + 1) % 24) // 2)
+    if forward:
+        start_date_for_days, end_date_for_days = birth_myeongni_date, jie_myeongni_date
+        hour_diff = jie_hour_index - birth_hour_index
+    else:
+        start_date_for_days, end_date_for_days = jie_myeongni_date, birth_myeongni_date
+        hour_diff = birth_hour_index - jie_hour_index
+    day_diff = (end_date_for_days - start_date_for_days).days
+    if hour_diff < 0:
+        hour_diff += 12
+        day_diff -= 1
+
+    # 三命通會의 이산 折除를 그대로 적용한다. `//`가 확정 정책인 나머지 내림이다.
+    month_part = hour_diff * 10 // 30
+    month_total = day_diff * 4 + month_part
+    years, months = divmod(month_total, 12)
+    days = hour_diff * 10 - month_part * 30
+
+    # 起運 달력 앵커는 CST가 아니라 시민 KST이며, lunar getStartSolar와 같은 년→월→일 순서다.
+    civil = ct.civil_local
+    start_solar = Solar.fromYmdHms(
+        civil.year,
+        civil.month,
+        civil.day,
+        civil.hour,
+        civil.minute,
+        civil.second,
+    )
+    start_solar = start_solar.nextYear(years).nextMonth(months).next(days)
+    start_date = date(start_solar.getYear(), start_solar.getMonth(), start_solar.getDay())
+    return QiyunResult(
+        years=years,
+        months=months,
+        days=days,
+        start_date=start_date,
+        jie_name=jie_name,
+        jie_utc=jie_utc,
+        hour_diff=hour_diff,
+        day_diff=day_diff,
+    )
 
 
 def _pillar(ec, who: str) -> Pillar:
@@ -220,13 +300,13 @@ def _pillar(ec, who: str) -> Pillar:
 
 
 def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> Myeongni:
-    # 축 분리(2026-08-17): 연주·월주·대운은 절대축(UTC+8 프레임), 일주·시주는 국지축(진태양시).
+    # 축 분리: 연주·월주·대운 간지열은 절대축, 일주·시주와 起運 時辰은 국지축이다.
     # 근거·불변식은 모듈 도크스트링과 LUNAR_PYTHON_TERM_FRAME_UTC_OFFSET_HOURS 주석 참조.
     ec = split_axis_eight_char(ct)
     # 자시 정책(ZasiPolicy) 반영(T2.1/P0-1): ct.day_offset=1 (JST_2300 = 진태양시 23시부터 子시
     # → 일주 익일)이면 setSect(1) 로 일주만 익일 전환한다. lunar-python setSect(1) 은 일주만
     # 바꾸고 시/월/연주·대운(getYun)은 보존한다(실측 2026-08-17 재확인: 4케이스×남녀에서
-    # getYun 起運·대운 간지 전부 불변). 자시는 국지 시각 축의 정책이라 국지축 일간에만 걸린다.
+    # getYun 방향·대운 간지 전부 불변). 자시는 국지 시각 축의 정책이라 국지축 일간에만 걸린다.
     # day_offset 이 이미 정책값이라(JST=23시+ →1, YAJASI=조자시만 1) 이 분기가 정책을 정확히
     # 수행 — 하드코딩 아님(calc.md·절대규칙6).
     if ct.day_offset:
@@ -240,23 +320,10 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
             if ch in _ELEM:
                 elements[_ELEM[ch]] += 1
 
-    # 대운 (남=1, 여=0; sect=1 기본 流派) — 방향은 시퀀스로 판정(단정 회피)
+    # lunar Yun은 대운 간지열과 기존 방향 판정에만 쓴다. 起運 수·연도는 아래 자체 계산이 권위다.
     yun = ec.getYun(1 if is_male else 0, 1)
     dy = yun.getDaYun()
-    # 起運 나이(대운수) = getStartYear(). 한국 관행은 대운수=만나이 시작(레퍼런스 만세력 일치).
-    # lunar-python d.getStartAge()는 起運 캘린더연도의 중국식 세는나이(虚岁)라 대운수와 +1~2 어긋남
-    #   → 사용 금지. start_age = 대운수 + 10*순번 으로 도출(daewoon_count 와 내부 정합).
-    qiyun = yun.getStartYear()
     _dy_items = [d for d in dy[1:9] if d.getGanZhi()]
-    daewoon = [
-        DaYunItem(
-            start_age=qiyun + 10 * i,
-            end_age=qiyun + 10 * i + 9,
-            start_year=d.getStartYear(),
-            ganzhi=d.getGanZhi(),
-        )
-        for i, d in enumerate(_dy_items)
-    ]
     # 순행/역행: 60갑자 인덱스 증감으로 판정
     SX = "甲乙丙丁戊己庚辛壬癸"
 
@@ -264,9 +331,21 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
         return SX.index(gz[0])
 
     forward = True
-    if len(daewoon) >= 2:
-        diff = (gz_idx(daewoon[1].ganzhi) - gz_idx(daewoon[0].ganzhi)) % 10
+    if len(_dy_items) >= 2:
+        diff = (gz_idx(_dy_items[1].getGanZhi()) - gz_idx(_dy_items[0].getGanZhi())) % 10
         forward = diff == 1
+
+    # 대운수는 만 나이이며, 중국식 세는나이인 lunar d.getStartAge()는 계속 사용하지 않는다.
+    qiyun = compute_qiyun(ct, forward=forward)
+    daewoon = [
+        DaYunItem(
+            start_age=qiyun.years + 10 * i,
+            end_age=qiyun.years + 10 * i + 9,
+            start_year=qiyun.start_date.year + 10 * i,
+            ganzhi=d.getGanZhi(),
+        )
+        for i, d in enumerate(_dy_items)
+    ]
 
     # 절입 기준 월지 교차검증 (lunar-python vs Skyfield). 축 분리 후에는 양쪽이 같은 절대축을
     # 보므로 절입 경계에서도 일치해야 한다(교정 전에는 36/36 절입에서 불일치했다).
@@ -287,7 +366,7 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
 
     hour_conflict = ct.hour_branch != pillars["Time"].zhi
 
-    # 심화 계산 (결정론; 세운/월운은 lunar-python 출력 노출)
+    # 심화 계산(결정론): 세운·월운 간지는 lunar 달력, 현재 대운 선택은 우리 start_year가 권위다.
     dm = ec.getDayGan()
     ge, ge_note = advanced.geukguk(pillars["Month"])
     eb = advanced.eokbu(pillars, dm)
@@ -297,7 +376,7 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
     sal_detail = [ShinsalHit(name=h.name, pillar=h.pillar, basis=h.basis) for h in sal_hits]
     twelve = shinsal_mod.twelve_shinsal(pillars, sal_profile)
     gong = shinsal_mod.gongmang(pillars["Year"].ganzhi, pillars["Day"].ganzhi, sal_profile)
-    seun, worun = advanced.seun_worun(yun, ref_year)
+    seun, worun = advanced.seun_worun(yun, ref_year, daewoon)
 
     return Myeongni(
         year=pillars["Year"],
@@ -306,7 +385,7 @@ def build(ct: CorrectedTime, *, is_male: bool, ref_year: int | None = None) -> M
         hour=pillars["Time"],
         day_master=ec.getDayGan(),
         elements=elements,
-        daewoon_count=yun.getStartYear(),
+        daewoon_count=qiyun.years,
         daewoon_forward=forward,
         daewoon=daewoon,
         ming_gong_nayin=ec.getMingGongNaYin(),
