@@ -3,8 +3,9 @@
 > ===== ★ 최신 앵커 (2026-08-23 — rev4 격자 옵트인 교차리뷰 **CODE_PASS**, 운영자 checkpoint 대기) =====
 >   [한 줄] F-1 제품 커밋 `3a0754c` 마감 후, 격자 테스트 10건을 `SAJUGEN_QIYUN_GRID_SWEEP=1` 옵트인으로 분리(tests 1파일, 미커밋).
 >   [증거] 리뷰어 재실행 전체 **1293 passed / 14 skipped / exit 0, 180s**(23.5분→3분). 기본 13/10 skip, 옵트인 1건 passed. ruff 0.
->   [운영자 할 일] 커밋 `test(calc): 起運 격자 전수 테스트를 옵트인으로 분리` + 기록 커밋 → manifest done·archive. push 는 지시 시에만
->     (origin 대비 2일치 커밋 누적 — 유실 방어 차원에서 feat push 권장).
+>   [마감] 커밋 `cda93d5`(test) + `0a2ac39`(기록), manifest done·archive. **origin push 완료**(3fda70c..0a2ac39, 운영자 지시).
+>   [잔여 위험 해소 2026-08-23] vault `brain-health.ps1` + Inbox 5건 vault 커밋 `33bdfcb`(가이드.html·push-result.txt 는 운영자 변경이라 제외).
+>     淵海子平 인용은 維基文庫本에 문구 없음 확인 → 판본 의존 보조 근거로 격하(docs/27·ledger). calc.md 에 起運·격자 옵트인 규칙 추가.
 >   [새 기준선] **1293 passed / 14 skipped**, 수집 1307. `calc/` 변경 시 격자 전수는 옵트인으로 별도 실행(약 20분).
 >   [다음 이월] N-5 factcheck 일상어 동형 예외 / builder.py:120 follow-up birth_time_mode fail-open / vault brain-health.ps1 운영자 commit.
 >

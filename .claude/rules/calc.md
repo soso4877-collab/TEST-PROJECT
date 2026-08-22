@@ -15,3 +15,4 @@ paths:
 - 출생시각 계약은 `birth_time_mode=known|three_pillar` 단일 정본으로 관리한다. `three_pillar`는 신고한 시민 날짜의 연·월·일주를 고정하고 12개 시지 후보의 구조화 값이 12/12 동일할 때만 시간 불변 사실로 승격한다. 정오 대입·시주/자미 계산·후보 원문 영속은 금지하고, 입춘·절입이 신고 날짜 안에 있어 시각 없이 연주·월주를 확정할 수 없으면 `NEEDS_INFO_TIME_BOUNDARY`로 차단한다.
 - 사연 파싱 상대(`calc/partner.py`)는 절대규칙 8-1 — 시각 미상이고 신고 날짜 안에서 월건이 바뀌면 `ym_time_dependent=True`(판정 술어는 `three_pillar.ensure_unambiguous_civil_date` 재사용, 복제 금지)로 연·월주를 문안·factcheck 허용 토큰 양쪽에서 빼고 일주 중심으로 서술한다. 비단정 원칙만 확장이며 주문 차단·12시지 후보 축약·`three_pillar_provenance` 는 상대에게 확장하지 않는다.
 - 학설 차이가 있는 산출(격국 단순화, 신살 일지 기준 등)은 결과에 note 명시, 단정 금지.
+- 대운 起運은 `calc/myeongni.compute_qiyun` 자체 계산(docs/03 「대운 起運 산출 축」 행: 거리=절대축 Skyfield, 時辰 버킷=시주와 같은 국지축(출생·절입 동일 시계, 23시=子는 자시 정책 날짜로 귀속), 앵커=시민 KST, 折除 내림). lunar-python `getYun` 은 대운 간지열·방향에만 쓴다. `calc/`·`input/` 변경 시 격자 전수(25,440건, 약 20분)를 `SAJUGEN_QIYUN_GRID_SWEEP=1` 로 옵트인 실행해 간지·방향 변동 0을 확인한다(기본 스위트에서는 skip).
