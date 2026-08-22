@@ -1,3 +1,69 @@
+# 교차 리뷰 — 2026-08-22 (brain-health 근거 감사 옵트인 구멍, 리뷰어: Claude read-only)
+
+대상: `brainhealth-evidence-audit-optin-gap-20260822` rev2 구현(vault `C:\Users\pc\AI-Brain\_scripts\brain-health.ps1`
+미커밋 워킹트리, raw SHA-256 `071556E8…815B6`) · 구현자 **Codex**(잡 `task-mt45gfl5-3uxg0b`, 모델 `gpt-5.6-sol`
+effort high, cwd=AI-Brain 으로 발주). rev1(잡 `task-mt455w1m-w4ez32`)은 sajugen cwd 의 `workspace-write`
+샌드박스가 vault 쓰기를 막아 `BLOCKED_ENV` — 리뷰어가 ACL(`CodexSandboxUsers:Modify`)로 NTFS 원인을 배제하고
+`codex-companion.mjs:491` 로 구조 원인을 확정한 뒤 패킷 rev2 로 재발주했다.
+
+**독립성 근거**: 리뷰어는 패킷 작성자·발주자이고 구현자가 아니다. 아래 수치는 전부 리뷰어가 네이티브
+`pwsh` 로 재실행한 값이며 구현자 보고를 승계하지 않았다. 리뷰 중 vault·sajugen 코드 수정 **0**.
+
+## 최종 판정: **승인(CODE_PASS) — 단, Codex 의 `BLOCKED_CONTRACT` 는 타당하며 해소는 운영자 결정**
+
+판정값 = `verified / next_actor=user`. 구현 품질은 블로커 0. Codex 가 정지한 사유(적발 6건 예상 vs 실측
+9파일·11절)는 **구현 오탐이 아니라 패킷 §2-2 census 의 측정 오차**로 확정했다(§3). 따라서 "완화해서 6건에
+맞추기"는 금지(§3-3 사각 축소 방향만)이고, 운영자가 11절을 기준선으로 **수용**하면 그대로 채택 가능하다.
+
+### 1. 증거 (리뷰어 재실행)
+
+| 검사 | 결과 |
+|---|---|
+| `pwsh -NoProfile -File …\brain-health.ps1 -SelfTest` | `SELFTEST=PASS` / exit **0** (Codex 는 샌드박스에서 pwsh 접근 거부로 PS5.1 대체 실행 — 패킷 지정 명령은 리뷰어가 처음 실증) |
+| `pwsh -NoProfile -File …\brain-health.ps1` (실제 vault) | exit **0** · `status: ok` · `errors: []` · warnings 7 = 기존 6 + 신규 1(`외부 URL의 인용·근거 태그 누락 후보 11건`) — §3-2 비악화 충족 |
+| `official_without_quote` / `local_tagged_official` | 수정 전후 모두 `[]` — 기존 검사 무변화 |
+| `git -C AI-Brain status --short` | `_scripts/brain-health.ps1` + `_scripts/push-result.txt`(발주 전부터 dirty, rev2 §6 예외) — 정본 노트 변경 **0** |
+| `git diff --stat` | 1 file, +45/-3. 기존 자체테스트 3종·`Remove-MarkdownCode`·경로 판정 **무수정**(diff 육안) |
+| 교정 전 RED | Codex 보고 `SELFTEST 실패: URL 무인용·무태그 절 검출(actual=0)` exit 1 — 리뷰어는 재현하지 않음(수정 전 해시 `A10103FA…` 기준선만 보유). **미검증으로 분리**, 단 diff 구조상 테스트가 신규 키를 참조하므로 교정 전 실패는 필연. |
+
+### 2. diff 판독 (사각 체크리스트 대조)
+
+- URL·인용 판정은 `Remove-MarkdownCode` 후 `$clean` 에 적용 → 펜스·백틱 URL 면제 OK(자체테스트 3번이 고정).
+- 기존 `$hasUrl/$hasQuote` 계산을 위로 올려 공유 — 의미 동일, 중복 제거. `declaresAlternativeEvidence` 도 1회 계산으로 통일.
+- 양방 자체테스트: 통과 3종(인용·`[추론]`·코드영역) + 차단 1종(무인용·무태그) + 절 이름 식별 단언. 패킷 §5 (가)1~3·(나)5 충족.
+- warning 배선: `$warnings` + 결과 JSON `checks` 키 양쪽에 추가 — 관측 필드 소비처 배선 OK(B-6).
+
+### 3. census 6 vs 실측 11 — 원인 확정
+
+패킷 census 는 **파일 단위**(파일 어딘가 `^>` 가 있으면 "인용 있음"으로 제외), 감사기는 **절 단위**다. 추가 3파일
+(`개발-기본기`·`보안-베이스라인`·`Threads-콘텐츠-품질`)은 각각 12행의 설명 콜아웃(`> 체크리스트…`) 1개 때문에
+census 에서 빠졌을 뿐, 리뷰어가 직접 연 결과 **근거 절은 전부 URL 보유·인용 0** 이다:
+
+| 절 | 내용 | 판정 |
+|---|---|---|
+| `개발-기본기.md:22 [근거 (검증 출처)]` | Google eng-practices·12factor 등 4 URL | 실제 위반 |
+| `보안-베이스라인.md:41 [근거 (검증 출처)]` | OWASP·MS SDL 4 URL | 실제 위반 |
+| `Threads-콘텐츠-품질.md:39` | 병합 기록 안 `# 근거` 에 Meta 뉴스룸 2 URL(펜스 밖) | 실제 위반 |
+| `Threads-콘텐츠-품질.md:167 [근거 경계]` | Meta 교육자료 URL | 실제 위반 |
+
+패킷 6파일은 Codex 분류와 동일하게 전부 실제 위반(`Meta-자동화-안전-경로` 는 2절). **오탐 0** → §3-1 조건 완화 제안 없음.
+
+### 4. 비블로커 소견 (승인 후 처리, 운영자 선택)
+
+1. **주석 건수 불일치** — `brain-health.ps1` 신규 warning 블록 주석 "적발 6건이 0건이 되면" 은 실측 11절로 교정해야 한다(1줄).
+2. **이중 보고 가능성** — `[공식확인]` 절이 URL 보유·인용 0 이면 기존 error 와 신규 warning 에 **동시** 집계된다. 오늘 실 vault 에서 겹침 0. 패킷 §3-1 문언상 위반은 아니나, 운영자가 원하면 `$usesOwnOfficialTag` 절을 신규 키에서 제외(사각 축소 방향 유지). 제안만.
+3. **인접 사각(범위 밖, 기록)** — `Get-MarkdownSections` 는 `##/###` 만 경계로 보므로 병합 기록 안의 `# 근거`(H1) 는 상위 `###` 절에 흡수된다. 이번엔 적발에 유리하게 작용했지만 H1 절 단위 면제가 생길 수 있다. 별도 패킷 후보.
+4. Codex 가 `GIT_CONFIG_COUNT` 환경변수로 `safe.directory` 를 **프로세스 한정** 주입해 validator 를 돌렸다 — 저장 설정 변경 0(`git -C AI-Brain config --get-all safe.directory` 미확인, 필요 시 운영자 확인).
+
+### 5. 다음 행동 (운영자)
+
+- **결정 1**: 11절 기준선 수용 여부. 수용 시 → 패킷 rev3(§2-2 census 를 절 단위 11절로 정정, §7 "6건 초과" 조건 해제)
+  + 소견 1 주석 교정 후 vault 에서 운영자 commit(Codex·Claude 모두 vault commit 금지).
+- **결정 2**: 적발 11절의 인용 보강은 별도 작업(원 맥락 아는 쪽, 지어내기 금지).
+- sajugen 쪽 산출물(패킷 rev2·notes·이 리뷰·manifest)은 운영자 승인 시 `chore(handoff)` 1커밋.
+
+---
+
 # 교차 리뷰 — 2026-08-22 (천체력 경로 이식성, 리뷰어: Claude read-only)
 
 대상: `ephemeris-path-portability-20260821` rev2 구현(base/HEAD `6e6adca` 위 미커밋) · 구현자 **Codex**

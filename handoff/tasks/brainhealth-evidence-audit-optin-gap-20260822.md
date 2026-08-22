@@ -4,10 +4,14 @@
 - **owner**: **Codex 구현자** (운영자 지정 2026-08-22)
 - **next_reviewer**: **Claude Code 교차리뷰** (read-only, 구현 세션과 분리)
 - **base_commit**: `07e8ca9`
-- **rev**: 1
+- **rev**: 3 (2026-08-22 — 운영자가 리뷰 권장대로 **절 단위 11절**을 기준선으로 수용. §2-2 census 정정, §7 "6건 초과" 정지 조건 해제.)
+- **rev 2 이력** (2026-08-22 — rev1 은 sajugen cwd 발주로 `BLOCKED_ENV`. 원인: `--write`=`workspace-write` 샌드박스라
+  워크스페이스(sajugen) 밖 vault 쓰기가 구조적으로 거부됨. rev2 는 **vault 를 워크스페이스로** 발주한다. §0·§6·§8 개정.)
 
 > ★ **대상이 이 저장소 밖이다.** 수정 파일은 `C:\Users\pc\AI-Brain\_scripts\brain-health.ps1` 하나이며
 > sajugen 저장소에 커밋되지 않는다. §0 의 접근성 확인을 **가장 먼저** 하라.
+> ★ rev2: 이 잡은 **cwd=`C:\Users\pc\AI-Brain`** 으로 발주된다. 따라서 sajugen 저장소(`C:\Users\pc\test-project`)는
+> 이번엔 워크스페이스 **밖**이라 쓰기 불가다 — 읽기만 한다(manifest·패킷 SHA 확인용).
 
 ---
 
@@ -18,6 +22,8 @@
 1. `C:\Users\pc\AI-Brain\_scripts\brain-health.ps1` **읽기** 가능한지 확인한다.
 2. 같은 경로에 **쓰기** 가능한지 확인한다(무해한 방법으로: 임시 파일 생성 후 원복, 또는 권한 조회).
 3. 하나라도 불가하면 **구현하지 말고 `BLOCKED_ENV` 로 정지 보고**한다. 우회하지 않는다.
+4. (rev2) vault 에서 `git` 은 샌드박스 사용자 소유권 불일치로 `dubious ownership` 오류가 난다(rev1 실측).
+   `safe.directory` 를 **설정하지 마라**. §6 의 vault git 확인은 리뷰어가 대신 실행한다.
 
 Codex 상시 금지(PDF 재생성 · LLM/API 호출 · git commit · push · 배포)는 그대로다.
 **vault 는 git repo 이므로 특히 commit·push 금지가 중요하다.** 파일 수정까지만 하고 멈춘다.
@@ -50,6 +56,11 @@ Codex 상시 금지(PDF 재생성 · LLM/API 호출 · git commit · push · 배
 | 근거 태그(`[공식확인]`/`[로컬실측]`/`[로컬정본]`/`[추론]`/`[확인불가]`) 보유 | 13 |
 
 → **75건이 무태그 = 현재 검사 면제.** URL 기준으로 바꿔도 신규 적발은 **6건뿐**이라 홍수가 아니다.
+
+> **rev3 정정**: 위 "6건"은 **파일 단위** 측정(파일 어딘가 `^>` 가 있으면 제외)이었다. 감사기는 **절 단위**라
+> 실측은 **9파일·11절**이다(추가: `20_Coding-Style/개발-기본기.md:22`, `20_Coding-Style/보안-베이스라인.md:41`,
+> `75_Content-Domain/Threads-콘텐츠-품질.md:39,167`; `Meta-자동화-안전-경로` 는 2절). 리뷰어가 4절을 직접 열어
+> 전부 실제 근거 URL·인용 0 으로 확인, 오탐 0. 운영자 수용(2026-08-22). 이후 "6건" 언급은 "11절"로 읽는다.
 
 ### 2-3. 가설이 아니라 **실현된 누출** 1건
 
@@ -152,6 +163,8 @@ pwsh -NoProfile -File C:\Users\pc\AI-Brain\_scripts\brain-health.ps1
 git -C C:\Users\pc\AI-Brain status --short
 ```
 - 통과 기준: **`_scripts/brain-health.ps1` 한 줄만** 나와야 한다(정본 노트 변경 0 실증).
+  (rev2) 단 `_scripts/push-result.txt` 는 **발주 전부터 dirty** 였다(2026-08-22 리뷰어 실측). 이 한 줄은 기존
+  오염이라 무시하며, 그 외 추가 줄이 있으면 실패다. 이 명령은 §0-4 사유로 **리뷰어가 실행**한다.
 - commit·push **금지**. 변경은 워킹트리에 남긴다.
 
 ## 7. 정지 조건 (BLOCKED_CONTRACT / BLOCKED_ENV)
@@ -159,7 +172,7 @@ git -C C:\Users\pc\AI-Brain status --short
 - §0 접근성 확인 실패 → `BLOCKED_ENV`
 - allowed_files 밖 수정이 필요해질 때 → `BLOCKED_CONTRACT`
 - 기존 자체테스트를 고쳐야 통과할 때 → **고치지 말고 정지**(완화 신호다)
-- 신규 검사가 6건을 크게 넘겨 적발할 때 → 오탐 폭발이므로 정지 후 실측 보고
+- ~~신규 검사가 6건을 크게 넘겨 적발할 때 → 오탐 폭발이므로 정지 후 실측 보고~~ (rev3 해제 — 11절 기준선 수용, §2-2 정정 참조)
 - commit·push·배포가 필요해질 때
 
 ## 8. 산출물
@@ -167,7 +180,9 @@ git -C C:\Users\pc\AI-Brain status --short
 - `CODEX_IMPLEMENTATION_REPORT` — 실행 명령 + 출력, **교정 전 RED 실증**, §5-3 대조표(6건 분류),
   exit code 비교, 미검증 항목 분리 명시.
 - 커밋 금지. 운영자 checkpoint 대기.
-- 보고는 이 저장소 `implementation-notes.md` 최상단에 쓴다(대상은 vault 지만 인계 기록은 여기에 모은다).
+- (rev2) 보고는 sajugen 저장소에 **쓸 수 없으므로**(워크스페이스 밖) **최종 응답 본문에 전문을 반환**한다.
+  vault 의 다른 파일(노트·`10_Inbox`·`_scripts` 의 다른 파일)에도 쓰지 않는다. 리뷰어가 독립 검증 뒤
+  `implementation-notes.md` 최상단에 전사하며, rev1 의 `BLOCKED_ENV` 보고는 그 아래 이력으로 남긴다.
 
 ## 9. 리스크 메모
 

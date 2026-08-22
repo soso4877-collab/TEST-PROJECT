@@ -1,5 +1,15 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== ★ 현재 앵커 (2026-08-22 저녁 — 아래 "N-1" 앵커보다 **이 블록이 최신**) =====
+>   [한 줄] 감사기 옵트인 구멍 태스크 `brainhealth-evidence-audit-optin-gap-20260822` 는 Codex 구현(rev2,
+>   cwd=AI-Brain) + Claude 교차리뷰 **CODE_PASS** + 운영자 결정(11절 기준선 수용·커밋 승인)까지 **마감**됐다.
+>   [상태] manifest = 위 task / `done` / `next_actor=none`, archive 됨. sajugen 기록은 `chore(handoff)` 커밋.
+>   [vault 잔여 — 운영자 직접] `C:\Users\pc\AI-Brain\_scripts\brain-health.ps1` 수정본(신규 warning
+>     `external_url_without_quote_or_tag`, 주석 11절)은 **vault 워킹트리 미커밋**. 마감 실측: `-SelfTest` PASS,
+>     실행 exit 0 / ok / errors 0 / 신규 11절. 운영자가 vault 에서 commit. 적발 11절 인용 보강은 별도 작업.
+>   [교훈] Codex `--write` 는 발주 cwd 워크스페이스 한정(`workspace-write`). 저장소 밖 대상은 그 디렉터리에서 발주.
+>   [그 다음] N-1 `partner-ym-flag-direct-access-20260822` 발주(아래 앵커 절차 그대로).
+>
 > ===== ★ 세션 종료 앵커 (2026-08-22 밤 — **내일 재개 시 이 블록만 읽으면 된다**) =====
 >   [한 줄] 천체력 경로 태스크는 **끝났다(커밋 완료)**. 다음 할 일은 **N-1 패킷 발주 하나**다.
 >

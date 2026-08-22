@@ -1,5 +1,64 @@
 # 구현 상태 기록 — 2026-07-10 질문 적응형 풀이
 
+## CODEX_IMPLEMENTATION_REPORT — brainhealth-evidence-audit-optin-gap-20260822 (rev2, 리뷰어 전사)
+
+> 전사 주의: Codex rev2 잡(`task-mt45gfl5-3uxg0b`, cwd=AI-Brain)은 sajugen 에 쓸 수 없어 result 본문으로
+> 보고를 반환했고, 리뷰어(Claude)가 독립 검증 뒤 요지를 전사한다. 원문 전문은 Codex 세션
+> `01a028b4-c25f-7501-bf86-40ed7d7d1493`. 리뷰어 판정·재실행 수치는 `REVIEW-FEEDBACK.md` 최상단.
+
+- 판정: **BLOCKED_CONTRACT** — 패킷 §7 "신규 검사가 6건을 넘겨 적발" 조건 발동(실측 9파일·11절).
+  구현·자체테스트는 완료 상태로 vault 워킹트리에 남김. commit/push/LLM 0.
+- manifest validate 통과, 패킷 SHA `7572f49d…3670` 일치(LF 정규화). ACL `CodexSandboxUsers:(M)`. `git config` 영구 변경 0.
+- 변경 파일: `C:\Users\pc\AI-Brain\_scripts\brain-health.ps1` 1개(raw SHA-256 `071556e8…815b6`, +45/-3).
+  - `Get-EvidenceAudit` 에 `external_url_without_quote_or_tag` 신규 키: `$clean`(코드 제거본)에 URL 있고
+    Markdown 인용·대체 태그(`Test-TextDeclaresAlternativeEvidenceTag` 재사용) 둘 다 없으면 적발.
+  - warning 배선 + 결과 JSON `checks` 키 추가. 기존 `official_without_quote`/`local_tagged_official` 무수정.
+  - 자체테스트: 통과 3종(인용·`[추론]`·펜스/백틱) + 차단 1종 + 절 식별 단언.
+- 교정 전 RED(Codex 실행, PS5.1): `SELFTEST 실패: URL 무인용·무태그 절 검출(actual=0)` exit 1.
+- 수정 후(Codex, PS5.1 대체 — 샌드박스에서 pwsh 접근 거부): `SELFTEST=PASS` exit 0; 실 vault `status ok` /
+  `errors []` / exit 0 / 기존 warning 6 동일 + 신규 1(11절).
+- §5-3 분류: 패킷 6파일 전부 실제 위반(`Meta-자동화-안전-경로` 2절 → 7 finding) + 추가 `개발-기본기`·
+  `보안-베이스라인`·`Threads-콘텐츠-품질`(2절) = 9파일·11절. 오탐 0.
+- 미검증(Codex 자진 분리): 패킷 지정 `pwsh` 명령 실행, vault `git status`, 주석 "기준 6건" 불일치.
+  → 리뷰어가 전부 재실행해 닫음(REVIEW-FEEDBACK §1).
+
+## CODEX_IMPLEMENTATION_REPORT — brainhealth-evidence-audit-optin-gap-20260822 (rev1 — BLOCKED_ENV, 이력)
+
+- 판정: **BLOCKED_ENV**. TASK_PACKET §0 접근성 게이트에서
+  `C:\Users\pc\AI-Brain\_scripts\brain-health.ps1` 읽기는 성공했지만 같은 디렉터리 쓰기가
+  샌드박스 권한으로 거부됐다. 패킷 지시에 따라 구현 전에 즉시 정지했다.
+- 활성 지시문: `node C:\Users\pc\.ai-harness\handoff.mjs validate --repo C:\Users\pc\test-project`
+  → `HANDOFF_VALID task_id=brainhealth-evidence-audit-optin-gap-20260822 status=planned next_actor=codex`,
+  exit 0.
+- SHA 확인: Git canonical LF 기준 packet
+  `17a293978e617f9ef9ced4303dc93f181100bc706f42dfd5040a5ff0212a1a1b`, notes
+  `f856491f475d72ac322335c75718aef498ac9e4ed6e4389d36936e6e7f44072c`, review
+  `c78144066cddc3b445d230d676dfa59f1a8dd417bad9b91e3e112c906fe78f65`로 manifest와 모두 일치했다.
+  체크아웃 파일은 `core.autocrlf=true`로 CRLF라 raw 바이트 해시는 다르며,
+  `git ls-files --eol`에서 세 파일 모두 `i/lf w/crlf`임을 확인했다.
+
+### Section 0 접근성 실증
+
+- 읽기: `type C:\Users\pc\AI-Brain\_scripts\brain-health.ps1 > NUL` → 무출력 / **exit 0**.
+- 쓰기 대상 정규화:
+  `for %I in (C:\Users\pc\AI-Brain\_scripts\.codex-write-probe-20260822.tmp) do @echo %~fI`
+  → 의도한 절대 경로와 일치 / exit 0.
+- 쓰기: `copy /Y NUL C:\Users\pc\AI-Brain\_scripts\.codex-write-probe-20260822.tmp`
+  → `액세스가 거부되었습니다. 0개 파일이 복사되었습니다.` / **exit 1**.
+- 잔재 확인: 동일 임시 경로 `if exist` 확인 → `ABSENT` / exit 0. 임시 파일은 생성되지 않았다.
+- 대상 vault Git 상태 확인도 sandbox 사용자의 소유권 불일치로
+  `fatal: detected dubious ownership in repository at 'C:/Users/pc/AI-Brain'` / exit 128이었다.
+  `safe.directory` 설정은 권한·범위 밖이라 변경하지 않았다.
+
+### 미실행·미검증
+
+- `brain-health.ps1` 수정 0, vault 정본 노트 수정 0.
+- 교정 전 RED, 신규 양방 자체테스트, 실제 vault 6건 대조표는 §0 실패로 **미실행**이다.
+- 수정 전후 `status: ok` / `errors: []` / exit 0 비교도 **미검증**이다. 접근성 실패 뒤 감사기를
+  실행하면 패킷의 "즉시 정지" 조건을 위반하므로 실행하지 않았다.
+- commit·push·배포·PDF 재생성·LLM/API 호출 0. 다음 행동은 AI-Brain 쓰기 권한이 있는 환경에서
+  동일 패킷을 다시 시작해 §0부터 재검증하는 것이다.
+
 ## CODEX_IMPLEMENTATION_REPORT — ephemeris-path-portability-20260821
 
 - 판정: **EVIDENCE_SPLIT_PASS**. 천체력 경로 단일 소스·누락 fail-closed·신규 양방 테스트 6건을
