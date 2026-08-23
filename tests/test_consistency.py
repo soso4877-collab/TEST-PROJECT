@@ -95,7 +95,14 @@ def test_verify_gate_fails_on_mixed_daewoon_pdf():
     from sajugen.render import verify as v
 
     report, fake_saju, bp = _mixed_daewoon_pdf_input()
-    path = render_pdf.render_pdf(report, fake_saju, "test_daewoon_gate.pdf", name="", brand=bp)
+    path = render_pdf.render_pdf(
+        report,
+        fake_saju,
+        "test_daewoon_gate.pdf",
+        name="",
+        birth_time_mode="known",
+        brand=bp,
+    )
     r = v.verify(path)
     assert set(r["daewoon_current"]) == {"정미", "병오"}, r["daewoon_current"]
     assert r["daewoon_consistent"] is False
@@ -106,7 +113,13 @@ def test_mixed_daewoon_fixture_uses_sajudoryeong():
     from sajugen.render import pdf as render_pdf
 
     report, fake_saju, bp = _mixed_daewoon_pdf_input()
-    html = render_pdf.render_html(report, fake_saju, name="", brand=bp)
+    html = render_pdf.render_html(
+        report,
+        fake_saju,
+        name="",
+        birth_time_mode="known",
+        brand=bp,
+    )
     assert "사주도령" in html
     assert "서담선생" not in html
 

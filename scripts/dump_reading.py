@@ -52,7 +52,13 @@ with open(out_md, "w", encoding="utf-8") as f:
 
 # 2) 실제 PDF
 age = int(HOROSCOPE[:4]) - Y
-pdf_path = render_pdf.render_pdf(rep, saju, "reading_preview.pdf", age=age, brand=cfg.brand("sajudoryeong"))
+pdf_path = render_pdf.render_pdf(
+    rep,
+    saju,
+    "reading_preview.pdf",
+    birth_time_mode=saju.birth_time_mode.value,
+    brand=cfg.brand("sajudoryeong"),
+)
 
 print("TEXT:", out_md)
 print("PDF :", pdf_path)

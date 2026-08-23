@@ -175,7 +175,13 @@ def test_render_pdf_requires_explicit_brand_before_pdf_generation(monkeypatch, b
     saju = types.SimpleNamespace(input_civil="synthetic")
 
     with pytest.raises(ValueError, match=match):
-        render_pdf.render_pdf(report, saju, "should_not_be_created.pdf", brand=brand)
+        render_pdf.render_pdf(
+            report,
+            saju,
+            "should_not_be_created.pdf",
+            birth_time_mode="known",
+            brand=brand,
+        )
 
     assert makedirs_calls == []
 

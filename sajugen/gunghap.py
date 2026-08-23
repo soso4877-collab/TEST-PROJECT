@@ -1118,6 +1118,8 @@ def build_gunghap(
             fake_saju,
             out_name,
             name="",
+            # 관계 리포트는 출생시간을 모두 받은 known 전용 경로다.
+            birth_time_mode="known",
             brand=bp,
             chapter_breaks=True,
             body_font_size=body_font_size,

@@ -75,6 +75,7 @@ def _render_and_verify(data: dict, tmp_path: Path, monkeypatch: pytest.MonkeyPat
         data["out_name"],
         out_dir=out_dir,
         name="",
+        birth_time_mode="known",
         brand=cfg.brand("seodam"),
     )
     pdf_file = _assert_tmp_only(pdf_path, tmp_path)

@@ -27,6 +27,7 @@ def rendered_pdf():
         report,
         saju,
         "test_saju_report.pdf",
+        birth_time_mode="known",
         brand=cfg.brand("sajudoryeong"),
     )
     return pdf, render_verify.verify(pdf), report, saju
@@ -103,7 +104,13 @@ def test_brand_profile_in_html():
     bp = cfg.brand("seodam")
     saju = engine.build(2000, 1, 1, 12, 0, is_male=True, horoscope_date="2026-06-01")
     report = builder.build_report(saju, use_llm=False)
-    html = render_pdf.render_html(report, saju, name="홍길동", brand=bp)
+    html = render_pdf.render_html(
+        report,
+        saju,
+        name="홍길동",
+        birth_time_mode="known",
+        brand=bp,
+    )
     assert "서담선생" in html
     # 브랜드 계약(2026-06-14 개정): 미지정→default, 프리셋 키→그 프로필, 그 외 임의 문구→그 문구로 합성
     assert cfg.brand(None)["seal"] == "사주명리"  # 미지정 = default
@@ -115,7 +122,13 @@ def test_positive_render_fixture_uses_sajudoryeong_html_boundary():
     saju = engine.build(2000, 1, 1, 12, 0, is_male=True, horoscope_date="2026-06-01")
     report = builder.build_report(saju, use_llm=False)
 
-    html = render_pdf.render_html(report, saju, name="홍길동", brand=brand)
+    html = render_pdf.render_html(
+        report,
+        saju,
+        name="홍길동",
+        birth_time_mode="known",
+        brand=brand,
+    )
 
     assert brand["seal"] == "사주도령"
     assert "사주도령" in html
@@ -161,7 +174,12 @@ def test_render_requires_explicit_brand():
     saju = engine.build(2000, 1, 1, 12, 0, is_male=True, horoscope_date="2026-06-01")
     report = builder.build_report(saju, use_llm=False)
     with pytest.raises(ValueError, match="brand"):
-        render_pdf.render_html(report, saju, name="홍길동")
+        render_pdf.render_html(
+            report,
+            saju,
+            name="홍길동",
+            birth_time_mode="known",
+        )
 
 
 def _fake_report():
@@ -230,7 +248,11 @@ def test_render_pdf_keeps_brand_profile_separate_from_browser(tmp_path, monkeypa
     monkeypatch.setattr(render_pdf, "harden_pdf_ua", lambda *args, **kwargs: None)
 
     path = render_pdf.render_pdf(
-        report, saju, "brand_contract.pdf", brand=cfg.brand("sajudoryeong")
+        report,
+        saju,
+        "brand_contract.pdf",
+        birth_time_mode="known",
+        brand=cfg.brand("sajudoryeong"),
     )
 
     assert seen["seal_text"] == "사주도령"
@@ -256,7 +278,13 @@ def test_render_pdf_does_not_publish_partial_pdf_when_postprocess_fails(tmp_path
     monkeypatch.setattr(render_pdf, "harden_pdf_ua", lambda *args, **kwargs: None)
 
     with pytest.raises(RuntimeError, match="postprocess failed"):
-        render_pdf.render_pdf(report, saju, target.name, brand=cfg.brand("sajudoryeong"))
+        render_pdf.render_pdf(
+            report,
+            saju,
+            target.name,
+            birth_time_mode="known",
+            brand=cfg.brand("sajudoryeong"),
+        )
 
     assert target.read_bytes() == b"existing-target"
     leftovers = [p.name for p in tmp_path.iterdir() if p.suffix == ".pdf" and p.name != target.name]

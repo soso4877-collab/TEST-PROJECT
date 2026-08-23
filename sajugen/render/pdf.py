@@ -88,21 +88,19 @@ def render_html(
     saju,
     name: str | None = None,
     unknown_time: bool = False,
-    birth_time_mode: str | None = None,
+    *,
+    birth_time_mode: str,
     three_pillar_provenance: object | None = None,
     brand: dict | None = None,
     chapter_breaks: bool = True,
     body_font_size: str = "14.5pt",
     body_line_height: str = "1.8",
 ) -> str:
-    report_mode = birth_time_mode or getattr(report, "birth_time_mode", None)
+    if birth_time_mode is None:
+        raise ValueError("birth_time_mode is required at render boundary")
     report_provenance = getattr(report, "three_pillar_provenance", None)
-    if report_mode is None and (
-        three_pillar_provenance is not None or report_provenance
-    ):
-        report_mode = unknown_time_policy.THREE_PILLAR_MODE
     birth_time_mode = unknown_time_policy.normalize_mode(
-        report_mode,
+        birth_time_mode,
         unknown_time=unknown_time,
     )
     three_pillar = birth_time_mode == unknown_time_policy.THREE_PILLAR_MODE
@@ -224,7 +222,8 @@ def render_pdf(
     out_name: str = "saju_report.pdf",
     name: str | None = None,
     unknown_time: bool = False,
-    birth_time_mode: str | None = None,
+    *,
+    birth_time_mode: str,
     three_pillar_provenance: object | None = None,
     brand: dict | None = None,
     chapter_breaks: bool = True,

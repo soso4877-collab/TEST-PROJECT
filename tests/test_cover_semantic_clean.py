@@ -54,6 +54,7 @@ def _render(input_civil: str, *, name: str = "", unknown_time: bool = False) -> 
         SimpleNamespace(input_civil=input_civil),
         name=name,
         unknown_time=unknown_time,
+        birth_time_mode="three_pillar" if unknown_time else "known",
         brand=_brand(),
     )
 

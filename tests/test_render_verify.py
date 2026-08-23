@@ -179,7 +179,14 @@ def _render_sections(secs, out_name, input_civil="테스트"):
     report = SimpleNamespace(sections=secs)
     fake_saju = SimpleNamespace(input_civil=input_civil)
     bp = dict(cfg.brand("seodam"))
-    return render_pdf.render_pdf(report, fake_saju, out_name, name="", brand=bp)
+    return render_pdf.render_pdf(
+        report,
+        fake_saju,
+        out_name,
+        name="",
+        birth_time_mode="known",
+        brand=bp,
+    )
 
 
 _FULL = ["김민준", "이서연", "박도윤"]
@@ -462,6 +469,7 @@ def test_toc_two_column_threshold_boundary():
             SimpleNamespace(sections=secs),
             SimpleNamespace(input_civil="테스트"),
             name="",
+            birth_time_mode="known",
             brand=dict(cfg.brand("seodam")),
         )
 

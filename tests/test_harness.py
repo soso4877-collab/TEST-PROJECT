@@ -1117,6 +1117,7 @@ def test_hverify_calls_verify_on_rendered_pdf(tmp_path, monkeypatch):
         SimpleNamespace(input_civil="테스트"),
         "test_harness_render.pdf",
         name="",
+        birth_time_mode="known",
         brand=bp,
     )
     prof = {
