@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "task_id": "birth-time-mode-direct-access-20260823",
-  "status": "done",
-  "base_commit": "4f23ebd08bf47c64fab99262961a0dae94217997",
-  "packet_path": "handoff/tasks/birth-time-mode-direct-access-20260823.md",
-  "packet_sha256": "9da8f15626ed5279f841c926db75a98476a1ff95d429f9933ee7e5afdbdb21bf",
+  "task_id": "render-birth-time-mode-required-20260823",
+  "status": "planned",
+  "base_commit": "a8840deacdd4f6eecc0f31cead93a9440f11bf82",
+  "packet_path": "handoff/tasks/render-birth-time-mode-required-20260823.md",
+  "packet_sha256": "e27c6639dded6ece729043281a0e3a6feb246e5efd115d3e856b2635875ee32f",
   "notes_path": "implementation-notes.md",
   "notes_sha256": "6d2b17dd51589ddd6c221504b069226bc71a496aec1a2d7e669289f496196f81",
   "review_path": "REVIEW-FEEDBACK.md",
   "review_sha256": "0d2ff369fa0ed0de22c353418af6b96f0f463ecbaf74d01e9392e1b3483a3e75",
-  "next_actor": "none",
-  "next_action": "마감. 교차리뷰 CODE_PASS 후 checkpoint 4f23ebd. 새 기준선 1299 passed / 14 skipped / exit 0, 수집 1313. 후속 소견: render/pdf.py:98 같은 계열 getattr 1곳(소형 패킷 후보). 남은 이월 N-5.",
-  "updated_at": "2026-08-22T23:57:45.814Z"
+  "next_actor": "codex",
+  "next_action": "렌더 경계 birth_time_mode 키워드 필수화 + render/pdf.py:98-103 report 스니핑·None 추론 제거. 호출자 gunghap:1116 명시, 테스트 18곳 kwarg 추가(단언 무수정). render 변경이라 gate_pass 비악화 + HTML 바이트 동치 + 양방(RED 3종). 기준선 1299/14. commit/push 금지.",
+  "updated_at": "2026-08-23T00:04:55.448Z"
 }
