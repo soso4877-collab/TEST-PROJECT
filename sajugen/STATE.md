@@ -1,5 +1,20 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== ★ 압축 재개 앵커 (2026-08-23 — **N-5 조사 착수 직전**, 이 블록만 읽으면 재개된다) =====
+>   [지금 상태] HEAD `b3be410` 이후 docs 커밋 1개, branch `codex/gunghap-relationship-quality`, **origin 동기**, tree clean.
+>     manifest = `render-birth-time-mode-required-20260823` / `done` / `next_actor=none` (활성 패킷 없음).
+>     기준선 = **1303 passed / 14 skipped / exit 0**, 수집 1317 (격자 10건은 `SAJUGEN_QIYUN_GRID_SWEEP=1` 옵트인 skip 포함).
+>   [오늘 마감(8/22~23)] 감사기 옵트인 구멍(vault) · N-1 억제 플래그 · F-1 起運 축 이관(+rev4 격자 옵트인) · birth_time_mode getattr 5곳 ·
+>     렌더 경계 birth_time_mode 필수화. 제품 커밋 `537898c`·`3a0754c`·`cda93d5`·`4f23ebd`·`79f9861`. "조용한 기본값" 계열 3건 전부 종결.
+>   [워크플로 규칙(운영자 확정)] Codex 구현 → Claude 교차리뷰(재실행 수치만) → "권장대로" 시 자동: 제품 커밋→manifest done·archive→기록 커밋→push.
+>     Codex 발주: `--background --write --fresh`, 발주 직후 state.json status 확인(조용한 failed), 감시=로그 갱신+state.json, 10분 HEARTBEAT.
+>     저장소 밖 대상은 그 root 에서 발주. AI-Brain 캡처 4조건은 **자동** Inbox 작성, 수확 카드는 제안형.
+>   [다음 = N-5] "factcheck 일상어 동형 예외 / 다인 allow-set 공유" — 구조 변경 + 운영자 판단. 착수 순서: (1) 정본 진단 위치 찾기
+>     (`REVIEW-FEEDBACK.md`·이 파일의 N-5 언급·`docs/16`) → (2) `content/factcheck.py` 현행 allow-set 구조 실측 → (3) 옵션 3안 + 프리모템 →
+>     운영자 결정 → 패킷. 아직 조사 시작 전.
+>   [다른 세션 담당] 모델 운영 정책 정본 개정(vault `70_AI-Collab/모델-운영-정책.md`) — 이 세션 무개입.
+>
+
 > ===== ★ 최신 앵커 (2026-08-23 — 렌더 경계 `birth_time_mode` 필수화 교차리뷰 **CODE_PASS** → 마감) =====
 >   [한 줄] 조용한 기본값 계열 3번째(마지막): `render_html/render_pdf` 키워드 필수 + report 스니핑·provenance 추론 제거, `gunghap` 명시,
 >   `dump_reading.py` 복구. sajugen 내 `getattr(…,"birth_time_mode")` 잔존 0.
