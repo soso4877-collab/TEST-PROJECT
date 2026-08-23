@@ -1,5 +1,14 @@
 # sajugen 진행 상태 (SSOT) - 세션 시작 시 이 파일 먼저 읽기
 
+> ===== ★ 최신 앵커 (2026-08-23 — 렌더 경계 `birth_time_mode` 필수화 교차리뷰 **CODE_PASS** → 마감) =====
+>   [한 줄] 조용한 기본값 계열 3번째(마지막): `render_html/render_pdf` 키워드 필수 + report 스니핑·provenance 추론 제거, `gunghap` 명시,
+>   `dump_reading.py` 복구. sajugen 내 `getattr(…,"birth_time_mode")` 잔존 0.
+>   [증거] 리뷰어 재실행 **1303 passed / 14 skipped / exit 0**(기준선 1299 + 신규 4). HTML 바이트 동치 독립 재검산 equal(known·three_pillar).
+>     `render/verify.py` 무변경(gate_pass 비악화). ruff 0.
+>   [새 기준선] **1303 passed / 14 skipped**, 수집 1317.
+>   [남은 이월] N-5 factcheck 일상어 동형 예외(운영자 판단 필요) / 모델 운영 정책 정본 개정은 다른 세션.
+>
+
 > ===== ★ 최신 앵커 (2026-08-23 — `birth_time_mode` getattr 기본값 제거 교차리뷰 **CODE_PASS** → 마감) =====
 >   [한 줄] 조용한 기본값 계열 2번째(N-1 `ym_time_dependent` 다음) — `getattr(…,"birth_time_mode",None)` 5곳 제거, `personal_identity_spec`
 >   키워드 필수 + 호출자 5곳 명시 배선. follow-up 은 `report_birth_time_mode(parent)` 정본 규칙으로 키 항상 구성.

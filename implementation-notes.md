@@ -1,3 +1,87 @@
+# CODEX_IMPLEMENTATION_REPORT — render-birth-time-mode-required-20260823
+
+- 판정: **EVIDENCE_SPLIT_PASS**. `render_html`/`render_pdf`의 `birth_time_mode`를
+  키워드 필수 인자로 바꾸고, report 객체 스니핑과 provenance 기반 모드 추론을 제거했다.
+  `None`은 `ValueError("birth_time_mode is required at render boundary")`로 차단한다.
+  `render/verify.py`와 `gate_pass` 구성, 기존 테스트 단언은 수정하지 않았다.
+- 인계: `node C:/Users/pc/.ai-harness/handoff.mjs validate --repo C:/Users/pc/test-project`
+  → `HANDOFF_VALID task_id=render-birth-time-mode-required-20260823 status=planned next_actor=codex`,
+  exit 0. packet SHA-256
+  `e27c6639dded6ece729043281a0e3a6feb246e5efd115d3e856b2635875ee32f`가 manifest와
+  일치했다. 현재 HEAD는 `dd52f7704a013bbbefbfc02e446cd6a7afe6b4f3`이며 작업은 미커밋이다.
+
+## 구현과 호출자 배선
+
+| 호출자 | 명시 전달 | 판정 |
+|---|---|---|
+| `sajugen/pipeline.py` | 정규화된 `mode` | 기존 명시 배선 확인, 무수정 |
+| `sajugen/order_flow.py` follow-up·최종 발급 | 저장 렌더 문맥 모드·`birth_time_mode.value` | 기존 명시 배선 확인, 무수정 |
+| `sajugen/integrated.py` | `_render_integrated` 정규화값 | 기존 명시 배선 확인, 무수정 |
+| `sajugen/gunghap.py` | 관계 리포트 전용 `"known"` | 누락 호출 교정 |
+| `scripts/dump_reading.py` | `saju.birth_time_mode.value` | 존재하지 않는 `age=` 제거와 함께 교정 |
+| 허용 기존 테스트 8파일의 18호출 | 14곳 추가, 삼주 테스트 4곳 기존 명시 확인 | 단언 수정 0 |
+
+- `render_html`은 provenance 인자 우선·report provenance 데이터 폴백은 유지하되,
+  report의 `birth_time_mode`는 더 이상 읽지 않는다.
+- 신규 회귀 4건은 모드 누락·명시적 `None`·provenance 추론을 차단하고, 명시적 삼주
+  모드에서 `assert_unknown_time_provenance_clean`의 금칙 사실 차단이 유지됨을 검증한다.
+
+## 교정 전 RED 3종
+
+제품 코드 수정 전
+`.venv\Scripts\python.exe -m pytest tests\test_render_birth_time_mode_required.py -q`
+→ **3 failed, 1 passed / exit 1 / 3.44s**.
+
+1. 모드 kwarg 누락: `Failed: DID NOT RAISE TypeError`.
+2. `birth_time_mode=None`: `Failed: DID NOT RAISE ValueError`.
+3. 모드 없는 report에 provenance만 전달: `Failed: DID NOT RAISE TypeError` — 기존 함수가
+   provenance를 보고 삼주로 추론해 렌더를 완료한 경로다.
+4. 명시적 삼주 모드의 provenance 금칙 사실 차단은 교정 전에도 통과했다.
+
+교정 후 같은 파일 → **4 passed / exit 0 / 3.36s**.
+
+## HTML 바이트 동치와 gate 비악화
+
+- `git show a8840de:sajugen/render/pdf.py`를 현재 패키지 문맥의 별도 모듈로 로드하고,
+  동일한 결정론 `Report23`를 구·신 `render_html`에 전달해 UTF-8 바이트를 직접 비교했다.
+- known 정본: **56,999 bytes**, SHA-256
+  `1b245147a1e5e0796f08437758bc6d06db76a45ff3ef76951392c9d7eb08ee12`, `equal=true`.
+- three-pillar 정본: **32,266 bytes**, SHA-256
+  `8a6cbc7a6d211afaaf4b6840a1b5cd9303e71fedbcb18e1201417afff4d71cef`, `equal=true`.
+- 비교는 HTML만 생성했으며 임시 검증 스크립트는 실행 뒤 삭제했다. PDF 재생성은 하지 않았다.
+- `git diff --exit-code -- sajugen/render/verify.py` → exit 0. `gate_pass` 구성 변경 0.
+
+## 검증
+
+- 지정 인접 묶음:
+  `.venv\Scripts\python.exe -m pytest tests\test_render_birth_time_mode_required.py tests\test_render_verify.py tests\test_unknown_time_provenance_gate.py tests\test_p4.py tests\test_consistency.py -q`
+  → **72 passed, 21 skipped / exit 0 / 38.38s**.
+- 첫 전체 실행은 테스트 호출부의 `unknown_time=True`에 `"known"`을 넣은 모순을 포착해
+  **1 failed, 1274 passed, 42 skipped / exit 1**이었다. 기존 단언을 유지한 채 그 호출 kwarg만
+  `"three_pillar" if unknown_time else "known"`으로 교정했고, 해당 파일은 **5 passed**였다.
+- 최종 전체:
+  `.venv\Scripts\python.exe -m pytest tests\ -q`
+  → **1275 passed, 42 skipped / exit 0 / 143.60s**. 패킷이 명시한 이 샌드박스의
+  Playwright 추가 skip 28건을 분리하면 기준환경 기대치는 기존 `1299/14` + 신규 4건 =
+  **1303 passed / 14 skipped**다. 실행된 테스트 실패는 0이다.
+- Ruff: `.venv\Scripts\python.exe -m ruff check <변경 Python 파일>`
+  → `All checks passed!` / exit 0.
+- 스크립트 구문: `.venv\Scripts\python.exe -m py_compile scripts\dump_reading.py`
+  → exit 0.
+- `git diff --check` → exit 0(CRLF 안내만).
+
+## 파일 경계·미검증·남은 위험
+
+- 변경은 패킷 허용 파일 중 제품 3개, 기존 테스트 호출부 7개, 신규 테스트 1개,
+  `implementation-notes.md`뿐이다. `tests/test_unknown_time_provenance_gate.py`의 기존 명시
+  호출 4곳은 확인만 했고 무수정이며, `sajugen/STATE.md`도 수정하지 않았다.
+- 기준환경의 `1303 passed / 14 skipped`는 이 샌드박스에서 직접 실행할 수 없어
+  **미검증**으로 분리한다. 직접 실행 증거는 `1275/42`다.
+- commit·push·deploy·LLM/API 호출·PDF 재생성은 모두 0이다. 다음은 Claude Code의
+  read-only 교차리뷰다.
+
+---
+
 # CODEX_IMPLEMENTATION_REPORT — birth-time-mode-direct-access-20260823 (rev2)
 
 - 판정: **EVIDENCE_SPLIT_PASS**. `birth_time_mode` 객체 속성 부재를 `known`으로 바꾸던

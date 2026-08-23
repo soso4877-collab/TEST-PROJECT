@@ -1,3 +1,34 @@
+# 교차 리뷰 — 2026-08-23 (렌더 경계 `birth_time_mode` 필수화·report 스니핑 제거, 리뷰어: Claude read-only)
+
+대상: `render-birth-time-mode-required-20260823` rev1 구현(base/HEAD `dd52f77` 위 미커밋) · 구현자 Codex(잡 `task-mt51ph8c-lbj7ps`, effort high).
+리뷰어 재실행 수치만 기록. 리뷰 중 제품·테스트 수정 0(scratch 재검산 스크립트만).
+
+## 최종 판정: **승인(CODE_PASS)** — 블로커 0, 소견 0. 판정값 `verified / next_actor=user`.
+
+### 1. 증거 (리뷰어 재실행)
+| 검사 | 결과 |
+|---|---|
+| `git merge-base --is-ancestor dd52f77 HEAD` | exit 0 |
+| `git status` | 제품 2(`render/pdf.py`·`gunghap.py`) + `scripts/dump_reading.py` + 테스트 7 수정 + 신규 1 + notes. forbidden 0. `git diff --exit-code -- render/verify.py` exit 0(게이트 무변경) |
+| `pytest tests/ -q` | **1303 passed / 14 skipped / exit 0**, 193s. 기준선 1299 + 신규 4, 감소 0. Codex 1275/42 는 Playwright skip 28 차이 |
+| 인접 8파일 묶음(render_verify·provenance_gate·p4·consistency·relationship·cover·harness·신규) | **146 passed / exit 0**, 67s |
+| **HTML 바이트 동치(독립 재검산)** | `git show a8840de:sajugen/render/pdf.py` 를 별도 모듈로 로드해 같은 `Report23` 로 구·신 `render_html` 대조: known 56,973B sha `c9719d08…` **equal**, three_pillar 32,240B sha `36680e23…` **equal**. 교정 전 함수는 모드 없이 조용히 통과(known 폴백) → 현재 `TypeError` |
+| `ruff` 변경 11파일 / `py_compile scripts/dump_reading.py` | 0 / exit 0 |
+| 교정 전 RED | Codex 3 failed(DID NOT RAISE TypeError·ValueError·TypeError) — 리뷰어가 위 재검산에서 "old no-mode: PASSED silently" 로 동일 현상 재현 |
+
+### 2. diff 판독
+- `render_html`/`render_pdf`: `*, birth_time_mode: str` 키워드 필수, `None` → `ValueError("birth_time_mode is required at render boundary")`,
+  98행 getattr 과 100-103행 provenance 추론 제거. provenance **데이터** 폴백(99·109-113)과 `assert_unknown_time_provenance_clean` 유지.
+- `gunghap.py:1121` `birth_time_mode="known"` 명시(관계 리포트 known 전용, 주석). `dump_reading.py` 존재하지 않던 `age=` 제거 + 모드 전달.
+- 테스트 7파일: 호출 kwarg 추가만, 단언 변경 0. `test_render_gate_e2e` 는 `"three_pillar" if unknown_time else "known"` 으로 `unknown_time`
+  과의 모순(normalize 충돌) 회피 — 올바른 처리(Codex 가 첫 전체 실행에서 1 failed 로 포착 후 교정).
+- 신규 4건: TypeError·ValueError·provenance 추론 차단·삼주 금칙 사실 가드 유지.
+
+### 3. 기록
+조용한 기본값 계열 3건(`ym_time_dependent`→`birth_time_mode` 5곳→렌더 경계) 모두 마감. sajugen 내 `getattr(…, "birth_time_mode")` 잔존 **0**.
+
+---
+
 # 교차 리뷰 — 2026-08-23 (`birth_time_mode` getattr 기본값 제거, 리뷰어: Claude read-only)
 
 대상: `birth-time-mode-direct-access-20260823` rev2 구현(base/HEAD `5079bc4` 위 미커밋) · 구현자 Codex(rev1 잡 `task-mt4zt0ss-rcbtiv`
